@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.IOException;
@@ -88,6 +89,26 @@ public class JsonUtil {
     @NonNull
     public static ObjectNode createObjectNode(ObjectMapper objectMapper) {
         return objectMapper.createObjectNode();
+    }
+
+    /**
+     * Creates default ArrayNode instance.
+     *
+     * @return ArrayNode
+     */
+    public static ArrayNode createArray() {
+        return createArray(DEFAULT_JSON_MAPPER);
+    }
+
+    /**
+     * Creates ArrayNode with custom ObjectMapper.
+     *
+     * @param objectMapper ObjectMapper instance
+     * @return ArrayNode
+     */
+    @NonNull
+    public static ArrayNode createArray(ObjectMapper objectMapper) {
+        return objectMapper.createArrayNode();
     }
 
     /**
@@ -259,6 +280,28 @@ public class JsonUtil {
      */
     public static <T> T convert(Object obj, Class<T> type, ObjectMapper objectMapper) {
         return objectMapper.convertValue(obj, type);
+    }
+
+    /**
+     * Parses JSON string to ObjectNode.
+     *
+     * @param jsonStr JSON string
+     * @return ObjectNode
+     */
+    public static ObjectNode readObjectNode(String jsonStr) {
+        if (jsonStr == null || jsonStr.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = DEFAULT_JSON_MAPPER.readTree(jsonStr);
+            if (node instanceof ObjectNode) {
+                return (ObjectNode) node;
+            }
+            throw new RuntimeException("JSON is not an object: " + jsonStr);
+        } catch (IOException e) {
+            log.error("Failed to parse JSON object: json={}, error={}", jsonStr, e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
     }
 
     /**

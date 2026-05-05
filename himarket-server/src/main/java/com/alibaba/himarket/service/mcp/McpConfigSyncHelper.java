@@ -20,7 +20,6 @@
 package com.alibaba.himarket.service.mcp;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.utils.IdGenerator;
@@ -43,6 +42,11 @@ import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Iterator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,17 +117,18 @@ public class McpConfigSyncHelper {
         }
 
         try {
-            cn.hutool.json.JSONObject mcpJson = JSONUtil.parseObj(mcpConfigStr);
-            String protocol = mcpJson.getByPath("meta.protocol", String.class);
-            if (StrUtil.isNotBlank(protocol)) {
-                meta.setProtocolType(McpProtocolUtils.normalize(protocol));
+            ObjectNode mcpJson = JsonUtil.readObjectNode(mcpConfigStr);
+            JsonNode protocolNode = mcpJson.path("meta").path("protocol");
+            if (!protocolNode.isMissingNode()) {
+                meta.setProtocolType(McpProtocolUtils.normalize(protocolNode.asText()));
             }
-            String tools = mcpJson.getStr("tools");
+            String tools = mcpJson.path("tools").asText();
             if (StrUtil.isNotBlank(tools) && StrUtil.isBlank(meta.getToolsConfig())) {
                 meta.setToolsConfig(McpToolsConfigParser.normalize(tools));
             }
             String standardConfig =
-                    convertToStandardConnectionConfig(mcpJson, meta.getMcpName(), protocol);
+                    convertToStandardConnectionConfig(
+                            mcpJson, meta.getMcpName(), protocolNode.asText());
             meta.setConnectionConfig(
                     StrUtil.isNotBlank(standardConfig) ? standardConfig : mcpConfigStr);
         } catch (Exception e) {
@@ -136,16 +141,16 @@ public class McpConfigSyncHelper {
     private String fetchGatewayConfig(SaveMcpMetaParam param) {
         Object refConfigObj = null;
         if (StrUtil.isNotBlank(param.getRefConfig())) {
-            cn.hutool.json.JSONObject refJson = JSONUtil.parseObj(param.getRefConfig());
-            String fromGatewayType = refJson.getStr("fromGatewayType");
+            ObjectNode refJson = JsonUtil.readObjectNode(param.getRefConfig());
+            String fromGatewayType = refJson.path("fromGatewayType").asText();
             if ("HIGRESS".equals(fromGatewayType)) {
                 refConfigObj =
-                        JSONUtil.toBean(
+                        JsonUtil.parse(
                                 param.getRefConfig(),
                                 com.alibaba.himarket.support.product.HigressRefConfig.class);
             } else {
                 refConfigObj =
-                        JSONUtil.toBean(
+                        JsonUtil.parse(
                                 param.getRefConfig(),
                                 com.alibaba.himarket.support.product.APIGRefConfig.class);
             }
@@ -156,7 +161,7 @@ public class McpConfigSyncHelper {
     private String fetchNacosConfig(SaveMcpMetaParam param) {
         NacosRefConfig nacosRef =
                 StrUtil.isNotBlank(param.getRefConfig())
-                        ? JSONUtil.toBean(param.getRefConfig(), NacosRefConfig.class)
+                        ? JsonUtil.parse(param.getRefConfig(), NacosRefConfig.class)
                         : null;
         return nacosService.fetchMcpConfig(param.getNacosId(), nacosRef);
     }
@@ -183,7 +188,7 @@ public class McpConfigSyncHelper {
         } else if (refSourceType == SourceType.NACOS) {
             ref.setNacosId(param.getNacosId());
             if (StrUtil.isNotBlank(param.getRefConfig())) {
-                ref.setNacosRefConfig(JSONUtil.toBean(param.getRefConfig(), NacosRefConfig.class));
+                ref.setNacosRefConfig(JsonUtil.parse(param.getRefConfig(), NacosRefConfig.class));
             }
         }
 
@@ -192,24 +197,24 @@ public class McpConfigSyncHelper {
 
     private void applyGatewayRefConfig(ProductRef ref, String refConfig) {
         if (StrUtil.isBlank(refConfig)) return;
-        cn.hutool.json.JSONObject refJson = JSONUtil.parseObj(refConfig);
-        String fromGatewayType = refJson.getStr("fromGatewayType");
+        ObjectNode refJson = JsonUtil.readObjectNode(refConfig);
+        String fromGatewayType = refJson.path("fromGatewayType").asText();
         if ("HIGRESS".equals(fromGatewayType)) {
             ref.setHigressRefConfig(
-                    JSONUtil.toBean(
+                    JsonUtil.parse(
                             refConfig,
                             com.alibaba.himarket.support.product.HigressRefConfig.class));
         } else if ("ADP_AI_GATEWAY".equals(fromGatewayType)) {
             ref.setAdpAIGatewayRefConfig(
-                    JSONUtil.toBean(
+                    JsonUtil.parse(
                             refConfig, com.alibaba.himarket.support.product.APIGRefConfig.class));
         } else if ("APSARA_GATEWAY".equals(fromGatewayType)) {
             ref.setApsaraGatewayRefConfig(
-                    JSONUtil.toBean(
+                    JsonUtil.parse(
                             refConfig, com.alibaba.himarket.support.product.APIGRefConfig.class));
         } else {
             ref.setApigRefConfig(
-                    JSONUtil.toBean(
+                    JsonUtil.parse(
                             refConfig, com.alibaba.himarket.support.product.APIGRefConfig.class));
         }
     }
@@ -269,7 +274,7 @@ public class McpConfigSyncHelper {
             endpointUrl = extractEndpointUrlTyped(connectionConfig, meta.getMcpName());
         } catch (Exception e1) {
             try {
-                cn.hutool.json.JSONObject connJson = JSONUtil.parseObj(connectionConfig);
+                ObjectNode connJson = JsonUtil.readObjectNode(connectionConfig);
                 endpointUrl =
                         extractEndpointUrl(connJson, meta.getMcpName(), meta.getProtocolType());
             } catch (Exception e2) {
@@ -381,7 +386,7 @@ public class McpConfigSyncHelper {
                             if (StrUtil.isNotBlank(param.getIcon())) {
                                 try {
                                     product.setIcon(
-                                            JSONUtil.toBean(
+                                            JsonUtil.parse(
                                                     param.getIcon(),
                                                     com.alibaba.himarket.support.product.Icon
                                                             .class));
@@ -420,7 +425,7 @@ public class McpConfigSyncHelper {
         }
         if (product.getIcon() != null) {
             try {
-                result.setIcon(JSONUtil.toJsonStr(product.getIcon()));
+                result.setIcon(JsonUtil.toJson(product.getIcon()));
             } catch (Exception e) {
                 // ignore
             }
@@ -459,31 +464,38 @@ public class McpConfigSyncHelper {
         throw new IllegalStateException("McpConnectionConfig 无法提取 URL");
     }
 
-    public String extractEndpointUrl(
-            cn.hutool.json.JSONObject connJson, String mcpName, String protocolType) {
-        String url = connJson.getStr("url");
+    public String extractEndpointUrl(ObjectNode connJson, String mcpName, String protocolType) {
+        String url = connJson.path("url").asText();
         if (StrUtil.isNotBlank(url)) return url;
 
-        cn.hutool.json.JSONObject mcpServers = connJson.getJSONObject("mcpServers");
-        if (mcpServers != null) {
-            for (String key : mcpServers.keySet()) {
-                cn.hutool.json.JSONObject server = mcpServers.getJSONObject(key);
-                if (server != null && StrUtil.isNotBlank(server.getStr("url"))) {
-                    return server.getStr("url");
+        JsonNode mcpServersNode = connJson.get("mcpServers");
+        if (mcpServersNode != null && mcpServersNode.isObject()) {
+            ObjectNode mcpServers = (ObjectNode) mcpServersNode;
+            Iterator<String> fieldNames = mcpServers.fieldNames();
+            while (fieldNames.hasNext()) {
+                String key = fieldNames.next();
+                JsonNode serverNode = mcpServers.get(key);
+                if (serverNode != null && serverNode.isObject()) {
+                    ObjectNode server = (ObjectNode) serverNode;
+                    String serverUrl = server.path("url").asText();
+                    if (StrUtil.isNotBlank(serverUrl)) {
+                        return serverUrl;
+                    }
                 }
             }
         }
 
-        cn.hutool.json.JSONObject serverConfig = connJson.getJSONObject("mcpServerConfig");
-        if (serverConfig != null) {
-            cn.hutool.json.JSONArray domains = serverConfig.getJSONArray("domains");
-            if (domains != null && !domains.isEmpty()) {
-                cn.hutool.json.JSONObject domain = domains.getJSONObject(0);
-                String protocol = domain.getStr("protocol", "https");
-                String domainName = domain.getStr("domain");
-                Integer port = domain.getInt("port");
-                String path = serverConfig.getStr("path", "");
-                String portStr = (port != null && port != 443 && port != 80) ? ":" + port : "";
+        JsonNode serverConfigNode = connJson.get("mcpServerConfig");
+        if (serverConfigNode != null && serverConfigNode.isObject()) {
+            ObjectNode serverConfig = (ObjectNode) serverConfigNode;
+            JsonNode domainsNode = serverConfig.get("domains");
+            if (domainsNode != null && domainsNode.isArray() && domainsNode.size() > 0) {
+                ObjectNode domain = (ObjectNode) domainsNode.get(0);
+                String protocol = domain.path("protocol").asText("https");
+                String domainName = domain.path("domain").asText();
+                int port = domain.has("port") ? domain.get("port").asInt() : 0;
+                String path = serverConfig.path("path").asText("");
+                String portStr = (port != 0 && port != 443 && port != 80) ? ":" + port : "";
                 return protocol + "://" + domainName + portStr + path;
             }
         }
@@ -494,75 +506,84 @@ public class McpConfigSyncHelper {
     // ==================== Config Format Conversion ====================
 
     public String convertToStandardConnectionConfig(
-            cn.hutool.json.JSONObject mcpJson, String mcpName, String protocol) {
+            ObjectNode mcpJson, String mcpName, String protocol) {
         String serverName =
                 StrUtil.blankToDefault(mcpName, "mcp-server")
                         .toLowerCase()
                         .replaceAll("[^a-z0-9-]", "-");
 
-        cn.hutool.json.JSONObject serverConfig = mcpJson.getJSONObject("mcpServerConfig");
-        if (serverConfig != null && serverConfig.get("rawConfig") != null) {
-            Object rawConfig = serverConfig.get("rawConfig");
-            cn.hutool.json.JSONObject rawJson;
-            try {
-                rawJson =
-                        rawConfig instanceof cn.hutool.json.JSONObject
-                                ? (cn.hutool.json.JSONObject) rawConfig
-                                : JSONUtil.parseObj(rawConfig.toString());
-            } catch (Exception e) {
-                return null;
-            }
-            if (rawJson.containsKey("mcpServers")) {
-                return rawJson.toString();
-            }
-            return JSONUtil.createObj()
-                    .set("mcpServers", JSONUtil.createObj().set(serverName, rawJson))
-                    .toString();
-        }
-
-        if (serverConfig != null && serverConfig.getJSONArray("domains") != null) {
-            cn.hutool.json.JSONArray domains = serverConfig.getJSONArray("domains");
-            if (domains.isEmpty()) return null;
-
-            cn.hutool.json.JSONObject domain = null;
-            for (int i = 0; i < domains.size(); i++) {
-                cn.hutool.json.JSONObject d = domains.getJSONObject(i);
-                if (!"intranet".equalsIgnoreCase(d.getStr("networkType"))) {
-                    domain = d;
-                    break;
+        JsonNode serverConfigNode = mcpJson.get("mcpServerConfig");
+        if (serverConfigNode != null && serverConfigNode.isObject()) {
+            ObjectNode serverConfig = (ObjectNode) serverConfigNode;
+            if (serverConfig.get("rawConfig") != null) {
+                JsonNode rawConfig = serverConfig.get("rawConfig");
+                ObjectNode rawJson;
+                try {
+                    rawJson =
+                            rawConfig.isObject()
+                                    ? (ObjectNode) rawConfig
+                                    : JsonUtil.readObjectNode(rawConfig.asText());
+                } catch (Exception e) {
+                    return null;
                 }
-            }
-            if (domain == null) domain = domains.getJSONObject(0);
-
-            String scheme = StrUtil.blankToDefault(domain.getStr("protocol"), "https");
-            String host = domain.getStr("domain");
-            Integer port = domain.getInt("port");
-            String path = serverConfig.getStr("path", "");
-
-            if (StrUtil.isBlank(host)) return null;
-
-            StringBuilder urlBuilder = new StringBuilder(scheme).append("://").append(host);
-            if (port != null && port > 0 && port != 443 && port != 80) {
-                urlBuilder.append(":").append(port);
-            }
-            if (StrUtil.isNotBlank(path)) {
-                if (!path.startsWith("/")) urlBuilder.append("/");
-                urlBuilder.append(path);
+                if (rawJson.has("mcpServers")) {
+                    return rawJson.toString();
+                }
+                ObjectNode result = JsonUtil.createObjectNode();
+                ObjectNode mcpServers = JsonUtil.createObjectNode();
+                mcpServers.set(serverName, rawJson);
+                result.set("mcpServers", mcpServers);
+                return result.toString();
             }
 
-            String url = urlBuilder.toString();
-            McpProtocolType proto = McpProtocolType.fromString(protocol);
-            boolean isSse = proto == null || proto.isSse();
-            if (isSse && !url.endsWith("/sse")) {
-                url = url.endsWith("/") ? url + "sse" : url + "/sse";
+            JsonNode domainsNode = serverConfig.get("domains");
+            if (domainsNode != null && domainsNode.isArray()) {
+                ArrayNode domains = (ArrayNode) domainsNode;
+                if (domains.size() == 0) return null;
+
+                ObjectNode domain = null;
+                for (int i = 0; i < domains.size(); i++) {
+                    ObjectNode d = (ObjectNode) domains.get(i);
+                    if (!"intranet".equalsIgnoreCase(d.path("networkType").asText())) {
+                        domain = d;
+                        break;
+                    }
+                }
+                if (domain == null) domain = (ObjectNode) domains.get(0);
+
+                String scheme = StrUtil.blankToDefault(domain.path("protocol").asText(), "https");
+                String host = domain.path("domain").asText();
+                int port = domain.has("port") ? domain.get("port").asInt() : 0;
+                String path = serverConfig.path("path").asText("");
+
+                if (StrUtil.isBlank(host)) return null;
+
+                StringBuilder urlBuilder = new StringBuilder(scheme).append("://").append(host);
+                if (port != 0 && port != 443 && port != 80) {
+                    urlBuilder.append(":").append(port);
+                }
+                if (StrUtil.isNotBlank(path)) {
+                    if (!path.startsWith("/")) urlBuilder.append("/");
+                    urlBuilder.append(path);
+                }
+
+                String url = urlBuilder.toString();
+                McpProtocolType proto = McpProtocolType.fromString(protocol);
+                boolean isSse = proto == null || proto.isSse();
+                if (isSse && !url.endsWith("/sse")) {
+                    url = url.endsWith("/") ? url + "sse" : url + "/sse";
+                }
+
+                ObjectNode serverEntry = JsonUtil.createObjectNode();
+                serverEntry.put("url", url);
+                if (isSse) serverEntry.put("type", McpProtocolType.SSE.getValue());
+
+                ObjectNode result = JsonUtil.createObjectNode();
+                ObjectNode mcpServers = JsonUtil.createObjectNode();
+                mcpServers.set(serverName, serverEntry);
+                result.set("mcpServers", mcpServers);
+                return result.toString();
             }
-
-            cn.hutool.json.JSONObject serverEntry = JSONUtil.createObj().set("url", url);
-            if (isSse) serverEntry.set("type", McpProtocolType.SSE.getValue());
-
-            return JSONUtil.createObj()
-                    .set("mcpServers", JSONUtil.createObj().set(serverName, serverEntry))
-                    .toString();
         }
 
         return null;
@@ -584,15 +605,14 @@ public class McpConfigSyncHelper {
                                 StrUtil.blankToDefault(endpoint.getProtocol(), "sse"));
                 boolean isSse = proto == null || proto.isSse();
 
-                cn.hutool.json.JSONObject serverEntry =
-                        JSONUtil.createObj().set("url", endpoint.getEndpointUrl());
-                serverEntry.set("type", isSse ? "sse" : "streamable-http");
-                result.setResolvedConfig(
-                        JSONUtil.createObj()
-                                .set(
-                                        "mcpServers",
-                                        JSONUtil.createObj().set(serverName, serverEntry))
-                                .toString());
+                ObjectNode serverEntry = JsonUtil.createObjectNode();
+                serverEntry.put("url", endpoint.getEndpointUrl());
+                serverEntry.put("type", isSse ? "sse" : "streamable-http");
+                ObjectNode resolved = JsonUtil.createObjectNode();
+                ObjectNode mcpServers = JsonUtil.createObjectNode();
+                mcpServers.set(serverName, serverEntry);
+                resolved.set("mcpServers", mcpServers);
+                result.setResolvedConfig(resolved.toString());
                 return;
             }
 
@@ -607,7 +627,7 @@ public class McpConfigSyncHelper {
             } catch (Exception ignored) {
             }
 
-            cn.hutool.json.JSONObject connJson = JSONUtil.parseObj(meta.getConnectionConfig());
+            ObjectNode connJson = JsonUtil.readObjectNode(meta.getConnectionConfig());
             String resolved =
                     convertToStandardConnectionConfig(
                             connJson, meta.getMcpName(), meta.getProtocolType());

@@ -20,7 +20,6 @@
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -39,6 +38,8 @@ import com.alibaba.himarket.repository.McpServerEndpointRepository;
 import com.alibaba.himarket.repository.SandboxInstanceRepository;
 import com.alibaba.himarket.service.SandboxService;
 import com.alibaba.himarket.support.enums.McpHostingType;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
@@ -256,9 +257,9 @@ public class SandboxServiceImpl implements SandboxService {
     }
 
     private String buildClusterAttribute(KubernetesClient client) {
-        cn.hutool.json.JSONObject json = JSONUtil.createObj();
-        json.set("clusterId", K8sClientUtils.getClusterId(client));
-        json.set("clusterName", K8sClientUtils.getClusterName(client));
+        ObjectNode json = JsonUtil.createObjectNode();
+        json.put("clusterId", K8sClientUtils.getClusterId(client));
+        json.put("clusterName", K8sClientUtils.getClusterName(client));
         return json.toString();
     }
 

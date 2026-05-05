@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
@@ -60,6 +59,8 @@ import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.*;
 import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import jakarta.persistence.criteria.Predicate;
@@ -802,13 +803,13 @@ public class ProductServiceImpl implements ProductService {
         String protocol = "sse";
         String tools = null;
         try {
-            cn.hutool.json.JSONObject mcpJson = JSONUtil.parseObj(mcpConfigStr);
-            mcpName = mcpJson.getStr("mcpServerName");
-            String p = mcpJson.getByPath("meta.protocol", String.class);
-            if (StrUtil.isNotBlank(p)) {
-                protocol = McpProtocolUtils.normalize(p);
+            ObjectNode mcpJson = JsonUtil.readObjectNode(mcpConfigStr);
+            mcpName = mcpJson.path("mcpServerName").asText();
+            JsonNode protocolNode = mcpJson.path("meta").path("protocol");
+            if (!protocolNode.isMissingNode()) {
+                protocol = McpProtocolUtils.normalize(protocolNode.asText());
             }
-            tools = mcpJson.getStr("tools");
+            tools = mcpJson.path("tools").asText();
         } catch (Exception e) {
             log.warn("解析 MCP 配置失败: {}", e.getMessage());
         }
@@ -860,7 +861,7 @@ public class ProductServiceImpl implements ProductService {
         MCPConfigResult mcpConfig =
                 Optional.ofNullable(meta.getConnectionConfig())
                         .filter(StrUtil::isNotBlank)
-                        .map(config -> JSONUtil.toBean(config, MCPConfigResult.class))
+                        .map(config -> JsonUtil.parse(config, MCPConfigResult.class))
                         .orElse(null);
 
         if (mcpConfig == null) {
@@ -1052,11 +1053,11 @@ public class ProductServiceImpl implements ProductService {
         try {
             // connectionConfig 可能已经是 MCPConfigResult 兼容格式（网关导入时回写的）
             String connConfig = meta.getConnectionConfig();
-            cn.hutool.json.JSONObject json = JSONUtil.parseObj(connConfig);
+            ObjectNode json = JsonUtil.readObjectNode(connConfig);
 
             // 如果包含 mcpServerName，说明是 MCPConfigResult 兼容格式
-            if (json.containsKey("mcpServerName")) {
-                MCPConfigResult result = JSONUtil.toBean(connConfig, MCPConfigResult.class);
+            if (json.has("mcpServerName")) {
+                MCPConfigResult result = JsonUtil.parse(connConfig, MCPConfigResult.class);
                 if (result.getTools() == null) {
                     result.setTools(meta.getToolsConfig());
                 }
@@ -1070,38 +1071,44 @@ public class ProductServiceImpl implements ProductService {
             }
 
             // mcpServers 格式：提取 URL 构建 MCPConfigResult
-            if (json.containsKey("mcpServers")) {
-                cn.hutool.json.JSONObject servers = json.getJSONObject("mcpServers");
-                for (String key : servers.keySet()) {
-                    cn.hutool.json.JSONObject server = servers.getJSONObject(key);
-                    if (server != null && StrUtil.isNotBlank(server.getStr("url"))) {
-                        String url = server.getStr("url");
-                        String type = server.getStr("type", "sse");
+            if (json.has("mcpServers")) {
+                ObjectNode servers = (ObjectNode) json.get("mcpServers");
+                java.util.Iterator<String> fieldNames = servers.fieldNames();
+                while (fieldNames.hasNext()) {
+                    String key = fieldNames.next();
+                    com.fasterxml.jackson.databind.JsonNode serverNode = servers.get(key);
+                    if (serverNode != null && serverNode.isObject()) {
+                        ObjectNode server = (ObjectNode) serverNode;
+                        String url = server.path("url").asText();
+                        if (StrUtil.isNotBlank(url)) {
+                            String type = server.path("type").asText("sse");
 
-                        MCPConfigResult result = new MCPConfigResult();
-                        result.setMcpServerName(meta.getMcpName());
-                        result.setTools(meta.getToolsConfig());
-                        result.setProtocol(McpProtocolType.fromString(type));
+                            MCPConfigResult result = new MCPConfigResult();
+                            result.setMcpServerName(meta.getMcpName());
+                            result.setTools(meta.getToolsConfig());
+                            result.setProtocol(McpProtocolType.fromString(type));
 
-                        java.net.URI uri = java.net.URI.create(url.replaceAll("/sse$", ""));
-                        com.alibaba.himarket.dto.result.common.DomainResult domain =
-                                com.alibaba.himarket.dto.result.common.DomainResult.builder()
-                                        .protocol(uri.getScheme())
-                                        .domain(uri.getHost())
-                                        .port(uri.getPort() > 0 ? uri.getPort() : null)
-                                        .build();
+                            java.net.URI uri = java.net.URI.create(url.replaceAll("/sse$", ""));
+                            com.alibaba.himarket.dto.result.common.DomainResult domain =
+                                    com.alibaba.himarket.dto.result.common.DomainResult.builder()
+                                            .protocol(uri.getScheme())
+                                            .domain(uri.getHost())
+                                            .port(uri.getPort() > 0 ? uri.getPort() : null)
+                                            .build();
 
-                        MCPConfigResult.MCPServerConfig serverConfig =
-                                new MCPConfigResult.MCPServerConfig();
-                        serverConfig.setDomains(List.of(domain));
-                        serverConfig.setPath(uri.getPath());
-                        result.setMcpServerConfig(serverConfig);
+                            MCPConfigResult.MCPServerConfig serverConfig =
+                                    new MCPConfigResult.MCPServerConfig();
+                            serverConfig.setDomains(List.of(domain));
+                            serverConfig.setPath(uri.getPath());
+                            result.setMcpServerConfig(serverConfig);
 
-                        MCPConfigResult.McpMetadata metadata = new MCPConfigResult.McpMetadata();
-                        metadata.setSource(StrUtil.blankToDefault(meta.getOrigin(), "CUSTOM"));
-                        result.setMeta(metadata);
+                            MCPConfigResult.McpMetadata metadata =
+                                    new MCPConfigResult.McpMetadata();
+                            metadata.setSource(StrUtil.blankToDefault(meta.getOrigin(), "CUSTOM"));
+                            result.setMeta(metadata);
 
-                        return result;
+                            return result;
+                        }
                     }
                 }
             }
@@ -1376,7 +1383,7 @@ public class ProductServiceImpl implements ProductService {
         if (param.getType() == ProductType.MODEL_API && param.getModelFilter() != null) {
             try {
                 ModelConfigResult config =
-                        JSONUtil.toBean(productRef.getModelConfig(), ModelConfigResult.class);
+                        JsonUtil.parse(productRef.getModelConfig(), ModelConfigResult.class);
                 return param.getModelFilter().matches(config);
             } catch (Exception e) {
                 log.warn(

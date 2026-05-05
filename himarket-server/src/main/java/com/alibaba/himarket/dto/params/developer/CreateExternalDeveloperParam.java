@@ -22,10 +22,14 @@ package com.alibaba.himarket.dto.params.developer;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.DeveloperExternalIdentity;
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class CreateExternalDeveloperParam implements InputConverter<DeveloperExternalIdentity> {
 

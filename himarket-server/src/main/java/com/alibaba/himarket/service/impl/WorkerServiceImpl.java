@@ -3,7 +3,6 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -24,6 +23,7 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.WorkerConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.agentspecs.*;
 import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.model.Page;
@@ -583,7 +583,7 @@ public class WorkerServiceImpl implements WorkerService {
                         s.updateLabels(
                                 ref.getNamespace(),
                                 ref.getAgentSpecName(),
-                                JSONUtil.toJsonStr(labels)));
+                                JsonUtil.toJson(labels)));
 
         log.info("Set latest: AgentSpec {}, version {}", ref.getAgentSpecName(), version);
     }

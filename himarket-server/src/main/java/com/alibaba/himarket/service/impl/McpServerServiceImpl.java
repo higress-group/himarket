@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -59,6 +58,7 @@ import com.alibaba.himarket.support.enums.McpOrigin;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.SourceType;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -199,7 +199,8 @@ public class McpServerServiceImpl implements McpServerService {
                         ErrorCode.INVALID_REQUEST, "非 stdio 协议必须提供 connectionConfig（包含连接地址）");
             }
             try {
-                cn.hutool.json.JSONObject connJson = JSONUtil.parseObj(connCfg);
+                com.fasterxml.jackson.databind.node.ObjectNode connJson =
+                        JsonUtil.readObjectNode(connCfg);
                 String url =
                         configSyncHelper.extractEndpointUrl(
                                 connJson, param.getMcpName(), param.getProtocolType());
@@ -236,7 +237,7 @@ public class McpServerServiceImpl implements McpServerService {
         if (StrUtil.isNotBlank(param.getIcon())) {
             try {
                 product.setIcon(
-                        JSONUtil.toBean(
+                        JsonUtil.parse(
                                 param.getIcon(), com.alibaba.himarket.support.product.Icon.class));
             } catch (Exception e) {
                 log.warn("解析 icon JSON 失败: {}", e.getMessage());
@@ -803,7 +804,7 @@ public class McpServerServiceImpl implements McpServerService {
                             String iconStr = null;
                             if (product != null && product.getIcon() != null) {
                                 try {
-                                    iconStr = JSONUtil.toJsonStr(product.getIcon());
+                                    iconStr = JsonUtil.toJson(product.getIcon());
                                 } catch (Exception e) {
                                     // ignore
                                 }

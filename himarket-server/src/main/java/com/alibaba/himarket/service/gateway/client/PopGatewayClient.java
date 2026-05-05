@@ -19,9 +19,8 @@
 
 package com.alibaba.himarket.service.gateway.client;
 
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.support.gateway.APIGConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyuncs.CommonRequest;
 import com.aliyuncs.CommonResponse;
 import com.aliyuncs.DefaultAcsClient;
@@ -30,6 +29,7 @@ import com.aliyuncs.exceptions.ClientException;
 import com.aliyuncs.http.MethodType;
 import com.aliyuncs.http.ProtocolType;
 import com.aliyuncs.profile.DefaultProfile;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
@@ -62,7 +62,7 @@ public class PopGatewayClient extends GatewayClient {
             String uri,
             MethodType methodType,
             Map<String, String> queryParams,
-            Function<JSONObject, E> converter) {
+            Function<JsonNode, E> converter) {
 
         // CommonRequest
         CommonRequest request = new CommonRequest();
@@ -81,7 +81,7 @@ public class PopGatewayClient extends GatewayClient {
 
         try {
             CommonResponse response = client.getCommonResponse(request);
-            JSONObject data = JSONUtil.parseObj(response.getData()).getJSONObject("data");
+            JsonNode data = JsonUtil.readTree(response.getData()).path("data");
 
             return converter.apply(data);
         } catch (ClientException e) {

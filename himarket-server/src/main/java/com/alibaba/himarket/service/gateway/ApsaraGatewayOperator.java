@@ -20,7 +20,6 @@
 package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.apsara.CreateAppRequest;
@@ -52,6 +51,7 @@ import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import java.net.URI;
 import java.util.ArrayList;
@@ -284,7 +284,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
         ModelConfigResult modelConfig = new ModelConfigResult();
         modelConfig.setModelAPIConfig(apiConfig);
 
-        return JSONUtil.toJsonStr(modelConfig);
+        return JsonUtil.toJson(modelConfig);
     }
 
     /** 从ADP服务数据构建服务列表 */
@@ -442,7 +442,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
         meta.setSource(GatewayType.APSARA_GATEWAY.name());
         mcpConfig.setMeta(meta);
 
-        return JSONUtil.toJsonStr(mcpConfig);
+        return JsonUtil.toJson(mcpConfig);
     }
 
     /** 获取网关实例的访问信息并构建域名列表 */

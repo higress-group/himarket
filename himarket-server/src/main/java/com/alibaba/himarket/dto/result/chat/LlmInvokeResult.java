@@ -22,11 +22,15 @@ package com.alibaba.himarket.dto.result.chat;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import com.alibaba.himarket.support.chat.ToolCallInfo;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @Slf4j
 public class LlmInvokeResult {

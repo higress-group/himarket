@@ -19,14 +19,16 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
 import com.alibaba.himarket.support.enums.McpVendorType;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -82,30 +84,47 @@ public class ModelScopeAdapter implements McpVendorAdapter {
                 }
 
                 String responseBody = response.body().string();
-                JSONObject json = JSONUtil.parseObj(responseBody);
-                if (!json.getBool("success", false)) {
+                ObjectNode json = JsonUtil.readObjectNode(responseBody);
+                if (!json.path("success").asBoolean()) {
                     return item;
                 }
 
-                JSONObject data = json.getJSONObject("data");
+                ObjectNode data =
+                        json.get("data") != null && json.get("data").isObject()
+                                ? (ObjectNode) json.get("data")
+                                : null;
                 if (data == null) {
                     return item;
                 }
 
                 // connectionConfig from server_config[0]
-                JSONArray serverConfig = data.getJSONArray("server_config");
-                if (serverConfig != null && !serverConfig.isEmpty()) {
-                    item.setConnectionConfig(serverConfig.getJSONObject(0).toString());
+                JsonNode serverConfigNode = data.get("server_config");
+                if (serverConfigNode != null
+                        && serverConfigNode.isArray()
+                        && serverConfigNode.size() > 0) {
+                    item.setConnectionConfig(serverConfigNode.get(0).toString());
                 }
 
                 // protocolType: infer from server_config command
-                if (serverConfig != null && !serverConfig.isEmpty()) {
-                    JSONObject cfg = serverConfig.getJSONObject(0);
-                    JSONObject mcpServers = cfg.getJSONObject("mcpServers");
-                    if (mcpServers != null && !mcpServers.isEmpty()) {
-                        String firstKey = mcpServers.keySet().iterator().next();
-                        JSONObject serverEntry = mcpServers.getJSONObject(firstKey);
-                        String command = serverEntry != null ? serverEntry.getStr("command") : null;
+                if (serverConfigNode != null
+                        && serverConfigNode.isArray()
+                        && serverConfigNode.size() > 0) {
+                    ObjectNode cfg = (ObjectNode) serverConfigNode.get(0);
+                    ObjectNode mcpServers =
+                            cfg.get("mcpServers") != null && cfg.get("mcpServers").isObject()
+                                    ? (ObjectNode) cfg.get("mcpServers")
+                                    : null;
+                    if (mcpServers != null && mcpServers.size() > 0) {
+                        Iterator<String> keys = mcpServers.fieldNames();
+                        String firstKey = keys.hasNext() ? keys.next() : null;
+                        ObjectNode serverEntry =
+                                firstKey != null
+                                                && mcpServers.get(firstKey) != null
+                                                && mcpServers.get(firstKey).isObject()
+                                        ? (ObjectNode) mcpServers.get(firstKey)
+                                        : null;
+                        String command =
+                                serverEntry != null ? serverEntry.path("command").asText() : null;
                         if ("npx".equals(command)
                                 || "uvx".equals(command)
                                 || "node".equals(command)
@@ -116,39 +135,63 @@ public class ModelScopeAdapter implements McpVendorAdapter {
                 }
 
                 // icon from logo_url (detail may have better quality)
-                String logoUrl = data.getStr("logo_url");
-                if (logoUrl != null && !logoUrl.isBlank()) {
-                    item.setIcon(
-                            JSONUtil.createObj()
-                                    .set("type", "URL")
-                                    .set("value", logoUrl)
-                                    .toString());
+                String logoUrl = data.path("logo_url").asText();
+                if (!logoUrl.isBlank()) {
+                    ObjectNode iconNode = JsonUtil.createObjectNode();
+                    iconNode.put("type", "URL");
+                    iconNode.put("value", logoUrl);
+                    item.setIcon(iconNode.toString());
                 }
 
                 // repoUrl from source_url
-                String sourceUrl = data.getStr("source_url");
-                if (sourceUrl != null && !sourceUrl.isBlank()) {
+                String sourceUrl = data.path("source_url").asText();
+                if (!sourceUrl.isBlank()) {
                     item.setRepoUrl(sourceUrl);
                 }
 
                 // extraParams from env_schema
-                JSONObject envSchema = data.getJSONObject("env_schema");
+                ObjectNode envSchema =
+                        data.get("env_schema") != null && data.get("env_schema").isObject()
+                                ? (ObjectNode) data.get("env_schema")
+                                : null;
                 if (envSchema != null) {
-                    JSONObject properties = envSchema.getJSONObject("properties");
-                    JSONArray required = envSchema.getJSONArray("required");
-                    if (properties != null && !properties.isEmpty()) {
-                        JSONArray params = JSONUtil.createArray();
-                        for (String key : properties.keySet()) {
-                            JSONObject prop = properties.getJSONObject(key);
-                            JSONObject paramDef = JSONUtil.createObj();
-                            paramDef.set("name", key);
-                            paramDef.set(
+                    ObjectNode properties =
+                            envSchema.get("properties") != null
+                                            && envSchema.get("properties").isObject()
+                                    ? (ObjectNode) envSchema.get("properties")
+                                    : null;
+                    ArrayNode required =
+                            envSchema.get("required") != null && envSchema.get("required").isArray()
+                                    ? (ArrayNode) envSchema.get("required")
+                                    : null;
+                    if (properties != null && properties.size() > 0) {
+                        ArrayNode params = JsonUtil.createArray();
+                        Iterator<String> propNames = properties.fieldNames();
+                        while (propNames.hasNext()) {
+                            String key = propNames.next();
+                            JsonNode propNode = properties.get(key);
+                            ObjectNode prop =
+                                    propNode != null && propNode.isObject()
+                                            ? (ObjectNode) propNode
+                                            : null;
+                            ObjectNode paramDef = JsonUtil.createObjectNode();
+                            paramDef.put("name", key);
+                            paramDef.put(
                                     "description",
-                                    prop != null ? prop.getStr("description", "") : "");
-                            paramDef.set("required", required != null && required.contains(key));
-                            paramDef.set(
+                                    prop != null ? prop.path("description").asText("") : "");
+                            boolean isRequired = false;
+                            if (required != null) {
+                                for (int i = 0; i < required.size(); i++) {
+                                    if (key.equals(required.get(i).asText())) {
+                                        isRequired = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            paramDef.put("required", isRequired);
+                            paramDef.put(
                                     "type",
-                                    prop != null ? prop.getStr("type", "string") : "string");
+                                    prop != null ? prop.path("type").asText("string") : "string");
                             params.add(paramDef);
                         }
                         item.setExtraParams(params.toString());
@@ -167,21 +210,30 @@ public class ModelScopeAdapter implements McpVendorAdapter {
 
                 // serviceIntro from readme (prefer Chinese locale)
                 String readme = null;
-                JSONObject locales = data.getJSONObject("locales");
+                ObjectNode locales =
+                        data.get("locales") != null && data.get("locales").isObject()
+                                ? (ObjectNode) data.get("locales")
+                                : null;
                 if (locales != null) {
-                    JSONObject zh = locales.getJSONObject("zh");
+                    ObjectNode zh =
+                            locales.get("zh") != null && locales.get("zh").isObject()
+                                    ? (ObjectNode) locales.get("zh")
+                                    : null;
                     if (zh != null) {
-                        readme = zh.getStr("readme");
+                        readme = zh.path("readme").asText();
                     }
                 }
                 if (readme == null || readme.isBlank()) {
-                    readme = data.getStr("readme");
+                    readme = data.path("readme").asText();
                 }
                 if (readme == null || readme.isBlank()) {
                     if (locales != null) {
-                        JSONObject en = locales.getJSONObject("en");
+                        ObjectNode en =
+                                locales.get("en") != null && locales.get("en").isObject()
+                                        ? (ObjectNode) locales.get("en")
+                                        : null;
                         if (en != null) {
-                            readme = en.getStr("readme");
+                            readme = en.path("readme").asText();
                         }
                     }
                 }
@@ -198,12 +250,11 @@ public class ModelScopeAdapter implements McpVendorAdapter {
     @Override
     public PageResult<RemoteMcpItem> listMcpServers(String keyword, int page, int size) {
         try {
-            JSONObject body =
-                    JSONUtil.createObj()
-                            .set("filter", JSONUtil.createObj())
-                            .set("page_number", page)
-                            .set("page_size", size)
-                            .set("search", keyword != null ? keyword : "");
+            ObjectNode body = JsonUtil.createObjectNode();
+            body.set("filter", JsonUtil.createObjectNode());
+            body.put("page_number", page);
+            body.put("page_size", size);
+            body.put("search", keyword != null ? keyword : "");
 
             Request request =
                     new Request.Builder()
@@ -219,28 +270,34 @@ public class ModelScopeAdapter implements McpVendorAdapter {
                 }
 
                 String responseBody = response.body().string();
-                JSONObject json = JSONUtil.parseObj(responseBody);
+                ObjectNode json = JsonUtil.readObjectNode(responseBody);
 
-                if (!json.getBool("success", false)) {
+                if (!json.path("success").asBoolean()) {
                     log.warn("ModelScope API returned success=false");
                     return PageResult.empty(page, size);
                 }
 
-                JSONObject data = json.getJSONObject("data");
+                ObjectNode data =
+                        json.get("data") != null && json.get("data").isObject()
+                                ? (ObjectNode) json.get("data")
+                                : null;
                 if (data == null) {
                     return PageResult.empty(page, size);
                 }
 
-                long totalCount = data.getLong("total_count", 0L);
-                JSONArray serverList = data.getJSONArray("mcp_server_list");
-                if (serverList == null || serverList.isEmpty()) {
+                long totalCount = data.path("total_count").asLong();
+                JsonNode serverListNode = data.get("mcp_server_list");
+                if (serverListNode == null
+                        || !serverListNode.isArray()
+                        || serverListNode.size() == 0) {
                     return PageResult.empty(page, size);
                 }
+                ArrayNode serverList = (ArrayNode) serverListNode;
 
                 List<RemoteMcpItem> items = new ArrayList<>();
                 for (int i = 0; i < serverList.size(); i++) {
                     try {
-                        JSONObject server = serverList.getJSONObject(i);
+                        ObjectNode server = (ObjectNode) serverList.get(i);
                         RemoteMcpItem item = convertToRemoteMcpItem(server);
                         if (item != null) {
                             items.add(item);
@@ -258,9 +315,9 @@ public class ModelScopeAdapter implements McpVendorAdapter {
         }
     }
 
-    private RemoteMcpItem convertToRemoteMcpItem(JSONObject server) {
-        String id = server.getStr("id");
-        if (id == null || id.isBlank()) {
+    private RemoteMcpItem convertToRemoteMcpItem(ObjectNode server) {
+        String id = server.path("id").asText();
+        if (id.isBlank()) {
             return null;
         }
 
@@ -270,16 +327,19 @@ public class ModelScopeAdapter implements McpVendorAdapter {
 
         // icon
         String icon = null;
-        String logoUrl = server.getStr("logo_url");
-        if (logoUrl != null && !logoUrl.isBlank()) {
-            icon = JSONUtil.createObj().set("type", "URL").set("value", logoUrl).toString();
+        String logoUrl = server.path("logo_url").asText();
+        if (!logoUrl.isBlank()) {
+            ObjectNode iconNode = JsonUtil.createObjectNode();
+            iconNode.put("type", "URL");
+            iconNode.put("value", logoUrl);
+            icon = iconNode.toString();
         }
 
         // tags from categories
         String tags = null;
-        JSONArray categories = server.getJSONArray("categories");
-        if (categories != null && !categories.isEmpty()) {
-            tags = categories.toString();
+        JsonNode categoriesNode = server.get("categories");
+        if (categoriesNode != null && categoriesNode.isArray() && categoriesNode.size() > 0) {
+            tags = categoriesNode.toString();
         }
 
         return RemoteMcpItem.builder()
@@ -317,50 +377,68 @@ public class ModelScopeAdapter implements McpVendorAdapter {
     }
 
     /** 优先取 locales.zh.name，fallback 到顶层 name，再 fallback 到 locales.en.name。 */
-    private String resolveLocaleName(JSONObject server) {
-        JSONObject locales = server.getJSONObject("locales");
+    private String resolveLocaleName(ObjectNode server) {
+        ObjectNode locales =
+                server.get("locales") != null && server.get("locales").isObject()
+                        ? (ObjectNode) server.get("locales")
+                        : null;
         if (locales != null) {
-            JSONObject zh = locales.getJSONObject("zh");
+            ObjectNode zh =
+                    locales.get("zh") != null && locales.get("zh").isObject()
+                            ? (ObjectNode) locales.get("zh")
+                            : null;
             if (zh != null) {
-                String zhName = zh.getStr("name");
-                if (zhName != null && !zhName.isBlank()) {
+                String zhName = zh.path("name").asText();
+                if (!zhName.isBlank()) {
                     return zhName;
                 }
             }
         }
-        String topName = server.getStr("name");
-        if (topName != null && !topName.isBlank()) {
+        String topName = server.path("name").asText();
+        if (!topName.isBlank()) {
             return topName;
         }
         if (locales != null) {
-            JSONObject en = locales.getJSONObject("en");
+            ObjectNode en =
+                    locales.get("en") != null && locales.get("en").isObject()
+                            ? (ObjectNode) locales.get("en")
+                            : null;
             if (en != null) {
-                return en.getStr("name");
+                return en.path("name").asText();
             }
         }
         return null;
     }
 
     /** 优先取 locales.zh.description，fallback 到顶层 description，再 fallback 到 locales.en.description。 */
-    private String resolveLocaleDescription(JSONObject server) {
-        JSONObject locales = server.getJSONObject("locales");
+    private String resolveLocaleDescription(ObjectNode server) {
+        ObjectNode locales =
+                server.get("locales") != null && server.get("locales").isObject()
+                        ? (ObjectNode) server.get("locales")
+                        : null;
         if (locales != null) {
-            JSONObject zh = locales.getJSONObject("zh");
+            ObjectNode zh =
+                    locales.get("zh") != null && locales.get("zh").isObject()
+                            ? (ObjectNode) locales.get("zh")
+                            : null;
             if (zh != null) {
-                String zhDesc = zh.getStr("description");
-                if (zhDesc != null && !zhDesc.isBlank()) {
+                String zhDesc = zh.path("description").asText();
+                if (!zhDesc.isBlank()) {
                     return zhDesc;
                 }
             }
         }
-        String topDesc = server.getStr("description");
-        if (topDesc != null && !topDesc.isBlank()) {
+        String topDesc = server.path("description").asText();
+        if (!topDesc.isBlank()) {
             return topDesc;
         }
         if (locales != null) {
-            JSONObject en = locales.getJSONObject("en");
+            ObjectNode en =
+                    locales.get("en") != null && locales.get("en").isObject()
+                            ? (ObjectNode) locales.get("en")
+                            : null;
             if (en != null) {
-                return en.getStr("description");
+                return en.path("description").asText();
             }
         }
         return null;

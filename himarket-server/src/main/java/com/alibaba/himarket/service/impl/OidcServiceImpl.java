@@ -24,7 +24,6 @@ import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpUtil;
-import cn.hutool.json.JSONUtil;
 import cn.hutool.jwt.JWT;
 import cn.hutool.jwt.JWTUtil;
 import com.alibaba.himarket.core.constant.CommonConstants;
@@ -49,6 +48,7 @@ import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.portal.AuthCodeConfig;
 import com.alibaba.himarket.support.portal.IdentityMapping;
 import com.alibaba.himarket.support.portal.OidcConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
@@ -202,12 +202,12 @@ public class OidcServiceImpl implements OidcService {
                         .nonce(IdUtil.fastSimpleUUID())
                         .apiPrefix(apiPrefix)
                         .build();
-        return Base64.encode(JSONUtil.toJsonStr(state));
+        return Base64.encode(JsonUtil.toJson(state));
     }
 
     private IdpState parseState(String encodedState) {
         String stateJson = Base64.decodeStr(encodedState);
-        IdpState idpState = JSONUtil.toBean(stateJson, IdpState.class);
+        IdpState idpState = JsonUtil.parse(stateJson, IdpState.class);
 
         // Validate timestamp, 10 minutes validity
         if (idpState.getTimestamp() != null) {
@@ -393,8 +393,8 @@ public class OidcServiceImpl implements OidcService {
                 && contentType.isCompatibleWith(MediaType.APPLICATION_FORM_URLENCODED)) {
             // Parse form-urlencoded  response
             Map<String, String> map = HttpUtil.decodeParamMap(responseBody, StandardCharsets.UTF_8);
-            return JSONUtil.toBean(JSONUtil.parseObj(map), responseType);
+            return JsonUtil.convert(map, responseType);
         }
-        return JSONUtil.toBean(responseBody, responseType);
+        return JsonUtil.parse(responseBody, responseType);
     }
 }

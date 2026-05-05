@@ -99,10 +99,10 @@ public class McpSandboxDeployListener {
                                 if (StrUtil.isNotBlank(lambdaSecretName)
                                         && StrUtil.isNotBlank(ep.getSubscribeParams())) {
                                     try {
-                                        cn.hutool.json.JSONObject params =
-                                                cn.hutool.json.JSONUtil.parseObj(
+                                        com.fasterxml.jackson.databind.node.ObjectNode params =
+                                                com.alibaba.himarket.utils.JsonUtil.readObjectNode(
                                                         ep.getSubscribeParams());
-                                        params.set("secretName", lambdaSecretName);
+                                        params.put("secretName", lambdaSecretName);
                                         ep.setSubscribeParams(params.toString());
                                     } catch (Exception e) {
                                         log.warn(

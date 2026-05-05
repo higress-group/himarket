@@ -21,7 +21,6 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.DeveloperDeletingEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
@@ -59,6 +58,7 @@ import com.alibaba.himarket.support.enums.CredentialMode;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -697,8 +697,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         for (ConsumerRef ref : consumeRefs) {
             // Check if the gateway config matches
             if (StrUtil.equals(
-                    JSONUtil.toJsonStr(ref.getGatewayConfig()),
-                    JSONUtil.toJsonStr(gatewayConfig))) {
+                    JsonUtil.toJson(ref.getGatewayConfig()), JsonUtil.toJson(gatewayConfig))) {
                 return ref;
             }
         }

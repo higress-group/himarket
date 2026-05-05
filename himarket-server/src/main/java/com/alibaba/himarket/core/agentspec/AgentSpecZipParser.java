@@ -2,12 +2,13 @@ package com.alibaba.himarket.core.agentspec;
 
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpec;
 import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecResource;
 import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,8 +43,8 @@ public final class AgentSpecZipParser {
 
             // Read and validate manifest
             String manifest = new String(files.get(MANIFEST_FILE), StandardCharsets.UTF_8);
-            String suggestedName =
-                    JSONUtil.parseObj(manifest).getJSONObject("worker").getStr("suggested_name");
+            JsonNode manifestNode = JsonUtil.readTree(manifest);
+            String suggestedName = manifestNode.path("worker").path("suggested_name").asText();
 
             if (StrUtil.isBlank(suggestedName)) {
                 throw new BusinessException(
@@ -62,7 +63,7 @@ public final class AgentSpecZipParser {
             spec.setContent(manifest);
             spec.setResource(buildResources(files));
 
-            return JSONUtil.toJsonStr(spec);
+            return JsonUtil.toJson(spec);
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {

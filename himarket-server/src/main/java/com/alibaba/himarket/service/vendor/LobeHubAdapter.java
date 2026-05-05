@@ -19,14 +19,15 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
 import com.alibaba.himarket.support.enums.McpVendorType;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.io.IOException;
@@ -35,6 +36,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -147,18 +149,19 @@ public class LobeHubAdapter implements McpVendorAdapter {
             }
 
             String responseBody = response.body().string();
-            JSONObject json = JSONUtil.parseObj(responseBody);
+            ObjectNode json = JsonUtil.readObjectNode(responseBody);
 
-            long totalCount = json.getLong("totalCount", 0L);
-            JSONArray items = json.getJSONArray("items");
-            if (items == null || items.isEmpty()) {
+            long totalCount = json.path("totalCount").asLong();
+            JsonNode itemsNode = json.get("items");
+            if (itemsNode == null || !itemsNode.isArray() || itemsNode.size() == 0) {
                 return PageResult.empty(page, size);
             }
+            ArrayNode items = (ArrayNode) itemsNode;
 
             List<RemoteMcpItem> result = new ArrayList<>();
             for (int i = 0; i < items.size(); i++) {
                 try {
-                    JSONObject item = items.getJSONObject(i);
+                    ObjectNode item = (ObjectNode) items.get(i);
                     RemoteMcpItem mcpItem = convertToRemoteMcpItem(item);
                     if (mcpItem != null) {
                         result.add(mcpItem);
@@ -197,36 +200,70 @@ public class LobeHubAdapter implements McpVendorAdapter {
                 }
 
                 String responseBody = response.body().string();
-                JSONObject detail = JSONUtil.parseObj(responseBody);
+                ObjectNode detail = JsonUtil.readObjectNode(responseBody);
 
                 // Extract deploymentOptions[0].connection for connectionConfig
-                JSONArray deploymentOptions = detail.getJSONArray("deploymentOptions");
-                if (deploymentOptions != null && !deploymentOptions.isEmpty()) {
-                    JSONObject firstOption = deploymentOptions.getJSONObject(0);
-                    JSONObject connection = firstOption.getJSONObject("connection");
+                JsonNode deploymentOptionsNode = detail.get("deploymentOptions");
+                if (deploymentOptionsNode != null
+                        && deploymentOptionsNode.isArray()
+                        && deploymentOptionsNode.size() > 0) {
+                    ObjectNode firstOption = (ObjectNode) deploymentOptionsNode.get(0);
+                    ObjectNode connection =
+                            firstOption.get("connection") != null
+                                            && firstOption.get("connection").isObject()
+                                    ? (ObjectNode) firstOption.get("connection")
+                                    : null;
                     if (connection != null) {
                         item.setConnectionConfig(connection.toString());
-                        String connType = connection.getStr("type");
-                        if (connType != null && !connType.isBlank()) {
+                        String connType = connection.path("type").asText();
+                        if (!connType.isBlank()) {
                             item.setProtocolType(connType);
                         }
 
                         // Extract configSchema → extraParams
-                        JSONObject configSchema = connection.getJSONObject("configSchema");
+                        ObjectNode configSchema =
+                                connection.get("configSchema") != null
+                                                && connection.get("configSchema").isObject()
+                                        ? (ObjectNode) connection.get("configSchema")
+                                        : null;
                         if (configSchema != null) {
-                            JSONObject properties = configSchema.getJSONObject("properties");
-                            JSONArray required = configSchema.getJSONArray("required");
-                            if (properties != null && !properties.isEmpty()) {
-                                JSONArray params = JSONUtil.createArray();
-                                for (String key : properties.keySet()) {
-                                    JSONObject prop = properties.getJSONObject(key);
-                                    JSONObject paramDef = JSONUtil.createObj();
-                                    paramDef.set("name", key);
-                                    paramDef.set(
+                            ObjectNode properties =
+                                    configSchema.get("properties") != null
+                                                    && configSchema.get("properties").isObject()
+                                            ? (ObjectNode) configSchema.get("properties")
+                                            : null;
+                            ArrayNode required =
+                                    configSchema.get("required") != null
+                                                    && configSchema.get("required").isArray()
+                                            ? (ArrayNode) configSchema.get("required")
+                                            : null;
+                            if (properties != null && properties.size() > 0) {
+                                ArrayNode params = JsonUtil.createArray();
+                                Iterator<String> propNames = properties.fieldNames();
+                                while (propNames.hasNext()) {
+                                    String key = propNames.next();
+                                    JsonNode propNode = properties.get(key);
+                                    ObjectNode prop =
+                                            propNode != null && propNode.isObject()
+                                                    ? (ObjectNode) propNode
+                                                    : null;
+                                    ObjectNode paramDef = JsonUtil.createObjectNode();
+                                    paramDef.put("name", key);
+                                    paramDef.put(
                                             "description",
-                                            prop != null ? prop.getStr("description", "") : "");
-                                    paramDef.set(
-                                            "required", required != null && required.contains(key));
+                                            prop != null
+                                                    ? prop.path("description").asText("")
+                                                    : "");
+                                    boolean isRequired = false;
+                                    if (required != null) {
+                                        for (int i = 0; i < required.size(); i++) {
+                                            if (key.equals(required.get(i).asText())) {
+                                                isRequired = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    paramDef.put("required", isRequired);
                                     params.add(paramDef);
                                 }
                                 item.setExtraParams(params.toString());
@@ -236,10 +273,13 @@ public class LobeHubAdapter implements McpVendorAdapter {
                 }
 
                 // serviceIntro from overview.readme
-                JSONObject overview = detail.getJSONObject("overview");
+                ObjectNode overview =
+                        detail.get("overview") != null && detail.get("overview").isObject()
+                                ? (ObjectNode) detail.get("overview")
+                                : null;
                 if (overview != null) {
-                    String readme = overview.getStr("readme");
-                    if (readme != null && !readme.isBlank()) {
+                    String readme = overview.path("readme").asText();
+                    if (!readme.isBlank()) {
                         item.setServiceIntro(readme);
                     }
                 }
@@ -252,18 +292,18 @@ public class LobeHubAdapter implements McpVendorAdapter {
 
     // ==================== Data Conversion ====================
 
-    private RemoteMcpItem convertToRemoteMcpItem(JSONObject item) {
-        String identifier = item.getStr("identifier");
-        if (identifier == null || identifier.isBlank()) {
+    private RemoteMcpItem convertToRemoteMcpItem(ObjectNode item) {
+        String identifier = item.path("identifier").asText();
+        if (identifier.isBlank()) {
             return null;
         }
 
         String mcpName = toMcpName(identifier);
-        String displayName = item.getStr("name");
-        String description = item.getStr("description");
+        String displayName = item.path("name").asText();
+        String description = item.path("description").asText();
 
         // protocolType: connectionType mapping
-        String connectionType = item.getStr("connectionType");
+        String connectionType = item.path("connectionType").asText();
         String protocolType = mapProtocolType(connectionType);
 
         // connectionConfig: placeholder (actual config from detail API during import)
@@ -271,32 +311,40 @@ public class LobeHubAdapter implements McpVendorAdapter {
 
         // icon
         String icon = null;
-        String iconUrl = item.getStr("icon");
-        if (iconUrl != null && !iconUrl.isBlank()) {
-            icon = JSONUtil.createObj().set("type", "URL").set("value", iconUrl).toString();
+        String iconUrl = item.path("icon").asText();
+        if (!iconUrl.isBlank()) {
+            ObjectNode iconNode = JsonUtil.createObjectNode();
+            iconNode.put("type", "URL");
+            iconNode.put("value", iconUrl);
+            icon = iconNode.toString();
         }
 
         // repoUrl: prefer github.url, fallback to homepage
         String repoUrl = null;
-        JSONObject github = item.getJSONObject("github");
+        ObjectNode github =
+                item.get("github") != null && item.get("github").isObject()
+                        ? (ObjectNode) item.get("github")
+                        : null;
         if (github != null) {
-            repoUrl = github.getStr("url");
+            repoUrl = github.path("url").asText();
         }
         if (repoUrl == null || repoUrl.isBlank()) {
-            repoUrl = item.getStr("homepage");
+            repoUrl = item.path("homepage").asText();
         }
 
         // tags from category
         String tags = null;
-        String category = item.getStr("category");
-        if (category != null && !category.isBlank()) {
-            tags = JSONUtil.createArray().set(category).toString();
+        String category = item.path("category").asText();
+        if (!category.isBlank()) {
+            ArrayNode tagsArr = JsonUtil.createArray();
+            tagsArr.add(category);
+            tags = tagsArr.toString();
         }
 
         return RemoteMcpItem.builder()
                 .remoteId(identifier)
                 .mcpName(mcpName)
-                .displayName(displayName != null ? displayName : identifier)
+                .displayName(!displayName.isBlank() ? displayName : identifier)
                 .description(description)
                 .protocolType(protocolType)
                 .connectionConfig(connectionConfig)
@@ -394,12 +442,11 @@ public class LobeHubAdapter implements McpVendorAdapter {
      * @return String array: [client_id, client_secret]
      */
     private String[] registerClient() {
-        JSONObject body =
-                JSONUtil.createObj()
-                        .set("clientName", "himarket")
-                        .set("clientType", "cli")
-                        .set("deviceId", DEVICE_ID)
-                        .set("source", "himarket");
+        ObjectNode body = JsonUtil.createObjectNode();
+        body.put("clientName", "himarket");
+        body.put("clientType", "cli");
+        body.put("deviceId", DEVICE_ID);
+        body.put("source", "himarket");
 
         Request request =
                 new Request.Builder()
@@ -415,11 +462,11 @@ public class LobeHubAdapter implements McpVendorAdapter {
             }
 
             String responseBody = response.body().string();
-            JSONObject json = JSONUtil.parseObj(responseBody);
-            String clientId = json.getStr("client_id");
-            String clientSecret = json.getStr("client_secret");
+            ObjectNode json = JsonUtil.readObjectNode(responseBody);
+            String clientId = json.path("client_id").asText();
+            String clientSecret = json.path("client_secret").asText();
 
-            if (clientId == null || clientSecret == null) {
+            if (clientId.isBlank() || clientSecret.isBlank()) {
                 log.error("LobeHub client registration returned incomplete credentials");
                 throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
             }
@@ -443,14 +490,13 @@ public class LobeHubAdapter implements McpVendorAdapter {
         long now = System.currentTimeMillis() / 1000;
 
         String headerJson = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
-        JSONObject payload =
-                JSONUtil.createObj()
-                        .set("iss", clientId)
-                        .set("sub", clientId)
-                        .set("aud", TOKEN_URL)
-                        .set("jti", UUID.randomUUID().toString())
-                        .set("iat", now)
-                        .set("exp", now + 300);
+        ObjectNode payload = JsonUtil.createObjectNode();
+        payload.put("iss", clientId);
+        payload.put("sub", clientId);
+        payload.put("aud", TOKEN_URL);
+        payload.put("jti", UUID.randomUUID().toString());
+        payload.put("iat", now);
+        payload.put("exp", now + 300);
 
         String headerB64 = base64UrlEncode(headerJson.getBytes(StandardCharsets.UTF_8));
         String payloadB64 = base64UrlEncode(payload.toString().getBytes(StandardCharsets.UTF_8));
@@ -489,11 +535,11 @@ public class LobeHubAdapter implements McpVendorAdapter {
             }
 
             String responseBody = response.body().string();
-            JSONObject json = JSONUtil.parseObj(responseBody);
-            String accessToken = json.getStr("access_token");
-            long expiresIn = json.getLong("expires_in", 3600L);
+            ObjectNode json = JsonUtil.readObjectNode(responseBody);
+            String accessToken = json.path("access_token").asText();
+            long expiresIn = json.path("expires_in").asLong(3600L);
 
-            if (accessToken == null || accessToken.isBlank()) {
+            if (accessToken.isBlank()) {
                 log.error("LobeHub token exchange returned empty access_token");
                 throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
             }

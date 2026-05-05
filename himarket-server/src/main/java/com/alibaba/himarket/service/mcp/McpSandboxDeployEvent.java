@@ -19,8 +19,10 @@
 
 package com.alibaba.himarket.service.mcp;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 沙箱部署事件：在事务提交后触发实际的 K8s CRD 部署。
@@ -33,6 +35,8 @@ import lombok.Data;
  * 配合 {@code @TransactionalEventListener} 正常工作。
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class McpSandboxDeployEvent {
 

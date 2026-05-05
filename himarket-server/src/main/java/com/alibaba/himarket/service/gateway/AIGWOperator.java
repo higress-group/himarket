@@ -21,7 +21,6 @@ package com.alibaba.himarket.service.gateway;
 
 import cn.hutool.core.codec.Base64;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
@@ -46,6 +45,7 @@ import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.enums.McpFromType;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
 import com.aliyun.sdk.service.apig20240327.models.*;
 import java.util.ArrayList;
@@ -176,7 +176,7 @@ public class AIGWOperator extends APIGOperator {
             mcpConfig.setTools(Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools);
         }
 
-        return JSONUtil.toJsonStr(mcpConfig);
+        return JsonUtil.toJson(mcpConfig);
     }
 
     @Override
@@ -243,7 +243,7 @@ public class AIGWOperator extends APIGOperator {
                         .build();
         result.setMeta(meta); // 设置元数据到顶层
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     @Override
@@ -270,7 +270,7 @@ public class AIGWOperator extends APIGOperator {
                         .build();
         result.setModelAPIConfig(apiConfig);
 
-        return JSONUtil.toJsonStr(result);
+        return JsonUtil.toJson(result);
     }
 
     @Override

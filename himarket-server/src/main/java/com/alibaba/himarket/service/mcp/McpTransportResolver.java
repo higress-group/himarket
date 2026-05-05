@@ -207,11 +207,12 @@ public class McpTransportResolver {
         } else if (hosting == McpHostingType.SANDBOX) {
             if (StrUtil.isNotBlank(endpoint.getSubscribeParams())) {
                 try {
-                    cn.hutool.json.JSONObject params =
-                            cn.hutool.json.JSONUtil.parseObj(endpoint.getSubscribeParams());
-                    String authType = params.getStr("authType");
+                    com.fasterxml.jackson.databind.node.ObjectNode params =
+                            com.alibaba.himarket.utils.JsonUtil.readObjectNode(
+                                    endpoint.getSubscribeParams());
+                    String authType = params.path("authType").asText();
                     if ("apikey".equalsIgnoreCase(authType)) {
-                        String apiKey = params.getStr("apiKey");
+                        String apiKey = params.path("apiKey").asText();
                         if (StrUtil.isNotBlank(apiKey)) {
                             return Map.of("Authorization", apiKey);
                         }

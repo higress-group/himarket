@@ -20,7 +20,6 @@
 package com.alibaba.himarket.service.mcp;
 
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpMetaParam;
@@ -30,6 +29,8 @@ import com.alibaba.himarket.service.McpSandboxDeployService;
 import com.alibaba.himarket.service.SandboxService;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.McpHostingType;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -109,19 +110,18 @@ public class McpSandboxOrchestrator {
 
         String resourceName =
                 AgentRuntimeDeployStrategy.buildResourceNameStatic(meta.getMcpName(), adminUserId);
-        cn.hutool.json.JSONObject subParams =
-                JSONUtil.createObj()
-                        .set("sandboxId", sandboxId)
-                        .set("sandboxName", sandbox.getSandboxName())
-                        .set("transportType", transportType)
-                        .set("authType", authType)
-                        .set("namespace", StrUtil.blankToDefault(param.getNamespace(), "default"))
-                        .set("resourceName", resourceName);
+        ObjectNode subParams = JsonUtil.createObjectNode();
+        subParams.put("sandboxId", sandboxId);
+        subParams.put("sandboxName", sandbox.getSandboxName());
+        subParams.put("transportType", transportType);
+        subParams.put("authType", authType);
+        subParams.put("namespace", StrUtil.blankToDefault(param.getNamespace(), "default"));
+        subParams.put("resourceName", resourceName);
         if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
-            subParams.set("apiKey", apiKey);
+            subParams.put("apiKey", apiKey);
         }
         if (StrUtil.isNotBlank(paramValues)) {
-            subParams.set("extraParams", JSONUtil.parse(paramValues));
+            subParams.set("extraParams", JsonUtil.readTree(paramValues));
         }
 
         McpServerEndpoint pendingEndpoint =
@@ -229,8 +229,8 @@ public class McpSandboxOrchestrator {
             return "default";
         }
         try {
-            cn.hutool.json.JSONObject params = JSONUtil.parseObj(endpoint.getSubscribeParams());
-            return StrUtil.blankToDefault(params.getStr("namespace"), "default");
+            ObjectNode params = JsonUtil.readObjectNode(endpoint.getSubscribeParams());
+            return StrUtil.blankToDefault(params.path("namespace").asText(), "default");
         } catch (Exception e) {
             return "default";
         }
@@ -241,8 +241,8 @@ public class McpSandboxOrchestrator {
             return null;
         }
         try {
-            cn.hutool.json.JSONObject params = JSONUtil.parseObj(endpoint.getSubscribeParams());
-            return params.getStr("resourceName");
+            ObjectNode params = JsonUtil.readObjectNode(endpoint.getSubscribeParams());
+            return params.path("resourceName").asText();
         } catch (Exception e) {
             return null;
         }
@@ -253,8 +253,8 @@ public class McpSandboxOrchestrator {
             return null;
         }
         try {
-            cn.hutool.json.JSONObject params = JSONUtil.parseObj(endpoint.getSubscribeParams());
-            return params.getStr("secretName");
+            ObjectNode params = JsonUtil.readObjectNode(endpoint.getSubscribeParams());
+            return params.path("secretName").asText();
         } catch (Exception e) {
             return null;
         }

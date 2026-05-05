@@ -19,12 +19,12 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
 import com.alibaba.himarket.support.enums.McpVendorType;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.io.IOException;
@@ -114,19 +114,19 @@ public class McpRegistryAdapter implements McpVendorAdapter {
             }
 
             String responseBody = response.body().string();
-            JSONObject json = JSONUtil.parseObj(responseBody);
+            ObjectNode json = JsonUtil.readObjectNode(responseBody);
 
-            JSONArray servers = json.getJSONArray("servers");
-            if (servers == null || servers.isEmpty()) {
+            ArrayNode servers = (ArrayNode) json.get("servers");
+            if (servers == null || servers.size() == 0) {
                 return PageResult.empty(page, size);
             }
 
             // 解析分页元数据
-            JSONObject metadata = json.getJSONObject("metadata");
+            ObjectNode metadata = (ObjectNode) json.get("metadata");
 
             boolean hasNextPage = false;
             if (metadata != null) {
-                String nextCursor = metadata.getStr("nextCursor");
+                String nextCursor = metadata.path("nextCursor").asText(null);
                 hasNextPage = nextCursor != null && !nextCursor.isBlank();
                 if (hasNextPage) {
                     cursorCache.put(page + 1, nextCursor);
@@ -135,16 +135,17 @@ public class McpRegistryAdapter implements McpVendorAdapter {
             List<RemoteMcpItem> items = new ArrayList<>();
             for (int i = 0; i < servers.size(); i++) {
                 try {
-                    JSONObject entry = servers.getJSONObject(i);
+                    ObjectNode entry = (ObjectNode) servers.get(i);
                     // version=latest 已过滤，只需检查 status=active
-                    JSONObject meta = entry.getJSONObject("_meta");
+                    ObjectNode meta = (ObjectNode) entry.get("_meta");
                     if (meta != null) {
-                        JSONObject official = meta.getJSONObject(META_KEY);
-                        if (official != null && !"active".equals(official.getStr("status"))) {
+                        ObjectNode official = (ObjectNode) meta.get(META_KEY);
+                        if (official != null
+                                && !"active".equals(official.path("status").asText(null))) {
                             continue;
                         }
                     }
-                    JSONObject server = entry.getJSONObject("server");
+                    ObjectNode server = (ObjectNode) entry.get("server");
                     if (server == null) {
                         continue;
                     }
@@ -170,42 +171,42 @@ public class McpRegistryAdapter implements McpVendorAdapter {
         }
     }
 
-    private RemoteMcpItem convertToRemoteMcpItem(JSONObject server) {
-        String name = server.getStr("name");
+    private RemoteMcpItem convertToRemoteMcpItem(ObjectNode server) {
+        String name = server.path("name").asText(null);
         if (name == null || name.isBlank()) {
             return null;
         }
 
         String mcpName = toMcpName(name);
-        String title = server.getStr("title");
+        String title = server.path("title").asText(null);
         String displayName = (title != null && !title.isBlank()) ? title : name;
-        String description = server.getStr("description");
+        String description = server.path("description").asText(null);
 
         // Determine protocolType and connectionConfig from remotes or packages
         String protocolType = "stdio";
         String connectionConfig = "{}";
 
-        JSONArray remotes = server.getJSONArray("remotes");
-        JSONArray packages = server.getJSONArray("packages");
+        ArrayNode remotes = (ArrayNode) server.get("remotes");
+        ArrayNode packages = (ArrayNode) server.get("packages");
 
-        if (remotes != null && !remotes.isEmpty()) {
-            JSONObject remote = remotes.getJSONObject(0);
-            protocolType = remote.getStr("type", "stdio");
+        if (remotes != null && remotes.size() > 0) {
+            ObjectNode remote = (ObjectNode) remotes.get(0);
+            protocolType = remote.path("type").asText("stdio");
             // Build connectionConfig JSON including url, type, and headers if present
-            JSONObject connObj = JSONUtil.createObj();
-            connObj.set("url", remote.getStr("url"));
-            connObj.set("type", remote.getStr("type"));
-            if (remote.containsKey("headers")) {
+            ObjectNode connObj = JsonUtil.createObjectNode();
+            connObj.put("url", remote.path("url").asText(null));
+            connObj.put("type", remote.path("type").asText(null));
+            if (remote.has("headers")) {
                 connObj.set("headers", remote.get("headers"));
             }
             connectionConfig = connObj.toString();
-        } else if (packages != null && !packages.isEmpty()) {
-            JSONObject pkg = packages.getJSONObject(0);
+        } else if (packages != null && packages.size() > 0) {
+            ObjectNode pkg = (ObjectNode) packages.get(0);
             protocolType = "stdio";
-            JSONObject connObj = JSONUtil.createObj();
-            connObj.set("registryType", pkg.getStr("registryType"));
-            connObj.set("identifier", pkg.getStr("identifier"));
-            JSONObject transport = pkg.getJSONObject("transport");
+            ObjectNode connObj = JsonUtil.createObjectNode();
+            connObj.put("registryType", pkg.path("registryType").asText(null));
+            connObj.put("identifier", pkg.path("identifier").asText(null));
+            ObjectNode transport = (ObjectNode) pkg.get("transport");
             if (transport != null) {
                 connObj.set("transport", transport);
             }
@@ -214,61 +215,64 @@ public class McpRegistryAdapter implements McpVendorAdapter {
 
         // Icon from icons[0].src
         String icon = null;
-        JSONArray icons = server.getJSONArray("icons");
-        if (icons != null && !icons.isEmpty()) {
-            JSONObject iconObj = icons.getJSONObject(0);
-            String iconSrc = iconObj.getStr("src");
+        ArrayNode icons = (ArrayNode) server.get("icons");
+        if (icons != null && icons.size() > 0) {
+            ObjectNode iconObj = (ObjectNode) icons.get(0);
+            String iconSrc = iconObj.path("src").asText(null);
             if (iconSrc != null && !iconSrc.isBlank()) {
-                icon = JSONUtil.createObj().set("type", "URL").set("value", iconSrc).toString();
+                ObjectNode iconNode = JsonUtil.createObjectNode();
+                iconNode.put("type", "URL");
+                iconNode.put("value", iconSrc);
+                icon = iconNode.toString();
             }
         }
 
         // repoUrl: prefer repository.url, fallback to websiteUrl
         String repoUrl = null;
-        JSONObject repository = server.getJSONObject("repository");
+        ObjectNode repository = (ObjectNode) server.get("repository");
         if (repository != null) {
-            repoUrl = repository.getStr("url");
+            repoUrl = repository.path("url").asText(null);
         }
         if (repoUrl == null || repoUrl.isBlank()) {
-            repoUrl = server.getStr("websiteUrl");
+            repoUrl = server.path("websiteUrl").asText(null);
         }
 
         // extraParams: from remotes[].headers or packages[].environmentVariables
         String extraParams = null;
-        JSONArray params = JSONUtil.createArray();
+        ArrayNode params = JsonUtil.createArray();
         if (remotes != null) {
             for (int i = 0; i < remotes.size(); i++) {
-                JSONArray headers = remotes.getJSONObject(i).getJSONArray("headers");
+                ArrayNode headers = (ArrayNode) remotes.get(i).get("headers");
                 if (headers != null) {
                     for (int j = 0; j < headers.size(); j++) {
-                        JSONObject h = headers.getJSONObject(j);
-                        params.add(
-                                JSONUtil.createObj()
-                                        .set("name", h.getStr("name"))
-                                        .set("description", h.getStr("description", ""))
-                                        .set("required", h.getBool("isRequired", false))
-                                        .set("secret", h.getBool("isSecret", false)));
+                        ObjectNode h = (ObjectNode) headers.get(j);
+                        ObjectNode paramObj = JsonUtil.createObjectNode();
+                        paramObj.put("name", h.path("name").asText(null));
+                        paramObj.put("description", h.path("description").asText(""));
+                        paramObj.put("required", h.path("isRequired").asBoolean(false));
+                        paramObj.put("secret", h.path("isSecret").asBoolean(false));
+                        params.add(paramObj);
                     }
                 }
             }
         }
         if (packages != null) {
             for (int i = 0; i < packages.size(); i++) {
-                JSONArray envVars = packages.getJSONObject(i).getJSONArray("environmentVariables");
+                ArrayNode envVars = (ArrayNode) packages.get(i).get("environmentVariables");
                 if (envVars != null) {
                     for (int j = 0; j < envVars.size(); j++) {
-                        JSONObject ev = envVars.getJSONObject(j);
-                        params.add(
-                                JSONUtil.createObj()
-                                        .set("name", ev.getStr("name"))
-                                        .set("description", ev.getStr("description", ""))
-                                        .set("required", ev.getBool("isRequired", false))
-                                        .set("secret", ev.getBool("isSecret", false)));
+                        ObjectNode ev = (ObjectNode) envVars.get(j);
+                        ObjectNode paramObj = JsonUtil.createObjectNode();
+                        paramObj.put("name", ev.path("name").asText(null));
+                        paramObj.put("description", ev.path("description").asText(""));
+                        paramObj.put("required", ev.path("isRequired").asBoolean(false));
+                        paramObj.put("secret", ev.path("isSecret").asBoolean(false));
+                        params.add(paramObj);
                     }
                 }
             }
         }
-        if (!params.isEmpty()) {
+        if (params.size() > 0) {
             extraParams = params.toString();
         }
 

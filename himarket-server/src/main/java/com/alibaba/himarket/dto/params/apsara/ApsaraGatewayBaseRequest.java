@@ -19,25 +19,26 @@
 
 package com.alibaba.himarket.dto.params.apsara;
 
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 
 public class ApsaraGatewayBaseRequest {
 
-    public JSONObject toJsonObject() {
-        JSONObject json = JSONUtil.parseObj(this);
+    public Map<String, Object> toJsonObject() {
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> map = mapper.convertValue(this, Map.class);
 
         // 移除值为 null 的字段
-        json.keySet().removeIf(key -> json.get(key) == null);
+        map.entrySet().removeIf(entry -> entry.getValue() == null);
 
         // 或者移除空字符串
-        json.keySet()
+        map.entrySet()
                 .removeIf(
-                        key -> {
-                            Object value = json.get(key);
+                        entry -> {
+                            Object value = entry.getValue();
                             return value instanceof String && ((String) value).isEmpty();
                         });
 
-        return json;
+        return map;
     }
 }

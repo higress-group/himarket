@@ -3,7 +3,6 @@ package com.alibaba.himarket.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -26,6 +25,7 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillMeta;
 import com.alibaba.nacos.api.ai.model.skills.SkillResource;
@@ -482,9 +482,7 @@ public class SkillServiceImpl implements SkillService {
                 ref.getNacosId(),
                 s ->
                         s.updateLabels(
-                                ref.getNamespace(),
-                                ref.getSkillName(),
-                                JSONUtil.toJsonStr(labels)));
+                                ref.getNamespace(), ref.getSkillName(), JsonUtil.toJson(labels)));
         log.info("Set latest: Skill {}, version {}", ref.getSkillName(), version);
     }
 

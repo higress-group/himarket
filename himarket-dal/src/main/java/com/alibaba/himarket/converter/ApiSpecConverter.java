@@ -23,7 +23,7 @@ import com.alibaba.himarket.support.api.spec.ApiSpec;
 import jakarta.persistence.Converter;
 
 @Converter
-public class ApiSpecConverter extends JacksonConverter<ApiSpec> {
+public class ApiSpecConverter extends JsonConverter<ApiSpec> {
 
     public ApiSpecConverter() {
         super(ApiSpec.class);

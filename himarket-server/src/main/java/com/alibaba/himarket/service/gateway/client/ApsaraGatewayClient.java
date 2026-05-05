@@ -20,8 +20,6 @@
 package com.alibaba.himarket.service.gateway.client;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.json.JSONObject;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.apsara.*;
@@ -448,8 +446,8 @@ public class ApsaraGatewayClient extends GatewayClient {
             String action,
             String pathName,
             MethodType methodType,
-            JSONObject body,
-            Function<JSONObject, E> converter) {
+            Map<String, Object> body,
+            Function<Map<String, Object>, E> converter) {
         Params params =
                 new Params()
                         .setStyle("ROA") // API 风格
@@ -484,7 +482,8 @@ public class ApsaraGatewayClient extends GatewayClient {
 
         try {
             Map<String, ?> response = client.callApi(params, request, runtime);
-            JSONObject data = JSONUtil.parseObj(response);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) (Map<?, ?>) response;
             return converter.apply(data);
         } catch (Exception e) {
             log.error("Error executing Apsara request", e);

@@ -21,7 +21,6 @@ package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -45,6 +44,7 @@ import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
@@ -325,7 +325,7 @@ public class NacosServiceImpl implements NacosService {
             }
 
             MCPConfigResult mcpConfig = buildMCPConfigResult(detail);
-            return JSONUtil.toJsonStr(mcpConfig);
+            return JsonUtil.toJson(mcpConfig);
         } catch (Exception e) {
             log.error("Error fetching Nacos MCP servers", e);
             throw new BusinessException(
@@ -780,7 +780,7 @@ public class NacosServiceImpl implements NacosService {
             result.setMeta(meta); // 设置元数据到顶层
 
             // 4. 序列化为 JSON
-            return JSONUtil.toJsonStr(result);
+            return JsonUtil.toJson(result);
 
         } catch (Exception e) {
             log.error(

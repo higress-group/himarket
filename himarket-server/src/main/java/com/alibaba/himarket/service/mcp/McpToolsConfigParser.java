@@ -19,9 +19,8 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.json.JSONUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -50,14 +49,17 @@ public final class McpToolsConfigParser {
      */
     @SuppressWarnings("unchecked")
     public static String normalize(String raw) {
-        if (StrUtil.isBlank(raw)) {
+        if (raw == null || raw.isBlank()) {
             return null;
         }
         String trimmed = raw.trim();
 
-        // 已经是合法 JSON（数组或对象）
-        if ((trimmed.startsWith("[") || trimmed.startsWith("{")) && JSONUtil.isTypeJSON(trimmed)) {
+        // 先尝试按 JSON 解析
+        try {
+            OBJECT_MAPPER.readTree(trimmed);
             return trimmed;
+        } catch (IOException e) {
+            log.debug("tools_config 非 JSON 格式，尝试按 YAML 解析: {}", e.getMessage());
         }
 
         // 尝试按 YAML 解析

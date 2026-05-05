@@ -19,8 +19,10 @@
 
 package com.alibaba.himarket.service.mcp;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * 沙箱取消部署事件：在事务提交后触发旧 CRD 资源的清理。
@@ -33,6 +35,8 @@ import lombok.Data;
  * {@link org.springframework.context.PayloadApplicationEvent}。
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class McpSandboxUndeployEvent {
 

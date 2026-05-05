@@ -1,7 +1,6 @@
 package com.alibaba.himarket.service.hichat.service;
 
 import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.gateway.ModelEndpointResolver;
@@ -10,6 +9,8 @@ import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.support.enums.AIProtocol;
 import com.alibaba.himarket.support.product.ModelFeature;
+import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.agentscope.core.formatter.openai.OpenAIChatFormatter;
 import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.model.Model;
@@ -48,14 +49,15 @@ public class OpenAILlmService extends AbstractLlmService {
 
         if (BooleanUtil.isTrue(param.getEnableWebSearch())) {
             Map<String, Object> webSearchOptions =
-                    JSONUtil.parseObj(
+                    JsonUtil.parse(
                             """
                                 {
                                     "web_search_options": {
                                         "search_context_size": "medium"
                                     }
                                 }
-                            """);
+                            """,
+                            new TypeReference<Map<String, Object>>() {});
             request.setBodyParams(webSearchOptions);
         }
 

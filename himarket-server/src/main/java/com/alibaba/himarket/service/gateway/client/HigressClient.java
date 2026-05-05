@@ -20,9 +20,9 @@
 package com.alibaba.himarket.service.gateway.client;
 
 import cn.hutool.core.map.MapBuilder;
-import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -106,7 +106,7 @@ public class HigressClient extends GatewayClient {
             log.info(
                     "Higress response: status={}, body={}",
                     response.getStatusCode(),
-                    JSONUtil.toJsonStr(response.getBody()));
+                    JsonUtil.toJson(response.getBody()));
 
             return response.getBody();
         } catch (HttpClientErrorException e) {
