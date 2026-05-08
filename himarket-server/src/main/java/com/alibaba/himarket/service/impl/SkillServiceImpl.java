@@ -10,6 +10,7 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
+import com.alibaba.himarket.core.skill.SkillZipParser;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
@@ -26,6 +27,7 @@ import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.nacos.api.ai.model.NacosAiConfigKeyCodec;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillMeta;
 import com.alibaba.nacos.api.ai.model.skills.SkillResource;
@@ -59,6 +61,15 @@ public class SkillServiceImpl implements SkillService {
 
     private static final long MAX_ZIP_SIZE = 10 * 1024 * 1024;
 
+    /**
+     * Nacos config_info.data_id 列的最大长度（varchar(256)）。
+     * 资源文件路径经过 {@link NacosAiConfigKeyCodec#encodeSegment} 编码后不能超过此值，
+     * 否则 Nacos 写入数据库时会抛出 DataIntegrityViolationException。
+     *
+     * @see <a href="https://github.com/higress-group/himarket/issues/278">Issue #278</a>
+     */
+    private static final int NACOS_DATA_ID_MAX_LENGTH = 256;
+
     private final NacosService nacosService;
 
     private final ProductRepository productRepository;
@@ -75,6 +86,12 @@ public class SkillServiceImpl implements SkillService {
         SkillRef ref = getSkillRef(productId, true);
 
         byte[] zipBytes = file.getBytes();
+
+        // Pre-validate: parse ZIP locally and check resource path lengths.
+        // Nacos hex-encodes paths containing invalid chars (e.g. "/"), which can
+        // double the length and exceed the config_info.data_id varchar(256) limit.
+        // See: https://github.com/higress-group/himarket/issues/278
+        validateResourcePathLengths(zipBytes);
 
         SkillConfig config = product.getFeature().getSkillConfig();
 
@@ -749,6 +766,42 @@ public class SkillServiceImpl implements SkillService {
             return type + "/" + name;
         }
         return name;
+    }
+
+    /**
+     * 校验 ZIP 中所有资源文件路径经过 Nacos 编码后是否会超过 data_id 列长度限制。
+     *
+     * <p>Nacos 使用 {@link NacosAiConfigKeyCodec#encodeSegment} 对资源路径进行编码：
+     * 当路径包含非法字符（如 {@code /}）时，整个字符串会被 hex 编码为 {@code enc.} + 十六进制，
+     * 长度约为原始长度的 2 倍 + 4。如果编码后超过 256 字符，写入 Nacos 数据库时会报
+     * {@code DataIntegrityViolationException: Data too long for column 'data_id'}。
+     *
+     * @param zipBytes ZIP 文件字节
+     * @throws BusinessException 如果任何资源路径编码后超过限制
+     * @see <a href="https://github.com/higress-group/himarket/issues/278">Issue #278</a>
+     */
+    private void validateResourcePathLengths(byte[] zipBytes) {
+        Skill skill;
+        try {
+            skill = SkillZipParser.parseSkillFromZip(zipBytes, "");
+        } catch (Exception e) {
+            // ZIP 解析失败由后续 Nacos 上传处理，这里不重复报错
+            return;
+        }
+        if (skill == null || skill.getResource() == null) {
+            return;
+        }
+        for (SkillResource resource : skill.getResource().values()) {
+            String path = buildResourcePath(resource);
+            String encoded = NacosAiConfigKeyCodec.encodeSegment(path);
+            if (encoded != null && encoded.length() > NACOS_DATA_ID_MAX_LENGTH) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        String.format(
+                                "资源文件路径过长，Nacos 编码后为 %d 字符（上限 %d）。" + "请缩短文件名或减少目录层级: %s",
+                                encoded.length(), NACOS_DATA_ID_MAX_LENGTH, path));
+            }
+        }
     }
 
     private void writeZipEntry(ZipOutputStream zos, String path, byte[] data) throws IOException {
