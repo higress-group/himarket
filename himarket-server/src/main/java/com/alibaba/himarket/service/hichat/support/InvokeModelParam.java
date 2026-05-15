@@ -2,7 +2,7 @@ package com.alibaba.himarket.service.hichat.support;
 
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.product.ProductResult;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import io.agentscope.core.message.Msg;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -54,7 +54,7 @@ public class InvokeModelParam {
     /**
      * MCP servers with transport config
      */
-    private List<MCPTransportConfig> mcpConfigs;
+    private List<McpTransportConfig> mcpConfigs;
 
     /**
      * Credential for invoking the Model and MCP

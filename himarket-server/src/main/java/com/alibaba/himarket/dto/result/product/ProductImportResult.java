@@ -5,13 +5,7 @@ import lombok.Data;
 @Data
 public class ProductImportResult {
 
-    private String serviceName;
-
-    private boolean success;
-
-    private String productId;
+    private String resourceName;
 
     private String errorMessage;
-
-    private String errorCode;
 }

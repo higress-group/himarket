@@ -19,12 +19,19 @@
 
 package com.alibaba.himarket.service.vendor;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
+import com.alibaba.himarket.support.api.spec.McpConnection;
+import com.alibaba.himarket.support.api.spec.SseConnection;
+import com.alibaba.himarket.support.api.spec.StdioConnection;
+import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -38,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
@@ -95,6 +103,55 @@ public class LobeHubAdapter implements McpVendorAdapter {
     @Override
     public McpVendorType getType() {
         return McpVendorType.LOBEHUB;
+    }
+
+    @Override
+    public McpConnection buildConnection(RemoteMcpItem item) {
+        ObjectNode config = JsonUtil.readObjectNode(item.getConnectionConfig());
+        McpProtocolType protocol = McpProtocolType.fromString(item.getProtocolType());
+        if (protocol == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "Unsupported MCP protocol type: " + item.getProtocolType());
+        }
+        return switch (protocol) {
+            case STDIO -> buildStdioConnection(config);
+            case SSE, STREAMABLE_HTTP, DUAL_HTTP -> buildRemoteConnection(protocol, config);
+        };
+    }
+
+    @Override
+    public RemoteMcpItem getMcpServer(String resourceId) {
+        String accessToken = getAccessToken();
+        try {
+            String detailUrl = LIST_URL + "/" + resourceId;
+            Request request =
+                    new Request.Builder()
+                            .url(detailUrl)
+                            .get()
+                            .header("Authorization", "Bearer " + accessToken)
+                            .build();
+
+            ObjectNode detail;
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    throw new BusinessException(
+                            ErrorCode.NOT_FOUND, "External MCP resource", resourceId);
+                }
+                detail = JsonUtil.readObjectNode(response.body().string());
+            }
+            RemoteMcpItem item = convertToRemoteMcpItem(detail);
+            if (item == null) {
+                throw new BusinessException(
+                        ErrorCode.NOT_FOUND, "External MCP resource", resourceId);
+            }
+            enrichForImport(item);
+            item.setConnection(buildConnection(item));
+            return item;
+        } catch (IOException e) {
+            log.warn("LobeHub detail API failed for {}", resourceId, e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "供应商 API 连接超时");
+        }
     }
 
     @Override
@@ -383,6 +440,51 @@ public class LobeHubAdapter implements McpVendorAdapter {
             case "local", "hybrid" -> "stdio";
             default -> "stdio";
         };
+    }
+
+    private StdioConnection buildStdioConnection(ObjectNode config) {
+        if (config == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "MCP connection config is empty");
+        }
+        String command = config.path("command").asText(null);
+        if (StrUtil.isBlank(command)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "stdio MCP command is required");
+        }
+
+        StdioConnection connection = new StdioConnection();
+        connection.setCommand(command);
+        if (config.get("args") != null && config.get("args").isArray()) {
+            List<String> args = new ArrayList<>();
+            config.get("args").forEach(arg -> args.add(arg.asText()));
+            connection.setArgs(args);
+        }
+        if (config.get("env") != null && config.get("env").isObject()) {
+            connection.setEnv(
+                    JsonUtil.parse(
+                            config.get("env").toString(),
+                            new TypeReference<Map<String, String>>() {}));
+        }
+        String cwd = config.path("cwd").asText(null);
+        if (StrUtil.isNotBlank(cwd)) {
+            connection.setCwd(cwd);
+        }
+        return connection;
+    }
+
+    private McpConnection buildRemoteConnection(McpProtocolType protocol, ObjectNode config) {
+        if (config == null || StrUtil.isBlank(config.path("url").asText(null))) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "MCP connection URL is required");
+        }
+        if (protocol == McpProtocolType.SSE) {
+            SseConnection connection = new SseConnection();
+            connection.setUrl(config.path("url").asText());
+            return connection;
+        }
+        StreamableHttpConnection connection = new StreamableHttpConnection();
+        connection.setUrl(config.path("url").asText());
+        return connection;
     }
 
     // ==================== Authentication ====================

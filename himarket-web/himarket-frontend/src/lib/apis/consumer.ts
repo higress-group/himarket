@@ -85,8 +85,8 @@ export function getConsumers(params: QueryConsumerParams) {
       company: params.company,
       email: params.email,
       name: params.name,
-      page: params.page || 0,
-      size: params.size || 20,
+      page: params.page ?? 1,
+      size: params.size ?? 20,
       status: params.status,
     },
   });
@@ -122,9 +122,9 @@ export function getConsumerSubscriptions(consumerId: string, params?: GetSubscri
     `/consumers/${consumerId}/subscriptions`,
     {
       params: {
-        page: params?.page || 0,
+        page: params?.page ?? 1,
         productName: params?.productName,
-        size: params?.size || 100,
+        size: params?.size ?? 100,
         status: params?.status,
       },
     },
@@ -168,8 +168,8 @@ export function getProductSubscriptions(
     {
       params: {
         consumerName: params?.consumerName,
-        page: params?.page || 0,
-        size: params?.size || 20,
+        page: params?.page ?? 1,
+        size: params?.size ?? 20,
         status: params?.status,
       },
     },
@@ -185,11 +185,8 @@ export async function getProductSubscriptionStatus(productId: string) {
     const response = await getProductSubscriptions(productId, { size: 100 });
     const subscriptions = response.data.content || [];
 
-    // 只有 APPROVED 状态才算已订阅
-    const approvedSubscriptions = subscriptions.filter((sub) => sub.status === 'APPROVED');
-
     // 转换为原有格式以保持兼容性
-    const subscribedConsumers = approvedSubscriptions.map((sub) => ({
+    const subscribedConsumers = subscriptions.map((sub) => ({
       consumer: {
         consumerId: sub.consumerId,
         name: sub.consumerName,
@@ -200,7 +197,7 @@ export async function getProductSubscriptionStatus(productId: string) {
 
     return {
       allConsumers: [], // 延迟加载，在申请订阅时才获取
-      // 新增：返回完整的订阅数据供管理弹窗使用（包含所有状态）
+      // 新增：返回完整的订阅数据供管理弹窗使用
       fullSubscriptionData: {
         content: subscriptions,
         totalElements: response.data.totalElements || subscriptions.length,

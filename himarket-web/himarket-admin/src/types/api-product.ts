@@ -213,6 +213,7 @@ export interface ApiDefinition {
   status: string;
   version?: string;
   spec?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
   policies?: unknown[];
   createAt?: string;
   updatedAt?: string;
@@ -225,6 +226,7 @@ export interface CreateApiDefinitionRequest {
   relatedProductId?: string;
   version?: string;
   spec: Record<string, unknown>;
+  meta?: Record<string, unknown>;
   policies?: unknown[];
 }
 

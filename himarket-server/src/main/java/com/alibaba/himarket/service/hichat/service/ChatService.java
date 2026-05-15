@@ -44,7 +44,7 @@ import com.alibaba.himarket.service.*;
 import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.ProductType;
@@ -386,7 +386,7 @@ public class ChatService {
         return messages;
     }
 
-    private List<MCPTransportConfig> buildMCPConfigs(
+    private List<McpTransportConfig> buildMCPConfigs(
             CreateChatParam param, CredentialContext credentialContext) {
         if (CollUtil.isEmpty(param.getMcpProducts())) {
             return CollUtil.empty(List.class);
@@ -399,7 +399,7 @@ public class ChatService {
                                         || product.getMcpConfig() != null)
                 .map(
                         product -> {
-                            MCPTransportConfig transportConfig =
+                            McpTransportConfig transportConfig =
                                     product.getMcpConfig().toTransportConfig();
 
                             // Add authentication credentials

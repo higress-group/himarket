@@ -22,23 +22,20 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.AdminOrDeveloperAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
-import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.dto.params.product.*;
+import com.alibaba.himarket.dto.params.product.AddProductRefParam;
 import com.alibaba.himarket.dto.params.product.CreateProductParam;
-import com.alibaba.himarket.dto.params.product.CreateProductRefParam;
 import com.alibaba.himarket.dto.params.product.PublishProductParam;
 import com.alibaba.himarket.dto.params.product.QueryProductParam;
 import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
 import com.alibaba.himarket.dto.params.product.UpdateProductParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.dto.result.mcp.McpMetaPublicResult;
-import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.product.*;
-import com.alibaba.himarket.service.McpServerService;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.service.importer.ProductImporter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -48,7 +45,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "API产品管理", description = "提供API产品的创建、更新、删除、查询、订阅等管理功能")
+@Tag(
+        name = "API Product Management",
+        description =
+                "Create, update, delete, query, publish, and manage subscriptions for API products")
 @RestController
 @RequestMapping("/products")
 @Slf4j
@@ -59,32 +59,30 @@ public class ProductController {
 
     private final ProductCategoryService productCategoryService;
 
-    private final McpServerService mcpServerService;
+    private final ProductImporter productImporter;
 
-    private final ContextHolder contextHolder;
-
-    @Operation(summary = "创建API产品")
+    @Operation(summary = "Create API product")
     @PostMapping
     @AdminAuth
     public ProductResult createProduct(@RequestBody @Valid CreateProductParam param) {
         return productService.createProduct(param);
     }
 
-    @Operation(summary = "获取API产品列表")
+    @Operation(summary = "List API products")
     @GetMapping
     @PublicAccess
     public PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable) {
         return productService.listProducts(param, pageable);
     }
 
-    @Operation(summary = "获取API产品详情")
+    @Operation(summary = "Get API product details")
     @GetMapping("/{productId}")
     @PublicAccess
     public ProductResult getProduct(@PathVariable String productId) {
         return productService.getProduct(productId);
     }
 
-    @Operation(summary = "更新API产品")
+    @Operation(summary = "Update API product")
     @PutMapping("/{productId}")
     @AdminAuth
     public ProductResult updateProduct(
@@ -92,7 +90,7 @@ public class ProductController {
         return productService.updateProduct(productId, param);
     }
 
-    @Operation(summary = "发布API产品")
+    @Operation(summary = "Publish API product")
     @PostMapping("/{productId}/publications")
     @AdminAuth
     public void publishProduct(
@@ -100,7 +98,7 @@ public class ProductController {
         productService.publishProduct(productId, param.getPortalId());
     }
 
-    @Operation(summary = "获取API产品的发布信息")
+    @Operation(summary = "List API product publications")
     @GetMapping("/{productId}/publications")
     @AdminAuth
     public PageResult<ProductPublicationResult> getPublications(
@@ -108,7 +106,7 @@ public class ProductController {
         return productService.getPublications(productId, pageable);
     }
 
-    @Operation(summary = "下线API产品")
+    @Operation(summary = "Unpublish API product")
     @DeleteMapping("/{productId}/publications/{publicationId}")
     @AdminAuth
     public void unpublishProduct(
@@ -116,55 +114,36 @@ public class ProductController {
         productService.unpublishProduct(productId, publicationId);
     }
 
-    @Operation(summary = "删除API产品")
+    @Operation(summary = "Delete API product")
     @DeleteMapping("/{productId}")
     @AdminAuth
     public void deleteProduct(@PathVariable String productId) {
         productService.deleteProduct(productId);
     }
 
-    @Operation(summary = "API产品关联API或MCP Server")
-    @PostMapping("/{productId}/ref")
+    @Operation(summary = "Create or replace API product reference")
+    @PutMapping("/{productId}/ref")
     @AdminAuth
     public void addProductRef(
-            @PathVariable String productId, @RequestBody @Valid CreateProductRefParam param) {
+            @PathVariable String productId, @RequestBody @Valid AddProductRefParam param) {
         productService.addProductRef(productId, param);
     }
 
-    @Operation(summary = "获取API产品关联的API或MCP Server")
+    @Operation(summary = "Get API product reference")
     @GetMapping("/{productId}/ref")
     @PublicAccess
     public ProductRefResult getProductRef(@PathVariable String productId) {
         return productService.getProductRef(productId);
     }
 
-    @Operation(summary = "获取产品关联的 MCP 元信息")
-    @GetMapping("/{productId}/mcp-meta")
-    public List<McpMetaResult> listMcpMeta(@PathVariable String productId) {
-        List<McpMetaResult> results = mcpServerService.listMetaByProduct(productId);
-        if (!contextHolder.isAdministrator()) {
-            results.forEach(McpMetaResult::sanitize);
-        }
-        return results;
-    }
-
-    @Operation(summary = "获取产品关联的 MCP 公开信息（匿名可访问，脱敏）")
-    @GetMapping("/{productId}/mcp-meta/public")
-    @PublicAccess
-    public List<McpMetaPublicResult> listMcpMetaPublic(@PathVariable String productId) {
-        return mcpServerService.listMetaByProduct(productId).stream()
-                .map(McpMetaPublicResult::fromFull)
-                .collect(java.util.stream.Collectors.toList());
-    }
-
-    @Operation(summary = "删除API产品关联的API或MCP Server")
+    @Operation(summary = "Delete API product reference")
     @DeleteMapping("/{productId}/ref")
     @AdminAuth
     public void deleteProductRef(@PathVariable String productId) {
         productService.deleteProductRef(productId);
     }
 
-    @Operation(summary = "获取产品的订阅列表")
+    @Operation(summary = "List product subscriptions")
     @GetMapping("/{productId}/subscriptions")
     @AdminOrDeveloperAuth
     public PageResult<SubscriptionResult> listProductSubscriptions(
@@ -174,55 +153,47 @@ public class ProductController {
         return productService.listProductSubscriptions(productId, param, pageable);
     }
 
-    @Operation(summary = "获取产品关联的类别")
+    @Operation(summary = "List product categories")
     @GetMapping("/{productId}/categories")
     @AdminOrDeveloperAuth
     public List<ProductCategoryResult> getProductCategories(@PathVariable String productId) {
         return productCategoryService.listCategoriesForProduct(productId);
     }
 
-    @Operation(summary = "设置产品类别")
-    @PostMapping("/{productId}/categories")
+    @Operation(summary = "Set product categories")
+    @PutMapping("/{productId}/categories")
     @AdminAuth
     public void setProductCategories(
             @PathVariable String productId, @RequestBody List<String> categoryIds) {
         productService.setProductCategories(productId, categoryIds);
     }
 
-    @Operation(summary = "重新加载API产品配置")
-    @PutMapping("/{productId}/configurations")
+    @Operation(summary = "Reload API product configuration")
+    @PostMapping("/{productId}/configurations/reload")
     @AdminAuth
     public void reloadProductConfig(@PathVariable String productId) {
         productService.reloadProductConfig(productId);
     }
 
-    @Operation(summary = "获取MCP服务的工具详情")
+    @Operation(summary = "List MCP tools for product")
     @GetMapping("/{productId}/tools")
     @PublicAccess
     public McpToolListResult listMcpTools(@PathVariable String productId) {
         return productService.listMcpTools(productId);
     }
 
-    @Operation(summary = "更新 Skill 的 Nacos 关联")
-    @PutMapping("/{productId}/skill-nacos")
+    @Operation(summary = "Update product source")
+    @PutMapping("/{productId}/source")
     @AdminAuth
-    public void updateSkillNacos(
-            @PathVariable String productId, @RequestBody @Valid BindNacosParam param) {
-        productService.bindProductNacos(productId, param);
+    public void updateProductSource(
+            @PathVariable String productId, @RequestBody @Valid UpdateProductSourceParam param) {
+        productService.updateProductSource(productId, param);
     }
 
-    @Operation(summary = "更新 Worker 的 Nacos 关联")
-    @PutMapping("/{productId}/worker-nacos")
-    @AdminAuth
-    public void updateWorkerNacos(
-            @PathVariable String productId, @RequestBody @Valid BindNacosParam param) {
-        productService.bindProductNacos(productId, param);
-    }
-
-    @Operation(summary = "批量导入AI API资源为产品")
+    @Operation(summary = "Import AI API resources as products")
     @PostMapping("/import")
     @AdminAuth
     public ImportProductsResult importProducts(@RequestBody @Valid ImportProductsParam param) {
-        return productService.importProducts(param);
+        return productImporter.importProducts(param);
     }
 }

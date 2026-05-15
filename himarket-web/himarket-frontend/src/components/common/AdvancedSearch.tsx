@@ -233,7 +233,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                 style={{
                   backgroundColor: '#f5f5f5',
                   border: '1px solid #d9d9d9',
-                  borderRadius: '16px',
+                  borderRadius: '10px',
                   color: '#666',
                   fontSize: '12px',
                   padding: '4px 12px',

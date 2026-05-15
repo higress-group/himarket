@@ -2,7 +2,7 @@
 
 Coding standards for the HiMarket Developer Portal frontend. Based on actual code patterns found in the project, for developers and AI agents to reference.
 
-Tech Stack: React 18 + TypeScript + Vite + Ant Design + Tailwind CSS + i18next
+Tech Stack: React 19 + TypeScript + Vite + Ant Design + Tailwind CSS + i18next
 
 ---
 
@@ -373,11 +373,13 @@ const res = await getProduct({ id: productId });
 - Unified response type `RespI<T>`: `{ code: string; message?: string; data: T }`
 - Automatic token injection: request interceptor reads `access_token` from `localStorage`
 - Automatic redirect to login on 401 (except public pages)
-- Pagination params: `page` (0-based) + `size`
+- API request pagination params: `page` (1-based) + `size`.
+- Initial page state must start from `1`, not `0`.
+- The backend converts incoming page numbers to 0-based database queries and converts response pagination back to 1-based values.
 
 ### 6.5 API Request Deduplication (StrictMode Guard)
 
-React 18 `StrictMode` intentionally double-invokes component effects in development (mount → cleanup → remount). `useEffect` containing data requests will fire twice on initial mount, producing duplicate API calls. This clutters backend logs, complicates debugging, and may cause race conditions. **All initialization data requests inside `useEffect` must be guarded.**
+React development `StrictMode` intentionally double-invokes component effects in development (mount → cleanup → remount). `useEffect` containing data requests may fire twice on initial mount, producing duplicate API calls. This clutters backend logs, complicates debugging, and may cause race conditions. **All initialization data requests inside `useEffect` must be guarded.**
 
 #### Scenarios Requiring Deduplication
 
@@ -804,7 +806,38 @@ When adding large third-party dependencies, consider whether they should be adde
 
 ---
 
-## 13. Pre-Commit Checks
+## 13. Security and Sensitive Data
+
+The developer portal handles login state, subscription credentials, product configuration, chat/coding requests, and tool invocation metadata. Treat these values as sensitive by default.
+
+**Rules:**
+
+- Never print tokens, authorization headers, API keys, passwords, HMAC secrets, or full credential payloads to `console`.
+- Do not persist sensitive values in `localStorage` unless the value is already part of the established auth flow.
+- Mask credentials and tokens in UI by default. Reveal only through explicit user interaction when the product requires it.
+- Do not include secrets in URL query strings, route params, error messages, analytics events, copied debug text, SSE logs, or WebSocket logs.
+- Be careful when rendering Markdown or tool output. Avoid raw HTML unless it is sanitized by a reviewed library.
+- Prefer typed request/response DTOs that expose only the fields required by the UI.
+
+## 14. Testing
+
+Testing effort should match the user-facing risk and state complexity.
+
+**Frontend test expectations:**
+
+- API wrapper changes should be covered by TypeScript checks and, when practical, lightweight unit tests for URL/method changes.
+- Complex hooks should have tests for loading, success, failure, cleanup, and cancellation behavior.
+- Chat, SSE, WebSocket, and coding-session flows should have focused tests or documented manual verification because failures are hard to diagnose from static checks alone.
+- Components with forms, subscriptions, or multi-step flows should have interaction tests for validation and submit behavior.
+- Bug fixes should include regression tests when the scenario can be reproduced deterministically.
+
+**Minimum verification before PR:**
+
+- Run `npm run type-check` for the changed frontend app.
+- Run `npm run lint` or `./scripts/code-check.sh frontend` before submitting developer-portal changes.
+- Manually verify critical UI flows when behavior changes cannot be covered by automated tests.
+
+## 15. Pre-Commit Checks
 
 ```bash
 # Run from project root

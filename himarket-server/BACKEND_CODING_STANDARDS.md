@@ -15,8 +15,10 @@
 9. [Pagination](#9-pagination)
 10. [Controller Layer](#10-controller-layer)
 11. [Event-Driven Patterns](#11-event-driven-patterns)
-12. [Checklist](#12-checklist)
-13. [Reference Files](#13-reference-files)
+12. [Security and Sensitive Data](#12-security-and-sensitive-data)
+13. [Testing](#13-testing)
+14. [Checklist](#14-checklist)
+15. [Reference Files](#15-reference-files)
 
 ---
 
@@ -36,11 +38,11 @@ Controller -> Service (Interface + Impl) -> Repository -> Entity
 himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootstrap (bootstrap)
 ```
 
-| Module | Contents |
-|--------|----------|
-| `himarket-dal` | Entity, Repository, AttributeConverter, enums |
-| `himarket-server` | Controller, Service, DTO (Param/Result), core framework |
-| `himarket-bootstrap` | Application entry point, Flyway migrations |
+| Module               | Contents                                                |
+| -------------------- | ------------------------------------------------------- |
+| `himarket-dal`       | Entity, Repository, AttributeConverter, enums           |
+| `himarket-server`    | Controller, Service, DTO (Param/Result), core framework |
+| `himarket-bootstrap` | Application entry point, Flyway migrations              |
 
 **Base package:** `com.alibaba.himarket`
 
@@ -50,19 +52,20 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
 
 ### Class naming
 
-| Layer | Suffix | Example |
-|-------|--------|---------|
-| Controller | `Controller` | `ProductController` |
-| Service interface | `Service` | `ProductService` |
-| Service implementation | `ServiceImpl` | `ProductServiceImpl` |
-| Repository | `Repository` | `ProductRepository` |
-| Entity | (none) | `Product` |
-| Input DTO | `Param` | `CreateProductParam` |
-| Output DTO | `Result` | `ProductResult` |
-| Event | `Event` | `ProductDeletingEvent` |
-| Converter | `Converter` | `PortalSettingConfigConverter` |
+| Layer                  | Suffix        | Example                        |
+| ---------------------- | ------------- | ------------------------------ |
+| Controller             | `Controller`  | `ProductController`            |
+| Service interface      | `Service`     | `ProductService`               |
+| Service implementation | `ServiceImpl` | `ProductServiceImpl`           |
+| Repository             | `Repository`  | `ProductRepository`            |
+| Entity                 | (none)        | `Product`                      |
+| Input DTO              | `Param`       | `CreateProductParam`           |
+| Output DTO             | `Result`      | `ProductResult`                |
+| Event                  | `Event`       | `ProductDeletingEvent`         |
+| Converter              | `Converter`   | `PortalSettingConfigConverter` |
 
 **Param patterns:**
+
 - `Create[Entity]Param` -- creation
 - `Update[Entity]Param` -- updates
 - `Query[Entity]Param` -- queries / filtering
@@ -72,6 +75,7 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
 ### Method naming
 
 Use `verb + noun`. Key verbs:
+
 - `create` / `delete` -- CRUD operations
 - `get` -- single entity retrieval
 - `list` -- collection retrieval
@@ -81,12 +85,12 @@ Use `verb + noun`. Key verbs:
 
 ### Other conventions
 
-| Item | Rule | Example |
-|------|------|---------|
-| Request route | lowercase with dash | `/products`, `/mcp-servers` |
-| Database column | `snake_case` | `product_id`, `admin_id` |
-| Method parameter | `camelCase` | `productId`, `categoryId` |
-| Enum | `XxxStatus`, `XxxType` | `ProductStatus`, `ProductType` |
+| Item             | Rule                   | Example                        |
+| ---------------- | ---------------------- | ------------------------------ |
+| Request route    | lowercase with dash    | `/products`, `/mcp-servers`    |
+| Database column  | `snake_case`           | `product_id`, `admin_id`       |
+| Method parameter | `camelCase`            | `productId`, `categoryId`      |
+| Enum             | `XxxStatus`, `XxxType` | `ProductStatus`, `ProductType` |
 
 ---
 
@@ -183,6 +187,7 @@ public class ProductController {
 ```
 
 **Rules:**
+
 - All data classes (DTO, Result, Entity) use `@Data` -- never hand-write getters/setters.
 - Prefer `@Builder` with `@NoArgsConstructor` + `@AllArgsConstructor`.
 - Use `@Builder.Default` for fields with default values.
@@ -205,6 +210,7 @@ public class ProductServiceImpl implements ProductService {
 ```
 
 **Rules:**
+
 - Every injected dependency is declared `final`.
 - The class has `@RequiredArgsConstructor` which generates the constructor.
 - Never use `@Autowired` annotation.
@@ -465,9 +471,12 @@ return PageResult.of(results, page.getNumber() + 1, page.getSize(), page.getTota
 ```
 
 **Rules:**
+
 - Prefer `convertFrom` for simple entity-to-result mapping.
 - Use `of` when filtering, sorting, or additional data manipulation is needed.
-- `convertFrom` automatically handles page number conversion (Spring uses 0-based, frontend uses 1-based).
+- Frontend API request pagination uses 1-based `page` parameters.
+- Service/query code converts incoming frontend page numbers to Spring/Data database queries by subtracting 1.
+- Response pagination converts back to 1-based page numbers before returning to the frontend.
 
 ### Controller pagination
 
@@ -534,6 +543,7 @@ public class ProductController {
 ```
 
 **Rules:**
+
 - Use `@Tag` and `@Operation` for Swagger/OpenAPI documentation.
 - POST/PUT body params use `@RequestBody @Valid`.
 - Path params use `@PathVariable`.
@@ -545,11 +555,13 @@ public class ProductController {
 ### RESTful API conventions
 
 **Resource naming:**
+
 - Use plural nouns for resource collections: `/products`, `/api-definitions`
 - Use kebab-case for multi-word resources: `/sandbox-deployments`, `/mcp-servers`
 - Nested resources express ownership: `/api-definitions/{id}/deployments`
 
 **HTTP methods:**
+
 - `GET` -- read / query (never modify state)
 - `POST` -- create a resource or trigger an action
 - `PUT` -- full update of a resource
@@ -567,16 +579,20 @@ public class ProductController {
 @DeleteMapping("/sandbox-deployments/{id}")         // delete = stop
 ```
 
-**Action endpoints** -- when an operation doesn't map naturally to CRUD, use a sub-resource under `/actions`:
+**Action endpoints** -- when an operation doesn't map naturally to CRUD, prefer the clearest resource-oriented command path. Do not force an artificial resource name just to avoid verbs.
 
 ```java
 // Deploy is a creation action on deployments
 @PostMapping("/{id}/deployments")
 
-// When no CRUD mapping fits (e.g. "discover tools", "sync config")
-@PostMapping("/{id}/actions/discover-tools")
-@PostMapping("/{id}/actions/sync-config")
+// Command on a concrete sub-resource
+@PostMapping("/{id}/configurations/reload")
+
+// Product source is a sub-resource; implementation details stay in the body
+@PutMapping("/{id}/source")
 ```
+
+Use `/actions/...` only when there is no clear domain sub-resource and the action would otherwise make the URL misleading.
 
 **Status changes** -- prefer `PATCH` for partial updates, or model status as a sub-resource:
 
@@ -643,7 +659,45 @@ public void onProductDeleting(ProductDeletingEvent event) {
 
 ---
 
-## 12. Checklist
+## 12. Security and Sensitive Data
+
+HiMarket handles credentials, tokens, API keys, gateway configs, and Nacos connection metadata. Treat these as sensitive by default.
+
+**Rules:**
+
+- Never log full tokens, API keys, HMAC secrets, passwords, authorization headers, or credential payloads.
+- When a sensitive identifier is needed for debugging, log only a masked value or a stable non-secret ID.
+- Do not return internal secrets in Result DTOs. If a field is needed for display, return a masked value.
+- Do not include sensitive values in exception messages, validation messages, event payloads, or cache keys that may be logged.
+- Prefer explicit allowlists when converting Entity to Result; avoid exposing new entity fields accidentally.
+
+```java
+// Good: log stable non-secret identifiers
+log.info("Credential created for consumer: {}", consumerId);
+
+// Bad: leaks secret material
+log.info("Credential created: {}", credential);
+```
+
+## 13. Testing
+
+Testing effort should match the risk and scope of the change.
+
+**Backend test expectations:**
+
+- Service logic with business rules should have unit tests or focused Spring tests.
+- Controller changes should be covered by request-level tests when they affect routes, HTTP methods, authorization, validation, or response shape.
+- Repository queries with non-trivial predicates should have integration tests against a real or compatible database setup.
+- Bug fixes should include a regression test when the scenario is deterministic.
+- New async/event-driven behavior should test both event publication and listener side effects where practical.
+
+**Minimum verification before PR:**
+
+- Run targeted tests for the changed module when available.
+- Run `./scripts/code-check.sh backend` or the relevant Maven command before submitting backend-only changes.
+- If tests cannot be added or run, document the reason and the manual verification performed.
+
+## 14. Checklist
 
 ### Must do
 
@@ -654,6 +708,8 @@ public void onProductDeleting(ProductDeletingEvent event) {
 - [ ] Param DTO has Jakarta Validation annotations on fields
 - [ ] Controller methods return business objects, never manually wrap response
 - [ ] Business errors throw `BusinessException(ErrorCode.XXX, ...)`
+- [ ] Sensitive values are never logged or returned unintentionally
+- [ ] Tests or documented verification cover behavior changes
 - [ ] ID generation uses `IdGenerator` utility
 - [ ] Sensitive operations are logged (info / warn / error)
 - [ ] Complex deletions publish domain events
@@ -670,19 +726,19 @@ public void onProductDeleting(ProductDeletingEvent event) {
 
 ---
 
-## 13. Reference Files
+## 15. Reference Files
 
-| File | Path |
-|------|------|
-| ProductServiceImpl (gold standard) | `himarket-server/src/main/java/com/alibaba/himarket/service/impl/ProductServiceImpl.java` |
-| ProductController | `himarket-server/src/main/java/com/alibaba/himarket/controller/ProductController.java` |
-| InputConverter | `himarket-server/src/main/java/com/alibaba/himarket/dto/converter/InputConverter.java` |
-| OutputConverter | `himarket-server/src/main/java/com/alibaba/himarket/dto/converter/OutputConverter.java` |
-| ErrorCode | `himarket-server/src/main/java/com/alibaba/himarket/core/exception/ErrorCode.java` |
-| BusinessException | `himarket-server/src/main/java/com/alibaba/himarket/core/exception/BusinessException.java` |
-| CreateProductParam | `himarket-server/src/main/java/com/alibaba/himarket/dto/params/product/CreateProductParam.java` |
-| ProductResult | `himarket-server/src/main/java/com/alibaba/himarket/dto/result/product/ProductResult.java` |
-| Product entity | `himarket-dal/src/main/java/com/alibaba/himarket/entity/Product.java` |
-| PageResult | `himarket-server/src/main/java/com/alibaba/himarket/dto/result/common/PageResult.java` |
-| ContextHolder | `himarket-server/src/main/java/com/alibaba/himarket/core/security/ContextHolder.java` |
-| IdGenerator | `himarket-server/src/main/java/com/alibaba/himarket/core/utils/IdGenerator.java` |
+| File                               | Path                                                                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| ProductServiceImpl (gold standard) | `himarket-server/src/main/java/com/alibaba/himarket/service/impl/ProductServiceImpl.java`       |
+| ProductController                  | `himarket-server/src/main/java/com/alibaba/himarket/controller/ProductController.java`          |
+| InputConverter                     | `himarket-server/src/main/java/com/alibaba/himarket/dto/converter/InputConverter.java`          |
+| OutputConverter                    | `himarket-server/src/main/java/com/alibaba/himarket/dto/converter/OutputConverter.java`         |
+| ErrorCode                          | `himarket-server/src/main/java/com/alibaba/himarket/core/exception/ErrorCode.java`              |
+| BusinessException                  | `himarket-server/src/main/java/com/alibaba/himarket/core/exception/BusinessException.java`      |
+| CreateProductParam                 | `himarket-server/src/main/java/com/alibaba/himarket/dto/params/product/CreateProductParam.java` |
+| ProductResult                      | `himarket-server/src/main/java/com/alibaba/himarket/dto/result/product/ProductResult.java`      |
+| Product entity                     | `himarket-dal/src/main/java/com/alibaba/himarket/entity/Product.java`                           |
+| PageResult                         | `himarket-server/src/main/java/com/alibaba/himarket/dto/result/common/PageResult.java`          |
+| ContextHolder                      | `himarket-server/src/main/java/com/alibaba/himarket/core/security/ContextHolder.java`           |
+| IdGenerator                        | `himarket-server/src/main/java/com/alibaba/himarket/core/utils/IdGenerator.java`                |

@@ -142,7 +142,7 @@ function SkillOverview({ content }: { content: string }) {
   const { body, frontmatter } = parseSkillMd(content);
   const fmEntries = Object.entries(frontmatter);
   return (
-    <div className="markdown-body text-sm">
+    <div className="text-sm">
       {fmEntries.length > 0 && (
         <table className="mb-6 w-full text-[13px] border-collapse">
           <thead>
@@ -542,7 +542,7 @@ function SkillDetail() {
         {/* Page header */}
         <div className="flex-shrink-0">
           <button
-            className="flex items-center gap-2 mb-4 px-4 py-2 rounded-xl text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
+            className="flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px] text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
             onClick={() => navigate(-1)}
           >
             <ArrowLeftOutlined />
@@ -551,14 +551,14 @@ function SkillDetail() {
 
           <div className="flex items-center gap-4 mb-3">
             {data.icon && data.icon.value ? (
-              <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 border border-gray-200 overflow-hidden">
+              <div className="w-16 h-16 rounded-[10px] flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 border border-gray-200 overflow-hidden">
                 <ProductIconRenderer
                   className="w-full h-full object-cover"
                   iconType={getIconString(data.icon)}
                 />
               </div>
             ) : (
-              <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
+              <div className="w-16 h-16 rounded-[10px] flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
                 <ThunderboltOutlined className="text-2xl" />
               </div>
             )}
@@ -679,7 +679,7 @@ function SkillDetail() {
           {/* Right sidebar: download card + related */}
           <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2 space-y-3">
             <div
-              className="bg-white rounded-xl overflow-hidden shadow-sm"
+              className="bg-white rounded-[10px] overflow-hidden shadow-sm"
               style={{ border: '1px solid #e8eaef' }}
             >
               {/* Card header: title + version selector */}

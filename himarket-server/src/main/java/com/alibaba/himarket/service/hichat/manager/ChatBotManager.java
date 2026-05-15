@@ -27,7 +27,7 @@ import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.hichat.support.ChatBot;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.service.hichat.support.ToolMeta;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.InMemoryMemory;
@@ -141,7 +141,7 @@ public class ChatBotManager {
         long startTime = System.currentTimeMillis();
 
         // Initialize and register mcp tools
-        List<MCPTransportConfig> mcpConfigs = request.getMcpConfigs();
+        List<McpTransportConfig> mcpConfigs = request.getMcpConfigs();
         int expectedMcpCount = CollUtil.isEmpty(mcpConfigs) ? 0 : mcpConfigs.size();
 
         List<McpClientWrapper> mcpClients = loadMcpClients(request);
@@ -189,7 +189,7 @@ public class ChatBotManager {
      * @return list of MCP client wrappers
      */
     private List<McpClientWrapper> loadMcpClients(LlmChatRequest request) {
-        List<MCPTransportConfig> mcpConfigs = request.getMcpConfigs();
+        List<McpTransportConfig> mcpConfigs = request.getMcpConfigs();
         if (CollUtil.isEmpty(mcpConfigs)) {
             log.debug("No MCP configs found for chat: {}", request.getChatId());
             return List.of();
@@ -375,7 +375,7 @@ public class ChatBotManager {
      * @return Number of registered tool dependencies
      */
     private int registerToolDependencies(
-            String chatBotCacheKey, List<MCPTransportConfig> mcpConfigs) {
+            String chatBotCacheKey, List<McpTransportConfig> mcpConfigs) {
         if (CollUtil.isEmpty(mcpConfigs)) {
             return 0;
         }
@@ -520,7 +520,7 @@ public class ChatBotManager {
         if (CollUtil.isNotEmpty(request.getMcpConfigs())) {
             String mcpUrls =
                     request.getMcpConfigs().stream()
-                            .map(MCPTransportConfig::getUrl)
+                            .map(McpTransportConfig::getUrl)
                             .filter(StrUtil::isNotBlank)
                             .sorted()
                             .collect(Collectors.joining(","));

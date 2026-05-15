@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { RequireAuth } from './components/RequireAuth';
@@ -12,11 +12,8 @@ import ConsumerDetail from './pages/ConsumerDetail';
 import Consumers from './pages/Consumers';
 import GettingStarted from './pages/GettingStarted';
 import Login from './pages/Login';
-import McpCreatePage from './pages/McpCreatePage';
 import McpDetail from './pages/McpDetail';
-import McpSquare from './pages/McpSquare';
 import ModelDetail from './pages/ModelDetail';
-import MyMcp from './pages/MyMcp';
 import OidcCallback from './pages/OidcCallback';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
@@ -33,9 +30,17 @@ function MenuRedirectGuard() {
   const location = useLocation();
   const navigate = useNavigate();
   const { firstVisiblePath, isMenuVisible, loading } = usePortalConfig();
+  const hasCheckedRef = useRef(false);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) {
+      hasCheckedRef.current = false;
+      return;
+    }
+
+    // 只在从 loading 状态恢复后执行一次检查，避免路由变化时重复触发
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
 
     const pathToKeyMap: Record<string, string> = {
       '/agents': 'agents',
@@ -51,7 +56,7 @@ function MenuRedirectGuard() {
     const currentPath = location.pathname;
     // 仅拦截顶级菜单路径，不拦截子路径（如 /models/xxx）
     const menuKey = pathToKeyMap[currentPath];
-    if (menuKey && !isMenuVisible(menuKey)) {
+    if (menuKey && !isMenuVisible(menuKey) && firstVisiblePath !== currentPath) {
       navigate(firstVisiblePath, { replace: true });
     }
   }, [location.pathname, isMenuVisible, firstVisiblePath, loading, navigate]);
@@ -66,23 +71,7 @@ export function Router() {
       <Routes>
         <Route element={<DynamicHome />} path="/" />
         <Route element={<Square activeType="MODEL_API" />} path="/models" />
-        <Route element={<McpSquare />} path="/mcp" />
-        <Route
-          element={
-            <RequireAuth>
-              <MyMcp />
-            </RequireAuth>
-          }
-          path="/mcp/my"
-        />
-        <Route
-          element={
-            <RequireAuth>
-              <McpCreatePage />
-            </RequireAuth>
-          }
-          path="/mcp/create"
-        />
+        <Route element={<Square activeType="MCP_SERVER" />} path="/mcp" />
         <Route element={<Square activeType="AGENT_API" />} path="/agents" />
         <Route element={<Square activeType="REST_API" />} path="/apis" />
         <Route element={<Square activeType="AGENT_SKILL" />} path="/skills" />

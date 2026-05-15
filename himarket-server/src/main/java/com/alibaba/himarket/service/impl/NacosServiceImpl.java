@@ -34,7 +34,7 @@ import com.alibaba.himarket.dto.params.nacos.UpdateNacosParam;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.agent.NacosAgentResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
@@ -324,7 +324,7 @@ public class NacosServiceImpl implements NacosService {
                 return null;
             }
 
-            MCPConfigResult mcpConfig = buildMCPConfigResult(detail);
+            McpConfigResult mcpConfig = buildMCPConfigResult(detail);
             return JsonUtil.toJson(mcpConfig);
         } catch (Exception e) {
             log.error("Error fetching Nacos MCP servers", e);
@@ -333,11 +333,11 @@ public class NacosServiceImpl implements NacosService {
         }
     }
 
-    private MCPConfigResult buildMCPConfigResult(McpServerDetailInfo detail) {
-        MCPConfigResult mcpConfig = new MCPConfigResult();
+    private McpConfigResult buildMCPConfigResult(McpServerDetailInfo detail) {
+        McpConfigResult mcpConfig = new McpConfigResult();
         mcpConfig.setMcpServerName(detail.getName());
 
-        MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
+        McpConfigResult.McpServerConfig serverConfig = new McpConfigResult.McpServerConfig();
 
         if (detail.getLocalServerConfig() != null) {
             serverConfig.setRawConfig(detail.getLocalServerConfig());
@@ -369,7 +369,7 @@ public class NacosServiceImpl implements NacosService {
             mcpConfig.setTools(null);
         }
 
-        MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
+        McpConfigResult.McpMetadata meta = new McpConfigResult.McpMetadata();
         meta.setSource(SourceType.NACOS.name());
         mcpConfig.setMeta(meta);
 

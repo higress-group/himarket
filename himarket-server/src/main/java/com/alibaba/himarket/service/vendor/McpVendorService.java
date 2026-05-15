@@ -20,19 +20,13 @@
 package com.alibaba.himarket.service.vendor;
 
 import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.dto.vendor.BatchImportResult;
-import com.alibaba.himarket.dto.vendor.RemoteMcpItemParam;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItemResult;
 import com.alibaba.himarket.support.enums.McpVendorType;
-import java.util.List;
 
-/** MCP 供应商业务服务，提供远程 MCP 列表查询和批量导入能力。 */
+/** MCP 供应商业务服务，提供远程 MCP 列表查询能力。 */
 public interface McpVendorService {
 
     /** 查询远程 MCP 列表（带已存在标记）。 */
     PageResult<RemoteMcpItemResult> listRemoteMcpItems(
             McpVendorType vendorType, String keyword, int page, int size);
-
-    /** 批量导入选中的 MCP Server。 */
-    BatchImportResult batchImport(McpVendorType vendorType, List<RemoteMcpItemParam> items);
 }

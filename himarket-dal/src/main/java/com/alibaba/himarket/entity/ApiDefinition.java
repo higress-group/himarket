@@ -20,7 +20,9 @@
 package com.alibaba.himarket.entity;
 
 import com.alibaba.himarket.converter.APIPoliciesConverter;
+import com.alibaba.himarket.converter.ApiDefinitionMetaConverter;
 import com.alibaba.himarket.converter.ApiSpecConverter;
+import com.alibaba.himarket.support.api.meta.ApiDefinitionMeta;
 import com.alibaba.himarket.support.api.policy.ApiPolicy;
 import com.alibaba.himarket.support.api.spec.ApiSpec;
 import com.alibaba.himarket.support.enums.ApiStatus;
@@ -85,6 +87,10 @@ public class ApiDefinition extends BaseEntity {
     @Convert(converter = ApiSpecConverter.class)
     @Column(name = "spec", columnDefinition = "json")
     private ApiSpec spec;
+
+    @Convert(converter = ApiDefinitionMetaConverter.class)
+    @Column(name = "meta", columnDefinition = "json")
+    private ApiDefinitionMeta meta;
 
     @Convert(converter = APIPoliciesConverter.class)
     @Column(name = "policies", columnDefinition = "json")

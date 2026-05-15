@@ -39,7 +39,7 @@ import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
-import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
@@ -49,20 +49,15 @@ import com.alibaba.himarket.entity.*;
 import com.alibaba.himarket.repository.*;
 import com.alibaba.himarket.service.*;
 import com.alibaba.himarket.service.hichat.manager.ToolManager;
-import com.alibaba.himarket.service.mcp.McpProtocolUtils;
-import com.alibaba.himarket.service.mcp.McpToolsConfigParser;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
-import com.alibaba.himarket.support.enums.McpEndpointStatus;
-import com.alibaba.himarket.support.enums.McpProtocolType;
+import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SourceType;
+import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
 import com.alibaba.himarket.support.product.*;
 import com.alibaba.himarket.utils.JsonUtil;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
-import io.agentscope.core.tool.mcp.McpClientWrapper;
+import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -107,12 +102,6 @@ public class ProductServiceImpl implements ProductService {
 
     private final ToolManager toolManager;
 
-    private final McpServerMetaRepository mcpServerMetaRepository;
-
-    private final McpServerEndpointRepository mcpServerEndpointRepository;
-
-    private final McpServerService mcpServerService;
-
     private final WorkerService workerService;
 
     private final SkillService skillService;
@@ -143,8 +132,6 @@ public class ProductServiceImpl implements ProductService {
 
         // Set feature for AGENT_SKILL / WORKER products
         initDefaultFeature(product);
-
-        validateModelFeature(product.getType(), product.getFeature());
 
         productRepository.save(product);
 
@@ -282,8 +269,6 @@ public class ProductServiceImpl implements ProductService {
         }
         param.update(product);
 
-        validateModelFeature(product.getType(), product.getFeature());
-
         productRepository.saveAndFlush(product);
 
         // Set product categories
@@ -401,11 +386,6 @@ public class ProductServiceImpl implements ProductService {
         // Clear product category relationships
         clearProductCategoryRelations(productId);
 
-        // MCP 产品：级联删除 mcp_server_meta、mcp_server_endpoint 及沙箱资源
-        if (product.getType() == ProductType.MCP_SERVER) {
-            mcpServerService.forceDeleteMetaByProduct(productId);
-        }
-
         productRepository.delete(product);
         productRefRepository.deleteByProductId(productId);
 
@@ -446,17 +426,6 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    private void validateModelFeature(ProductType type, ProductFeature feature) {
-        if (type == ProductType.MODEL_API) {
-            if (feature == null
-                    || feature.getModelFeature() == null
-                    || StrUtil.isBlank(feature.getModelFeature().getModel())) {
-                throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST, "MODEL_API product must specify a model name");
-            }
-        }
-    }
-
     private Product findProduct(String productId) {
         return productRepository
                 .findByProductId(productId)
@@ -467,7 +436,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void addProductRef(String productId, CreateProductRefParam param) {
+    public void addProductRef(String productId, AddProductRefParam param) {
         Product product = findProduct(productId);
 
         // Check if API reference already exists
@@ -664,37 +633,24 @@ public class ProductServiceImpl implements ProductService {
                                                 + " tools"));
 
         // Initialize client and fetch tools
-        // mcpConfig 已由 fillProductConfig 从 McpServerMeta + endpoint 构建
-        if (product.getMcpConfig() == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "MCP 配置不可用，请检查 MCP 连接配置");
-        }
-        MCPTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
-        if (transportConfig == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "无法从 MCP 配置中提取传输配置");
-        }
         CredentialContext credentialContext =
                 consumerService.getDefaultCredential(contextHolder.getUser());
-        transportConfig.setHeaders(credentialContext.copyHeaders());
-        transportConfig.setQueryParams(credentialContext.copyQueryParams());
-
         McpToolListResult result = new McpToolListResult();
 
-        McpClientWrapper mcpClientWrapper = toolManager.getOrCreateClient(transportConfig);
-        if (mcpClientWrapper == null) {
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to initialize MCP client");
-        }
-
-        result.setTools(mcpClientWrapper.listTools().block());
+        result.setTools(toolManager.fetchTools(product.getMcpConfig(), credentialContext));
         return result;
     }
 
     @Override
-    public void bindProductNacos(String productId, BindNacosParam param) {
+    public void updateProductSource(String productId, UpdateProductSourceParam param) {
         Product product = findProduct(productId);
         if (product.getType() != ProductType.AGENT_SKILL
                 && product.getType() != ProductType.WORKER) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product type is not supported");
+        }
+        if (!param.getSourceType().isNacos()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Only Nacos source is supported");
         }
 
         nacosService.getNacosInstance(param.getNacosId());
@@ -767,10 +723,9 @@ public class ProductServiceImpl implements ProductService {
 
             switch (product.getType()) {
                 case MCP_SERVER:
-                    // MCP 配置直接写入 McpServerMeta.connectionConfig，不再写 ProductRef.mcpConfig
                     String mcpConfig =
                             nacosService.fetchMcpConfig(productRef.getNacosId(), nacosRefConfig);
-                    syncMcpConfigToMeta(product.getProductId(), mcpConfig, "NACOS");
+                    productRef.setMcpConfig(mcpConfig);
                     break;
 
                 case AGENT_API:
@@ -788,94 +743,52 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    /**
-     * 将从网关/Nacos 拉取的 MCP 配置直接同步到 McpServerMeta。
-     * McpServerMeta.connectionConfig 是 MCP 技术配置的单一数据源。
-     * 如果 meta 不存在（首次绑定），自动创建。
-     */
-    private void syncMcpConfigToMeta(String productId, String mcpConfigStr, String sourceLabel) {
-        if (StrUtil.isBlank(mcpConfigStr)) {
-            return;
-        }
-
-        // 解析 mcpServerName
-        String mcpName = null;
-        String protocol = "sse";
-        String tools = null;
-        try {
-            ObjectNode mcpJson = JsonUtil.readObjectNode(mcpConfigStr);
-            mcpName = mcpJson.path("mcpServerName").asText();
-            JsonNode protocolNode = mcpJson.path("meta").path("protocol");
-            if (!protocolNode.isMissingNode()) {
-                protocol = McpProtocolUtils.normalize(protocolNode.asText());
-            }
-            tools = mcpJson.path("tools").asText();
-        } catch (Exception e) {
-            log.warn("解析 MCP 配置失败: {}", e.getMessage());
-        }
-
-        if (StrUtil.isBlank(mcpName)) {
-            mcpName = productId; // fallback
-        }
-
-        // 查找或创建 meta
-        McpServerMeta meta =
-                mcpServerMetaRepository.findByProductIdAndMcpName(productId, mcpName).orElse(null);
-
-        if (meta == null) {
-            // 首次绑定，创建 meta
-            meta =
-                    McpServerMeta.builder()
-                            .mcpServerId(IdGenerator.genMcpServerId())
-                            .productId(productId)
-                            .mcpName(mcpName)
-                            .origin(sourceLabel)
-                            .protocolType(protocol)
-                            .connectionConfig(mcpConfigStr)
-                            .toolsConfig(McpToolsConfigParser.normalize(tools))
-                            .build();
-        } else {
-            meta.setOrigin(sourceLabel);
-            meta.setProtocolType(protocol);
-            meta.setConnectionConfig(mcpConfigStr);
-            if (StrUtil.isNotBlank(tools)) {
-                meta.setToolsConfig(McpToolsConfigParser.normalize(tools));
-            }
-        }
-        mcpServerMetaRepository.save(meta);
-    }
-
     private void syncMcpTools(Product product, ProductRef productRef) {
-        if (product.getType() != ProductType.MCP_SERVER
-                || !productRef.getSourceType().isGateway()) {
+        if (product.getType() != ProductType.MCP_SERVER) {
             return;
         }
 
-        // 从 McpServerMeta 读取配置（单一数据源）
-        List<McpServerMeta> metas = mcpServerMetaRepository.findByProductId(product.getProductId());
-        if (metas.isEmpty()) {
-            return;
-        }
-        McpServerMeta meta = metas.get(0);
-
-        MCPConfigResult mcpConfig =
-                Optional.ofNullable(meta.getConnectionConfig())
-                        .filter(StrUtil::isNotBlank)
-                        .map(config -> JsonUtil.parse(config, MCPConfigResult.class))
+        McpConfigResult mcpConfig =
+                Optional.ofNullable(productRef.getMcpConfig())
+                        .map(config -> JsonUtil.parse(config, McpConfigResult.class))
                         .orElse(null);
 
         if (mcpConfig == null) {
             return;
         }
 
-        Optional.ofNullable(
-                        gatewayService.fetchMcpToolsForConfig(productRef.getGatewayId(), mcpConfig))
-                .filter(StrUtil::isNotBlank)
-                .ifPresent(
-                        tools -> {
-                            meta.setToolsConfig(McpToolsConfigParser.normalize(tools));
-                            mcpServerMetaRepository.save(meta);
-                        });
+        CredentialContext credential = new CredentialContext();
+        if (productRef.getSourceType() == SourceType.GATEWAY) {
+            try {
+                credential =
+                        gatewayService.fetchApiCredential(
+                                productRef.getGatewayId(), product.getType(), productRef);
+            } catch (Exception e) {
+                log.warn(
+                        "Failed to fetch API credential for product {}: {}",
+                        productRef.getProductId(),
+                        e.getMessage());
+            }
+        }
+
+        List<McpSchema.Tool> tools = toolManager.fetchTools(mcpConfig, credential);
+        if (CollUtil.isEmpty(tools)) {
+            return;
+        }
+
+        try {
+            OpenAPIToolsConfig toolsConfig =
+                    OpenAPIToolsConfigConverter.convertFromToolList(
+                            mcpConfig.getMcpServerName(), tools);
+            String toolsStr = JsonUtil.toJson(toolsConfig);
+            mcpConfig.setTools(toolsStr);
+            productRef.setMcpConfig(JsonUtil.toJson(mcpConfig));
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to convert tools for {}: {}",
+                    mcpConfig.getMcpServerName(),
+                    e.getMessage());
+        }
     }
 
     /**
@@ -930,6 +843,8 @@ public class ProductServiceImpl implements ProductService {
      */
     private void fillProductConfig(ProductResult product, ProductRef productRef) {
         product.setEnabled(productRef.getEnabled());
+        product.setSubscribable(
+                productRef.getSourceType() != null && productRef.getSourceType().isGateway());
 
         // API config for REST API
         if (StrUtil.isNotBlank(productRef.getApiConfig())) {
@@ -938,7 +853,7 @@ public class ProductServiceImpl implements ProductService {
 
         // MCP config for MCP Server
         if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
-            product.setMcpConfig(JsonUtil.parse(productRef.getMcpConfig(), MCPConfigResult.class));
+            product.setMcpConfig(JsonUtil.parse(productRef.getMcpConfig(), McpConfigResult.class));
         }
 
         // Agent config for Agent API
@@ -952,170 +867,6 @@ public class ProductServiceImpl implements ProductService {
             product.setModelConfig(
                     JsonUtil.parse(productRef.getModelConfig(), ModelConfigResult.class));
         }
-    }
-
-    /**
-     * Build MCPConfigResult from pre-loaded meta and endpoint (no DB queries).
-     */
-    private MCPConfigResult buildMcpConfigFromPreloaded(
-            McpServerMeta meta, McpServerEndpoint endpoint) {
-        if (meta == null) {
-            return null;
-        }
-        if (endpoint != null && StrUtil.isNotBlank(endpoint.getEndpointUrl())) {
-            return buildMcpConfigFromEndpoint(meta, endpoint);
-        }
-        if (StrUtil.isNotBlank(meta.getConnectionConfig())) {
-            return buildMcpConfigFromConnectionConfig(meta);
-        }
-        return null;
-    }
-
-    /**
-     * 从 McpServerMeta + endpoint 构建 MCPConfigResult。
-     * McpServerMeta.connectionConfig 是 MCP 技术配置的单一数据源。
-     */
-    private MCPConfigResult buildMcpConfigFromMeta(String productId) {
-        List<McpServerMeta> metas = mcpServerMetaRepository.findByProductId(productId);
-        if (metas.isEmpty()) {
-            return null;
-        }
-        McpServerMeta meta = metas.get(0);
-
-        // 查找公共 endpoint
-        McpServerEndpoint endpoint =
-                mcpServerEndpointRepository
-                        .findByMcpServerIdAndUserIdInAndStatus(
-                                meta.getMcpServerId(),
-                                List.of(McpEndpointStatus.PUBLIC_USER_ID),
-                                McpEndpointStatus.ACTIVE.name())
-                        .stream()
-                        .findFirst()
-                        .orElse(null);
-
-        // 如果有 endpoint 热数据，构建基于 endpoint 的 MCPConfigResult
-        if (endpoint != null && StrUtil.isNotBlank(endpoint.getEndpointUrl())) {
-            return buildMcpConfigFromEndpoint(meta, endpoint);
-        }
-
-        // fallback: 从 meta.connectionConfig 解析
-        if (StrUtil.isNotBlank(meta.getConnectionConfig())) {
-            return buildMcpConfigFromConnectionConfig(meta);
-        }
-
-        return null;
-    }
-
-    /**
-     * 从 endpoint 热数据构建 MCPConfigResult（用于 API 返回）。
-     */
-    private MCPConfigResult buildMcpConfigFromEndpoint(
-            McpServerMeta meta, McpServerEndpoint endpoint) {
-        MCPConfigResult result = new MCPConfigResult();
-        result.setMcpServerName(meta.getMcpName());
-        result.setTools(meta.getToolsConfig());
-
-        // 构建 mcpServerConfig：用 endpoint URL 构建 domains 格式（兼容 toTransportConfig）
-        String url = endpoint.getEndpointUrl();
-        String protocol = StrUtil.blankToDefault(endpoint.getProtocol(), "sse");
-
-        try {
-            java.net.URI uri = java.net.URI.create(url.replaceAll("/sse$", ""));
-            com.alibaba.himarket.dto.result.common.DomainResult domain =
-                    com.alibaba.himarket.dto.result.common.DomainResult.builder()
-                            .protocol(uri.getScheme())
-                            .domain(uri.getHost())
-                            .port(uri.getPort() > 0 ? uri.getPort() : null)
-                            .build();
-
-            MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
-            serverConfig.setDomains(List.of(domain));
-            serverConfig.setPath(uri.getPath());
-            result.setMcpServerConfig(serverConfig);
-        } catch (Exception e) {
-            log.warn("解析 endpoint URL 失败: {}", e.getMessage());
-            return null;
-        }
-
-        result.setProtocol(McpProtocolType.fromString(protocol));
-
-        MCPConfigResult.McpMetadata metadata = new MCPConfigResult.McpMetadata();
-        metadata.setSource(StrUtil.blankToDefault(meta.getOrigin(), "CUSTOM"));
-        result.setMeta(metadata);
-
-        return result;
-    }
-
-    /**
-     * 从 meta.connectionConfig 冷数据构建 MCPConfigResult。
-     */
-    private MCPConfigResult buildMcpConfigFromConnectionConfig(McpServerMeta meta) {
-        try {
-            // connectionConfig 可能已经是 MCPConfigResult 兼容格式（网关导入时回写的）
-            String connConfig = meta.getConnectionConfig();
-            ObjectNode json = JsonUtil.readObjectNode(connConfig);
-
-            // 如果包含 mcpServerName，说明是 MCPConfigResult 兼容格式
-            if (json.has("mcpServerName")) {
-                MCPConfigResult result = JsonUtil.parse(connConfig, MCPConfigResult.class);
-                if (result.getTools() == null) {
-                    result.setTools(meta.getToolsConfig());
-                }
-                // 兼容旧数据：从 meta 回退填充顶层字段
-                if (result.getProtocol() == null
-                        && result.getMeta() != null
-                        && result.getMeta().getProtocol() != null) {
-                    result.setProtocol(McpProtocolType.fromString(result.getMeta().getProtocol()));
-                }
-                return result;
-            }
-
-            // mcpServers 格式：提取 URL 构建 MCPConfigResult
-            if (json.has("mcpServers")) {
-                ObjectNode servers = (ObjectNode) json.get("mcpServers");
-                java.util.Iterator<String> fieldNames = servers.fieldNames();
-                while (fieldNames.hasNext()) {
-                    String key = fieldNames.next();
-                    com.fasterxml.jackson.databind.JsonNode serverNode = servers.get(key);
-                    if (serverNode != null && serverNode.isObject()) {
-                        ObjectNode server = (ObjectNode) serverNode;
-                        String url = server.path("url").asText();
-                        if (StrUtil.isNotBlank(url)) {
-                            String type = server.path("type").asText("sse");
-
-                            MCPConfigResult result = new MCPConfigResult();
-                            result.setMcpServerName(meta.getMcpName());
-                            result.setTools(meta.getToolsConfig());
-                            result.setProtocol(McpProtocolType.fromString(type));
-
-                            java.net.URI uri = java.net.URI.create(url.replaceAll("/sse$", ""));
-                            com.alibaba.himarket.dto.result.common.DomainResult domain =
-                                    com.alibaba.himarket.dto.result.common.DomainResult.builder()
-                                            .protocol(uri.getScheme())
-                                            .domain(uri.getHost())
-                                            .port(uri.getPort() > 0 ? uri.getPort() : null)
-                                            .build();
-
-                            MCPConfigResult.MCPServerConfig serverConfig =
-                                    new MCPConfigResult.MCPServerConfig();
-                            serverConfig.setDomains(List.of(domain));
-                            serverConfig.setPath(uri.getPath());
-                            result.setMcpServerConfig(serverConfig);
-
-                            MCPConfigResult.McpMetadata metadata =
-                                    new MCPConfigResult.McpMetadata();
-                            metadata.setSource(StrUtil.blankToDefault(meta.getOrigin(), "CUSTOM"));
-                            result.setMeta(metadata);
-
-                            return result;
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("从 connectionConfig 构建 MCPConfigResult 失败: {}", e.getMessage());
-        }
-        return null;
     }
 
     private Product findPublishedProduct(String portalId, String productId) {
@@ -1401,249 +1152,5 @@ public class ProductServiceImpl implements ProductService {
 
         // No filter specified or no matching filter type, pass through
         return true;
-    }
-
-    @Override
-    public ImportProductsResult importProducts(ImportProductsParam param) {
-        // 1. Validate parameters
-        validateImportParam(param);
-
-        // 2. Initialize result
-        ImportProductsResult result = new ImportProductsResult();
-        result.setTotalCount(param.getServices().size());
-        result.setSuccessCount(0);
-        result.setFailureCount(0);
-        List<ProductImportResult> results = new ArrayList<>();
-
-        // 3. Get gateway instance if source is gateway (for buildCreateProductRefParam)
-        GatewayResult gateway = null;
-        if (param.getSourceType().isGateway()) {
-            gateway = gatewayService.getGateway(param.getGatewayId());
-        }
-
-        // 4. Batch query existing products to avoid N+1 query problem
-        Set<String> serviceNames =
-                param.getServices().stream()
-                        .map(ServiceIdentifier::getName)
-                        .collect(Collectors.toSet());
-        List<Product> existingProducts =
-                productRepository.findByNameInAndAdminId(serviceNames, contextHolder.getUser());
-        Set<String> existingNames =
-                existingProducts.stream().map(Product::getName).collect(Collectors.toSet());
-
-        // 5. Import each service
-        for (ServiceIdentifier service : param.getServices()) {
-            ProductImportResult itemResult = new ProductImportResult();
-            itemResult.setServiceName(service.getName());
-
-            try {
-                // 5.1 Build CreateProductParam
-                CreateProductParam createParam = buildCreateProductParam(service, param);
-
-                // 5.2 Check for name conflict (using pre-loaded data)
-                if (existingNames.contains(createParam.getName())) {
-                    itemResult.setSuccess(false);
-                    itemResult.setErrorCode("NAME_CONFLICT");
-                    itemResult.setErrorMessage(
-                            StrUtil.format(
-                                    "Product with name '{}' already exists",
-                                    createParam.getName()));
-                    result.setFailureCount(result.getFailureCount() + 1);
-                    results.add(itemResult);
-                    continue;
-                }
-
-                // 5.3 Create product (reuse existing logic)
-                ProductResult product = createProduct(createParam);
-
-                // 5.4 Build CreateProductRefParam
-                CreateProductRefParam refParam =
-                        buildCreateProductRefParam(service, param, gateway);
-
-                // 5.5 Link API (reuse existing logic, auto syncConfig)
-                addProductRef(product.getProductId(), refParam);
-
-                // 5.6 Record success
-                itemResult.setSuccess(true);
-                itemResult.setProductId(product.getProductId());
-                result.setSuccessCount(result.getSuccessCount() + 1);
-
-            } catch (Exception e) {
-                // 5.7 Record failure
-                log.warn("Failed to import service: {}", service.getName(), e);
-                itemResult.setSuccess(false);
-                itemResult.setErrorCode("IMPORT_FAILED");
-                itemResult.setErrorMessage(e.getMessage());
-                result.setFailureCount(result.getFailureCount() + 1);
-            }
-
-            results.add(itemResult);
-        }
-
-        result.setResults(results);
-        return result;
-    }
-
-    private void validateImportParam(ImportProductsParam param) {
-        if (param.getSourceType().isGateway()) {
-            if (StrUtil.isBlank(param.getGatewayId())) {
-                throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST,
-                        "Gateway ID is required when source type is GATEWAY");
-            }
-            GatewayResult gateway = gatewayService.getGateway(param.getGatewayId());
-
-            // Higress gateway only supports MCP_SERVER batch import
-            if (gateway.getGatewayType().isHigress()) {
-                if (param.getProductType() == ProductType.REST_API) {
-                    throw new BusinessException(
-                            ErrorCode.INVALID_REQUEST,
-                            "Higress gateway does not support REST API batch import");
-                }
-                if (param.getProductType() == ProductType.AGENT_API) {
-                    throw new BusinessException(
-                            ErrorCode.INVALID_REQUEST,
-                            "Higress gateway does not support Agent API batch import");
-                }
-                if (param.getProductType() == ProductType.MODEL_API) {
-                    throw new BusinessException(
-                            ErrorCode.INVALID_REQUEST,
-                            "Higress gateway does not support Model API batch import yet. Higress"
-                                + " AI routes do not contain real model IDs required by HiMarket");
-                }
-            }
-
-        } else if (param.getSourceType().isNacos()) {
-            if (StrUtil.isBlank(param.getNacosId())) {
-                throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST,
-                        "Nacos ID is required when source type is NACOS");
-            }
-            nacosService.getNacosInstance(param.getNacosId());
-
-            // Nacos does not support MODEL_API or REST_API
-            if (param.getProductType() == ProductType.MODEL_API) {
-                throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST, "Nacos source does not support MODEL_API type");
-            }
-            if (param.getProductType() == ProductType.REST_API) {
-                throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST, "Nacos source does not support REST_API type");
-            }
-        }
-    }
-
-    private CreateProductParam buildCreateProductParam(
-            ServiceIdentifier service, ImportProductsParam param) {
-        CreateProductParam createParam = new CreateProductParam();
-        createParam.setName(service.getName());
-        createParam.setDescription(service.getDescription());
-        createParam.setType(param.getProductType());
-
-        if (CollUtil.isNotEmpty(param.getCategories())) {
-            createParam.setCategories(param.getCategories());
-        }
-
-        // For MODEL_API, set feature with model name
-        if (param.getProductType() == ProductType.MODEL_API) {
-            ProductFeature feature = new ProductFeature();
-            ModelFeature modelFeature = ModelFeature.builder().model(service.getName()).build();
-            feature.setModelFeature(modelFeature);
-            createParam.setFeature(feature);
-        }
-
-        return createParam;
-    }
-
-    private CreateProductRefParam buildCreateProductRefParam(
-            ServiceIdentifier service, ImportProductsParam param, GatewayResult gateway) {
-        CreateProductRefParam refParam = new CreateProductRefParam();
-        refParam.setSourceType(param.getSourceType());
-
-        if (param.getSourceType().isGateway()) {
-            refParam.setGatewayId(param.getGatewayId());
-
-            // Configure based on gateway type
-            if (gateway.getGatewayType().isHigress()) {
-                // Higress uses HigressRefConfig
-                HigressRefConfig config = new HigressRefConfig();
-                switch (param.getProductType()) {
-                    case MCP_SERVER:
-                        config.setMcpServerName(service.getName());
-                        break;
-                    case MODEL_API:
-                        config.setModelRouteName(service.getName());
-                        break;
-                    case AGENT_API:
-                        // Higress Agent API may need additional configuration
-                        config.setRouteName(service.getName());
-                        break;
-                    default:
-                        break;
-                }
-                refParam.setHigressRefConfig(config);
-            } else {
-                // AIGW/APIG/Apsara use APIGRefConfig
-                APIGRefConfig config = new APIGRefConfig();
-                switch (param.getProductType()) {
-                    case MCP_SERVER:
-                        config.setApiId(service.getApiId());
-                        config.setMcpServerId(service.getMcpServerId());
-                        config.setMcpRouteId(service.getMcpRouteId());
-                        config.setMcpServerName(service.getName());
-                        break;
-                    case AGENT_API:
-                        config.setAgentApiId(service.getAgentApiId());
-                        config.setAgentApiName(service.getName());
-                        break;
-                    case MODEL_API:
-                        config.setModelApiId(service.getModelApiId());
-                        config.setModelApiName(service.getName());
-                        break;
-                    default:
-                        break;
-                }
-
-                // Set config to appropriate field based on gateway type
-                if (gateway.getGatewayType().isAdpAIGateway()) {
-                    refParam.setAdpAIGatewayRefConfig(config);
-                } else if (gateway.getGatewayType().isApsaraGateway()) {
-                    refParam.setApsaraGatewayRefConfig(config);
-                } else {
-                    refParam.setApigRefConfig(config);
-                }
-            }
-        } else if (param.getSourceType().isNacos()) {
-            // Nacos source
-            refParam.setNacosId(param.getNacosId());
-
-            NacosRefConfig nacosConfig = new NacosRefConfig();
-            // Use service-level namespaceId if specified, otherwise use param-level
-            String namespaceId =
-                    StrUtil.isNotBlank(service.getNamespaceId())
-                            ? service.getNamespaceId()
-                            : param.getNamespaceId();
-            nacosConfig.setNamespaceId(namespaceId);
-
-            switch (param.getProductType()) {
-                case MCP_SERVER:
-                    nacosConfig.setMcpServerName(
-                            StrUtil.isNotBlank(service.getMcpServerName())
-                                    ? service.getMcpServerName()
-                                    : service.getName());
-                    break;
-                case AGENT_API:
-                    nacosConfig.setAgentName(
-                            StrUtil.isNotBlank(service.getAgentName())
-                                    ? service.getAgentName()
-                                    : service.getName());
-                    break;
-                default:
-                    break;
-            }
-            refParam.setNacosRefConfig(nacosConfig);
-        }
-
-        return refParam;
     }
 }

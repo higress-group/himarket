@@ -20,7 +20,7 @@ export function WorkerCard({
   return (
     <button
       className="
-        group bg-white/70 backdrop-blur-sm rounded-2xl p-5
+        group bg-white/70 backdrop-blur-sm rounded-[10px] p-5
         border border-gray-100/80
         cursor-pointer
         transition-all duration-300 ease-out

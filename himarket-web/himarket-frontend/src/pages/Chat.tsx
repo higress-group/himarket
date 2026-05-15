@@ -1,7 +1,7 @@
 import { message as antdMessage } from 'antd';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ChatArea } from '../components/chat/Area';
 import { Sidebar } from '../components/chat/Sidebar';
@@ -14,6 +14,7 @@ import APIs, { type IProductDetail, type IAttachment } from '../lib/apis';
 
 function Chat() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
   const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
@@ -43,13 +44,13 @@ function Chat() {
     const state = location.state as { selectedProduct?: IProductDetail } | null;
     if (state?.selectedProduct) {
       setSelectedModel(state.selectedProduct);
-      window.history.replaceState({}, document.title);
+      navigate(location.pathname, { replace: true, state: {} });
     } else {
       const loadDefaultModel = async () => {
         try {
           const response = await APIs.getProducts({
             ['modelFilter.category']: chatType,
-            page: 0,
+            page: 1,
             size: 1,
             type: 'MODEL_API',
           });
@@ -64,7 +65,7 @@ function Chat() {
       };
       loadDefaultModel();
     }
-  }, [location, chatType, isLoggedIn]);
+  }, [location, chatType, isLoggedIn, navigate]);
 
   const handleSendMessage = async (
     content: string,

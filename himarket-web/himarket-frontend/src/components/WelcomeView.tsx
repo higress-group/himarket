@@ -67,7 +67,7 @@ export function WelcomeView({ type }: WelcomeViewProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
           {features.map((f, i) => (
             <div
-              className="bg-white/60 backdrop-blur-sm rounded-xl p-5 text-left border border-gray-100 hover:shadow-md transition-shadow"
+              className="bg-white/60 backdrop-blur-sm rounded-[10px] p-5 text-left border border-gray-100 hover:shadow-md transition-shadow"
               key={i}
             >
               <div className="text-blue-500 mb-3">{f.icon}</div>

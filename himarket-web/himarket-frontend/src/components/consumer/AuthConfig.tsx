@@ -346,7 +346,12 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       key: 'apiKey',
       render: (apiKey: string) => (
         <div className="flex items-center space-x-2">
-          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{apiKey}</code>
+          <code
+            className="block max-w-[450px] truncate rounded-lg border border-[#e5e5e5] px-2 py-1 text-sm"
+            title={apiKey}
+          >
+            {apiKey}
+          </code>
           <Button
             icon={<CopyOutlined className="text-colorPrimary" />}
             onClick={() => handleCopyCredential(apiKey)}
@@ -368,6 +373,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         </Popconfirm>
       ),
       title: <span className="text-[#737373]">操作</span>,
+      width: 80,
     },
   ];
 
@@ -378,7 +384,12 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       key: 'ak',
       render: (ak: string) => (
         <div className="flex items-center space-x-2">
-          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">{ak}</code>
+          <code
+            className="block max-w-[300px] truncate rounded-lg border border-[#e5e5e5] px-2 py-1 text-sm"
+            title={ak}
+          >
+            {ak}
+          </code>
           <Button
             icon={<CopyOutlined className="text-colorPrimary" />}
             onClick={() => handleCopyCredential(ak)}
@@ -394,7 +405,10 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
       key: 'sk',
       render: (sk: string) => (
         <div className="flex items-center space-x-2">
-          <code className="text-sm px-2 py-1 border border-[#e5e5e5] rounded-lg">
+          <code
+            className="block max-w-[380px] truncate rounded-lg border border-[#e5e5e5] px-2 py-1 text-sm"
+            title={maskSecretKey(sk)}
+          >
             {maskSecretKey(sk)}
           </code>
           <Button
@@ -422,6 +436,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
         </Popconfirm>
       ),
       title: '操作',
+      width: 80,
     },
   ];
 
@@ -434,7 +449,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
   }, []);
 
   return (
-    <div className="bg-white backdrop-blur-sm rounded-xl border border-white/60 shadow-sm overflow-hidden">
+    <div className="bg-white backdrop-blur-sm rounded-[10px] border border-white/60 shadow-sm overflow-hidden">
       <div className="p-6">
         <h3 className="text-base font-semibold text-gray-900 mb-4 ">认证方式</h3>
         <MultiSwitchButton
@@ -483,7 +498,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                   新增凭证
                 </Button>
               </div>
-              <div className="p-1 border border-[#e5e5e5] rounded-lg overflow-hidden">
+              <div className="overflow-hidden rounded-lg border border-[#e5e5e5] p-1">
                 <Table
                   columns={apiKeyColumns}
                   dataSource={currentConfig?.apiKeyConfig?.credentials || []}
@@ -509,7 +524,7 @@ export function AuthConfig({ consumerId }: AuthConfigProps) {
                   添加AK/SK
                 </Button>
               </div>
-              <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
+              <div className="overflow-hidden rounded-lg border border-[#e5e5e5]">
                 <Table
                   columns={hmacColumns}
                   dataSource={currentConfig?.hmacConfig?.credentials || []}

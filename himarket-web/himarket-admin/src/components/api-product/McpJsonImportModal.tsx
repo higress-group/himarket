@@ -89,6 +89,11 @@ export function McpJsonImportModal({
     setLoading(true);
     try {
       await apiDefinitionApi.createApiDefinition({
+        meta: {
+          source: {
+            type: 'MANUAL',
+          },
+        },
         name,
         relatedProductId: productId,
         spec: {

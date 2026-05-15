@@ -21,40 +21,31 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.dto.vendor.BatchImportParam;
-import com.alibaba.himarket.dto.vendor.BatchImportResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItemResult;
 import com.alibaba.himarket.service.vendor.McpVendorService;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-/** MCP 供应商导入管理接口，仅管理员可访问。 */
-@Tag(name = "MCP 供应商导入")
+/** External vendor resource APIs, accessible to administrators only. */
+@Tag(name = "External Vendors")
 @RestController
-@RequestMapping("/admin/mcp-vendor")
+@RequestMapping("/external-vendors")
 @AdminAuth
 @RequiredArgsConstructor
 public class McpVendorController {
 
     private final McpVendorService mcpVendorService;
 
-    @Operation(summary = "查询供应商 MCP 列表")
-    @GetMapping("/mcp-list")
+    @Operation(summary = "List MCP servers from an external vendor")
+    @GetMapping("/{vendorType}/mcp-servers")
     public PageResult<RemoteMcpItemResult> listRemoteMcpItems(
-            @RequestParam McpVendorType vendorType,
+            @PathVariable McpVendorType vendorType,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return mcpVendorService.listRemoteMcpItems(vendorType, keyword, page, size);
-    }
-
-    @Operation(summary = "批量导入选中的 MCP Server")
-    @PostMapping("/import")
-    public BatchImportResult batchImport(@RequestBody @Valid BatchImportParam param) {
-        return mcpVendorService.batchImport(param.getVendorType(), param.getItems());
     }
 }

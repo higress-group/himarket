@@ -17,32 +17,18 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.chat.mcp;
+package com.alibaba.himarket.support.api.meta;
 
-import com.alibaba.himarket.support.enums.MCPTransportMode;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class MCPTransportConfig {
+public class ApiDefinitionMeta {
 
-    private String mcpServerName;
-
-    private String productId;
-
-    private String description;
-
-    private MCPTransportMode transportMode;
-
-    private String url;
-
-    private Map<String, String> headers;
-
-    private Map<String, String> queryParams;
+    private ApiDefinitionSource source;
 }

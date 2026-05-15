@@ -1,7 +1,7 @@
 package com.alibaba.himarket.service.hichat.support;
 
 import com.alibaba.himarket.dto.result.product.ProductResult;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import io.agentscope.core.message.Msg;
 import java.net.URI;
 import java.util.List;
@@ -73,5 +73,5 @@ public class LlmChatRequest {
     /**
      * MCP servers with transport config
      */
-    private List<MCPTransportConfig> mcpConfigs;
+    private List<McpTransportConfig> mcpConfigs;
 }

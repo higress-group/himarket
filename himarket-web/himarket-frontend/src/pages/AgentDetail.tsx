@@ -1,4 +1,10 @@
-import { CopyOutlined, RobotOutlined } from '@ant-design/icons';
+import {
+  CopyOutlined,
+  FileTextOutlined,
+  InboxOutlined,
+  RobotOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
 import { Button, message, Tabs, Collapse, Select } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -159,41 +165,51 @@ function AgentDetail() {
   };
 
   const leftContent = data ? (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
+    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6 pt-0">
       <Tabs
         defaultActiveKey="overview"
         items={[
           {
             children: data?.document ? (
-              <div className="min-h-[400px]">
-                <div className="prose prose-lg">
-                  <MarkdownRender content={data.document} />
-                </div>
+              <div className="min-h-[400px] px-4">
+                <MarkdownRender content={data.document} />
               </div>
             ) : (
-              <div className="text-gray-500 text-center py-16">暂无概览信息</div>
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                  <InboxOutlined className="text-base text-gray-400" />
+                </div>
+                <div className="text-sm text-gray-500">暂无概览信息</div>
+              </div>
             ),
             key: 'overview',
-            label: '概览',
+            label: (
+              <span className="flex items-center gap-1.5 font-semibold">
+                <FileTextOutlined className="text-sm" />
+                概览
+              </span>
+            ),
           },
           {
             children: agentConfig?.agentAPIConfig ? (
               <div className="space-y-6">
-                {/* 协议信息 */}
-                {agentConfig.agentAPIConfig.agentProtocols &&
-                  agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
-                    <div className="p-4 bg-gray-50 rounded-xl">
-                      <div className="text-sm text-gray-500 mb-1">支持协议</div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {agentConfig.agentAPIConfig.agentProtocols.join(', ')}
+                {/* 基本信息 */}
+                <div className="grid grid-cols-2 gap-4">
+                  {agentConfig.agentAPIConfig.agentProtocols &&
+                    agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
+                      <div className="rounded-[10px] bg-gray-50">
+                        <div className="mb-1 text-sm text-gray-500">协议</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {agentConfig.agentAPIConfig.agentProtocols.join(', ')}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                </div>
 
                 {/* A2A 协议：额外显示 AgentCard */}
                 {agentConfig.agentAPIConfig.agentProtocols?.includes('a2a') &&
                   agentConfig.agentAPIConfig.agentCard && (
-                    <div className="p-6 bg-white border border-gray-200 rounded-xl">
+                    <div className="p-6 bg-white border border-gray-200 rounded-[10px]">
                       <h3 className="text-lg font-semibold mb-4 text-gray-900">Agent Card 信息</h3>
                       <div className="space-y-4">
                         {/* 基本信息 */}
@@ -363,13 +379,13 @@ function AgentDetail() {
                 {agentConfig.agentAPIConfig.routes &&
                   agentConfig.agentAPIConfig.routes.length > 0 && (
                     <div>
-                      <div className="text-sm font-medium text-gray-900 mb-3">路由配置</div>
+                      <div className="mb-4 text-sm font-semibold text-gray-900">路由配置</div>
 
                       {/* 域名选择器 */}
-                      {agentDomainOptions.length > 1 && (
+                      {agentDomainOptions.length > 0 && (
                         <div className="mb-4">
-                          <div className="flex border border-gray-300 rounded-md overflow-hidden">
-                            <span className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-300 flex items-center whitespace-nowrap">
+                          <div className="flex overflow-hidden rounded-md border border-gray-300">
+                            <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600">
                               域名:
                             </span>
                             <div className="flex-1">
@@ -383,7 +399,7 @@ function AgentDetail() {
                               >
                                 {agentDomainOptions.map((option) => (
                                   <Select.Option key={option.value} value={option.value}>
-                                    <span className="text-sm text-gray-900 font-mono">
+                                    <span className="font-mono text-sm text-gray-900">
                                       {option.label}
                                     </span>
                                   </Select.Option>
@@ -394,15 +410,25 @@ function AgentDetail() {
                         </div>
                       )}
 
-                      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                      <div className="overflow-hidden rounded-[10px] border border-gray-200">
                         <Collapse expandIconPosition="end" ghost>
                           {agentConfig.agentAPIConfig.routes.map((route, index) => (
                             <Panel
+                              className={
+                                index < (agentConfig.agentAPIConfig.routes?.length || 0) - 1
+                                  ? 'border-b border-gray-100'
+                                  : ''
+                              }
                               header={
-                                <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50/50 transition-colors">
+                                <div className="flex items-center justify-between py-2">
                                   <div className="flex-1">
-                                    <div className="font-mono text-sm font-medium text-blue-600 mb-1">
+                                    <div className="mb-1 font-mono text-sm font-medium text-blue-600">
                                       {getRouteDisplayText(route, selectedAgentDomainIndex)}
+                                      {route.builtin && (
+                                        <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                                          默认
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="text-xs text-gray-500">
                                       方法:{' '}
@@ -456,48 +482,20 @@ function AgentDetail() {
                                 </div>
                               }
                               key={index}
-                              style={{
-                                borderBottom:
-                                  index < (agentConfig.agentAPIConfig.routes?.length || 0) - 1
-                                    ? '1px solid #e5e7eb'
-                                    : 'none',
-                              }}
                             >
-                              <div className="px-4 pb-4 space-y-4">
-                                {/* 域名信息 */}
-                                <div>
-                                  <div className="text-xs text-gray-500 mb-2">域名:</div>
-                                  <div className="space-y-1">
-                                    {route.domains?.map((domain, domainIndex: number) => {
-                                      const formattedDomain = formatDomainWithPort(
-                                        domain.domain,
-                                        domain.port,
-                                        domain.protocol,
-                                      );
-                                      return (
-                                        <div
-                                          className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg"
-                                          key={domainIndex}
-                                        >
-                                          {domain.protocol.toLowerCase()}://{formattedDomain}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-
+                              <div className="space-y-4 pb-4 pl-4">
                                 {/* 匹配规则 */}
                                 <div className="grid grid-cols-2 gap-4">
-                                  <div className="p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-xs text-gray-500 mb-1">路径:</div>
-                                    <div className="font-mono text-sm text-gray-900">
+                                  <div>
+                                    <div className="mb-1 text-xs text-gray-500">路径:</div>
+                                    <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
                                       {getMatchTypePrefix(route.match?.path?.type)}{' '}
                                       {route.match?.path?.value}
                                     </div>
                                   </div>
-                                  <div className="p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-xs text-gray-500 mb-1">方法:</div>
-                                    <div className="text-sm text-gray-900">
+                                  <div>
+                                    <div className="mb-1 text-xs text-gray-500">方法:</div>
+                                    <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
                                       {route.match?.methods
                                         ? route.match.methods.join(', ')
                                         : 'ANY'}
@@ -508,11 +506,11 @@ function AgentDetail() {
                                 {/* 请求头匹配 */}
                                 {route.match?.headers && route.match.headers.length > 0 && (
                                   <div>
-                                    <div className="text-xs text-gray-500 mb-2">请求头匹配:</div>
+                                    <div className="mb-2 text-xs text-gray-500">请求头匹配:</div>
                                     <div className="space-y-1">
                                       {route.match.headers.map((header, headerIndex: number) => (
                                         <div
-                                          className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
+                                          className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm"
                                           key={headerIndex}
                                         >
                                           {header.name} {getMatchTypePrefix(header.type)}{' '}
@@ -526,11 +524,11 @@ function AgentDetail() {
                                 {/* 查询参数匹配 */}
                                 {route.match?.queryParams && route.match.queryParams.length > 0 && (
                                   <div>
-                                    <div className="text-xs text-gray-500 mb-2">查询参数匹配:</div>
+                                    <div className="mb-2 text-xs text-gray-500">查询参数匹配:</div>
                                     <div className="space-y-1">
                                       {route.match.queryParams.map((param, paramIndex: number) => (
                                         <div
-                                          className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
+                                          className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm"
                                           key={paramIndex}
                                         >
                                           {param.name} {getMatchTypePrefix(param.type)}{' '}
@@ -538,14 +536,6 @@ function AgentDetail() {
                                         </div>
                                       ))}
                                     </div>
-                                  </div>
-                                )}
-
-                                {/* 描述 */}
-                                {route.description && (
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-1">描述:</div>
-                                    <div className="text-sm text-gray-700">{route.description}</div>
                                   </div>
                                 )}
                               </div>
@@ -557,10 +547,20 @@ function AgentDetail() {
                   )}
               </div>
             ) : (
-              <div className="text-gray-500 text-center py-16">暂无配置信息</div>
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                  <InboxOutlined className="text-base text-gray-400" />
+                </div>
+                <div className="text-sm text-gray-500">暂无配置信息</div>
+              </div>
             ),
             key: 'configuration',
-            label: `配置${agentConfig?.agentAPIConfig?.routes ? ` (${agentConfig.agentAPIConfig.routes.length})` : ''}`,
+            label: (
+              <span className="flex items-center gap-1.5 font-semibold">
+                <SettingOutlined className="text-sm" />
+                {`配置${agentConfig?.agentAPIConfig?.routes ? ` (${agentConfig.agentAPIConfig.routes.length})` : ''}`}
+              </span>
+            ),
           },
         ]}
         size="large"
@@ -569,15 +569,55 @@ function AgentDetail() {
   ) : null;
 
   const rightContent = (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-      <h3 className="text-base font-semibold text-gray-900 mb-4">Agent调试</h3>
-      <div className="text-center py-12">
-        <div className="mb-4">
-          <RobotOutlined className="text-4xl text-gray-300" />
-        </div>
-        <div className="text-gray-500 mb-2 text-sm">Agent调试功能</div>
-        <div className="text-sm text-gray-400">🚀 敬请期待</div>
+    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+          Agent 调试
+        </span>
       </div>
+
+      {/* 功能介绍卡片 */}
+      <div className="mb-4 rounded-[10px] border border-indigo-100/50 bg-indigo-50/50 p-5">
+        {/* 图标 + 标题 */}
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 shadow-sm">
+            <RobotOutlined className="text-sm text-white" />
+          </div>
+          <div>
+            <div className="text-base font-semibold text-gray-900">智能体实验室</div>
+            <div className="text-xs text-gray-400">Agent Lab</div>
+          </div>
+        </div>
+        {/* 描述文字 */}
+        <p className="mb-4 text-sm leading-relaxed text-gray-600">
+          沉浸式体验AI Agent自主规划与执行能力
+        </p>
+        {/* 特性标签 */}
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+            任务规划
+          </span>
+          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+            自主执行
+          </span>
+          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+            工具调用
+          </span>
+          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+            工作流
+          </span>
+        </div>
+      </div>
+
+      {/* 核心操作按钮 - 禁用状态 */}
+      <Button
+        block
+        className="cursor-not-allowed rounded-lg border-none bg-gray-500 text-gray-800"
+        disabled
+        size="large"
+      >
+        敬请期待
+      </Button>
     </div>
   );
 
@@ -592,6 +632,7 @@ function AgentDetail() {
               icon: data.icon,
               name: data.name,
               productType: 'AGENT_API',
+              subscribable: data.subscribable,
               updatedAt: data.updatedAt,
             }
           : undefined

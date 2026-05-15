@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Modal, Tooltip, message } from 'antd';
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 import BatchActionBar from '@/components/api-product/BatchActionBar';
@@ -58,6 +58,8 @@ function renderStatusTag(status: string) {
 
 const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productType }, ref) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = `${location.pathname}${location.search}${location.hash}`;
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -135,6 +137,15 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
     setModalVisible(true);
   }, []);
 
+  const handleOpenDetail = useCallback(
+    (productId: string) => {
+      navigate(`/api-products/${productId}`, {
+        state: { from: currentPath },
+      });
+    },
+    [currentPath, navigate],
+  );
+
   const handleModalSuccess = () => {
     setModalVisible(false);
     setEditingProduct(null);
@@ -172,7 +183,7 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
           <Tooltip placement="topLeft" title={record.name}>
             <button
               className="text-blue-600 hover:text-blue-500 font-medium cursor-pointer bg-transparent border-none p-0 truncate block max-w-[200px] text-left text-xs"
-              onClick={() => navigate(`/api-products/${record.productId}`)}
+              onClick={() => handleOpenDetail(record.productId)}
               type="button"
             >
               {record.name}
@@ -289,6 +300,7 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
 
       {/* Create/Edit modal */}
       <ApiProductFormModal
+        defaultProductType={productType}
         initialData={editingProduct || undefined}
         onCancel={handleModalCancel}
         onSuccess={handleModalSuccess}

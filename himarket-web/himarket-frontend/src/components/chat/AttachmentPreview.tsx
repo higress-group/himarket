@@ -55,7 +55,7 @@ const AttachmentItem = ({
   if (details.type === 'IMAGE' && (imgSrc || loading)) {
     return (
       <div
-        className={`relative group rounded-2xl w-16 h-16 overflow-hidden flex-shrink-0 ${itemClassName}`}
+        className={`relative group rounded-[10px] w-16 h-16 overflow-hidden flex-shrink-0 ${itemClassName}`}
       >
         {onRemove && (
           <button
@@ -91,7 +91,7 @@ const AttachmentItem = ({
 
   return (
     <div
-      className={`relative group rounded-2xl p-3 bg-white/80 hover:bg-white/50 transition-colors flex items-center w-[160px] gap-2 h-16 ${itemClassName}`}
+      className={`relative group rounded-[10px] p-3 bg-white/80 hover:bg-white/50 transition-colors flex items-center w-[160px] gap-2 h-16 ${itemClassName}`}
       style={{
         boxShadow: '0px 4px 12px 0px rgba(118, 94, 252, 0.15)',
       }}

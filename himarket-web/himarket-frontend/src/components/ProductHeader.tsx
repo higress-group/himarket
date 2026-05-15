@@ -2,9 +2,12 @@ import {
   ApiOutlined,
   CheckCircleFilled,
   ClockCircleFilled,
+  DeleteOutlined,
   ExclamationCircleFilled,
+  InfoCircleOutlined,
   PlusOutlined,
   RobotOutlined,
+  SearchOutlined,
   BulbOutlined,
 } from '@ant-design/icons';
 import {
@@ -17,6 +20,8 @@ import {
   Input,
   Pagination,
   Spin,
+  Table,
+  Popover,
 } from 'antd';
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -37,7 +42,6 @@ import type { IMCPConfig, IProductIcon, IAgentConfig } from '../lib/apis/typing'
 import type { Consumer } from '../types/consumer';
 
 const { Paragraph, Title } = Typography;
-const { Search } = Input;
 
 export interface ProductHeaderHandle {
   showManageModal: () => void;
@@ -52,6 +56,7 @@ interface ProductHeaderProps {
   agentConfig?: IAgentConfig;
   updatedAt?: string;
   productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
+  subscribable?: boolean;
   onSubscriptionStatusChange?: (hasSubscription: boolean) => void;
 }
 
@@ -83,14 +88,13 @@ const getIconUrl = (icon?: IProductIcon, defaultIcon?: string): string => {
 export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>(
   (
     {
-      agentConfig,
       defaultIcon = '/default-icon.png',
       description,
       icon,
-      mcpConfig,
       name,
       onSubscriptionStatusChange,
       productType,
+      subscribable,
       updatedAt,
     },
     ref,
@@ -107,7 +111,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
 
     // 分页相关state
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(5); // 每页显示5个订阅
+    const pageSize = 5; // 每页显示5个订阅
 
     // 分开管理不同的loading状态
     const [consumersLoading, setConsumersLoading] = useState(false);
@@ -130,21 +134,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     // 搜索相关state
     const [searchKeyword, setSearchKeyword] = useState('');
 
-    // 判断是否应该显示申请订阅按钮
-    // MCP_SERVER: 来自 NACOS 时不显示
-    // AGENT_API: 来自 NACOS 时不显示
-    // MODEL_API: 始终显示
-    // REST_API: 始终显示
-    const isNacosAgent =
-      productType === 'AGENT_API' && agentConfig?.meta?.source?.toUpperCase() === 'NACOS';
-    const isNacosMcp =
-      productType === 'MCP_SERVER' && mcpConfig?.meta?.source?.toUpperCase() === 'NACOS';
-
-    const shouldShowSubscribeButton =
-      productType === 'MODEL_API' || // MODEL_API: 始终显示
-      productType === 'REST_API' || // REST_API: 始终显示
-      (productType === 'AGENT_API' && !isNacosAgent) || // AGENT_API: 非 Nacos 时显示
-      (productType === 'MCP_SERVER' && !isNacosMcp); // MCP_SERVER: 非 Nacos 时显示
+    const shouldShowSubscribeButton = subscribable !== false;
 
     // 获取产品ID - 根据产品类型获取正确的参数
     const productId = apiProductId || mcpProductId || agentProductId || modelProductId || '';
@@ -346,7 +336,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
             (productType === 'REST_API' ||
               productType === 'AGENT_API' ||
               productType === 'MODEL_API') ? (
-              <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[10px] border border-gray-200 bg-gray-50">
                 {productType === 'REST_API' ? (
                   <ApiOutlined className="text-3xl text-black" />
                 ) : productType === 'AGENT_API' ? (
@@ -358,7 +348,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
             ) : (
               <img
                 alt="icon"
-                className="w-16 h-16 rounded-xl object-cover border border-gray-200 flex-shrink-0"
+                className="h-16 w-16 flex-shrink-0 rounded-[10px] border border-gray-200 object-cover"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   if (
@@ -405,11 +395,11 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
           </Paragraph>
 
           {/* 第三行：徽章式订阅状态 + 管理按钮，与左边框对齐 */}
-          {shouldShowSubscribeButton && (
+          {shouldShowSubscribeButton ? (
             <div className="flex items-center gap-4">
               {!isLoggedIn ? (
                 <Button
-                  className="rounded-xl"
+                  className="rounded-[10px]"
                   onClick={() => setLoginPromptOpen(true)}
                   type="primary"
                 >
@@ -419,27 +409,32 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                 <Button loading>加载中...</Button>
               ) : (
                 <>
-                  {/* 订阅状态徽章 */}
-                  <div className="flex items-center">
-                    {subscriptionStatus?.hasSubscription ? (
-                      <>
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        <span className="text-sm text-gray-600 font-medium">已订阅</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                        <span className="text-sm text-gray-600">未订阅</span>
-                      </>
-                    )}
-                  </div>
+                  {/* 订阅状态徽章 - Pill样式 */}
+                  {subscriptionStatus?.hasSubscription ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
+                      <CheckCircleFilled className="text-green-500" style={{ fontSize: '10px' }} />
+                      已订阅
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+                      <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
+                      未订阅
+                    </span>
+                  )}
 
                   {/* 管理按钮 */}
-                  <Button className="rounded-xl" onClick={showManageModal} type="primary">
+                  <Button className="rounded-[10px]" onClick={showManageModal} type="primary">
                     管理订阅
                   </Button>
                 </>
               )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
+                <InfoCircleOutlined className="text-gray-400" style={{ fontSize: '12px' }} />
+                无需订阅，开放访问
+              </span>
             </div>
           )}
         </div>
@@ -463,100 +458,165 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
           width={600}
         >
           <div className="px-6 py-4">
-            {/* 产品名称标识 - 容器框样式 */}
-            <div className="mb-4">
-              <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2">
-                <span className="text-sm text-gray-600 mr-2">产品名称：</span>
-                <span className="text-sm text-gray-600">{name}</span>
-              </div>
-            </div>
-
-            {/* 搜索框 */}
-            <div className="mb-4">
-              <Search
+            {/* 搜索和操作栏 */}
+            <div className="mb-4 flex items-center justify-between">
+              <Input
                 allowClear
+                className="rounded-lg"
                 onChange={handleSearchChange}
                 onPressEnter={handleSearchKeyPress}
-                onSearch={handleSearch}
                 placeholder="搜索消费者名称"
+                prefix={<SearchOutlined className="text-gray-400" />}
                 style={{ width: 250 }}
                 value={searchKeyword}
               />
+              <Popover
+                content={
+                  <div className="w-64">
+                    <div className="mb-3 text-sm font-medium text-gray-700">选择消费者</div>
+                    <Select
+                      filterOption={(input, option) =>
+                        (option?.children as unknown as string)
+                          ?.toLowerCase()
+                          .includes(input.toLowerCase())
+                      }
+                      loading={consumersLoading}
+                      notFoundContent={consumersLoading ? '加载中...' : '暂无消费者数据'}
+                      onChange={setSelectedConsumerId}
+                      placeholder="搜索或选择消费者"
+                      showSearch
+                      style={{ width: '100%' }}
+                      value={selectedConsumerId}
+                    >
+                      {consumers
+                        .filter((consumer) => {
+                          const isAlreadySubscribed = subscriptionStatus?.subscribedConsumers?.some(
+                            (item) => item.consumer.consumerId === consumer.consumerId,
+                          );
+                          return !isAlreadySubscribed;
+                        })
+                        .map((consumer) => (
+                          <Select.Option key={consumer.consumerId} value={consumer.consumerId}>
+                            {consumer.name}
+                          </Select.Option>
+                        ))}
+                    </Select>
+                    <div className="mt-4 flex justify-end gap-2">
+                      <Button
+                        className="rounded-lg"
+                        onClick={cancelApplyingSubscription}
+                        size="small"
+                      >
+                        取消
+                      </Button>
+                      <Button
+                        className="rounded-lg"
+                        disabled={!selectedConsumerId}
+                        loading={submitLoading}
+                        onClick={handleApplySubscription}
+                        size="small"
+                        type="primary"
+                      >
+                        确认
+                      </Button>
+                    </div>
+                  </div>
+                }
+                onOpenChange={(open) => {
+                  if (!open) cancelApplyingSubscription();
+                }}
+                open={isApplyingSubscription}
+                placement="bottomRight"
+                trigger="click"
+              >
+                <Button
+                  className="rounded-[10px]"
+                  icon={<PlusOutlined />}
+                  onClick={startApplyingSubscription}
+                  type="primary"
+                >
+                  订阅
+                </Button>
+              </Popover>
             </div>
 
-            {/* 优化的表格式 - 无表头，内嵌分页 */}
-            <div className="border border-gray-200 rounded overflow-hidden">
+            {/* 订阅列表表格 */}
+            <div className="overflow-hidden rounded-lg border border-gray-200">
               {detailsLoading ? (
                 <div className="p-8 text-center">
                   <Spin size="large" />
                 </div>
               ) : subscriptionDetails.content && subscriptionDetails.content.length > 0 ? (
-                <>
-                  {/* 表格内容 */}
-                  <div className="divide-y divide-gray-100">
-                    {(searchKeyword.trim()
+                <Table
+                  className="subscription-table"
+                  columns={[
+                    {
+                      dataIndex: 'consumerName',
+                      key: 'consumerName',
+                      render: (text: string) => (
+                        <span className="text-xs text-gray-800">{text}</span>
+                      ),
+                      title: '消费者',
+                    },
+                    {
+                      dataIndex: 'status',
+                      key: 'status',
+                      render: (status: string) => (
+                        <div className="flex items-center">
+                          {status === 'APPROVED' ? (
+                            <>
+                              <CheckCircleFilled className="mr-1.5 text-xs text-green-500" />
+                              <span className="text-xs text-gray-700">已通过</span>
+                            </>
+                          ) : status === 'PENDING' ? (
+                            <>
+                              <ClockCircleFilled className="mr-1.5 text-xs text-blue-500" />
+                              <span className="text-xs text-gray-700">审核中</span>
+                            </>
+                          ) : (
+                            <>
+                              <ExclamationCircleFilled className="mr-1.5 text-xs text-red-500" />
+                              <span className="text-xs text-gray-700">已拒绝</span>
+                            </>
+                          )}
+                        </div>
+                      ),
+                      title: '状态',
+                      width: 120,
+                    },
+                    {
+                      align: 'center',
+                      key: 'action',
+                      render: (_: unknown, record: ISubscription) => (
+                        <Popconfirm
+                          cancelText="取消"
+                          okText="确认"
+                          onConfirm={() => handleUnsubscribe(record.consumerId)}
+                          title="确定要取消订阅吗？"
+                        >
+                          <Button
+                            className="rounded border-gray-300"
+                            icon={<DeleteOutlined className="text-xs text-red-500" />}
+                            size="small"
+                          />
+                        </Popconfirm>
+                      ),
+                      title: '操作',
+                      width: 100,
+                    },
+                  ]}
+                  dataSource={
+                    searchKeyword.trim()
                       ? subscriptionDetails.content
                       : subscriptionDetails.content.slice(
                           (currentPage - 1) * pageSize,
                           currentPage * pageSize,
                         )
-                    ).map((item) => (
-                      <div
-                        className="flex items-center px-4 py-3 hover:bg-gray-50"
-                        key={item.consumerId}
-                      >
-                        {/* 消费者名称 - 40% */}
-                        <div className="flex-1 min-w-0 pr-4">
-                          <span className="text-sm text-gray-700 truncate block">
-                            {item.consumerName}
-                          </span>
-                        </div>
-                        {/* 状态 - 30% */}
-                        <div className="w-24 flex items-center pr-4">
-                          {item.status === 'APPROVED' ? (
-                            <>
-                              <CheckCircleFilled
-                                className="text-green-500 mr-1"
-                                style={{ fontSize: '10px' }}
-                              />
-                              <span className="text-xs text-gray-700">已通过</span>
-                            </>
-                          ) : item.status === 'PENDING' ? (
-                            <>
-                              <ClockCircleFilled
-                                className="text-blue-500 mr-1"
-                                style={{ fontSize: '10px' }}
-                              />
-                              <span className="text-xs text-gray-700">审核中</span>
-                            </>
-                          ) : (
-                            <>
-                              <ExclamationCircleFilled
-                                className="text-red-500 mr-1"
-                                style={{ fontSize: '10px' }}
-                              />
-                              <span className="text-xs text-gray-700">已拒绝</span>
-                            </>
-                          )}
-                        </div>
-
-                        {/* 操作 - 30% */}
-                        <div className="w-20">
-                          <Popconfirm
-                            cancelText="取消"
-                            okText="确认"
-                            onConfirm={() => handleUnsubscribe(item.consumerId)}
-                            title="确定要取消订阅吗？"
-                          >
-                            <Button className="p-0" danger size="small" type="link">
-                              取消订阅
-                            </Button>
-                          </Popconfirm>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
+                  }
+                  pagination={false}
+                  rowKey="subscriptionId"
+                  size="small"
+                />
               ) : (
                 <div className="p-8 text-center text-gray-500">
                   {searchKeyword ? '未找到匹配的订阅记录' : '暂无订阅记录'}
@@ -564,115 +624,28 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
               )}
             </div>
 
-            {/* 分页 - 使用Ant Design分页组件，右对齐 */}
+            {/* 分页 */}
             {subscriptionDetails.totalElements > 0 && (
               <div className="mt-3 flex justify-end">
                 <Pagination
                   current={currentPage}
-                  hideOnSinglePage={false}
-                  onChange={(page, size) => {
+                  hideOnSinglePage={true}
+                  onChange={(page) => {
                     setCurrentPage(page);
-                    if (size !== pageSize) {
-                      setPageSize(size);
-                    }
 
-                    // 如果有搜索关键词，需要重新查询；否则使用缓存数据
                     if (searchKeyword.trim()) {
                       fetchSubscriptionDetails(page, searchKeyword);
                     }
-                    // 无搜索时不需要重新查询，Ant Design会自动处理前端分页
-                  }}
-                  onShowSizeChange={(_current, size) => {
-                    setPageSize(size);
-                    setCurrentPage(1);
-
-                    // 如果有搜索关键词，需要重新查询；否则使用缓存数据
-                    if (searchKeyword.trim()) {
-                      fetchSubscriptionDetails(1, searchKeyword);
-                    }
-                    // 无搜索时不需要重新查询，页面大小变化会自动重新渲染
                   }}
                   pageSize={pageSize}
-                  pageSizeOptions={['5', '10', '20']}
-                  showQuickJumper={true}
-                  showSizeChanger={true}
+                  showQuickJumper={false}
+                  showSizeChanger={false}
                   showTotal={(total) => `共 ${total} 条`}
                   size="small"
                   total={subscriptionDetails.totalElements}
                 />
               </div>
             )}
-
-            {/* 申请订阅区域 - 移回底部 */}
-            <div
-              className={`border-t pt-3 ${subscriptionDetails.totalElements > 0 ? 'mt-4' : 'mt-2'}`}
-            >
-              <div className="flex justify-end">
-                {!isApplyingSubscription ? (
-                  <Button
-                    className="rounded-xl"
-                    icon={<PlusOutlined />}
-                    onClick={startApplyingSubscription}
-                    type="primary"
-                  >
-                    订阅
-                  </Button>
-                ) : (
-                  <div className="w-full">
-                    <div className="bg-gray-50 p-4 rounded-xl">
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          选择消费者
-                        </label>
-                        <Select
-                          filterOption={(input, option) =>
-                            (option?.children as unknown as string)
-                              ?.toLowerCase()
-                              .includes(input.toLowerCase())
-                          }
-                          loading={consumersLoading}
-                          notFoundContent={consumersLoading ? '加载中...' : '暂无消费者数据'}
-                          onChange={setSelectedConsumerId}
-                          placeholder="搜索或选择消费者"
-                          showSearch
-                          style={{ width: '100%' }}
-                          value={selectedConsumerId}
-                        >
-                          {consumers
-                            .filter((consumer) => {
-                              // 过滤掉已经订阅的consumer
-                              const isAlreadySubscribed =
-                                subscriptionStatus?.subscribedConsumers?.some(
-                                  (item) => item.consumer.consumerId === consumer.consumerId,
-                                );
-                              return !isAlreadySubscribed;
-                            })
-                            .map((consumer) => (
-                              <Select.Option key={consumer.consumerId} value={consumer.consumerId}>
-                                {consumer.name}
-                              </Select.Option>
-                            ))}
-                        </Select>
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button className="rounded-xl" onClick={cancelApplyingSubscription}>
-                          取消
-                        </Button>
-                        <Button
-                          className="rounded-xl"
-                          disabled={!selectedConsumerId}
-                          loading={submitLoading}
-                          onClick={handleApplySubscription}
-                          type="primary"
-                        >
-                          确认申请
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </Modal>
         <LoginPrompt

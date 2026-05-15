@@ -94,7 +94,7 @@ export function FileMentionMenu({ files, filter, loading, onSelect }: FileMentio
   if (loading) {
     return (
       <div
-        className="absolute bottom-full left-4 mb-1 w-80 rounded-xl border border-gray-200/80
+        className="absolute bottom-full left-4 mb-1 w-80 rounded-[10px] border border-gray-200/80
                       bg-white/95 backdrop-blur-md shadow-lg px-3 py-2"
       >
         <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -108,7 +108,7 @@ export function FileMentionMenu({ files, filter, loading, onSelect }: FileMentio
   if (files.length === 0) {
     return (
       <div
-        className="absolute bottom-full left-4 mb-1 w-80 rounded-xl border border-gray-200/80
+        className="absolute bottom-full left-4 mb-1 w-80 rounded-[10px] border border-gray-200/80
                       bg-white/95 backdrop-blur-md shadow-lg px-3 py-2"
       >
         <div className="text-sm text-gray-400">{filter ? '未找到匹配的文件' : '工作区无文件'}</div>
@@ -118,7 +118,7 @@ export function FileMentionMenu({ files, filter, loading, onSelect }: FileMentio
 
   return (
     <div
-      className="absolute bottom-full left-4 mb-1 w-80 rounded-xl border border-gray-200/80
+      className="absolute bottom-full left-4 mb-1 w-80 rounded-[10px] border border-gray-200/80
                     bg-white/95 backdrop-blur-md shadow-lg overflow-hidden max-h-64 overflow-y-auto"
       ref={menuRef}
     >

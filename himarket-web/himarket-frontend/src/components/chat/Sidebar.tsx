@@ -83,7 +83,7 @@ export function Sidebar({
     const fetchSessions = async () => {
       setLoading(true);
       try {
-        const response = await APIs.getSessions({ page: 0, size: 50 });
+        const response = await APIs.getSessions({ page: 1, size: 50 });
 
         if (response.code === 'SUCCESS' && response.data?.content) {
           const sessionList: ChatSession[] = response.data.content.map((session: ISession) => ({
@@ -378,7 +378,7 @@ export function Sidebar({
                       menu={getSessionMenu(session)}
                       placement="bottomRight"
                       popupRender={(menu) => (
-                        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
+                        <div className="bg-white/80 backdrop-blur-xl rounded-[10px] shadow-lg border border-white/40 overflow-hidden">
                           {menu}
                         </div>
                       )}
@@ -509,7 +509,7 @@ export function Sidebar({
                 <FileVideo className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
                 文生视频
               </div>
-              <div className="py-1 px-2 rounded-xl bg-[#F3F4F6] text-[#99A1AF]">敬请期待</div>
+              <div className="py-1 px-2 rounded-[10px] bg-[#F3F4F6] text-[#99A1AF]">敬请期待</div>
             </div>
           )}
         </div>

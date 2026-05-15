@@ -28,10 +28,10 @@ import com.alibaba.himarket.support.api.spec.McpServerSpec;
 import com.alibaba.himarket.support.api.spec.SseConnection;
 import com.alibaba.himarket.support.api.spec.StdioConnection;
 import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
-import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import com.alibaba.himarket.support.enums.McpFromType;
 import com.alibaba.himarket.support.enums.McpProtocolType;
+import com.alibaba.himarket.support.enums.McpTransportMode;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -42,11 +42,11 @@ import lombok.Data;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Data
-public class MCPConfigResult {
+public class McpConfigResult {
 
     protected String mcpServerName;
 
-    protected MCPServerConfig mcpServerConfig;
+    protected McpServerConfig mcpServerConfig;
 
     protected String tools;
 
@@ -56,7 +56,7 @@ public class MCPConfigResult {
 
     protected McpMetadata meta;
 
-    public MCPTransportConfig toTransportConfig() {
+    public McpTransportConfig toTransportConfig() {
         if (mcpServerConfig == null || CollUtil.isEmpty(mcpServerConfig.getDomains())) {
             return null;
         }
@@ -94,13 +94,13 @@ public class MCPConfigResult {
                 this.protocol != null
                         ? this.protocol.name()
                         : (meta != null ? meta.getProtocol() : null);
-        MCPTransportMode transportMode = McpProtocolType.resolveTransportMode(protocolStr);
+        McpTransportMode transportMode = McpProtocolType.resolveTransportMode(protocolStr);
 
-        if (transportMode == MCPTransportMode.SSE && !url.endsWith("/sse")) {
+        if (transportMode == McpTransportMode.SSE && !url.endsWith("/sse")) {
             url = url.endsWith("/") ? url + "sse" : url + "/sse";
         }
 
-        return MCPTransportConfig.builder()
+        return McpTransportConfig.builder()
                 .mcpServerName(mcpServerName)
                 .transportMode(transportMode)
                 .url(url)
@@ -116,20 +116,20 @@ public class MCPConfigResult {
         private String source;
 
         /**
-         * Service type. Deprecated: use {@link MCPConfigResult#fromType} instead.
+         * Service type. Deprecated: use {@link McpConfigResult#fromType} instead.
          * Kept for backward compatibility of serialized JSON.
          */
         @Deprecated private String createFromType;
 
         /**
-         * Protocol. Deprecated: use {@link MCPConfigResult#protocol} instead.
+         * Protocol. Deprecated: use {@link McpConfigResult#protocol} instead.
          * Kept for backward compatibility of serialized JSON.
          */
         @Deprecated private String protocol;
     }
 
     @Data
-    public static class MCPServerConfig {
+    public static class McpServerConfig {
         /**
          * For gateway
          */
@@ -143,13 +143,13 @@ public class MCPConfigResult {
         private Object rawConfig;
     }
 
-    public static MCPConfigResult fromApiDefinition(ApiDefinition definition) {
+    public static McpConfigResult fromApiDefinition(ApiDefinition definition) {
         McpServerSpec spec = (McpServerSpec) definition.getSpec();
 
-        MCPConfigResult result = new MCPConfigResult();
+        McpConfigResult result = new McpConfigResult();
         result.setMcpServerName(definition.getName());
 
-        MCPServerConfig serverConfig = new MCPServerConfig();
+        McpServerConfig serverConfig = new McpServerConfig();
 
         if (spec.getConnection() instanceof StdioConnection stdio) {
             // Build stdio mcp server config
@@ -207,7 +207,7 @@ public class MCPConfigResult {
         return result;
     }
 
-    private static void parseUrlToServerConfig(String url, MCPServerConfig serverConfig) {
+    private static void parseUrlToServerConfig(String url, McpServerConfig serverConfig) {
         if (StrUtil.isBlank(url)) {
             return;
         }

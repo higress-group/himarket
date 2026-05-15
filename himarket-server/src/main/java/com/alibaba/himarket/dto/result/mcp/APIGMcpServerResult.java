@@ -20,19 +20,26 @@
 package com.alibaba.himarket.dto.result.mcp;
 
 import com.alibaba.himarket.dto.converter.OutputConverter;
-import com.alibaba.himarket.service.gateway.HigressOperator.HigressMCPConfig;
+import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class HigressMCPServerResult extends GatewayMCPServerResult
-        implements OutputConverter<HigressMCPServerResult, HigressMCPConfig> {
+public class APIGMcpServerResult extends GatewayMcpServerResult
+        implements OutputConverter<APIGMcpServerResult, HttpRoute> {
+
+    private String apiId;
+
+    private String mcpServerId;
+
+    private String mcpRouteId;
 
     @Override
-    public HigressMCPServerResult convertFrom(HigressMCPConfig mcp) {
-        HigressMCPServerResult r = OutputConverter.super.convertFrom(mcp);
-        r.setMcpServerName(mcp.getName());
+    public APIGMcpServerResult convertFrom(HttpRoute httpRoute) {
+        APIGMcpServerResult r = OutputConverter.super.convertFrom(httpRoute);
+        r.setMcpServerName(httpRoute.getName());
+        r.setMcpRouteId(httpRoute.getRouteId());
         return r;
     }
 }

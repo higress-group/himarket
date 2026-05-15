@@ -29,14 +29,16 @@ import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
-import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.repository.GatewayRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.service.GatewayService;
@@ -44,6 +46,7 @@ import com.alibaba.himarket.service.gateway.GatewayOperator;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import jakarta.persistence.criteria.Predicate;
 import java.net.URI;
@@ -211,7 +214,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public PageResult<GatewayMCPServerResult> fetchMcpServers(
+    public PageResult<GatewayMcpServerResult> fetchMcpServers(
             String gatewayId, int page, int size) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchMcpServers(gateway, page, size);
@@ -242,9 +245,10 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
-    public String fetchMcpToolsForConfig(String gatewayId, Object conf) {
+    public CredentialContext fetchApiCredential(
+            String gatewayId, ProductType productType, ProductRef productRef) {
         Gateway gateway = findGateway(gatewayId);
-        return getOperator(gateway).fetchMcpToolsForConfig(gateway, conf);
+        return getOperator(gateway).fetchApiCredential(gateway, productType, productRef);
     }
 
     @Override
@@ -320,7 +324,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                 .higressConfig(gateway.getHigressConfig())
                 .adpAIGatewayConfig(gateway.getAdpAIGatewayConfig())
                 .apsaraGatewayConfig(gateway.getApsaraGatewayConfig())
-                .gateway(gateway) // 添加Gateway实体引用
+                .gatewayId(gateway.getGatewayId())
                 .build();
     }
 

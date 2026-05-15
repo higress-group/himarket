@@ -21,26 +21,64 @@ package com.alibaba.himarket.service.vendor;
 
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
+import com.alibaba.himarket.support.api.spec.McpConnection;
 import com.alibaba.himarket.support.enums.McpVendorType;
 
-/** 供应商适配器接口，封装不同供应商的 API 差异，对外暴露统一的查询接口。 */
 public interface McpVendorAdapter {
 
-    /** 适配器对应的供应商类型。 */
+    /**
+     * Return the vendor type handled by this adapter.
+     *
+     * @return the supported vendor type
+     */
     McpVendorType getType();
 
-    /** 分页查询供应商 MCP 列表，支持关键词搜索；认证由各适配器内部自动处理。 */
+    /**
+     * List remote MCP servers with pagination and optional keyword search.
+     *
+     * @param keyword the optional keyword to search by
+     * @param page the page number
+     * @param size the page size
+     * @return a page of remote MCP server items
+     */
     PageResult<RemoteMcpItem> listMcpServers(String keyword, int page, int size);
 
     /**
-     * 导入前补充详情：调用供应商详情 API 获取完整的连接配置、额外参数等信息。
+     * Enrich a listed MCP item before import by loading provider-specific detail data.
      *
-     * <p>列表接口通常只返回基本信息（名称、描述等），导入时需要通过详情接口获取
-     * server_config / connectionConfig / extraParams 等完整数据。
+     * <p>List APIs often return only basic fields. Importing may require detail data such as
+     * server_config, connectionConfig, or extraParams.
      *
-     * <p>默认实现直接返回原始 item（适用于列表接口已包含完整信息的供应商）。
+     * <p>The default implementation returns the item unchanged for vendors whose list API already
+     * includes all required import data.
+     *
+     * @param item the listed remote MCP item
+     * @return the enriched remote MCP item
      */
     default RemoteMcpItem enrichForImport(RemoteMcpItem item) {
         return item;
     }
+
+    /**
+     * Convert provider-specific connection configuration into the platform-standard MCP connection
+     * model.
+     *
+     * <p>Each vendor owns its connectionConfig shape, so implementations must parse their own
+     * format and return a standard {@link McpConnection}.
+     *
+     * @param item the remote MCP item with provider-specific connection data
+     * @return the standard MCP connection
+     */
+    McpConnection buildConnection(RemoteMcpItem item);
+
+    /**
+     * Fetch the import-ready MCP detail by provider-side resource identifier.
+     *
+     * <p>The returned item should include all data required for import, at least mcpName,
+     * protocolType, and either connection or a connectionConfig that can build one.
+     *
+     * @param resourceId the provider-side resource identifier
+     * @return the import-ready remote MCP item
+     */
+    RemoteMcpItem getMcpServer(String resourceId);
 }

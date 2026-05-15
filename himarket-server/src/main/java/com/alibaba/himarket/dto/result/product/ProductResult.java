@@ -23,7 +23,7 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
-import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.support.enums.ProductStatus;
@@ -65,7 +65,7 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
 
     private APIConfigResult apiConfig;
 
-    private MCPConfigResult mcpConfig;
+    private McpConfigResult mcpConfig;
 
     private AgentConfigResult agentConfig;
 
@@ -76,6 +76,8 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
     private WorkerConfig workerConfig;
 
     private Boolean enabled;
+
+    private Boolean subscribable;
 
     private ProductFeature feature;
 }

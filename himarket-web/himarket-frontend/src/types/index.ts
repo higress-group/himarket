@@ -382,9 +382,6 @@ export interface IModelConversation {
       attachments?: Array<{
         attachmentId: string;
       }>;
-      mcpToolCalls?: IMcpToolCall[];
-      mcpToolResponses?: IMcpToolResponse[];
-      messageChunks?: IMessageChunk[]; // 按顺序的消息片段
       isNewQuestion?: boolean;
       answers: {
         errorMsg: string;
@@ -393,6 +390,9 @@ export interface IModelConversation {
         totalTime: number;
         inputTokens: number;
         outputTokens: number;
+        mcpToolCalls?: IMcpToolCall[];
+        mcpToolResponses?: IMcpToolResponse[];
+        messageChunks?: IMessageChunk[]; // 按顺序的消息片段
       }[];
     }[];
   }[];

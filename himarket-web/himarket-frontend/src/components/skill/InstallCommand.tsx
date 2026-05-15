@@ -89,7 +89,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
   return (
     <div className="space-y-4">
       {/* 卡片1: 作者与仓库信息 */}
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-5">
+      <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900">基本信息</h3>
           <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
       </div>
 
       {/* 卡片2: 全局安装 */}
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-5">
+      <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-5">
         <h3 className="text-base font-semibold text-gray-900 mb-4">全局安装</h3>
 
         {/* 包管理器切换 */}
@@ -189,7 +189,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
       </div>
 
       {/* 卡片3: 本地下载 */}
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-5">
+      <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-gray-900">本地下载</h3>
           <Tooltip title="下载包含 SKILL.md 和所有相关文件的完整技能目录">

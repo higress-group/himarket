@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.support.gateway;
 
-import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.support.enums.GatewayType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -34,6 +33,8 @@ public class GatewayConfig {
 
     private GatewayType gatewayType;
 
+    private String gatewayId;
+
     private APIGConfig apigConfig;
 
     private AdpAIGatewayConfig adpAIGatewayConfig;
@@ -41,7 +42,4 @@ public class GatewayConfig {
     private ApsaraGatewayConfig apsaraGatewayConfig;
 
     private HigressConfig higressConfig;
-
-    /** 网关实体引用，用于获取gatewayId等信息 */
-    private Gateway gateway;
 }

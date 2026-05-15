@@ -309,7 +309,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
           }}
           open={modelOpen}
           overlayClassName="config-dropdown-overlay"
-          overlayInnerStyle={{ borderRadius: 12, padding: 0 }}
+          overlayInnerStyle={{ borderRadius: 10, padding: 0 }}
           placement="bottomLeft"
           trigger="click"
         >
@@ -355,7 +355,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
         }}
         open={cliOpen}
         overlayClassName="config-dropdown-overlay"
-        overlayInnerStyle={{ borderRadius: 12, padding: 0 }}
+        overlayInnerStyle={{ borderRadius: 10, padding: 0 }}
         placement="bottomLeft"
         trigger="click"
       >
@@ -400,7 +400,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
         }}
         open={skillOpen}
         overlayClassName="config-dropdown-overlay"
-        overlayInnerStyle={{ borderRadius: 12, padding: 0 }}
+        overlayInnerStyle={{ borderRadius: 10, padding: 0 }}
         placement="bottomLeft"
         trigger="click"
       >
@@ -453,7 +453,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
         }}
         open={mcpOpen}
         overlayClassName="config-dropdown-overlay"
-        overlayInnerStyle={{ borderRadius: 12, padding: 0 }}
+        overlayInnerStyle={{ borderRadius: 10, padding: 0 }}
         placement="bottomLeft"
         trigger="click"
       >
@@ -549,7 +549,7 @@ export function ModelSelector({ config, onConfigChange }: ModelSelectorProps) {
       onOpenChange={setOpen}
       open={open}
       overlayClassName="config-dropdown-overlay"
-      overlayInnerStyle={{ borderRadius: 12, padding: 0 }}
+      overlayInnerStyle={{ borderRadius: 10, padding: 0 }}
       placement="bottomLeft"
       trigger="click"
     >

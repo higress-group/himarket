@@ -2,21 +2,31 @@ import { InboxOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 
 interface EmptyStateProps {
-  productType: string;
+  className?: string;
+  description?: string;
+  productType?: string;
 }
 
-export function EmptyState({ productType }: EmptyStateProps) {
+export function EmptyState({ className = '', description, productType }: EmptyStateProps) {
   const { t } = useTranslation('emptyState');
 
-  const typeKey = [
-    'MODEL_API',
-    'MCP_SERVER',
-    'AGENT_API',
-    'REST_API',
-    'AGENT_SKILL',
-    'WORKER',
-  ].includes(productType)
-    ? productType
+  if (description) {
+    return (
+      <div className={`flex flex-col items-center justify-center py-16 ${className}`}>
+        <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+          <InboxOutlined className="text-base text-gray-400" />
+        </div>
+        <div className="text-sm text-gray-500">{description}</div>
+      </div>
+    );
+  }
+
+  const typeKey = productType
+    ? ['MODEL_API', 'MCP_SERVER', 'AGENT_API', 'REST_API', 'AGENT_SKILL', 'WORKER'].includes(
+        productType,
+      )
+      ? productType
+      : null
     : null;
 
   const title = typeKey ? t(`types.${typeKey}.title`) : t('defaultTitle');

@@ -24,18 +24,21 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
-import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
 import com.alibaba.himarket.service.gateway.client.GatewayClient;
 import com.alibaba.himarket.service.gateway.client.HigressClient;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -53,7 +56,7 @@ public abstract class GatewayOperator<T> {
 
     public abstract PageResult<APIResult> fetchRESTAPIs(Gateway gateway, int page, int size);
 
-    public abstract PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
+    public abstract PageResult<? extends GatewayMcpServerResult> fetchMcpServers(
             Gateway gateway, int page, int size);
 
     public abstract PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size);
@@ -69,7 +72,8 @@ public abstract class GatewayOperator<T> {
 
     public abstract String fetchModelConfig(Gateway gateway, Object conf);
 
-    public abstract String fetchMcpToolsForConfig(Gateway gateway, Object conf);
+    public abstract CredentialContext fetchApiCredential(
+            Gateway gateway, ProductType productType, ProductRef productRef);
 
     public abstract PageResult<GatewayResult> fetchGateways(Object param, int page, int size);
 

@@ -9,7 +9,7 @@ import { usePortalConfig } from '../context/usePortalConfig';
 
 export function Header() {
   const location = useLocation();
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(() => window.scrollY > 10);
   const { loading, visibleTabs } = usePortalConfig();
   const { t } = useTranslation('header');
 
@@ -58,17 +58,17 @@ export function Header() {
                 ))}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 animate-in fade-in duration-300">
+              <div className="flex items-center gap-2">
                 {visibleTabs.map((tab) => (
                   <Link key={tab.path} to={tab.path}>
                     <div
                       className={`
-                      px-4 py-1.5 rounded-full
+                      px-4 py-1.5 rounded-[10px] text-[15px] font-medium
                       transition-all duration-300 ease-in-out
                       ${
                         isActiveTab(tab.path)
-                          ? 'bg-white text-gray-900 font-medium shadow-sm scale-[1.02]'
-                          : 'text-gray-600 hover:bg-white/60 hover:text-gray-900 hover:shadow-sm hover:scale-[1.02]'
+                          ? 'bg-colorPrimary text-white shadow-sm scale-[1.02]'
+                          : 'text-gray-700 hover:bg-colorPrimaryBg hover:text-colorPrimary hover:shadow-sm hover:scale-[1.02]'
                       }
                     `}
                     >

@@ -17,21 +17,16 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.enums;
+package com.alibaba.himarket.dto.result.mcp;
 
-import lombok.Getter;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 
-@Getter
-public enum MCPTransportMode {
-    STDIO("stdio"),
+@Data
+@Schema(
+        oneOf = {APIGMcpServerResult.class, HigressMcpServerResult.class, AdpMcpServerResult.class},
+        discriminatorProperty = "type")
+public class GatewayMcpServerResult {
 
-    SSE("sse"),
-
-    STREAMABLE_HTTP("StreamableHTTP");
-
-    private final String mode;
-
-    MCPTransportMode(String mode) {
-        this.mode = mode;
-    }
+    protected String mcpServerName;
 }

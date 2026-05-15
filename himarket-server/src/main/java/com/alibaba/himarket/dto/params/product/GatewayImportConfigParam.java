@@ -19,32 +19,14 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import com.alibaba.himarket.dto.converter.InputConverter;
-import com.alibaba.himarket.entity.ProductRef;
-import com.alibaba.himarket.support.enums.SourceType;
-import com.alibaba.himarket.support.product.APIGRefConfig;
-import com.alibaba.himarket.support.product.HigressRefConfig;
-import com.alibaba.himarket.support.product.NacosRefConfig;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
-public class CreateProductRefParam implements InputConverter<ProductRef> {
+@EqualsAndHashCode(callSuper = false)
+public class GatewayImportConfigParam extends ProductImportSourceConfigParam {
 
-    @NotNull(message = "Source type cannot be null")
-    private SourceType sourceType;
-
-    private String gatewayId;
-
-    private String nacosId;
-
-    private APIGRefConfig apigRefConfig;
-
-    private APIGRefConfig adpAIGatewayRefConfig;
-
-    private APIGRefConfig apsaraGatewayRefConfig;
-
-    private HigressRefConfig higressRefConfig;
-
-    private NacosRefConfig nacosRefConfig;
+    @NotBlank(message = "Gateway instance ID is required")
+    private String instanceId;
 }

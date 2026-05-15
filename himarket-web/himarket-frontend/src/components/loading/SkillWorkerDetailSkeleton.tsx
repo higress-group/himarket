@@ -13,12 +13,12 @@ export function SkillWorkerDetailSkeleton() {
     <div className="animate-pulse py-8 flex flex-col gap-4">
       {/* ── 返回按钮 ── */}
       <div className="mb-4">
-        <div className="h-9 w-20 bg-gray-200/60 rounded-xl" />
+        <div className="h-9 w-20 bg-gray-200/60 rounded-[10px]" />
       </div>
 
       {/* ── 图标 + 标题 + 日期 ── */}
       <div className="flex items-center gap-4 mb-3">
-        <div className="w-16 h-16 rounded-xl bg-gray-200/70 flex-shrink-0" />
+        <div className="w-16 h-16 rounded-[10px] bg-gray-200/70 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="h-6 bg-gray-200/70 rounded-md w-48 mb-2" />
           <div className="h-4 bg-gray-200/50 rounded-md w-32" />

@@ -1,4 +1,10 @@
-import { CopyOutlined, MessageOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import {
+  CopyOutlined,
+  FileTextOutlined,
+  InboxOutlined,
+  MessageOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
 import { Button, message, Tabs, Collapse, Select } from 'antd';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -250,20 +256,30 @@ function ModelDetail() {
   };
 
   const leftContent = data ? (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
+    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6 pt-0">
       <Tabs
         defaultActiveKey="overview"
         items={[
           {
             children: data?.document ? (
-              <div className="min-h-[400px] prose prose-lg">
+              <div className="min-h-[400px] px-4">
                 <MarkdownRender content={data.document} />
               </div>
             ) : (
-              <div className="text-gray-500 text-center py-16">暂无概览信息</div>
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                  <InboxOutlined className="text-base text-gray-400" />
+                </div>
+                <div className="text-sm text-gray-500">暂无概览信息</div>
+              </div>
             ),
             key: 'overview',
-            label: '概览',
+            label: (
+              <span className="flex items-center gap-1.5 font-semibold">
+                <FileTextOutlined className="text-sm" />
+                概览
+              </span>
+            ),
           },
           {
             children: modelConfig?.modelAPIConfig ? (
@@ -271,14 +287,14 @@ function ModelDetail() {
                 {/* 基本信息 */}
                 <div className="grid grid-cols-2 gap-4">
                   {modelConfig.modelAPIConfig.modelCategory && (
-                    <div className="bg-gray-50 rounded-xl">
+                    <div className="bg-gray-50 rounded-[10px]">
                       <div className="text-sm text-gray-500 mb-1">适用场景</div>
                       <div className="text-sm font-medium text-gray-900">
                         {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
                       </div>
                     </div>
                   )}
-                  <div className="bg-gray-50 rounded-xl">
+                  <div className="bg-gray-50 rounded-[10px]">
                     <div className="text-sm text-gray-500 mb-1">协议</div>
                     <div className="text-sm font-medium text-gray-900">
                       {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
@@ -322,7 +338,7 @@ function ModelDetail() {
                       )}
 
                       {/* 路由列表 */}
-                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                      <div className="border border-gray-200 rounded-[10px] overflow-hidden">
                         <Collapse expandIconPosition="end" ghost>
                           {modelConfig.modelAPIConfig.routes.map((route, index) => (
                             <Panel
@@ -403,26 +419,6 @@ function ModelDetail() {
                               key={index}
                             >
                               <div className="pl-4 space-y-4 pb-4">
-                                {/* 域名信息 */}
-                                <div>
-                                  <div className="text-xs text-gray-500 mb-2">域名:</div>
-                                  {route.domains?.map((domain, domainIndex: number) => {
-                                    const formattedDomain = formatDomainWithPort(
-                                      domain.domain,
-                                      domain.port,
-                                      domain.protocol,
-                                    );
-                                    return (
-                                      <div
-                                        className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg mb-1"
-                                        key={domainIndex}
-                                      >
-                                        {domain.protocol.toLowerCase()}://{formattedDomain}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-
                                 {/* 匹配规则 */}
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
@@ -484,10 +480,20 @@ function ModelDetail() {
                   )}
               </div>
             ) : (
-              <div className="text-gray-500 text-center py-16">暂无配置信息</div>
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                  <InboxOutlined className="text-base text-gray-400" />
+                </div>
+                <div className="text-sm text-gray-500">暂无配置信息</div>
+              </div>
             ),
             key: 'configuration',
-            label: `配置${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`,
+            label: (
+              <span className="flex items-center gap-1.5 font-semibold">
+                <SettingOutlined className="text-sm" />
+                {`配置${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`}
+              </span>
+            ),
           },
         ]}
         size="large"
@@ -497,43 +503,55 @@ function ModelDetail() {
 
   const rightContent = (
     <>
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
-        <h3 className="text-base font-semibold mb-2 text-gray-900">Model 调试</h3>
+      <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+            Model 调试
+          </span>
+        </div>
         <Tabs
           defaultActiveKey="chat"
           items={[
             {
               children: (
                 <div className="space-y-4">
-                  {/* 功能介绍 */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-                    <div className="flex items-start gap-3 mb-3">
-                      <MessageOutlined className="text-xl text-blue-600 mt-0.5" />
+                  {/* 现代极简风格卡片 */}
+                  <div className="rounded-[10px] border border-indigo-100/50 bg-indigo-50/50 p-5">
+                    {/* 图标 + 标题 */}
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 shadow-sm">
+                        <MessageOutlined className="text-sm text-white" />
+                      </div>
                       <div>
-                        <h4 className="text-sm font-semibold text-gray-900 mb-1">实时对话测试</h4>
-                        <p className="text-xs text-gray-600 leading-relaxed">
-                          在交互式环境中测试模型能力，支持多轮对话、实时响应
-                        </p>
+                        <div className="text-base font-semibold text-gray-900">实时对话</div>
+                        <div className="text-xs text-gray-400">Interactive Chat</div>
                       </div>
                     </div>
+                    {/* 描述文字 */}
+                    <p className="mb-4 text-sm leading-relaxed text-gray-600">
+                      在交互式环境中体验模型能力，让AI触手可及
+                    </p>
+                    {/* 特性标签 */}
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+                        多轮对话
+                      </span>
+                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+                        多模态
+                      </span>
+                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+                        MCP集成
+                      </span>
+                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
+                        多模型对比
+                      </span>
+                    </div>
                   </div>
 
-                  {/* 功能特性 */}
-                  <div className="space-y-2">
-                    <div className="flex items-start gap-2 text-xs text-gray-600">
-                      <ThunderboltOutlined className="text-amber-500 mt-0.5" />
-                      <span>支持流式输出，实时查看生成结果</span>
-                    </div>
-                    <div className="flex items-start gap-2 text-xs text-gray-600">
-                      <MessageOutlined className="text-blue-500 mt-0.5" />
-                      <span>保存对话历史，支持多轮交互测试</span>
-                    </div>
-                  </div>
-
-                  {/* 操作按钮 */}
+                  {/* 核心操作按钮 */}
                   <Button
                     block
-                    className="rounded-lg mt-4"
+                    className="rounded-lg border-none bg-gradient-to-r from-indigo-500 to-purple-500"
                     icon={<MessageOutlined />}
                     onClick={() => {
                       if (!isLoggedIn) {
@@ -567,7 +585,7 @@ function ModelDetail() {
                   {generateCurlExample() ? (
                     <>
                       <div className="relative">
-                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
+                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-[10px] text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
                           <code>{generateCurlExample()}</code>
                         </pre>
                         <Button
@@ -628,6 +646,7 @@ function ModelDetail() {
               onSubscriptionStatusChange: handleSubscriptionStatusChange,
               productType: 'MODEL_API',
               ref: headerRef,
+              subscribable: data.subscribable,
               updatedAt: data.updatedAt,
             }
           : undefined

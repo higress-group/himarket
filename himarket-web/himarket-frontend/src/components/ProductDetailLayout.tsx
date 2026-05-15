@@ -19,6 +19,7 @@ export interface ProductDetailHeaderProps {
   agentConfig?: IAgentConfig;
   updatedAt?: string;
   productType?: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
+  subscribable?: boolean;
   ref?: Ref<ProductHeaderHandle>;
   onSubscriptionStatusChange?: (subscribed: boolean) => void;
 }
@@ -69,7 +70,7 @@ export function ProductDetailLayout({
         {/* 返回按钮 */}
         <button
           className="
-            flex items-center gap-2 mb-4 px-4 py-2 rounded-xl
+            flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px]
             text-gray-600 hover:text-colorPrimary
             hover:bg-colorPrimaryBgHover
             transition-all duration-200

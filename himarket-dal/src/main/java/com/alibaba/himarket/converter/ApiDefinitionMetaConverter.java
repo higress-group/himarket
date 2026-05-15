@@ -17,42 +17,15 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.vendor;
+package com.alibaba.himarket.converter;
 
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.alibaba.himarket.support.api.meta.ApiDefinitionMeta;
+import jakarta.persistence.Converter;
 
-/** 批量导入结果。 */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class BatchImportResult {
+@Converter
+public class ApiDefinitionMetaConverter extends JsonConverter<ApiDefinitionMeta> {
 
-    private int successCount;
-
-    private int skippedCount;
-
-    private int failedCount;
-
-    private List<ImportItemStatus> details;
-
-    /** 单条导入状态。 */
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ImportItemStatus {
-
-        private String mcpName;
-
-        /** SUCCESS / SKIPPED / FAILED */
-        private String status;
-
-        /** 失败或跳过原因 */
-        private String message;
+    public ApiDefinitionMetaConverter() {
+        super(ApiDefinitionMeta.class);
     }
 }

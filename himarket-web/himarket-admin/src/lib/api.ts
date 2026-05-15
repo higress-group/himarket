@@ -178,7 +178,7 @@ export const apiProductApi = {
   },
   // 创建API产品关联
   createApiProductRef: (productId: string, data: unknown) => {
-    return api.post(`/products/${productId}/ref`, data);
+    return api.put(`/products/${productId}/ref`, data);
   },
   // 删除API产品
   deleteApiProduct: (productId: string) => {
@@ -222,41 +222,37 @@ export const apiProductApi = {
   // 批量导入 AI API 资源为产品
   importProducts: (data: {
     productType: string;
-    sourceType: 'GATEWAY' | 'NACOS';
-    gatewayId?: string;
-    nacosId?: string;
-    namespaceId?: string;
-    services: Array<{
-      name: string;
+    source: 'GATEWAY' | 'NACOS' | 'EXTERNAL';
+    sourceConfig:
+      | { instanceId: string }
+      | { instanceId: string; namespace?: string }
+      | { provider: string };
+    items: Array<{
+      resourceName?: string;
+      resourceId?: string;
       description?: string;
-      apiId?: string;
-      mcpServerId?: string;
-      mcpRouteId?: string;
-      agentApiId?: string;
-      modelApiId?: string;
-      mcpServerName?: string;
-      agentName?: string;
-      namespaceId?: string;
     }>;
-    categories?: string[];
   }) => {
-    return api.post(`/products/import`, data, { timeout: 120000 });
+    return api.post(`/products/import`, data, { timeout: 300000 });
   },
   // 发布API产品到门户
   publishToPortal: (productId: string, portalId: string) => {
     return api.post(`/products/${productId}/publications`, { portalId });
   },
+  // 重新加载产品配置
+  reloadProductConfig: (productId: string) => {
+    return api.post(`/products/${productId}/configurations/reload`);
+  },
   // 更新API产品
   updateApiProduct: (productId: string, data: UpdateApiProductRequest) => {
     return api.put(`/products/${productId}`, data);
   },
-  // 更新 Skill 的 Nacos 关联
-  updateSkillNacos: (productId: string, data: { nacosId: string; namespace: string }) => {
-    return api.put(`/products/${productId}/skill-nacos`, data);
-  },
-  // 更新 Worker 的 Nacos 关联
-  updateWorkerNacos: (productId: string, data: { nacosId: string; namespace: string }) => {
-    return api.put(`/products/${productId}/worker-nacos`, data);
+  // 更新产品来源
+  updateProductSource: (
+    productId: string,
+    data: { sourceType: 'NACOS'; nacosId: string; namespace: string },
+  ) => {
+    return api.put(`/products/${productId}/source`, data);
   },
 };
 
@@ -458,20 +454,6 @@ export const mcpServerApi = {
   deleteMetaByProduct: (productId: string) => {
     return api.delete(`/mcp-servers/meta/by-product/${productId}`);
   },
-  // 部署沙箱（独立于 saveMeta，管理员手动触发）
-  deploySandbox: (
-    mcpServerId: string,
-    data: {
-      sandboxId: string;
-      transportType?: string;
-      authType?: string;
-      paramValues?: string;
-      namespace?: string;
-      resourceSpec?: string;
-    },
-  ) => {
-    return api.post(`/mcp-servers/meta/${mcpServerId}/deploy-sandbox`, data, { timeout: 120000 });
-  },
   // 获取 MCP 元信息
   getMeta: (mcpServerId: string) => {
     return api.get(`/mcp-servers/meta/${mcpServerId}`);
@@ -534,10 +516,6 @@ export const mcpServerApi = {
     resourceSpec?: string;
   }) => {
     return api.post(`/mcp-servers/meta`, data, { timeout: 120000 });
-  },
-  // 取消沙箱托管
-  undeploySandbox: (mcpServerId: string) => {
-    return api.delete(`/mcp-servers/meta/${mcpServerId}/deploy-sandbox`);
   },
   // 更新服务介绍
   updateServiceIntro: (mcpServerId: string, serviceIntro: string) => {
@@ -608,6 +586,7 @@ export const apiDefinitionApi = {
     relatedProductId?: string;
     version?: string;
     spec: Record<string, unknown>;
+    meta?: Record<string, unknown>;
     policies?: unknown[];
   }) => {
     return api.post('/api-definitions', data);
@@ -642,19 +621,16 @@ export const apiDefinitionApi = {
   },
 };
 
-// MCP 供应商导入 API
+// External vendor APIs
 export const mcpVendorApi = {
-  // 批量导入（超时设长一些，因为后端需要逐条调详情 API 补充数据）
-  batchImport: (data: { vendorType: string; items: unknown[] }) => {
-    return api.post('/admin/mcp-vendor/import', data, { timeout: 300000 });
-  },
-  // 查询供应商 MCP 列表
+  // List MCP servers from an external vendor
   listRemoteMcpItems: (params: {
     vendorType: string;
     keyword?: string;
     page?: number;
     size?: number;
   }) => {
-    return api.get('/admin/mcp-vendor/mcp-list', { params });
+    const { vendorType, ...query } = params;
+    return api.get(`/external-vendors/${vendorType}/mcp-servers`, { params: query });
   },
 };

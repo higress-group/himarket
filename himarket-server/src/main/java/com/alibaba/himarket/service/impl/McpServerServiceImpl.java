@@ -50,16 +50,9 @@ import com.alibaba.himarket.service.mcp.McpProtocolUtils;
 import com.alibaba.himarket.service.mcp.McpSandboxOrchestrator;
 import com.alibaba.himarket.service.mcp.McpToolsConfigParser;
 import com.alibaba.himarket.service.mcp.McpTransportResolver;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
-import com.alibaba.himarket.support.enums.MCPTransportMode;
-import com.alibaba.himarket.support.enums.McpEndpointStatus;
-import com.alibaba.himarket.support.enums.McpHostingType;
-import com.alibaba.himarket.support.enums.McpOrigin;
-import com.alibaba.himarket.support.enums.McpProtocolType;
-import com.alibaba.himarket.support.enums.ProductStatus;
-import com.alibaba.himarket.support.enums.SourceType;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.enums.*;
 import com.alibaba.himarket.utils.JsonUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.Resource;
@@ -83,7 +76,6 @@ public class McpServerServiceImpl implements McpServerService {
     private final ProductPublicationRepository publicationRepository;
     private final ContextHolder contextHolder;
     private final ToolManager toolManager;
-    private final ObjectMapper objectMapper;
     private final McpConfigSyncHelper configSyncHelper;
     private final McpSandboxOrchestrator sandboxOrchestrator;
     private final McpTransportResolver transportResolver;
@@ -97,7 +89,6 @@ public class McpServerServiceImpl implements McpServerService {
             ProductPublicationRepository publicationRepository,
             ContextHolder contextHolder,
             ToolManager toolManager,
-            ObjectMapper objectMapper,
             McpConfigSyncHelper configSyncHelper,
             McpSandboxOrchestrator sandboxOrchestrator,
             McpTransportResolver transportResolver) {
@@ -107,7 +98,6 @@ public class McpServerServiceImpl implements McpServerService {
         this.publicationRepository = publicationRepository;
         this.contextHolder = contextHolder;
         this.toolManager = toolManager;
-        this.objectMapper = objectMapper;
         this.configSyncHelper = configSyncHelper;
         this.sandboxOrchestrator = sandboxOrchestrator;
         this.transportResolver = transportResolver;
@@ -837,7 +827,7 @@ public class McpServerServiceImpl implements McpServerService {
     // ==================== Transport Config Resolution ====================
 
     @Override
-    public List<MCPTransportConfig> resolveTransportConfigs(
+    public List<McpTransportConfig> resolveTransportConfigs(
             List<String> productIds, String userId) {
         return transportResolver.resolveTransportConfigs(productIds, userId);
     }
@@ -882,10 +872,10 @@ public class McpServerServiceImpl implements McpServerService {
 
     private void fetchAndSaveToolsListOrThrow(
             McpServerMeta meta, String endpointUrl, String transportType) {
-        MCPTransportMode mode = McpProtocolType.resolveTransportMode(transportType);
+        McpTransportMode mode = McpProtocolType.resolveTransportMode(transportType);
 
-        MCPTransportConfig config =
-                MCPTransportConfig.builder()
+        McpTransportConfig config =
+                McpTransportConfig.builder()
                         .mcpServerName(meta.getMcpName())
                         .transportMode(mode)
                         .url(endpointUrl)
@@ -901,7 +891,7 @@ public class McpServerServiceImpl implements McpServerService {
         List<McpSchema.Tool> tools = client.listTools().block();
         if (tools != null && !tools.isEmpty()) {
             try {
-                String toolsJson = objectMapper.writeValueAsString(tools);
+                String toolsJson = JsonUtil.toJson(tools);
                 meta.setToolsConfig(toolsJson);
             } catch (Exception e) {
                 throw new BusinessException(

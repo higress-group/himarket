@@ -26,7 +26,7 @@ import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.mcp.McpEndpointResult;
 import com.alibaba.himarket.dto.result.mcp.McpMetaResult;
 import com.alibaba.himarket.dto.result.mcp.MyEndpointResult;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 
@@ -78,7 +78,7 @@ public interface McpServerService {
      * 根据 productId 列表解析当前用户的 MCP 传输配置。
      * 优先使用用户订阅的 endpoint（热数据），找不到则返回空（由调用方 fallback）。
      */
-    List<MCPTransportConfig> resolveTransportConfigs(List<String> productIds, String userId);
+    List<McpTransportConfig> resolveTransportConfigs(List<String> productIds, String userId);
 
     /** 根据 mcpName 获取元信息 */
     McpMetaResult getMetaByName(String mcpName);

@@ -508,9 +508,10 @@ export function ApiProductWorkerPackage({
     const values = await nacosForm.validateFields();
     setNacosSaving(true);
     try {
-      await apiProductApi.updateWorkerNacos(apiProduct.productId, {
+      await apiProductApi.updateProductSource(apiProduct.productId, {
         nacosId: values.nacosId,
         namespace: values.namespace,
+        sourceType: 'NACOS',
       });
       message.success('Nacos 关联已更新');
       setNacosModalVisible(false);

@@ -81,17 +81,11 @@ export function ApiProductLinkNacos({ apiProduct, handleRefresh }: ApiProductLin
     const values = await form.validateFields();
     setSaving(true);
     try {
-      if (isWorker) {
-        await apiProductApi.updateWorkerNacos(apiProduct.productId, {
-          nacosId: values.nacosId,
-          namespace: values.namespace,
-        });
-      } else {
-        await apiProductApi.updateSkillNacos(apiProduct.productId, {
-          nacosId: values.nacosId,
-          namespace: values.namespace,
-        });
-      }
+      await apiProductApi.updateProductSource(apiProduct.productId, {
+        nacosId: values.nacosId,
+        namespace: values.namespace,
+        sourceType: 'NACOS',
+      });
       message.success('Nacos 关联已更新');
       setModalVisible(false);
       handleRefresh();

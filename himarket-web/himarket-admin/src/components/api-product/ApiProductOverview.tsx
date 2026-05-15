@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { Card, Row, Col, Statistic, Button, message } from 'antd';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { apiProductApi } from '@/lib/api';
 import { getProductCategories } from '@/lib/productCategoryApi';
@@ -32,6 +32,7 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { productId, type } = apiProduct;
   const lastFetchedKeyRef = useRef<string>('');
@@ -289,7 +290,9 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
             <Card
               className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => {
-                navigate(`/api-products/${apiProduct.productId}?tab=portal`);
+                navigate(`/api-products/${apiProduct.productId}?tab=portal`, {
+                  state: location.state,
+                });
               }}
             >
               <Statistic
@@ -304,7 +307,9 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
             <Card
               className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => {
-                navigate(`/api-products/${apiProduct.productId}?tab=link-api`);
+                navigate(`/api-products/${apiProduct.productId}?tab=link-api`, {
+                  state: location.state,
+                });
               }}
             >
               <Statistic

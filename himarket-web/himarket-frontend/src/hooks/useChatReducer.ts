@@ -117,6 +117,14 @@ export type ChatAction =
       };
     }
   | {
+      type: 'PREPARE_REGENERATE';
+      payload: {
+        modelId: string;
+        conversationId: string;
+        questionId: string;
+      };
+    }
+  | {
       type: 'SEND_ERROR';
       payload: {
         modelId: string;
@@ -249,20 +257,21 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
         modelId,
         conversationId,
         questionId,
-        (question) => ({
-          ...question,
-          answers: [
-            {
-              content: fullContent,
-              errorMsg: '',
-              firstTokenTime: 0,
-              inputTokens: 0,
-              outputTokens: 0,
-              totalTime: 0,
-            },
-          ],
-          messageChunks: mergeTextChunk(question.messageChunks || [], chunk),
-        }),
+        (question) => {
+          const lastIdx = question.answers.length - 1;
+          return {
+            ...question,
+            answers: question.answers.map((answer, idx) =>
+              idx === lastIdx
+                ? {
+                    ...answer,
+                    content: fullContent,
+                    messageChunks: mergeTextChunk(answer.messageChunks || [], chunk),
+                  }
+                : answer,
+            ),
+          };
+        },
         () => ({ loading: false }),
       );
     }
@@ -274,11 +283,21 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
         toolCall,
         type: 'tool_call',
       };
-      return updateQuestion(state, modelId, conversationId, questionId, (question) => ({
-        ...question,
-        mcpToolCalls: [...(question.mcpToolCalls || []), toolCall],
-        messageChunks: [...(question.messageChunks || []), toolCallChunk],
-      }));
+      return updateQuestion(state, modelId, conversationId, questionId, (question) => {
+        const lastIdx = question.answers.length - 1;
+        return {
+          ...question,
+          answers: question.answers.map((answer, idx) =>
+            idx === lastIdx
+              ? {
+                  ...answer,
+                  mcpToolCalls: [...(answer.mcpToolCalls || []), toolCall],
+                  messageChunks: [...(answer.messageChunks || []), toolCallChunk],
+                }
+              : answer,
+          ),
+        };
+      });
     }
 
     case 'ADD_TOOL_RESPONSE': {
@@ -288,11 +307,21 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
         toolResult: toolResponse,
         type: 'tool_result',
       };
-      return updateQuestion(state, modelId, conversationId, questionId, (question) => ({
-        ...question,
-        mcpToolResponses: [...(question.mcpToolResponses || []), toolResponse],
-        messageChunks: [...(question.messageChunks || []), toolResultChunk],
-      }));
+      return updateQuestion(state, modelId, conversationId, questionId, (question) => {
+        const lastIdx = question.answers.length - 1;
+        return {
+          ...question,
+          answers: question.answers.map((answer, idx) =>
+            idx === lastIdx
+              ? {
+                  ...answer,
+                  mcpToolResponses: [...(answer.mcpToolResponses || []), toolResponse],
+                  messageChunks: [...(answer.messageChunks || []), toolResultChunk],
+                }
+              : answer,
+          ),
+        };
+      });
     }
 
     case 'COMPLETE': {
@@ -308,6 +337,7 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
           answers: question.answers.map((answer, idx) => {
             if (idx === question.answers.length - 1) {
               return {
+                ...answer,
                 content: fullContent,
                 errorMsg: answer.errorMsg || '',
                 firstTokenTime: usage?.firstByteTimeout || 0,
@@ -423,12 +453,17 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
         conversationId,
         questionId,
         (question) => {
+          const lastAnswerIdx = question.answers.length - 1;
           const ans =
             lastIdx !== -1
               ? question.answers.map((answer, idx) =>
-                  idx !== question.answers.length - 1
+                  idx !== lastAnswerIdx
                     ? answer
-                    : { ...answer, content: fullContent },
+                    : {
+                        ...answer,
+                        content: fullContent,
+                        messageChunks: mergeTextChunk(answer.messageChunks || [], chunk),
+                      },
                 )
               : [
                   ...question.answers,
@@ -437,6 +472,7 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
                     errorMsg: '',
                     firstTokenTime: 0,
                     inputTokens: 0,
+                    messageChunks: mergeTextChunk([], chunk),
                     outputTokens: 0,
                     totalTime: 0,
                   },
@@ -445,11 +481,33 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
             ...question,
             activeAnswerIndex: ans.length - 1,
             answers: ans,
-            messageChunks: mergeTextChunk(question.messageChunks || [], chunk),
           };
         },
         () => ({ loading: false }),
       );
+    }
+
+    case 'PREPARE_REGENERATE': {
+      const { conversationId, modelId, questionId } = action.payload;
+      return updateQuestion(state, modelId, conversationId, questionId, (question) => ({
+        ...question,
+        activeAnswerIndex: question.answers.length,
+        answers: [
+          ...question.answers,
+          {
+            content: '',
+            errorMsg: '',
+            firstTokenTime: 0,
+            inputTokens: 0,
+            mcpToolCalls: [],
+            mcpToolResponses: [],
+            messageChunks: [],
+            outputTokens: 0,
+            totalTime: 0,
+          },
+        ],
+        isNewQuestion: true,
+      }));
     }
 
     case 'SEND_ERROR': {

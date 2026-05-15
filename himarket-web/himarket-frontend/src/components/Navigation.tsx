@@ -50,7 +50,7 @@ export function Navigation({ loading = false }: NavigationProps) {
   return (
     <nav className="sticky top-4 z-50">
       <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#f4f4f6]/95 backdrop-blur-sm rounded-xl border border-gray-200 flex justify-between items-center h-20 px-6">
+        <div className="bg-[#f4f4f6]/95 backdrop-blur-sm rounded-[10px] border border-gray-200 flex justify-between items-center h-20 px-6">
           <div className="flex items-center">
             {loading ? (
               <div className="flex items-center space-x-2">

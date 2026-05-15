@@ -22,6 +22,8 @@ package com.alibaba.himarket.repository;
 import com.alibaba.himarket.entity.ApiDefinition;
 import com.alibaba.himarket.support.enums.ApiStatus;
 import com.alibaba.himarket.support.enums.ApiType;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +44,8 @@ public interface APIDefinitionRepository extends BaseRepository<ApiDefinition, L
 
     Page<ApiDefinition> findByTypeAndNameContaining(
             ApiType type, String keyword, Pageable pageable);
+
+    List<ApiDefinition> findByTypeAndNameIn(ApiType type, Collection<String> names);
 
     boolean existsByApiDefinitionId(String apiDefinitionId);
 }

@@ -24,7 +24,6 @@ import com.alibaba.himarket.support.enums.McpProtocolType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -49,8 +48,6 @@ public class McpServerSpec extends ApiSpec {
     @NotNull(message = "Connection cannot be null")
     @Valid
     private McpConnection connection;
-
-    private Map<String, Object> meta;
 
     @AssertTrue(message = "ToolsConfig is required for HTTP_TO_MCP and must be null for NATIVE_MCP")
     private boolean isToolsConfigValid() {

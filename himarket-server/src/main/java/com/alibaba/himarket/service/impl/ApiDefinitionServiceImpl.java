@@ -29,7 +29,7 @@ import com.alibaba.himarket.dto.params.apidefinition.QueryApiDefinitionParam;
 import com.alibaba.himarket.dto.params.apidefinition.UpdateApiDefinitionParam;
 import com.alibaba.himarket.dto.result.apidefinition.ApiDefinitionResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.entity.ApiDefinition;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.entity.ProductRef;
@@ -39,6 +39,7 @@ import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.ApiDefinitionService;
 import com.alibaba.himarket.support.enums.ApiStatus;
 import com.alibaba.himarket.support.enums.ApiType;
+import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.persistence.criteria.Predicate;
@@ -214,13 +215,18 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
 
         syncProductRefConfig(productRef, definition);
         productRefRepository.save(productRef);
+
+        if (product.getStatus() != ProductStatus.PUBLISHED) {
+            product.setStatus(ProductStatus.READY);
+            productRepository.save(product);
+        }
     }
 
     private void syncProductRefConfig(ProductRef ref, ApiDefinition definition) {
         switch (definition.getType()) {
             case MCP_SERVER ->
                     ref.setMcpConfig(
-                            JsonUtil.toJson(MCPConfigResult.fromApiDefinition(definition)));
+                            JsonUtil.toJson(McpConfigResult.fromApiDefinition(definition)));
             case AGENT_API -> ref.setAgentConfig(JsonUtil.toJson(definition.getSpec()));
             case MODEL_API -> ref.setModelConfig(JsonUtil.toJson(definition.getSpec()));
         }

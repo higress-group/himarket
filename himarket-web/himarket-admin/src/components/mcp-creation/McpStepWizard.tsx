@@ -2,7 +2,6 @@ import {
   InfoCircleOutlined,
   SettingOutlined,
   FileTextOutlined,
-  CloudServerOutlined,
   ApiOutlined,
   DatabaseOutlined,
   CheckCircleFilled,
@@ -16,7 +15,6 @@ import BasicInfoStep from './steps/BasicInfoStep';
 import GatewayImportStep from './steps/GatewayImportStep';
 import McpConfigStep from './steps/McpConfigStep';
 import NacosImportStep from './steps/NacosImportStep';
-import SandboxDeployStep from './steps/SandboxDeployStep';
 import ServiceIntroStep from './steps/ServiceIntroStep';
 
 import type { McpStepWizardProps, McpCreationFormData } from './types';
@@ -40,7 +38,6 @@ const STEP_FIELDS: Record<string, string[][]> = {
     ['name', 'description', 'mcpName'], // 基础信息
     ['connectionConfig'], // MCP 配置
     [], // 服务介绍
-    [], // 沙箱部署
   ],
   nacos: [
     ['name', 'description', 'mcpName'], // 基础信息
@@ -49,16 +46,7 @@ const STEP_FIELDS: Record<string, string[][]> = {
   ],
 };
 
-/** manual 模式导航项（含沙箱步骤） */
-const MANUAL_NAV_FULL: NavItem[] = [
-  { desc: '产品与 MCP 元信息', icon: <InfoCircleOutlined />, key: 0, label: '基础信息' },
-  { desc: '协议与连接方式', icon: <SettingOutlined />, key: 1, label: 'MCP 配置' },
-  { desc: 'Markdown 文档', icon: <FileTextOutlined />, key: 2, label: '服务介绍' },
-  { desc: '沙箱与参数配置', icon: <CloudServerOutlined />, key: 3, label: '沙箱部署' },
-];
-
-/** manual 模式导航项（不含沙箱步骤） */
-const MANUAL_NAV_SHORT: NavItem[] = [
+const MANUAL_NAV: NavItem[] = [
   { desc: '产品与 MCP 元信息', icon: <InfoCircleOutlined />, key: 0, label: '基础信息' },
   { desc: '协议与连接方式', icon: <SettingOutlined />, key: 1, label: 'MCP 配置' },
   { desc: 'Markdown 文档', icon: <FileTextOutlined />, key: 2, label: '服务介绍' },
@@ -76,7 +64,7 @@ const NACOS_NAV: NavItem[] = [
   { desc: 'Markdown 文档', icon: <FileTextOutlined />, key: 2, label: '服务介绍' },
 ];
 
-/** 根据 mode 和 sandboxRequired 获取标题 */
+/** 根据 mode 获取标题 */
 function getTitle(mode: McpStepWizardProps['mode']): string {
   switch (mode) {
     case 'manual':
@@ -94,26 +82,17 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
 
-  // Watch sandboxRequired to dynamically show/hide step 4 in manual mode
-  const sandboxRequired = Form.useWatch('sandboxRequired', form);
-
-  /** Dynamic nav items based on mode + sandboxRequired */
+  /** Dynamic nav items based on mode */
   const navItems = useMemo<NavItem[]>(() => {
     if (mode === 'gateway') return GATEWAY_NAV;
     if (mode === 'nacos') return NACOS_NAV;
-    // manual mode: show sandbox step only when sandboxRequired is on
-    return sandboxRequired ? MANUAL_NAV_FULL : MANUAL_NAV_SHORT;
-  }, [mode, sandboxRequired]);
+    return MANUAL_NAV;
+  }, [mode]);
 
-  /** Dynamic step fields for validation */
+  /** Step fields for validation */
   const stepFields = useMemo<string[][]>(() => {
-    const fields = STEP_FIELDS[mode] as string[][];
-    if (mode === 'manual' && !sandboxRequired) {
-      // Remove sandbox step fields (last entry) when not required
-      return fields.slice(0, 3);
-    }
-    return fields;
-  }, [mode, sandboxRequired]);
+    return STEP_FIELDS[mode] as string[][];
+  }, [mode]);
 
   const isLastStep = currentStep === navItems.length - 1;
 
@@ -309,8 +288,6 @@ export function McpStepWizard({ mode, onCancel, onSuccess, visible }: McpStepWiz
           return <McpConfigStep />;
         case 2:
           return <ServiceIntroStep />;
-        case 3:
-          return <SandboxDeployStep />;
         default:
           return null;
       }

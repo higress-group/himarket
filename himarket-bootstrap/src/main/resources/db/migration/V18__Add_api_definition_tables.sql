@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `api_definition` (
     `status` varchar(32) NOT NULL DEFAULT 'DRAFT',
     `version` varchar(32),
     `spec` json,
+    `meta` json,
     `policies` json,
     `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),

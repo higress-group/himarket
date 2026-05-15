@@ -118,7 +118,7 @@ export function SessionSidebar({
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getCodingSessions({ page: 0, size: 50 });
+      const res = await getCodingSessions({ page: 1, size: 50 });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data = res.data as any;
       const list: ICodingSession[] = Array.isArray(data.content)
@@ -414,7 +414,7 @@ export function SessionSidebar({
                           menu={getSessionMenu(session)}
                           placement="bottomRight"
                           popupRender={(menu) => (
-                            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 overflow-hidden">
+                            <div className="bg-white/80 backdrop-blur-xl rounded-[10px] shadow-lg border border-white/40 overflow-hidden">
                               {menu}
                             </div>
                           )}

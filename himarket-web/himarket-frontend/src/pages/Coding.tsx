@@ -805,7 +805,7 @@ function CodingContent() {
                 {/* 欢迎标题 */}
                 <div className="text-center mb-8">
                   <div
-                    className="mx-auto mb-4 w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg"
+                    className="mx-auto mb-4 w-20 h-20 rounded-[10px] flex items-center justify-center shadow-lg"
                     style={{
                       background:
                         'linear-gradient(135deg, rgba(99,102,241,1) 0%, rgba(139,92,246,1) 100%)',
@@ -831,13 +831,13 @@ function CodingContent() {
                 {/* 输入框 - 渐变边框包裹 */}
                 <div className="mb-4">
                   <div
-                    className="p-[2px] rounded-2xl shadow-md"
+                    className="p-[2px] rounded-[10px] shadow-md"
                     style={{
                       background:
                         'linear-gradient(256deg, rgba(234, 228, 248, 1) 36%, rgba(215, 229, 243, 1) 100%)',
                     }}
                   >
-                    <div className="rounded-2xl overflow-hidden bg-white/95">
+                    <div className="rounded-[10px] overflow-hidden bg-white/95">
                       {/* 模型选择器 - 对话框左上角 */}
                       <div className="px-4 pt-3 pb-0">
                         <ModelSelector config={config} onConfigChange={setConfig} />

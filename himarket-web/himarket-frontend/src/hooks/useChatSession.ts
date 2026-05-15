@@ -271,9 +271,14 @@ export function useChatSession() {
         // 设置 loading 和 isNewQuestion
         dispatch({ payload: { conversationId, loading: true, modelId }, type: 'SET_LOADING' });
         dispatch({ payload: { conversationId, modelId, questionId }, type: 'SET_NEW_QUESTION' });
+        // 预先创建新的空 answer，避免重新生成期间显示旧 answer 的工具调用
+        dispatch({
+          payload: { conversationId, modelId, questionId },
+          type: 'PREPARE_REGENERATE',
+        });
 
         const fullContentRef = { current: '' };
-        const lastIdxRef = { current: -1 };
+        const lastIdxRef = { current: 1 };
 
         // 创建 regenerate 专用的 SSE 回调（onChunk 和 onComplete 逻辑不同）
         const sseCallbacks: SSEOptions = {
@@ -362,39 +367,43 @@ export function useChatSession() {
               loading: false,
               questions: conversation.questions.map((question) => {
                 const activeAnswerIndex = question.answers.length - 1;
-                const activeAnswer = question.answers[activeAnswerIndex];
-                const toolCalls = activeAnswer?.toolCalls || [];
-
-                const mcpToolCalls: IMcpToolCall[] = toolCalls.map((tc) => ({
-                  arguments:
-                    typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments),
-                  id: tc.id,
-                  mcpServerName: tc.mcpServerName,
-                  name: tc.name,
-                  type: 'function',
-                }));
-
-                const mcpToolResponses: IMcpToolResponse[] = toolCalls
-                  .filter((tc) => tc.result !== undefined && tc.result !== null)
-                  .map((tc) => ({ id: tc.id, name: tc.name, result: tc.result }));
 
                 return {
                   activeAnswerIndex,
-                  answers: question.answers.map((answer) => ({
-                    content: answer.content,
-                    errorMsg: '',
-                    firstTokenTime: answer.usage?.firstByteTimeout || 0,
-                    inputTokens: answer.usage?.inputTokens || 0,
-                    outputTokens: answer.usage?.outputTokens || 0,
-                    totalTime: answer.usage?.elapsedTime || 0,
-                  })),
+                  answers: question.answers.map((answer) => {
+                    const toolCalls = answer.toolCalls || [];
+
+                    const mcpToolCalls: IMcpToolCall[] = toolCalls.map((tc) => ({
+                      arguments:
+                        typeof tc.arguments === 'string'
+                          ? tc.arguments
+                          : JSON.stringify(tc.arguments),
+                      id: tc.id,
+                      mcpServerName: tc.mcpServerName,
+                      name: tc.name,
+                      type: 'function',
+                    }));
+
+                    const mcpToolResponses: IMcpToolResponse[] = toolCalls
+                      .filter((tc) => tc.result !== undefined && tc.result !== null)
+                      .map((tc) => ({ id: tc.id, name: tc.name, result: tc.result }));
+
+                    return {
+                      content: answer.content,
+                      errorMsg: '',
+                      firstTokenTime: answer.usage?.firstByteTimeout || 0,
+                      inputTokens: answer.usage?.inputTokens || 0,
+                      mcpToolCalls: mcpToolCalls.length > 0 ? mcpToolCalls : undefined,
+                      mcpToolResponses: mcpToolResponses.length > 0 ? mcpToolResponses : undefined,
+                      outputTokens: answer.usage?.outputTokens || 0,
+                      totalTime: answer.usage?.elapsedTime || 0,
+                    };
+                  }),
                   attachments: question.attachments,
                   content: question.content,
                   createdAt: question.createdAt,
                   id: question.questionId,
                   isNewQuestion: false,
-                  mcpToolCalls: mcpToolCalls.length > 0 ? mcpToolCalls : undefined,
-                  mcpToolResponses: mcpToolResponses.length > 0 ? mcpToolResponses : undefined,
                 };
               }),
             })),

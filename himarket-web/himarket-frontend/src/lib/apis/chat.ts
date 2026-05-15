@@ -186,8 +186,8 @@ export function createSession(data: CreateSessionData) {
 export function getSessions(params?: GetSessionsParams) {
   return request.get<RespI<GetSessionsResp>, RespI<GetSessionsResp>>('/sessions', {
     params: {
-      page: params?.page || 0,
-      size: params?.size || 20,
+      page: params?.page ?? 1,
+      size: params?.size ?? 20,
     },
   });
 }

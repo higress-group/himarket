@@ -40,6 +40,7 @@ function ConsumersPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ description: '', name: '' });
+  const [_refreshIndex, setRefreshIndex] = useState(0);
   const [primaryConsumer, setPrimaryConsumer] = useState<IGetPrimaryConsumerResp>();
 
   const [consumersForSelect, setConsumersForSelect] = useState<IConsumer[]>([]);
@@ -64,7 +65,7 @@ function ConsumersPage() {
       }
     },
     [page, pageSize],
-  );
+  ); // refreshIndex is intentionally excluded to prevent unnecessary re-fetches
 
   const fetchConsumersForSelect = async (
     searchKeyword?: string,
@@ -171,24 +172,17 @@ function ConsumersPage() {
         <div className="flex gap-2 items-center">
           <div className="font-medium">{name}</div>
           {record.consumerId === primaryConsumer?.consumerId && (
-            <div
-              className="px-2 py-1 gap-2 cursor-pointer rounded-md bg-black/70 text-white"
+            <button
+              className="px-2 py-1 gap-2 cursor-pointer rounded-md bg-black/70 text-white flex items-center"
               onClick={() => {
                 setShowModifyPrimaryConsumerModal(true);
                 fetchConsumersForSelect(undefined, 1, 1000, true);
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  setShowModifyPrimaryConsumerModal(true);
-                  fetchConsumersForSelect(undefined, 1, 1000, true);
-                }
-              }}
-              role="button"
-              tabIndex={0}
+              type="button"
             >
               <span> 默认消费者 </span>
               <EditOutlined />
-            </div>
+            </button>
           )}
         </div>
       ),
@@ -279,7 +273,7 @@ function ConsumersPage() {
               <Button
                 className="rounded-lg"
                 icon={<ReloadOutlined />}
-                onClick={() => fetchConsumers(searchName)}
+                onClick={() => setRefreshIndex((v) => v + 1)}
               />
             </div>
           </div>

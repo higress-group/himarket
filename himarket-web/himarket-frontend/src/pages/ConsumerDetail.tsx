@@ -74,7 +74,7 @@ function ConsumerDetailPage() {
     <Layout>
       {consumer ? (
         <div className="w-full h-full ">
-          <div className="min-h-[calc(100vh-96px)] pb-8 bg-white backdrop-blur-xl rounded-2xl shadow-sm border border-white/40 overflow-hidden">
+          <div className="min-h-[calc(100vh-96px)] pb-8 bg-white backdrop-blur-xl rounded-[10px] shadow-sm border border-white/40 overflow-hidden">
             {/* 消费者头部 - 返回按钮 + 消费者名称 */}
             <div className="p-6">
               <div className="flex items-center gap-3">

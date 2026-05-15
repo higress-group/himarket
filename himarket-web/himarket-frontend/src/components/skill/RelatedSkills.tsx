@@ -67,7 +67,7 @@ function RelatedSkills({ currentProductId, currentSkillTags }: RelatedSkillsProp
   if (skills.length === 0) return null;
 
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-5">
+    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-5">
       <h3 className="text-base font-semibold text-gray-900 mb-4">{t('relatedSkills')}</h3>
       <div className="space-y-2">
         {skills.map((skill) => (

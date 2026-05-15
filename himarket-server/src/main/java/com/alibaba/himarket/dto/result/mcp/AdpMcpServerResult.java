@@ -28,7 +28,7 @@ import lombok.EqualsAndHashCode;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-public class AdpMCPServerResult extends GatewayMCPServerResult {
+public class AdpMcpServerResult extends GatewayMcpServerResult {
 
     private String gwInstanceId;
 
@@ -53,12 +53,12 @@ public class AdpMCPServerResult extends GatewayMCPServerResult {
     }
 
     /** 从SDK的ListMcpServersResponseBodyDataRecords创建AdpMCPServerResult */
-    public static AdpMCPServerResult fromSdkRecord(ListMcpServersResponse.Record record) {
+    public static AdpMcpServerResult fromSdkRecord(ListMcpServersResponse.Record record) {
         if (record == null) {
             return null;
         }
 
-        AdpMCPServerResult result = new AdpMCPServerResult();
+        AdpMcpServerResult result = new AdpMcpServerResult();
         // 设置基础字段
         result.setGwInstanceId(record.getGwInstanceId());
         result.setName(record.getName()); // 该方法会同时设置name和mcpServerName

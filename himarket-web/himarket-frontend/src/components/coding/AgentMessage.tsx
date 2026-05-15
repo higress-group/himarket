@@ -150,7 +150,7 @@ export function AgentMessage({
     <div
       className="prose prose-sm max-w-none text-gray-700
                      prose-p:text-[14.5px] prose-p:leading-[1.8] prose-li:text-[14.5px]
-                     prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200/80 prose-pre:rounded-xl
+                     prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200/80 prose-pre:rounded-[10px]
                      prose-code:text-[13px] prose-code:text-gray-700 prose-code:before:content-none prose-code:after:content-none
                      prose-headings:text-gray-800 prose-headings:tracking-tight prose-a:text-blue-600
                      prose-table:border-collapse prose-th:border prose-th:border-gray-200 prose-th:bg-gray-50 prose-th:px-3 prose-th:py-1.5

@@ -19,18 +19,13 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import com.alibaba.himarket.dto.params.mcp.RegisterMcpParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
-import com.alibaba.himarket.dto.vendor.BatchImportResult;
-import com.alibaba.himarket.dto.vendor.BatchImportResult.ImportItemStatus;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
-import com.alibaba.himarket.dto.vendor.RemoteMcpItemParam;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItemResult;
-import com.alibaba.himarket.repository.McpServerMetaRepository;
-import com.alibaba.himarket.service.McpServerService;
-import com.alibaba.himarket.support.enums.McpOrigin;
+import com.alibaba.himarket.entity.ApiDefinition;
+import com.alibaba.himarket.repository.APIDefinitionRepository;
+import com.alibaba.himarket.support.enums.ApiType;
 import com.alibaba.himarket.support.enums.McpVendorType;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -45,8 +40,7 @@ import org.springframework.stereotype.Service;
 public class McpVendorServiceImpl implements McpVendorService {
 
     private final VendorAdapterRegistry vendorAdapterRegistry;
-    private final McpServerService mcpServerService;
-    private final McpServerMetaRepository metaRepository;
+    private final APIDefinitionRepository apiDefinitionRepository;
 
     @Override
     public PageResult<RemoteMcpItemResult> listRemoteMcpItems(
@@ -64,8 +58,10 @@ public class McpVendorServiceImpl implements McpVendorService {
         Set<String> existingNames =
                 allNames.isEmpty()
                         ? Set.of()
-                        : metaRepository.findByMcpNameIn(allNames).stream()
-                                .map(meta -> meta.getMcpName())
+                        : apiDefinitionRepository
+                                .findByTypeAndNameIn(ApiType.MCP_SERVER, allNames)
+                                .stream()
+                                .map(ApiDefinition::getName)
                                 .collect(Collectors.toSet());
 
         List<RemoteMcpItemResult> results =
@@ -78,78 +74,6 @@ public class McpVendorServiceImpl implements McpVendorService {
                 remotePage.getNumber(),
                 remotePage.getSize(),
                 remotePage.getTotalElements());
-    }
-
-    @Override
-    public BatchImportResult batchImport(McpVendorType vendorType, List<RemoteMcpItemParam> items) {
-
-        McpVendorAdapter adapter = vendorAdapterRegistry.getAdapter(vendorType);
-
-        // 批量预查询已存在的 mcpName，避免循环内 N+1
-        Set<String> allMcpNames =
-                items.stream()
-                        .map(RemoteMcpItemParam::getMcpName)
-                        .filter(name -> name != null && !name.isBlank())
-                        .collect(Collectors.toSet());
-        Set<String> existingMcpNames =
-                allMcpNames.isEmpty()
-                        ? Set.of()
-                        : metaRepository.findByMcpNameIn(allMcpNames).stream()
-                                .map(meta -> meta.getMcpName())
-                                .collect(Collectors.toSet());
-
-        int successCount = 0;
-        int skippedCount = 0;
-        int failedCount = 0;
-        List<ImportItemStatus> details = new ArrayList<>();
-
-        for (RemoteMcpItemParam item : items) {
-            String mcpName = item.getMcpName();
-
-            // 检查 mcpName 是否已存在
-            if (existingMcpNames.contains(mcpName)) {
-                skippedCount++;
-                details.add(
-                        ImportItemStatus.builder()
-                                .mcpName(mcpName)
-                                .status("SKIPPED")
-                                .message("已存在，已跳过")
-                                .build());
-                log.info("批量导入跳过已存在的 MCP: {}", mcpName);
-                continue;
-            }
-
-            try {
-                // 导入前调详情 API 补充完整数据（connectionConfig、extraParams 等）
-                RemoteMcpItem enriched = adapter.enrichForImport(toRemoteMcpItem(item));
-                RegisterMcpParam param = buildRegisterParam(enriched);
-                mcpServerService.registerMcp(param);
-                successCount++;
-                details.add(
-                        ImportItemStatus.builder()
-                                .mcpName(mcpName)
-                                .status("SUCCESS")
-                                .message(null)
-                                .build());
-                log.info("批量导入成功: {}", mcpName);
-            } catch (Exception e) {
-                failedCount++;
-                details.add(
-                        ImportItemStatus.builder()
-                                .mcpName(mcpName)
-                                .status("FAILED")
-                                .message(e.getMessage())
-                                .build());
-                log.warn("批量导入失败: {}, 原因: {}", mcpName, e.getMessage(), e);
-            }
-        }
-
-        return BatchImportResult.builder()
-                .successCount(successCount)
-                .skippedCount(skippedCount)
-                .failedCount(failedCount)
-                .details(details)
-                .build();
     }
 
     private RemoteMcpItemResult toResult(RemoteMcpItem item, Set<String> existingNames) {
@@ -166,41 +90,5 @@ public class McpVendorServiceImpl implements McpVendorService {
         result.setExtraParams(item.getExtraParams());
         result.setExistsInPlatform(existingNames.contains(item.getMcpName()));
         return result;
-    }
-
-    private RemoteMcpItem toRemoteMcpItem(RemoteMcpItemParam item) {
-        return RemoteMcpItem.builder()
-                .remoteId(item.getRemoteId())
-                .mcpName(item.getMcpName())
-                .displayName(item.getDisplayName())
-                .description(item.getDescription())
-                .protocolType(item.getProtocolType())
-                .connectionConfig(item.getConnectionConfig())
-                .tags(item.getTags())
-                .icon(item.getIcon())
-                .repoUrl(item.getRepoUrl())
-                .extraParams(item.getExtraParams())
-                .serviceIntro(null)
-                .build();
-    }
-
-    private RegisterMcpParam buildRegisterParam(RemoteMcpItem item) {
-        RegisterMcpParam param = new RegisterMcpParam();
-        param.setMcpName(item.getMcpName());
-        param.setDisplayName(item.getDisplayName());
-        param.setDescription(item.getDescription());
-        param.setProtocolType(item.getProtocolType());
-        param.setConnectionConfig(item.getConnectionConfig());
-        param.setTags(item.getTags());
-        param.setIcon(item.getIcon());
-        param.setRepoUrl(item.getRepoUrl());
-        param.setExtraParams(item.getExtraParams());
-        param.setServiceIntro(item.getServiceIntro());
-        param.setOrigin(McpOrigin.VENDOR_IMPORT.name());
-        param.setVisibility("PUBLIC");
-        param.setPublishStatus("DRAFT");
-        // 第三方导入的 MCP 默认需要沙箱托管
-        param.setSandboxRequired(true);
-        return param;
     }
 }

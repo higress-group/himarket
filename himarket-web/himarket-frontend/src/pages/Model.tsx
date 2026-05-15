@@ -119,7 +119,7 @@ function ModelPage() {
   const fetchModelAPIs = async () => {
     setLoading(true);
     try {
-      const response = await APIs.getProducts({ page: 0, size: 100, type: 'MODEL_API' });
+      const response = await APIs.getProducts({ page: 1, size: 100, type: 'MODEL_API' });
       if (response.code === 'SUCCESS' && response.data) {
         // 移除重复过滤，简化数据映射
         const mapped = response.data.content.map((item) => {

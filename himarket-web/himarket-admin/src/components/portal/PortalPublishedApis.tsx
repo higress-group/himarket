@@ -1,7 +1,7 @@
 import { DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { Modal, Button, message, Empty, Tooltip, Table } from 'antd';
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { DataTable } from '@/components/common/DataTable';
 import { apiProductApi, portalApi } from '@/lib/api';
@@ -14,6 +14,8 @@ interface PortalApiProductsProps {
 
 export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = `${location.pathname}${location.search}${location.hash}`;
   const [apiProducts, setApiProducts] = useState<Publication[]>([]);
   const [apiProductsOptions, setApiProductsOptions] = useState<ApiProduct[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -83,6 +85,15 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
     }
   };
 
+  const handleOpenProductDetail = useCallback(
+    (productId: string) => {
+      navigate(`/api-products/${productId}`, {
+        state: { from: currentPath },
+      });
+    },
+    [currentPath, navigate],
+  );
+
   const columns = [
     {
       key: 'nameAndId',
@@ -91,7 +102,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
           <Tooltip placement="topLeft" title={record.productName}>
             <button
               className="text-blue-600 hover:text-blue-500 font-medium cursor-pointer bg-transparent border-none p-0 truncate block max-w-[200px] text-left text-xs"
-              onClick={() => navigate(`/api-products/${record.productId}`)}
+              onClick={() => handleOpenProductDetail(record.productId)}
               type="button"
             >
               {record.productName}

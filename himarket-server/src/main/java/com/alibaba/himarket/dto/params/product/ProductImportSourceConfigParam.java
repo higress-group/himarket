@@ -17,23 +17,6 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.vendor;
+package com.alibaba.himarket.dto.params.product;
 
-import com.alibaba.himarket.support.enums.McpVendorType;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.util.List;
-import lombok.Data;
-
-/** 批量导入请求参数。 */
-@Data
-public class BatchImportParam {
-
-    @NotNull(message = "供应商类型不能为空")
-    private McpVendorType vendorType;
-
-    @NotEmpty(message = "导入列表不能为空")
-    @Size(max = 50, message = "单次导入数量不能超过 50 条")
-    private List<RemoteMcpItemParam> items;
-}
+public abstract class ProductImportSourceConfigParam {}

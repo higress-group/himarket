@@ -22,14 +22,17 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.dto.params.gateway.*;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
-import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
+import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import java.net.URI;
 import java.util.List;
@@ -102,7 +105,7 @@ public interface GatewayService {
 
     PageResult<APIResult> fetchRoutes(String gatewayId, int page, int size);
 
-    PageResult<GatewayMCPServerResult> fetchMcpServers(String gatewayId, int page, int size);
+    PageResult<GatewayMcpServerResult> fetchMcpServers(String gatewayId, int page, int size);
 
     PageResult<AgentAPIResult> fetchAgentAPIs(String gatewayId, int page, int size);
 
@@ -112,7 +115,8 @@ public interface GatewayService {
 
     String fetchMcpConfig(String gatewayId, Object conf);
 
-    String fetchMcpToolsForConfig(String gatewayId, Object conf);
+    CredentialContext fetchApiCredential(
+            String gatewayId, ProductType productType, ProductRef productRef);
 
     String fetchAgentConfig(String gatewayId, Object conf);
 

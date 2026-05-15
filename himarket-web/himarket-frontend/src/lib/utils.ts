@@ -48,15 +48,15 @@ export const formatDateTime = (dateString: string | Date): string => {
       return String(dateString);
     }
 
-    return date.toLocaleString('zh-CN', {
-      day: '2-digit',
-      hour: '2-digit',
-      hour12: false,
-      minute: '2-digit',
-      month: '2-digit',
-      second: '2-digit',
-      year: 'numeric',
-    });
+    // 格式化为 YYYY-MM-DD HH:mm:ss
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   } catch {
     return String(dateString);
   }

@@ -25,7 +25,7 @@ import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
-import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.service.GatewayService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -107,7 +107,7 @@ public class GatewayController {
 
     @Operation(summary = "获取MCP Server列表")
     @GetMapping("/{gatewayId}/mcp-servers")
-    public PageResult<GatewayMCPServerResult> fetchMcpServers(
+    public PageResult<GatewayMcpServerResult> fetchMcpServers(
             @PathVariable String gatewayId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "500") int size) {

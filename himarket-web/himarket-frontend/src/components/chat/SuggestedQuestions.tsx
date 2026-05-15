@@ -60,7 +60,7 @@ export function SuggestedQuestions({ onSelectQuestion }: SuggestedQuestionsProps
         {displayedQuestions.map((question, index) => (
           <button
             className={`
-              px-4 py-2.5 rounded-2xl cursor-pointer
+              px-4 py-2.5 rounded-[10px] cursor-pointer
               border border-[#E0E7FF]
               transition-all duration-300 ease-in-out w-full text-left
               hover:bg-white hover:shadow-md hover:scale-[1.02] hover:border-[#C7D2FE]

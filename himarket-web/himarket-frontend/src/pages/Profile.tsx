@@ -116,7 +116,7 @@ const Profile: React.FC = () => {
   return (
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-        <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg w-full max-w-md flex flex-col items-center border border-white/40">
+        <div className="bg-white/80 backdrop-blur-sm p-8 rounded-[10px] shadow-lg w-full max-w-md flex flex-col items-center border border-white/40">
           <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">{t('title')}</h2>
           {/* 个人信息展示区 */}
           {userProfile && (

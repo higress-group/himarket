@@ -252,28 +252,6 @@ export function ModelApiConfigPanel({
                     }}
                   >
                     <div className="pl-4 space-y-3">
-                      <div>
-                        <div className="text-xs text-gray-500 mb-1">域名:</div>
-                        {route.domains?.map(
-                          (
-                            domain: { domain: string; port?: number; protocol: string },
-                            domainIndex: number,
-                          ) => {
-                            const formattedDomain = formatDomainWithPort(
-                              domain.domain,
-                              domain.port,
-                              domain.protocol,
-                            );
-                            return (
-                              <div className="text-sm" key={domainIndex}>
-                                <span className="font-mono">
-                                  {domain.protocol.toLowerCase()}://{formattedDomain}
-                                </span>
-                              </div>
-                            );
-                          },
-                        )}
-                      </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <div className="text-xs text-gray-500">路径:</div>

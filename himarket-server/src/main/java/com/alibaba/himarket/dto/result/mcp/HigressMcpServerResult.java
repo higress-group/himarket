@@ -19,14 +19,20 @@
 
 package com.alibaba.himarket.dto.result.mcp;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.service.gateway.HigressOperator.HigressMcpConfig;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
-@Schema(
-        oneOf = {APIGMCPServerResult.class, HigressMCPServerResult.class, AdpMCPServerResult.class},
-        discriminatorProperty = "type")
-public class GatewayMCPServerResult {
+public class HigressMcpServerResult extends GatewayMcpServerResult
+        implements OutputConverter<HigressMcpServerResult, HigressMcpConfig> {
 
-    protected String mcpServerName;
+    @Override
+    public HigressMcpServerResult convertFrom(HigressMcpConfig mcp) {
+        HigressMcpServerResult r = OutputConverter.super.convertFrom(mcp);
+        r.setMcpServerName(mcp.getName());
+        return r;
+    }
 }

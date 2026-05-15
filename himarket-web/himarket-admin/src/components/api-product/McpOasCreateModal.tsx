@@ -260,6 +260,11 @@ export function McpOasCreateModal({
     try {
       await apiDefinitionApi.createApiDefinition({
         description: result.description,
+        meta: {
+          source: {
+            type: 'MANUAL',
+          },
+        },
         name: result.name,
         relatedProductId: productId,
         spec: {

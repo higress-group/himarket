@@ -77,7 +77,7 @@ export function MultiModelSelector({
       open={true}
       styles={{
         body: {
-          borderRadius: '16px',
+          borderRadius: '10px',
           overflow: 'hidden',
         },
       }}
@@ -121,7 +121,7 @@ export function MultiModelSelector({
               return (
                 <button
                   className={`
-                    px-4 py-3 rounded-xl border transition-all duration-200 w-full text-left
+                    px-4 py-3 rounded-[10px] border transition-all duration-200 w-full text-left
                     ${
                       isCurrentModel
                         ? 'bg-colorPrimary/5 border-colorPrimary/30 cursor-default'

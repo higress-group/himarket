@@ -90,7 +90,7 @@ function ProductCard(props: {
   return (
     <div
       className="
-        bg-white/60 backdrop-blur-sm rounded-2xl p-5
+        bg-white/60 backdrop-blur-sm rounded-[10px] p-5
         border border-[#e5e5e5]
         cursor-pointer
         transition-all duration-300 ease-in-out

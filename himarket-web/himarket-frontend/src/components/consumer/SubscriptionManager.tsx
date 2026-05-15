@@ -1,16 +1,18 @@
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Button, message, Modal, Table, Badge, Popconfirm, Select } from 'antd';
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  DeleteOutlined,
+  CheckCircleFilled,
+  ClockCircleOutlined,
+} from '@ant-design/icons';
+import { Button, message, Modal, Table, Popconfirm, Select, Input } from 'antd';
 import { useState } from 'react';
 
 import request from '../../lib/request';
-import {
-  getSubscriptionStatusText,
-  getSubscriptionStatusColor,
-  ProductTypeMap,
-} from '../../lib/statusUtils';
+import { getSubscriptionStatusText, ProductTypeMap } from '../../lib/statusUtils';
 import { modelStyles } from '../../lib/styles';
 import { formatDateTime } from '../../lib/utils';
-import { AdvancedSearch, type SearchParam } from '../common';
 
 import type { ISubscription } from '../../lib/apis';
 import type { ApiResponse, Product } from '../../types';
@@ -37,58 +39,25 @@ export function SubscriptionManager({
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [subscriptionSearch, setSubscriptionSearch] = useState({ productName: '', status: '' });
+  const [searchInput, setSearchInput] = useState(''); // 输入框的值
 
-  // 搜索参数配置
-  const searchParamsList: SearchParam[] = [
-    {
-      label: '产品名称',
-      name: 'productName',
-      placeholder: '请输入产品名称进行搜索',
-      type: 'input',
-    },
-    {
-      label: '订阅状态',
-      name: 'status',
-      optionList: [
-        { label: '待审批', value: 'PENDING' },
-        { label: '已通过', value: 'APPROVED' },
-      ],
-      placeholder: '请选择订阅状态',
-      type: 'select',
-    },
-  ];
+  // 处理搜索输入变化 - 只更新输入框值，不触发搜索
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
+  };
 
-  // 高级搜索处理函数
-  const handleAdvancedSearch = (searchName: string, searchValue: string) => {
-    const newSearch = { ...subscriptionSearch };
-
-    if (searchValue) {
-      // 设置搜索值
-      if (searchName === 'productName') {
-        newSearch.productName = searchValue;
-      } else if (searchName === 'status') {
-        newSearch.status = searchValue as 'PENDING' | 'APPROVED';
-      }
-    } else {
-      // 清空特定搜索条件
-      if (searchName === 'productName') {
-        newSearch.productName = '';
-      } else if (searchName === 'status') {
-        newSearch.status = '';
-      }
-    }
-
+  // 执行搜索
+  const handleSearch = () => {
+    const newSearch = { ...subscriptionSearch, productName: searchInput };
     setSubscriptionSearch(newSearch);
-
-    // 调用父组件的搜索回调
     onSubscriptionsChange({
-      productName: newSearch.productName,
+      productName: searchInput,
       status: newSearch.status,
     });
   };
 
-  // 清除所有搜索条件
-  const handleClearAllSearch = () => {
+  // 清除搜索条件
+  const handleClearSearch = () => {
     const emptySearch = { productName: '', status: '' };
     setSubscriptionSearch(emptySearch);
     onSubscriptionsChange({ productName: '', status: '' });
@@ -174,19 +143,19 @@ export function SubscriptionManager({
     {
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Badge
-          status={
-            getSubscriptionStatusColor(status) as
-              | 'success'
-              | 'processing'
-              | 'error'
-              | 'default'
-              | 'warning'
-          }
-          text={getSubscriptionStatusText(status)}
-        />
-      ),
+      render: (status: string) => {
+        const isApproved = status === 'APPROVED';
+        return (
+          <div className="flex items-center">
+            {isApproved ? (
+              <CheckCircleFilled className="mr-2 text-green-500" style={{ fontSize: '10px' }} />
+            ) : (
+              <ClockCircleOutlined className="mr-2 text-orange-500" style={{ fontSize: '10px' }} />
+            )}
+            <span className="text-gray-900">{getSubscriptionStatusText(status)}</span>
+          </div>
+        );
+      },
       title: '订阅状态',
     },
     {
@@ -202,9 +171,7 @@ export function SubscriptionManager({
           onConfirm={() => handleUnsubscribe(record.productId)}
           title="确定要取消订阅吗？"
         >
-          <Button className="rounded-lg">
-            <span className="text-red-500">取消订阅</span>
-          </Button>
+          <Button className="rounded-lg" icon={<DeleteOutlined className="text-red-500" />} />
         </Popconfirm>
       ),
       title: '操作',
@@ -228,15 +195,24 @@ export function SubscriptionManager({
             >
               订阅
             </Button>
-            <AdvancedSearch
-              onClear={handleClearAllSearch}
-              onSearch={handleAdvancedSearch}
-              searchParamsList={searchParamsList}
+            <Input
+              allowClear
+              className="w-80 rounded-lg"
+              onChange={handleSearchChange}
+              onClear={handleClearSearch}
+              onPressEnter={handleSearch}
+              placeholder="请输入产品名称进行搜索"
+              prefix={<SearchOutlined className="text-gray-400" />}
+              style={{
+                backdropFilter: 'blur(10px)',
+                backgroundColor: 'rgba(255, 255, 255, 0.6)',
+              }}
+              value={searchInput}
             />
           </div>
           <Button className="rounded-lg" icon={<ReloadOutlined />} onClick={onRefresh} />
         </div>
-        <div className="border border-[#e5e5e5] rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-[#e5e5e5]">
           <Table
             columns={subscriptionColumns}
             dataSource={safeSubscriptions}

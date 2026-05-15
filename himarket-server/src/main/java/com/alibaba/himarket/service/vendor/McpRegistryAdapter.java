@@ -19,8 +19,16 @@
 
 package com.alibaba.himarket.service.vendor;
 
+import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
+import com.alibaba.himarket.support.api.spec.McpConnection;
+import com.alibaba.himarket.support.api.spec.SseConnection;
+import com.alibaba.himarket.support.api.spec.StdioConnection;
+import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -30,8 +38,10 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -70,6 +80,41 @@ public class McpRegistryAdapter implements McpVendorAdapter {
     @Override
     public McpVendorType getType() {
         return McpVendorType.MCP_REGISTRY;
+    }
+
+    @Override
+    public McpConnection buildConnection(RemoteMcpItem item) {
+        ObjectNode config = JsonUtil.readObjectNode(item.getConnectionConfig());
+        McpProtocolType protocol = McpProtocolType.fromString(item.getProtocolType());
+        if (protocol == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "Unsupported MCP protocol type: " + item.getProtocolType());
+        }
+        return switch (protocol) {
+            case STDIO -> buildPackageConnection(config);
+            case SSE, STREAMABLE_HTTP, DUAL_HTTP -> buildRemoteConnection(protocol, config);
+        };
+    }
+
+    @Override
+    public RemoteMcpItem getMcpServer(String resourceId) {
+        try {
+            ObjectNode server = fetchServer(resourceId);
+            if (server == null) {
+                throw new BusinessException(
+                        ErrorCode.NOT_FOUND, "External MCP resource", resourceId);
+            }
+            RemoteMcpItem item = convertToRemoteMcpItem(server);
+            if (item == null) {
+                throw new BusinessException(
+                        ErrorCode.NOT_FOUND, "External MCP resource", resourceId);
+            }
+            return item;
+        } catch (IOException e) {
+            log.warn("MCP Registry detail API failed for {}", resourceId, e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "供应商 API 连接超时");
+        }
     }
 
     @Override
@@ -168,6 +213,41 @@ public class McpRegistryAdapter implements McpVendorAdapter {
             }
 
             return PageResult.of(items, page, size, totalCount);
+        }
+    }
+
+    private ObjectNode fetchServer(String resourceId) throws IOException {
+        HttpUrl detailUrl =
+                Objects.requireNonNull(HttpUrl.parse(BASE_URL))
+                        .newBuilder()
+                        .addPathSegment(resourceId)
+                        .addQueryParameter("version", "latest")
+                        .build();
+        Request request = new Request.Builder().url(detailUrl).get().build();
+
+        try (Response response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful() || response.body() == null) {
+                log.warn("MCP Registry detail API failed for {}: {}", resourceId, response.code());
+                return null;
+            }
+
+            ObjectNode json = JsonUtil.readObjectNode(response.body().string());
+            ObjectNode meta =
+                    json.get("_meta") != null && json.get("_meta").isObject()
+                            ? (ObjectNode) json.get("_meta")
+                            : null;
+            if (meta != null) {
+                ObjectNode official =
+                        meta.get(META_KEY) != null && meta.get(META_KEY).isObject()
+                                ? (ObjectNode) meta.get(META_KEY)
+                                : null;
+                if (official != null && !"active".equals(official.path("status").asText(null))) {
+                    return null;
+                }
+            }
+            return json.get("server") != null && json.get("server").isObject()
+                    ? (ObjectNode) json.get("server")
+                    : json;
         }
     }
 
@@ -283,11 +363,63 @@ public class McpRegistryAdapter implements McpVendorAdapter {
                 .description(description)
                 .protocolType(protocolType)
                 .connectionConfig(connectionConfig)
+                .connection(buildConnection(protocolType, connectionConfig))
                 .tags(null)
                 .icon(icon)
                 .repoUrl(repoUrl)
                 .extraParams(extraParams)
                 .build();
+    }
+
+    private McpConnection buildConnection(String protocolType, String connectionConfig) {
+        RemoteMcpItem item = new RemoteMcpItem();
+        item.setProtocolType(protocolType);
+        item.setConnectionConfig(connectionConfig);
+        return buildConnection(item);
+    }
+
+    private McpConnection buildRemoteConnection(McpProtocolType protocol, ObjectNode config) {
+        if (config == null || StrUtil.isBlank(config.path("url").asText(null))) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "MCP connection URL is required");
+        }
+        if (protocol == McpProtocolType.SSE) {
+            SseConnection connection = new SseConnection();
+            connection.setUrl(config.path("url").asText());
+            return connection;
+        }
+        StreamableHttpConnection connection = new StreamableHttpConnection();
+        connection.setUrl(config.path("url").asText());
+        return connection;
+    }
+
+    private StdioConnection buildPackageConnection(ObjectNode config) {
+        if (config == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "MCP connection config is empty");
+        }
+        String identifier = config.path("identifier").asText(null);
+        String registryType = config.path("registryType").asText(null);
+        if (StrUtil.isBlank(identifier)) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "MCP package identifier is required");
+        }
+
+        StdioConnection connection = new StdioConnection();
+        String normalizedRegistryType = StrUtil.blankToDefault(registryType, "").toLowerCase();
+        if (normalizedRegistryType.contains("npm")) {
+            connection.setCommand("npx");
+            connection.setArgs(List.of("-y", identifier));
+            return connection;
+        }
+        if (normalizedRegistryType.contains("pypi") || normalizedRegistryType.contains("python")) {
+            connection.setCommand("uvx");
+            connection.setArgs(List.of(identifier));
+            return connection;
+        }
+        throw new BusinessException(
+                ErrorCode.INVALID_REQUEST,
+                "Unsupported MCP package registry type: " + registryType);
     }
 
     /**

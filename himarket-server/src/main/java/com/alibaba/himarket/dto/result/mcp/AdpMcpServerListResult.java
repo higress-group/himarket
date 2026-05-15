@@ -35,7 +35,7 @@ public class AdpMcpServerListResult {
 
     @Data
     public static class AdpMcpServerListData {
-        private List<AdpMCPServerResult> records;
+        private List<AdpMcpServerResult> records;
         private Integer total;
         private Integer size;
         private Integer current;

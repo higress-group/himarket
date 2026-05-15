@@ -14,24 +14,6 @@ export interface RemoteMcpItemResult {
   existsInPlatform: boolean;
 }
 
-export interface RemoteMcpItemParam {
-  remoteId: string;
-  mcpName: string;
-  displayName: string;
-  description: string;
-  protocolType: string;
-  connectionConfig: string;
-  tags: string | null;
-  icon: string | null;
-  repoUrl: string | null;
-  extraParams: string | null;
-}
-
-export interface BatchImportParam {
-  vendorType: McpVendorType;
-  items: RemoteMcpItemParam[];
-}
-
 export interface ImportItemStatus {
   mcpName: string;
   status: 'SUCCESS' | 'SKIPPED' | 'FAILED';

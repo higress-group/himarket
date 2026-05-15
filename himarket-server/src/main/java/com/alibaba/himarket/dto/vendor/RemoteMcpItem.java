@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.dto.vendor;
 
+import com.alibaba.himarket.support.api.spec.McpConnection;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -48,6 +49,9 @@ public class RemoteMcpItem {
 
     /** JSON 格式连接配置 */
     private String connectionConfig;
+
+    /** 平台标准 MCP 连接配置，由供应商适配器从 connectionConfig 转换得到。 */
+    private McpConnection connection;
 
     /** JSON 数组格式标签 */
     private String tags;

@@ -22,15 +22,19 @@ import static reactor.core.scheduler.Schedulers.boundedElastic;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.event.McpClientRemovedEvent;
 import com.alibaba.himarket.core.utils.CacheUtil;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
+import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.agentscope.core.tool.mcp.McpClientBuilder;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
+import io.modelcontextprotocol.spec.McpSchema;
 import java.time.Duration;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +65,7 @@ public class ToolManager {
      * @param config MCP transport configuration
      * @return MCP client wrapper, null if creation fails
      */
-    public McpClientWrapper getOrCreateClient(MCPTransportConfig config) {
+    public McpClientWrapper getOrCreateClient(McpTransportConfig config) {
         String cacheKey = buildCacheKey(config);
 
         return clientCache
@@ -88,7 +92,7 @@ public class ToolManager {
      * @param configs List of MCP transport configurations
      * @return List of created MCP client wrappers
      */
-    public List<McpClientWrapper> getOrCreateClients(List<MCPTransportConfig> configs) {
+    public List<McpClientWrapper> getOrCreateClients(List<McpTransportConfig> configs) {
         if (CollUtil.isEmpty(configs)) {
             return CollUtil.empty(List.class);
         }
@@ -113,6 +117,78 @@ public class ToolManager {
     }
 
     /**
+     * Fetch tools from an MCP server using {@link McpConfigResult} and {@link CredentialContext}.
+     *
+     * @param mcpConfig the MCP configuration
+     * @param credential the API credential; {@code null} treated as empty
+     * @return list of MCP tools if successful; otherwise {@code null}
+     */
+    public List<McpSchema.Tool> fetchTools(
+            McpConfigResult mcpConfig, CredentialContext credential) {
+        if (mcpConfig == null) {
+            return null;
+        }
+
+        McpTransportConfig transportConfig = mcpConfig.toTransportConfig();
+        if (transportConfig == null || StrUtil.isBlank(transportConfig.getUrl())) {
+            log.warn(
+                    "Tool fetch skipped for {}: transport config or URL is blank",
+                    mcpConfig.getMcpServerName());
+            return null;
+        }
+
+        CredentialContext ctx = credential != null ? credential : new CredentialContext();
+        transportConfig.setHeaders(ctx.copyHeaders());
+        transportConfig.setQueryParams(ctx.copyQueryParams());
+
+        return fetchTools(transportConfig);
+    }
+
+    /**
+     * Fetch tools from an MCP server using raw {@link McpTransportConfig}.
+     *
+     * @param transportConfig the MCP transport configuration
+     * @return list of MCP tools if successful; otherwise {@code null}
+     */
+    public List<McpSchema.Tool> fetchTools(McpTransportConfig transportConfig) {
+        String serverName = transportConfig == null ? null : transportConfig.getMcpServerName();
+        if (transportConfig == null || StrUtil.isBlank(transportConfig.getUrl())) {
+            log.warn("Tool fetch skipped for {}: transport config or URL is blank", serverName);
+            return null;
+        }
+
+        McpClientWrapper client = getOrCreateClient(transportConfig);
+        if (client == null) {
+            log.warn(
+                    "Tool fetch failed for {}: cannot create MCP client (URL: {})",
+                    serverName,
+                    transportConfig.getUrl());
+            return null;
+        }
+
+        try {
+            List<McpSchema.Tool> tools = client.listTools().block();
+            if (CollUtil.isEmpty(tools)) {
+                log.info("Tool fetch result for {}: empty tool list", serverName);
+                return null;
+            }
+            log.info(
+                    "Tool fetch success for {}: {} tools fetched from {}",
+                    serverName,
+                    tools.size(),
+                    transportConfig.getUrl());
+            return tools;
+        } catch (Exception e) {
+            log.error(
+                    "Tool fetch failed for {} (URL: {}): {}",
+                    serverName,
+                    transportConfig.getUrl(),
+                    e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Get cached client or create new one reactively
      *
      * <p>Uses computeIfAbsent to ensure atomic creation and prevent race conditions
@@ -121,7 +197,7 @@ public class ToolManager {
      * @param config MCP transport configuration
      * @return Mono of MCP client wrapper
      */
-    private Mono<McpClientWrapper> getClient(MCPTransportConfig config) {
+    private Mono<McpClientWrapper> getClient(McpTransportConfig config) {
         String cacheKey = buildCacheKey(config);
         String serverName = config.getMcpServerName();
 
@@ -165,7 +241,7 @@ public class ToolManager {
      * @param config MCP transport configuration
      * @return MCP client wrapper, null if creation fails
      */
-    public McpClientWrapper createClient(MCPTransportConfig config) {
+    public McpClientWrapper createClient(McpTransportConfig config) {
         String serverName = config.getMcpServerName();
         long startTime = System.currentTimeMillis();
 
@@ -240,7 +316,7 @@ public class ToolManager {
      * @param config MCP transport configuration
      * @return MD5 hashed cache key in format "tool:{md5}"
      */
-    public String buildCacheKey(MCPTransportConfig config) {
+    public String buildCacheKey(McpTransportConfig config) {
         StringBuilder sb = new StringBuilder();
 
         // MCP Server URL

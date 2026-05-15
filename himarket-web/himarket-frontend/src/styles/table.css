@@ -6,7 +6,7 @@
   color: #374151 !important;
   padding: 14px 16px !important;
   &::before {
-    display: none;
+    display: none !important;
   }
 }
 

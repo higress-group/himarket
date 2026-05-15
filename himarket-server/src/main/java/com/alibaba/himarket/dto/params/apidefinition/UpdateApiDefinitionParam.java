@@ -21,6 +21,7 @@ package com.alibaba.himarket.dto.params.apidefinition;
 
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.ApiDefinition;
+import com.alibaba.himarket.support.api.meta.ApiDefinitionMeta;
 import com.alibaba.himarket.support.api.policy.ApiPolicy;
 import com.alibaba.himarket.support.api.spec.ApiSpec;
 import com.alibaba.himarket.support.enums.ApiStatus;
@@ -42,6 +43,8 @@ public class UpdateApiDefinitionParam implements InputConverter<ApiDefinition> {
     private String version;
 
     private ApiSpec spec;
+
+    private ApiDefinitionMeta meta;
 
     private List<ApiPolicy> policies;
 }

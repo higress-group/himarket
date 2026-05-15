@@ -30,174 +30,162 @@ import org.springframework.data.domain.Pageable;
 public interface ProductService {
 
     /**
-     * Create API product
+     * Create an API product.
      *
-     * @param param
-     * @return
+     * @param param the product creation parameters
+     * @return the created product
      */
     ProductResult createProduct(CreateProductParam param);
 
     /**
-     * Get API product
+     * Get API product details.
      *
-     * @param productId
-     * @return
+     * @param productId the product ID
+     * @return the product details
      */
     ProductResult getProduct(String productId);
 
     /**
-     * List API products
+     * List API products.
      *
-     * @param param
-     * @param pageable
-     * @return
+     * @param param the product query filters
+     * @param pageable the pagination parameters
+     * @return paged products
      */
     PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable);
 
     /**
-     * Update API product
+     * Update an API product.
      *
-     * @param productId
-     * @param param
-     * @return
+     * @param productId the product ID
+     * @param param the product update parameters
+     * @return the updated product
      */
     ProductResult updateProduct(String productId, UpdateProductParam param);
 
     /**
-     * Publish API product
+     * Publish an API product to a portal.
      *
-     * @param productId
-     * @param portalId
-     * @return
+     * @param productId the product ID
+     * @param portalId the target portal ID
      */
     void publishProduct(String productId, String portalId);
 
     /**
-     * Get API product publication information
+     * List publication records for an API product.
      *
-     * @param productId
-     * @param pageable
-     * @return
+     * @param productId the product ID
+     * @param pageable the pagination parameters
+     * @return paged publication records
      */
     PageResult<ProductPublicationResult> getPublications(String productId, Pageable pageable);
 
     /**
-     * Unpublish API product
+     * Remove a product publication.
      *
-     * @param productId
-     * @param publicationId
-     * @return
+     * @param productId the product ID
+     * @param publicationId the publication ID
      */
     void unpublishProduct(String productId, String publicationId);
 
     /**
-     * Delete API product
+     * Delete an API product.
      *
-     * @param productId
+     * @param productId the product ID
      */
     void deleteProduct(String productId);
 
     /**
-     * API product references API
+     * Create or replace the resource reference for an API product.
      *
-     * @param productId
-     * @param param
+     * @param productId the product ID
+     * @param param the reference creation parameters
      */
-    void addProductRef(String productId, CreateProductRefParam param);
+    void addProductRef(String productId, AddProductRefParam param);
 
     /**
-     * Get API product referenced resources
+     * Get the resource reference for an API product.
      *
-     * @param productId
-     * @return
+     * @param productId the product ID
+     * @return the product reference
      */
     ProductRefResult getProductRef(String productId);
 
     /**
-     * Delete API product reference
+     * Delete the resource reference for an API product.
      *
-     * @param productId
+     * @param productId the product ID
      */
     void deleteProductRef(String productId);
 
     /**
-     * Get API products, if withConfig is true, additional configuration information will be loaded
-     * including categories, API config, MCP config, agent config and model config
+     * Get API products by ID, including their categories and product-specific configurations.
      *
-     * @param productIds
-     * @return
+     * @param productIds the product IDs
+     * @return products keyed by product ID
      */
     Map<String, ProductResult> getProducts(List<String> productIds);
 
     /**
-     * Get API product subscription information
+     * List subscriptions for an API product.
      *
-     * @param productId
-     * @param param
-     * @param pageable
-     * @return
+     * @param productId the product ID
+     * @param param the subscription query filters
+     * @param pageable the pagination parameters
+     * @return paged subscriptions
      */
     PageResult<SubscriptionResult> listProductSubscriptions(
             String productId, QueryProductSubscriptionParam param, Pageable pageable);
 
     /**
-     * Check if API product exists
+     * Require an API product to exist.
      *
-     * @param productId
-     * @return
+     * @param productId the product ID
      */
     void existsProduct(String productId);
 
     /**
-     * Check if API product exists
+     * Require API products to exist.
      *
-     * @param productIds
-     * @return
+     * @param productIds the product IDs
      */
     void existsProducts(List<String> productIds);
 
     /**
-     * Set product categories (binding relationship only)
+     * Set category bindings for an API product.
      *
-     * @param productId
-     * @param categoryIds
+     * @param productId the product ID
+     * @param categoryIds the category IDs to bind
      */
     void setProductCategories(String productId, List<String> categoryIds);
 
     /**
-     * Clear product category relationships when deleting product
+     * Clear category bindings for an API product.
      *
-     * @param productId
+     * @param productId the product ID
      */
     void clearProductCategoryRelations(String productId);
 
     /**
-     * Reload API configuration for the product
+     * Reload the product configuration from its referenced resource.
      *
-     * @param productId
+     * @param productId the product ID
      */
     void reloadProductConfig(String productId);
 
     /**
-     * List MCP tools for the product
+     * List MCP tools for a product.
      *
-     * @param productId
+     * @param productId the product ID
+     * @return MCP tools exposed by the product
      */
     McpToolListResult listMcpTools(String productId);
 
     /**
-     * Bind Nacos to product
+     * Update the source configuration for a product.
      *
-     * @param productId
-     * @param param
+     * @param productId the product ID
+     * @param param the product source update parameters
      */
-    void bindProductNacos(String productId, BindNacosParam param);
-
-    /**
-     * Batch import AI API resources as products
-     *
-     * @param param import parameters
-     * @return import result
-     */
-    ImportProductsResult importProducts(ImportProductsParam param);
+    void updateProductSource(String productId, UpdateProductSourceParam param);
 }

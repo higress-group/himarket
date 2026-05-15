@@ -11,7 +11,7 @@ export function PermissionDialog({ onRespond, permission }: PermissionDialogProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl p-6">
+      <div className="w-full max-w-md rounded-[10px] bg-white shadow-xl p-6">
         <div className="text-base font-semibold text-gray-800 mb-3">需要权限确认</div>
         <div className="space-y-2 mb-5">
           {toolCall.title && (

@@ -196,7 +196,7 @@ export function InputBox(props: InputBoxProps) {
   return (
     <div
       aria-label="拖放附件到此区域"
-      className={`relative p-1.5 rounded-2xl flex flex-col justify-center transition-all duration-200 ${isDragging ? 'bg-white border-2 border-dashed border-colorPrimary shadow-lg scale-[1.01]' : ''}`}
+      className={`relative p-1.5 rounded-[10px] flex flex-col justify-center transition-all duration-200 ${isDragging ? 'bg-white border-2 border-dashed border-colorPrimary shadow-lg scale-[1.01]' : ''}`}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
@@ -217,7 +217,7 @@ export function InputBox(props: InputBoxProps) {
 
       <input className="hidden" onChange={handleFileChange} ref={fileInputRef} type="file" />
       {isMcpExecuting && <div className="px-3 py-1 text-sm">MCP 工具执行中...</div>}
-      <div className="w-full h-full pb-14 p-4 bg-white/80 backdrop-blur-sm rounded-2xl">
+      <div className="w-full h-full pb-14 p-4 bg-white/80 backdrop-blur-sm rounded-[10px]">
         <textarea
           className="w-full resize-none focus:outline-none bg-transparent"
           onChange={(e) => setInput(e.target.value)}

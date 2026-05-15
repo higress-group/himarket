@@ -28,14 +28,16 @@ import com.alibaba.himarket.dto.params.gateway.QueryAPIGParam;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.httpapi.APIConfigResult;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
-import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
 import com.alibaba.himarket.support.consumer.APIGAuthConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
@@ -43,6 +45,7 @@ import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
+import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -78,7 +81,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
+    public PageResult<? extends GatewayMcpServerResult> fetchMcpServers(
             Gateway gateway, int page, int size) {
         throw new UnsupportedOperationException("APIG does not support MCP Servers");
     }
@@ -153,8 +156,9 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
     }
 
     @Override
-    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
-        throw new UnsupportedOperationException("APIG does not support MCP Servers");
+    public CredentialContext fetchApiCredential(
+            Gateway gateway, ProductType productType, ProductRef productRef) {
+        throw new UnsupportedOperationException("APIG does not support API credentials");
     }
 
     @Override

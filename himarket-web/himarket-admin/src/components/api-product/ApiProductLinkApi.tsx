@@ -7,6 +7,7 @@ import {
   FileTextOutlined,
   ImportOutlined,
   LinkOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { Card, Button, Modal, message, Space, Dropdown } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
@@ -17,7 +18,6 @@ import type {
   ApiProductConfig,
   LinkedService,
   ApiDefinition,
-  McpMetaItem,
 } from '@/types/api-product';
 
 import {
@@ -26,8 +26,6 @@ import {
   ModelApiConfigPanel,
   RestApiConfigPanel,
 } from './config-panels';
-import ToolsConfigEditorModal from '../mcp/ToolsConfigEditorModal';
-import { DeployMcpModal } from './deploy-mcp-modal/DeployMcpModal';
 import { useMcpConnectionConfig } from './hooks/useMcpConnectionConfig';
 import { useParsedMcpTools } from './hooks/useParsedMcpTools';
 import { LinkApiModal } from './link-api-modal/LinkApiModal';
@@ -48,9 +46,6 @@ export function ApiProductLinkApi({
   linkedService,
   onLinkedServiceUpdate,
 }: ApiProductLinkApiProps) {
-  // 沙箱部署弹窗控制
-  const [deployModalMcpServerId, setDeployModalMcpServerId] = useState<string | null>(null);
-
   // 自定义创建弹窗控制
   const [quickCreateVisible, setQuickCreateVisible] = useState(false);
   const [oasCreateVisible, setOasCreateVisible] = useState(false);
@@ -64,15 +59,11 @@ export function ApiProductLinkApi({
   const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState(0);
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState(0);
 
-  // MCP 数据（不再查询 meta，直接从 apiProduct.mcpConfig 读取）
-  const mcpMetaList: McpMetaItem[] = [];
-  const parsedTools = useParsedMcpTools(apiProduct, mcpMetaList);
-  const connConfig = useMcpConnectionConfig(
-    apiProduct,
-    linkedService,
-    mcpMetaList,
-    selectedDomainIndex,
-  );
+  // 同步配置加载状态
+  const [syncLoading, setSyncLoading] = useState(false);
+
+  const parsedTools = useParsedMcpTools(apiProduct);
+  const connConfig = useMcpConnectionConfig(apiProduct, linkedService, selectedDomainIndex);
 
   // 加载 ApiDefinition 详情（当 sourceType 为 API_DEFINITION 时）
   useEffect(() => {
@@ -121,11 +112,30 @@ export function ApiProductLinkApi({
     });
   };
 
+  // 同步配置
+  const handleSyncConfig = () => {
+    Modal.confirm({
+      cancelText: '取消',
+      content: `确定要重新同步「${apiProduct.name}」的API配置吗？`,
+      okText: '确认同步',
+      onOk: async () => {
+        setSyncLoading(true);
+        try {
+          await apiProductApi.reloadProductConfig(apiProduct.productId);
+          message.success('API配置同步成功');
+          handleRefresh();
+        } catch {
+          message.error('同步失败，请稍后重试');
+        } finally {
+          setSyncLoading(false);
+        }
+      },
+      title: '确认同步配置',
+    });
+  };
+
   // Link Modal 控制
   const [isModalVisible, setIsModalVisible] = useState(false);
-
-  // Tools Editor 控制
-  const [toolsEditorOpen, setToolsEditorOpen] = useState(false);
 
   const getServiceInfo = () => {
     if (!linkedService) return null;
@@ -187,11 +197,12 @@ export function ApiProductLinkApi({
         sourceInfo = 'Nacos服务发现';
         gatewayInfo = linkedService.nacosId || '未知';
       } else if (linkedService.sourceType === 'API_DEFINITION') {
-        apiName = apiDefinition?.name || apiProduct.name || '未命名';
+        apiName =
+          apiProduct.mcpConfig?.mcpServerName || apiDefinition?.name || apiProduct.name || '未命名';
         sourceInfo = '自定义';
         gatewayInfo = '-';
       } else if (linkedService.sourceType === 'CUSTOM') {
-        apiName = apiProduct.name || '未命名';
+        apiName = apiProduct.mcpConfig?.mcpServerName || apiProduct.name || '未命名';
         sourceInfo = '自定义配置';
         gatewayInfo = '-';
       }
@@ -320,9 +331,18 @@ export function ApiProductLinkApi({
       <Card
         className="mb-6"
         extra={
-          <Button danger icon={<DeleteOutlined />} onClick={handleDelete} type="primary">
-            解除关联
-          </Button>
+          <Space>
+            <Button
+              icon={<ReloadOutlined spin={syncLoading} />}
+              loading={syncLoading}
+              onClick={handleSyncConfig}
+            >
+              同步配置
+            </Button>
+            <Button danger icon={<DeleteOutlined />} onClick={handleDelete} type="primary">
+              解除关联
+            </Button>
+          </Space>
         }
         title="关联详情"
       >
@@ -375,23 +395,18 @@ export function ApiProductLinkApi({
 
       {renderLinkInfo()}
 
-      {apiProduct.type === 'MCP_SERVER' &&
-        linkedService &&
-        (apiProduct.mcpConfig || mcpMetaList.length > 0) && (
-          <McpServerConfigPanel
-            apiProduct={apiProduct}
-            domainOptions={connConfig.domainOptions}
-            hotHttpJson={connConfig.hotHttpJson}
-            hotSseJson={connConfig.hotSseJson}
-            httpJson={connConfig.httpJson}
-            localJson={connConfig.localJson}
-            mcpMetaList={mcpMetaList}
-            onDomainChange={setSelectedDomainIndex}
-            parsedTools={parsedTools}
-            selectedDomainIndex={selectedDomainIndex}
-            sseJson={connConfig.sseJson}
-          />
-        )}
+      {apiProduct.type === 'MCP_SERVER' && linkedService && apiProduct.mcpConfig && (
+        <McpServerConfigPanel
+          apiProduct={apiProduct}
+          domainOptions={connConfig.domainOptions}
+          httpJson={connConfig.httpJson}
+          localJson={connConfig.localJson}
+          onDomainChange={setSelectedDomainIndex}
+          parsedTools={parsedTools}
+          selectedDomainIndex={selectedDomainIndex}
+          sseJson={connConfig.sseJson}
+        />
+      )}
       {apiProduct.type === 'AGENT_API' && apiProduct.agentConfig?.agentAPIConfig && (
         <AgentApiConfigPanel
           agentConfig={apiProduct.agentConfig}
@@ -446,35 +461,6 @@ export function ApiProductLinkApi({
         }}
         productId={apiProduct.productId}
         visible={jsonImportVisible}
-      />
-
-      <DeployMcpModal
-        mcpMetaList={mcpMetaList}
-        mcpServerId={deployModalMcpServerId}
-        onCancel={() => {
-          setDeployModalMcpServerId(null);
-        }}
-        onDeploySuccess={() => {
-          setDeployModalMcpServerId(null);
-          handleRefresh();
-        }}
-        productId={apiProduct.productId}
-      />
-
-      <ToolsConfigEditorModal
-        initialValue={(() => {
-          const tc = mcpMetaList[0]?.toolsConfig;
-          if (!tc) return '';
-          if (typeof tc === 'string') return tc;
-          return JSON.stringify(tc, null, 2);
-        })()}
-        mcpServerId={mcpMetaList[0]?.mcpServerId || ''}
-        onCancel={() => setToolsEditorOpen(false)}
-        onSave={async () => {
-          setToolsEditorOpen(false);
-          await handleRefresh();
-        }}
-        open={toolsEditorOpen}
       />
     </div>
   );

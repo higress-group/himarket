@@ -27,23 +27,21 @@ import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.httpapi.APIResult;
 import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
-import com.alibaba.himarket.dto.result.mcp.APIGMCPServerResult;
-import com.alibaba.himarket.dto.result.mcp.GatewayMCPServerResult;
-import com.alibaba.himarket.dto.result.mcp.MCPConfigResult;
+import com.alibaba.himarket.dto.result.mcp.APIGMcpServerResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
+import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.dto.result.model.AIGWModelAPIResult;
 import com.alibaba.himarket.dto.result.model.GatewayModelAPIResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
 import com.alibaba.himarket.support.consumer.APIGAuthConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
-import com.alibaba.himarket.support.enums.APIGAPIType;
-import com.alibaba.himarket.support.enums.APIGResourceType;
-import com.alibaba.himarket.support.enums.GatewayType;
-import com.alibaba.himarket.support.enums.McpFromType;
-import com.alibaba.himarket.support.enums.McpProtocolType;
+import com.alibaba.himarket.support.enums.*;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
@@ -63,7 +61,7 @@ import org.springframework.stereotype.Service;
 public class AIGWOperator extends APIGOperator {
 
     @Override
-    public PageResult<? extends GatewayMCPServerResult> fetchMcpServers(
+    public PageResult<? extends GatewayMcpServerResult> fetchMcpServers(
             Gateway gateway, int page, int size) {
         APIGClient client = getClient(gateway);
 
@@ -82,15 +80,15 @@ public class AIGWOperator extends APIGOperator {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, result.getBody().getMessage());
         }
 
-        List<APIGMCPServerResult> mcpServers =
+        List<APIGMcpServerResult> mcpServers =
                 Optional.ofNullable(result.getBody().getData().getItems())
                         .map(
                                 items ->
                                         items.stream()
                                                 .map(
                                                         item -> {
-                                                            APIGMCPServerResult mcpServer =
-                                                                    new APIGMCPServerResult();
+                                                            APIGMcpServerResult mcpServer =
+                                                                    new APIGMcpServerResult();
                                                             mcpServer.setMcpServerId(
                                                                     item.getMcpServerId());
                                                             mcpServer.setMcpServerName(
@@ -110,7 +108,7 @@ public class AIGWOperator extends APIGOperator {
     public String fetchMcpConfig(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;
         APIGClient client = getClient(gateway);
-        MCPConfigResult mcpConfig = new MCPConfigResult();
+        McpConfigResult mcpConfig = new McpConfigResult();
 
         CompletableFuture<GetMcpServerResponse> f =
                 client.execute(
@@ -131,7 +129,7 @@ public class AIGWOperator extends APIGOperator {
         // mcpServer name
         mcpConfig.setMcpServerName(resp.getName());
         // mcpServer config
-        MCPConfigResult.MCPServerConfig serverConfig = new MCPConfigResult.MCPServerConfig();
+        McpConfigResult.McpServerConfig serverConfig = new McpConfigResult.McpServerConfig();
 
         String path = resp.getMcpServerPath();
         String exposedUriPath = resp.getExposedUriPath();
@@ -166,7 +164,7 @@ public class AIGWOperator extends APIGOperator {
                         ? McpFromType.HTTP_TO_MCP
                         : McpFromType.NATIVE_MCP);
 
-        MCPConfigResult.McpMetadata meta = new MCPConfigResult.McpMetadata();
+        McpConfigResult.McpMetadata meta = new McpConfigResult.McpMetadata();
         meta.setSource(GatewayType.APIG_AI.name());
         mcpConfig.setMeta(meta);
 
@@ -180,7 +178,8 @@ public class AIGWOperator extends APIGOperator {
     }
 
     @Override
-    public String fetchMcpToolsForConfig(Gateway gateway, Object conf) {
+    public CredentialContext fetchApiCredential(
+            Gateway gateway, ProductType productType, ProductRef productRef) {
         return null;
     }
 

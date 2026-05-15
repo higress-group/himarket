@@ -33,10 +33,10 @@ import com.alibaba.himarket.repository.McpServerMetaRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.ConsumerService;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
-import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.McpHostingType;
+import com.alibaba.himarket.support.enums.McpTransportMode;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
@@ -75,7 +75,7 @@ public class McpTransportResolver {
      * Resolve transport configs for a list of product IDs and a specific user.
      * Validates subscription status and resolves endpoints with auth headers.
      */
-    public List<MCPTransportConfig> resolveTransportConfigs(
+    public List<McpTransportConfig> resolveTransportConfigs(
             List<String> productIds, String userId) {
         if (productIds == null || productIds.isEmpty()) {
             return List.of();
@@ -136,7 +136,7 @@ public class McpTransportResolver {
                 productRepository.findByProductIdIn(approvedProductIds).stream()
                         .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
 
-        List<MCPTransportConfig> configs = new ArrayList<>();
+        List<McpTransportConfig> configs = new ArrayList<>();
         for (String productId : approvedProductIds) {
             McpServerMeta meta = metaByProduct.get(productId);
             if (meta == null) {
@@ -163,16 +163,16 @@ public class McpTransportResolver {
 
             String protocol =
                     StrUtil.blankToDefault(endpoint.getProtocol(), meta.getProtocolType());
-            MCPTransportMode transportMode =
+            McpTransportMode transportMode =
                     McpProtocolUtils.isStreamableHttp(protocol)
-                            ? MCPTransportMode.STREAMABLE_HTTP
-                            : MCPTransportMode.SSE;
+                            ? McpTransportMode.STREAMABLE_HTTP
+                            : McpTransportMode.SSE;
 
             String url = McpProtocolUtils.normalizeEndpointUrl(endpoint.getEndpointUrl(), protocol);
 
             Product product = productMap.get(productId);
             configs.add(
-                    MCPTransportConfig.builder()
+                    McpTransportConfig.builder()
                             .mcpServerName(endpoint.getMcpName())
                             .productId(productId)
                             .description(product != null ? product.getDescription() : null)

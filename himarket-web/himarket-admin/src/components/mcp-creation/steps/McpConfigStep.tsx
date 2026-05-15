@@ -370,7 +370,7 @@ export default function McpConfigStep() {
         <div>
           <div className="text-sm text-gray-700">是否需要沙箱托管</div>
           <div className="text-xs text-gray-400 mt-0.5">
-            {isStdio ? 'Stdio 协议必须通过沙箱运行' : '开启后可将 MCP Server 部署到沙箱集群'}
+            {isStdio ? 'Stdio 协议需要沙箱环境' : '标记该 MCP Server 需要沙箱环境'}
           </div>
         </div>
         <Form.Item className="mb-0" name="sandboxRequired" valuePropName="checked">

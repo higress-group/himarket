@@ -60,7 +60,7 @@ export function getCodingSessions(params?: { page?: number; size?: number }) {
     '/coding-sessions',
     {
       params: {
-        page: params?.page ?? 0,
+        page: params?.page ?? 1,
         size: params?.size ?? 20,
       },
     },

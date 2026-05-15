@@ -85,10 +85,10 @@ public enum McpProtocolType {
      * STDIO 不支持远程传输，返回 null。
      * DUAL_HTTP 默认返回 STREAMABLE_HTTP（base URL 即为 StreamableHTTP 路径）。
      */
-    public MCPTransportMode toTransportMode() {
+    public McpTransportMode toTransportMode() {
         return switch (this) {
-            case SSE -> MCPTransportMode.SSE;
-            case STREAMABLE_HTTP, DUAL_HTTP -> MCPTransportMode.STREAMABLE_HTTP;
+            case SSE -> McpTransportMode.SSE;
+            case STREAMABLE_HTTP, DUAL_HTTP -> McpTransportMode.STREAMABLE_HTTP;
             case STDIO -> null;
         };
     }
@@ -97,11 +97,11 @@ public enum McpProtocolType {
      * 从原始协议字符串解析传输模式，默认 SSE。
      * 统一入口，避免各处重复写字符串判断。
      */
-    public static MCPTransportMode resolveTransportMode(String raw) {
+    public static McpTransportMode resolveTransportMode(String raw) {
         McpProtocolType type = fromString(raw);
         if (type != null && type.toTransportMode() != null) {
             return type.toTransportMode();
         }
-        return MCPTransportMode.SSE;
+        return McpTransportMode.SSE;
     }
 }

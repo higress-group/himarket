@@ -1,4 +1,4 @@
-import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ApiOutlined, CopyOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { Tabs, Space, Button, message } from 'antd';
 import * as yaml from 'js-yaml';
 import React, { useEffect, useState } from 'react';
@@ -83,20 +83,25 @@ function ApiDetailPage() {
   }, [apiProductId, fetchApiDetail]);
 
   const leftContent = apiData ? (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6 pt-0">
+    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6 pt-0">
       <Tabs
         defaultActiveKey="overview"
         items={[
           {
             children: apiData.document ? (
-              <div className="min-h-[400px] prose prose-lg">
+              <div className="min-h-[400px] px-4">
                 <MarkdownRender content={apiData.document} />
               </div>
             ) : (
               <div className="text-gray-500 text-center py-16">暂无概览信息</div>
             ),
             key: 'overview',
-            label: '概览',
+            label: (
+              <span className="flex items-center gap-1.5 font-semibold">
+                <FileTextOutlined className="text-sm" />
+                概览
+              </span>
+            ),
           },
           {
             children: (
@@ -109,7 +114,12 @@ function ApiDetailPage() {
               </div>
             ),
             key: 'openapi-spec',
-            label: 'OpenAPI 规范',
+            label: (
+              <span className="flex items-center gap-1.5 font-semibold">
+                <ApiOutlined className="text-sm" />
+                OpenAPI 规范
+              </span>
+            ),
           },
         ]}
         size="large"
@@ -118,7 +128,7 @@ function ApiDetailPage() {
   ) : null;
 
   const rightContent = (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
       <h3 className="text-base font-semibold mb-4 text-gray-900">快速开始</h3>
       <Tabs
         defaultActiveKey="curl"
@@ -128,7 +138,7 @@ function ApiDetailPage() {
               <div className="space-y-4">
                 {/* cURL示例 */}
                 <div className="relative">
-                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
+                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-[10px] text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
                     <code>{`curl -X ${exampleMethod} \\
   '${baseUrl || 'https://api.example.com'}${examplePath}' \\
   -H 'Accept: application/json' \\
@@ -231,6 +241,7 @@ function ApiDetailPage() {
               icon: apiData.icon,
               name: apiData.name,
               productType: 'REST_API',
+              subscribable: apiData.subscribable,
               updatedAt: apiData.updatedAt,
             }
           : undefined

@@ -47,7 +47,7 @@ const Register: React.FC = () => {
         }}
       >
         <div className="w-full max-w-md mx-4">
-          <div className="bg-white backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+          <div className="bg-white backdrop-blur-sm rounded-[10px] p-8 shadow-lg">
             <div className="mb-8">
               <h2 className="text-[32px] flex text-gray-900">
                 <span className="text-colorPrimary">{t('greeting')}</span>

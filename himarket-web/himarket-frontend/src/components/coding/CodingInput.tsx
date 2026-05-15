@@ -442,7 +442,7 @@ export function CodingInput({
         /* Welcome 模式布局 */
         <>
           <textarea
-            className="w-full resize-none rounded-xl border border-gray-200/80 bg-white/80 px-4 py-2.5
+            className="w-full resize-none rounded-[10px] border border-gray-200/80 bg-white/80 px-4 py-2.5
                        text-sm text-gray-700 placeholder-gray-400
                        outline-none focus:border-gray-300 focus:shadow-sm transition-all
                        min-h-[80px] max-h-[200px] overflow-y-hidden"
@@ -493,7 +493,7 @@ export function CodingInput({
               <Paperclip size={18} />
             </button>
             <textarea
-              className="flex-1 resize-none rounded-2xl border border-gray-200 bg-white/90 px-5 py-3
+              className="flex-1 resize-none rounded-[10px] border border-gray-200 bg-white/90 px-5 py-3
                          text-sm text-gray-700 placeholder-gray-400
                          outline-none focus:border-gray-300 focus:shadow-md focus:ring-2 focus:ring-gray-100 transition-all
                          min-h-[44px] max-h-[160px] overflow-y-hidden"
@@ -510,7 +510,7 @@ export function CodingInput({
           {isProcessing ? (
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-medium
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] text-sm font-medium
                            bg-gray-800 text-white whitespace-nowrap flex-shrink-0
                            hover:bg-gray-700 transition-colors
                            disabled:opacity-40 disabled:cursor-not-allowed"
@@ -521,7 +521,7 @@ export function CodingInput({
                 发送到队列
               </button>
               <button
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-medium
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] text-sm font-medium
                            bg-red-50 text-red-600 border border-red-200 whitespace-nowrap flex-shrink-0
                            hover:bg-red-100 transition-colors"
                 onClick={onCancel}
@@ -532,7 +532,7 @@ export function CodingInput({
             </div>
           ) : (
             <button
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-sm font-medium
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-[10px] text-sm font-medium
                          bg-gray-800 text-white
                          hover:bg-gray-700 transition-colors
                          disabled:opacity-40 disabled:cursor-not-allowed"

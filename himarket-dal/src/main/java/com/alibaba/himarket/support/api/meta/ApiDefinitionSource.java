@@ -17,29 +17,28 @@
  * under the License.
  */
 
-package com.alibaba.himarket.dto.result.mcp;
+package com.alibaba.himarket.support.api.meta;
 
-import com.alibaba.himarket.dto.converter.OutputConverter;
-import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class APIGMCPServerResult extends GatewayMCPServerResult
-        implements OutputConverter<APIGMCPServerResult, HttpRoute> {
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ApiDefinitionSource {
 
-    private String apiId;
+    private ApiDefinitionSourceType type;
 
-    private String mcpServerId;
+    /**
+     * Provider name, e.g. MCP Registry
+     */
+    private String provider;
 
-    private String mcpRouteId;
-
-    @Override
-    public APIGMCPServerResult convertFrom(HttpRoute httpRoute) {
-        APIGMCPServerResult r = OutputConverter.super.convertFrom(httpRoute);
-        r.setMcpServerName(httpRoute.getName());
-        r.setMcpRouteId(httpRoute.getRouteId());
-        return r;
-    }
+    /**
+     * Git repository / Maven artifact
+     */
+    private String repo;
 }

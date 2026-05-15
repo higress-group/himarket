@@ -41,9 +41,9 @@ interface GetCategoriesResp {
 export function getCategoriesByProductType(params: GetCategoriesParams) {
   return request.get<RespI<GetCategoriesResp>, RespI<GetCategoriesResp>>('/product-categories', {
     params: {
-      page: params.page || 0,
+      page: params.page ?? 1,
       productType: params.productType,
-      size: params.size || 1000,
+      size: params.size ?? 1000,
     },
   });
 }

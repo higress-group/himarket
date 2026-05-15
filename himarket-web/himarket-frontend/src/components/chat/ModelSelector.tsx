@@ -144,7 +144,7 @@ export function ModelSelector({
           trigger={['click']}
         >
           {/* 当前模型 */}
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover">
+          <button className="flex items-center gap-2 px-4 py-2 rounded-[10px] transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover">
             {currentModel?.icon && (
               <ProductIconRenderer className="w-5 h-5" iconType={currentModel.icon.value} />
             )}

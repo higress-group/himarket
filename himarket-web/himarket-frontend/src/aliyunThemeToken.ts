@@ -22,7 +22,7 @@ export default {
     '      0 3px 8px 0 rgba(0, 0, 0, 0.18),      0 3px 6px -4px rgba(0, 0, 0, 0.12),      0 9px 28px 8px rgba(0, 0, 0, 0.05)    ',
   colorBgBase: '#ffffff',
   colorBgLayout: '#F7F7F7',
-  colorBgSpotlight: 'rgba(0, 0, 0, 0.85)',
+  colorBgSpotlight: '#ffffff',
   colorBorder: '#d9d9d9',
   colorBorderSecondary: '#E5E5E5',
   colorError: '#e84738',

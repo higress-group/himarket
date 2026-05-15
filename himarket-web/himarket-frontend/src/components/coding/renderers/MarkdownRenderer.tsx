@@ -11,7 +11,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     <div className="p-4 overflow-auto h-full">
       <div
         className="prose prose-sm max-w-none text-gray-700
-                   prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200/80 prose-pre:rounded-xl
+                   prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200/80 prose-pre:rounded-[10px]
                    prose-code:text-gray-700 prose-code:before:content-none prose-code:after:content-none
                    prose-headings:text-gray-800 prose-a:text-blue-600"
       >

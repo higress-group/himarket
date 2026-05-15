@@ -94,7 +94,7 @@ const Login: React.FC = () => {
       <div className="min-h-[calc(100vh-96px)] w-full flex items-center justify-center">
         <div className="w-full max-w-md mx-4">
           {/* 登录卡片 */}
-          <div className="bg-white backdrop-blur-sm rounded-2xl p-8 shadow-lg">
+          <div className="bg-white backdrop-blur-sm rounded-[10px] p-8 shadow-lg">
             <div className="mb-8">
               <h2 className="text-[32px] flex text-gray-900">
                 <span className="text-colorPrimary">{t('greeting')}</span>

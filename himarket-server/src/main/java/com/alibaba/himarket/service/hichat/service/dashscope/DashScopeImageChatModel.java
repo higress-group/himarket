@@ -23,13 +23,7 @@ import io.agentscope.core.formatter.dashscope.dto.DashScopeMessage;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeRequest;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeResponse;
 import io.agentscope.core.message.Msg;
-import io.agentscope.core.model.ChatModelBase;
-import io.agentscope.core.model.ChatResponse;
-import io.agentscope.core.model.DashScopeHttpClient;
-import io.agentscope.core.model.GenerateOptions;
-import io.agentscope.core.model.ModelUtils;
-import io.agentscope.core.model.ToolChoice;
-import io.agentscope.core.model.ToolSchema;
+import io.agentscope.core.model.*;
 import io.agentscope.core.model.transport.HttpTransport;
 import io.agentscope.core.model.transport.HttpTransportFactory;
 import java.time.Instant;
@@ -217,6 +211,11 @@ public class DashScopeImageChatModel extends ChatModelBase {
          */
         @Override
         public String selectEndpoint(String modelName) {
+            return "";
+        }
+
+        @Override
+        public String selectEndpoint(String modelName, EndpointType endpointType) {
             return "";
         }
     }

@@ -33,7 +33,7 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
 
   if (!document) {
     return (
-      <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+      <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
         <h3 className="text-base font-semibold text-gray-900 mb-4">SKILL.md</h3>
         <p className="text-gray-400 text-sm text-center py-8">暂无内容</p>
       </div>
@@ -41,7 +41,7 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
   }
 
   return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/40 p-6">
+    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
       {/* 标题 + 切换按钮 */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-gray-900">SKILL.md</h3>

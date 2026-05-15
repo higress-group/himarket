@@ -46,7 +46,7 @@ function MdPreview({ content }: { content: string }) {
   const { body, frontmatter } = parseSkillMd(content);
   const fmEntries = Object.entries(frontmatter);
   return (
-    <div className="markdown-body text-sm">
+    <div className="text-sm">
       {fmEntries.length > 0 && (
         <table className="mb-6 w-full text-[13px] border-collapse">
           <thead>
@@ -133,7 +133,7 @@ function ProductIcon({ icon, name }: { name: string; icon?: IProductIcon }) {
     return (
       <img
         alt={name}
-        className="w-16 h-16 rounded-xl flex-shrink-0 object-cover border border-gray-200"
+        className="w-16 h-16 rounded-[10px] flex-shrink-0 object-cover border border-gray-200"
         onError={(e) => {
           (e.target as HTMLImageElement).style.display = 'none';
         }}
@@ -143,7 +143,7 @@ function ProductIcon({ icon, name }: { name: string; icon?: IProductIcon }) {
   }
 
   return (
-    <div className="w-16 h-16 rounded-xl flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
+    <div className="w-16 h-16 rounded-[10px] flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
       <UserOutlined className="text-3xl text-black" />
     </div>
   );
@@ -524,7 +524,7 @@ function WorkerDetail() {
         {/* Page header */}
         <div className="flex-shrink-0">
           <button
-            className="flex items-center gap-2 mb-4 px-4 py-2 rounded-xl text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
+            className="flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px] text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
             onClick={() => navigate(-1)}
           >
             <ArrowLeftOutlined />
@@ -650,7 +650,7 @@ function WorkerDetail() {
           {/* Right sidebar: download card */}
           <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2 lg:sticky lg:top-4 lg:self-start">
             <div
-              className="bg-white rounded-xl overflow-hidden shadow-sm"
+              className="bg-white rounded-[10px] overflow-hidden shadow-sm"
               style={{ border: '1px solid #e8eaef' }}
             >
               {/* Card header: title + version selector */}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { formatDomainWithPort } from '@/lib/utils';
 import type { ApiProduct } from '@/types/api-product';
-import type { LinkedService, McpMetaItem } from '@/types/api-product';
+import type { LinkedService } from '@/types/api-product';
 
 export interface DomainOption {
   domain: { domain: string; port?: number; protocol: string; networkType?: string };
@@ -14,8 +14,6 @@ export interface McpConnectionConfig {
   httpJson: string;
   sseJson: string;
   localJson: string;
-  hotSseJson: string;
-  hotHttpJson: string;
   domainOptions: DomainOption[];
 }
 
@@ -93,14 +91,11 @@ function generateConnectionConfig(
 export function useMcpConnectionConfig(
   apiProduct: ApiProduct,
   linkedService: LinkedService | null,
-  mcpMetaList: McpMetaItem[],
   selectedDomainIndex: number,
 ): McpConnectionConfig {
   const [httpJson, setHttpJson] = useState('');
   const [sseJson, setSseJson] = useState('');
   const [localJson, setLocalJson] = useState('');
-  const [hotSseJson, setHotSseJson] = useState('');
-  const [hotHttpJson, setHotHttpJson] = useState('');
 
   const domains = apiProduct.mcpConfig?.mcpServerConfig?.domains || [];
   const domainOptions = domains.map((domain, index) => {
@@ -112,7 +107,6 @@ export function useMcpConnectionConfig(
     };
   });
 
-  // Effect 1: 基于 mcpConfig 生成冷数据配置
   useEffect(() => {
     if (apiProduct.type !== 'MCP_SERVER' || !apiProduct.mcpConfig) {
       setHttpJson('');
@@ -121,7 +115,7 @@ export function useMcpConnectionConfig(
       return;
     }
 
-    let mcpServerName = apiProduct.name;
+    let mcpServerName = apiProduct.mcpConfig?.mcpServerName || apiProduct.name;
     if (linkedService) {
       if (
         linkedService.sourceType === 'GATEWAY' &&
@@ -157,177 +151,13 @@ export function useMcpConnectionConfig(
       apiProduct.mcpConfig.mcpServerConfig.path,
       mcpServerName,
       apiProduct.mcpConfig.mcpServerConfig.rawConfig,
-      mcpMetaList[0]?.protocolType ||
-        apiProduct.mcpConfig.protocol ||
-        apiProduct.mcpConfig.meta?.protocol,
+      apiProduct.mcpConfig.protocol || apiProduct.mcpConfig.meta?.protocol,
       selectedDomainIndex,
     );
     setHttpJson(result.httpJson);
     setSseJson(result.sseJson);
     setLocalJson(result.localJson);
-  }, [apiProduct, linkedService, selectedDomainIndex, mcpMetaList]);
+  }, [apiProduct, linkedService, selectedDomainIndex]);
 
-  // Effect 2: 热数据配置
-  useEffect(() => {
-    if (apiProduct.type !== 'MCP_SERVER' || mcpMetaList.length === 0) {
-      setHotSseJson('');
-      setHotHttpJson('');
-      return;
-    }
-    const meta = mcpMetaList[0];
-    if (!meta) return;
-    if (!meta.endpointUrl || meta.endpointStatus !== 'ACTIVE') {
-      setHotSseJson('');
-      setHotHttpJson('');
-      return;
-    }
-    const serverName = meta.mcpName || apiProduct.name;
-    const protocol = (meta.endpointProtocol || '').toLowerCase();
-    const endpointUrl = meta.endpointUrl;
-    if (protocol === 'sse') {
-      setHotSseJson(
-        JSON.stringify(
-          { mcpServers: { [serverName]: { type: 'sse', url: endpointUrl } } },
-          null,
-          2,
-        ),
-      );
-      setHotHttpJson('');
-    } else if (protocol === 'streamablehttp' || protocol === 'http') {
-      setHotHttpJson(
-        JSON.stringify(
-          { mcpServers: { [serverName]: { type: 'streamable-http', url: endpointUrl } } },
-          null,
-          2,
-        ),
-      );
-      setHotSseJson('');
-    } else if (protocol === 'dualhttp') {
-      setHotSseJson(
-        JSON.stringify(
-          { mcpServers: { [serverName]: { type: 'sse', url: endpointUrl } } },
-          null,
-          2,
-        ),
-      );
-      setHotHttpJson(
-        JSON.stringify(
-          { mcpServers: { [serverName]: { type: 'streamable-http', url: endpointUrl } } },
-          null,
-          2,
-        ),
-      );
-    } else {
-      // 默认 SSE
-      setHotSseJson(
-        JSON.stringify(
-          { mcpServers: { [serverName]: { type: 'sse', url: endpointUrl } } },
-          null,
-          2,
-        ),
-      );
-      setHotHttpJson('');
-    }
-  }, [mcpMetaList, apiProduct]);
-
-  // Effect 3: 冷数据 connectionConfig
-  useEffect(() => {
-    if (apiProduct.type !== 'MCP_SERVER') return;
-    if (mcpMetaList.length === 0) return;
-
-    const meta = mcpMetaList[0];
-    if (!meta) return;
-    const connCfg = meta.connectionConfig;
-    if (!connCfg) {
-      if (!apiProduct.mcpConfig) {
-        setLocalJson('');
-        setSseJson('');
-        setHttpJson('');
-      }
-      return;
-    }
-
-    // mcpConfig 存在时优先使用 Effect 1 生成的配置，避免被非标准 connectionConfig 覆盖
-    if (apiProduct.mcpConfig) return;
-
-    const serverName = meta.mcpName || apiProduct.name;
-    const protocol = (meta.protocolType || '').toUpperCase();
-
-    try {
-      const parsed = JSON.parse(connCfg);
-
-      if (protocol === 'STDIO' || protocol === '') {
-        setLocalJson(JSON.stringify(parsed, null, 2));
-        if (!apiProduct.mcpConfig) {
-          setSseJson('');
-          setHttpJson('');
-        }
-        return;
-      }
-
-      const servers = parsed?.mcpServers || parsed;
-      const firstKey = servers ? Object.keys(servers)[0] : null;
-      const entry = firstKey
-        ? ((servers as Record<string, unknown> | null)?.[firstKey] as Record<
-            string,
-            unknown
-          > | null)
-        : null;
-      const url = entry?.url;
-
-      if (protocol === 'SSE') {
-        const json = url
-          ? JSON.stringify({ mcpServers: { [serverName]: { type: 'sse', url } } }, null, 2)
-          : JSON.stringify(parsed, null, 2);
-        setSseJson(json);
-        if (!apiProduct.mcpConfig) {
-          setLocalJson('');
-          setHttpJson('');
-        }
-      } else if (protocol === 'STREAMABLEHTTP' || protocol === 'HTTP') {
-        const json = url
-          ? JSON.stringify(
-              { mcpServers: { [serverName]: { type: 'streamable-http', url } } },
-              null,
-              2,
-            )
-          : JSON.stringify(parsed, null, 2);
-        setHttpJson(json);
-        if (!apiProduct.mcpConfig) {
-          setLocalJson('');
-          setSseJson('');
-        }
-      } else if (protocol === 'DUALHTTP') {
-        const jsonSSE = url
-          ? JSON.stringify({ mcpServers: { [serverName]: { type: 'sse', url } } }, null, 2)
-          : JSON.stringify(parsed, null, 2);
-        const jsonHTTP = url
-          ? JSON.stringify(
-              { mcpServers: { [serverName]: { type: 'streamable-http', url } } },
-              null,
-              2,
-            )
-          : JSON.stringify(parsed, null, 2);
-        setSseJson(jsonSSE);
-        setHttpJson(jsonHTTP);
-        if (!apiProduct.mcpConfig) {
-          setLocalJson('');
-        }
-      } else {
-        setLocalJson(JSON.stringify(parsed, null, 2));
-        if (!apiProduct.mcpConfig) {
-          setSseJson('');
-          setHttpJson('');
-        }
-      }
-    } catch {
-      setLocalJson(connCfg);
-      if (!apiProduct.mcpConfig) {
-        setSseJson('');
-        setHttpJson('');
-      }
-    }
-  }, [mcpMetaList, apiProduct]);
-
-  return { domainOptions, hotHttpJson, hotSseJson, httpJson, localJson, sseJson };
+  return { domainOptions, httpJson, localJson, sseJson };
 }

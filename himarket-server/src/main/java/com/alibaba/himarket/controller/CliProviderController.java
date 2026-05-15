@@ -22,9 +22,9 @@ import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.service.hicoding.cli.ProtocolTypeMapper;
 import com.alibaba.himarket.service.hicoding.filesystem.BaseUrlExtractor;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
-import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.enums.McpTransportMode;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
@@ -244,7 +244,7 @@ public class CliProviderController {
         }
 
         try {
-            MCPTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
+            McpTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
             if (transportConfig == null) {
                 logger.warn(
                         "Failed to extract transport config from product, skipping: productId={},"
@@ -255,7 +255,7 @@ public class CliProviderController {
             }
 
             String transportType =
-                    transportConfig.getTransportMode() == MCPTransportMode.STREAMABLE_HTTP
+                    transportConfig.getTransportMode() == McpTransportMode.STREAMABLE_HTTP
                             ? "streamable-http"
                             : "sse";
 

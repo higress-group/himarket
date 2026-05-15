@@ -67,6 +67,11 @@ export function McpQuickCreateModal({
 
       await apiDefinitionApi.createApiDefinition({
         description: values.description,
+        meta: {
+          source: {
+            type: 'MANUAL',
+          },
+        },
         name: values.name,
         relatedProductId: productId,
         spec: {

@@ -19,8 +19,13 @@
 
 package com.alibaba.himarket.service.vendor;
 
+import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.core.exception.BusinessException;
+import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
+import com.alibaba.himarket.support.api.spec.McpConnection;
+import com.alibaba.himarket.support.api.spec.StdioConnection;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,8 +33,10 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
@@ -62,6 +69,52 @@ public class ModelScopeAdapter implements McpVendorAdapter {
     @Override
     public McpVendorType getType() {
         return McpVendorType.MODELSCOPE;
+    }
+
+    @Override
+    public McpConnection buildConnection(RemoteMcpItem item) {
+        ObjectNode config = JsonUtil.readObjectNode(item.getConnectionConfig());
+        ObjectNode serverConfig = firstMcpServer(config);
+        String command = serverConfig.path("command").asText(null);
+        if (StrUtil.isBlank(command)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "stdio MCP command is required");
+        }
+
+        StdioConnection connection = new StdioConnection();
+        connection.setCommand(command);
+        if (serverConfig.get("args") != null && serverConfig.get("args").isArray()) {
+            List<String> args = new ArrayList<>();
+            serverConfig.get("args").forEach(arg -> args.add(arg.asText()));
+            connection.setArgs(args);
+        }
+        if (serverConfig.get("env") != null && serverConfig.get("env").isObject()) {
+            Map<String, String> env = new HashMap<>();
+            serverConfig
+                    .get("env")
+                    .fields()
+                    .forEachRemaining(entry -> env.put(entry.getKey(), entry.getValue().asText()));
+            connection.setEnv(env);
+        }
+        String cwd = serverConfig.path("cwd").asText(null);
+        if (StrUtil.isNotBlank(cwd)) {
+            connection.setCwd(cwd);
+        }
+        return connection;
+    }
+
+    @Override
+    public RemoteMcpItem getMcpServer(String resourceId) {
+        RemoteMcpItem item =
+                RemoteMcpItem.builder()
+                        .remoteId(resourceId)
+                        .mcpName(toMcpName(resourceId))
+                        .displayName(resourceId)
+                        .protocolType("stdio")
+                        .connectionConfig("{}")
+                        .build();
+        RemoteMcpItem enriched = enrichForImport(item);
+        enriched.setConnection(buildConnection(enriched));
+        return enriched;
     }
 
     @Override
@@ -245,6 +298,24 @@ public class ModelScopeAdapter implements McpVendorAdapter {
             log.warn("Failed to enrich ModelScope MCP detail for {}", item.getRemoteId(), e);
         }
         return item;
+    }
+
+    private ObjectNode firstMcpServer(ObjectNode config) {
+        if (config == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "MCP connection config is empty");
+        }
+        JsonNode mcpServers = config.get("mcpServers");
+        if (mcpServers != null && mcpServers.isObject()) {
+            Iterator<String> keys = mcpServers.fieldNames();
+            if (keys.hasNext()) {
+                JsonNode server = mcpServers.get(keys.next());
+                if (server != null && server.isObject()) {
+                    return (ObjectNode) server;
+                }
+            }
+        }
+        return config;
     }
 
     @Override

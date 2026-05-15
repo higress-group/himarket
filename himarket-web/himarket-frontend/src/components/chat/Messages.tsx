@@ -4,8 +4,9 @@ import {
   LeftOutlined,
   RightOutlined,
   DownCircleOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
-import { message } from 'antd';
+import { message, Tooltip } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 
 import { ProductIconRenderer } from '../icon/ProductIconRenderer';
@@ -195,36 +196,55 @@ function Message({
               </div>
             ) : conversation.loading ? (
               /* 如果内容为空且正在加载，显示 loading */
-              <div className="flex items-center gap-2 text-gray-500">
-                <div className="flex items-center gap-1">
-                  <span
-                    className="w-1.5 h-1.5 bg-colorPrimary rounded-full"
-                    style={{ animation: 'bounceStrong 1s infinite', animationDelay: '0ms' }}
-                  ></span>
-                  <span
-                    className="w-1.5 h-1.5 bg-colorPrimary rounded-full"
-                    style={{ animation: 'bounceStrong 1s infinite', animationDelay: '150ms' }}
-                  ></span>
-                  <span
-                    className="w-1.5 h-1.5 bg-colorPrimary rounded-full"
-                    style={{ animation: 'bounceStrong 1s infinite', animationDelay: '300ms' }}
-                  ></span>
+              <div className="space-y-3">
+                {/* 如果有 tool_call，先显示工具调用框 - 从当前活跃 answer 中获取 */}
+                {activeAnswer?.messageChunks?.map((chunk) => {
+                  if (chunk.type === 'tool_call' && chunk.toolCall) {
+                    const toolResultChunk = activeAnswer.messageChunks?.find(
+                      (c) => c.type === 'tool_result' && c.toolResult?.id === chunk.toolCall?.id,
+                    );
+                    return (
+                      <McpToolCallItem
+                        key={chunk.id}
+                        toolCall={chunk.toolCall}
+                        toolResponse={toolResultChunk?.toolResult}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+                {/* 显示 loading 动画 */}
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <span
+                      className="w-1.5 h-1.5 bg-colorPrimary rounded-full"
+                      style={{ animation: 'bounceStrong 1s infinite', animationDelay: '0ms' }}
+                    ></span>
+                    <span
+                      className="w-1.5 h-1.5 bg-colorPrimary rounded-full"
+                      style={{ animation: 'bounceStrong 1s infinite', animationDelay: '150ms' }}
+                    ></span>
+                    <span
+                      className="w-1.5 h-1.5 bg-colorPrimary rounded-full"
+                      style={{ animation: 'bounceStrong 1s infinite', animationDelay: '300ms' }}
+                    ></span>
+                  </div>
                 </div>
               </div>
-            ) : question.messageChunks && question.messageChunks.length > 0 ? (
+            ) : activeAnswer?.messageChunks && activeAnswer.messageChunks.length > 0 ? (
               /* 新逻辑：按 messageChunks 顺序渲染 */
               <div className="space-y-3">
-                {question.messageChunks.map((chunk) => {
+                {activeAnswer.messageChunks.map((chunk) => {
                   if (chunk.type === 'text' && chunk.content) {
                     return (
                       <div className="prose" key={chunk.id}>
-                        <MarkdownRender content={chunk.content} />
+                        <MarkdownRender content={chunk.content} imageStyle="card" />
                       </div>
                     );
                   }
                   if (chunk.type === 'tool_call' && chunk.toolCall) {
                     // 查找对应的 tool_result
-                    const toolResultChunk = question.messageChunks?.find(
+                    const toolResultChunk = activeAnswer.messageChunks?.find(
                       (c) => c.type === 'tool_result' && c.toolResult?.id === chunk.toolCall?.id,
                     );
                     return (
@@ -240,19 +260,19 @@ function Message({
                 })}
               </div>
             ) : (
-              /* 旧逻辑：兼容历史数据 */
+              /* 旧逻辑：兼容历史数据 - 从当前活跃 answer 中获取 tool calls */
               <>
                 {/* MCP 工具调用面板 */}
-                {question.mcpToolCalls && question.mcpToolCalls.length > 0 && (
+                {activeAnswer?.mcpToolCalls && activeAnswer.mcpToolCalls.length > 0 && (
                   <div className="mb-3">
                     <McpToolCallPanel
-                      toolCalls={question.mcpToolCalls}
-                      toolResponses={question.mcpToolResponses}
+                      toolCalls={activeAnswer.mcpToolCalls}
+                      toolResponses={activeAnswer.mcpToolResponses}
                     />
                   </div>
                 )}
                 <div className="prose">
-                  <MarkdownRender content={activeAnswer?.content || ''} />
+                  <MarkdownRender content={activeAnswer?.content || ''} imageStyle="card" />
                 </div>
               </>
             )}
@@ -260,75 +280,83 @@ function Message({
 
           {/* 统计信息和功能按钮 - 只在有内容或错误时显示 */}
           {
-            <div className="flex items-center justify-between mt-2 px-1">
-              {/* 左侧：统计信息 */}
-              <div className="flex items-center gap-3 text-xs text-gray-400 tabular-nums">
-                <span>首字： {formatTime(activeAnswer?.firstTokenTime)}</span>
-                <span>耗时： {formatTime(activeAnswer?.totalTime)}</span>
-                <span>输入 Token： {activeAnswer?.inputTokens ?? '-'}</span>
-                <span>输出 Token： {activeAnswer?.outputTokens ?? '-'}</span>
-              </div>
-
-              {/* 右侧：功能按钮 */}
-              <div className="flex items-center gap-1">
-                <button
-                  className={`
-                            p-1.5 rounded-md transition-colors duration-200
-                            ${copiedId === question.id ? 'text-colorPrimary' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}
-                          `}
-                  onClick={() => handleCopy(activeAnswer?.content || '', question.id)}
-                  title="复制"
-                >
-                  <CopyOutlined className="text-sm" />
-                </button>
-                <button
-                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-200"
-                  onClick={() => {
-                    onRefresh?.(conversation, question, isLast);
-                  }}
-                  title={'重新生成'}
-                >
-                  <ReloadOutlined className="text-sm" />
-                </button>
-                {/* 版本切换按钮 - 仅在有多个版本时显示 */}
-                {question.answers?.length > 1 && (
-                  <div className="flex items-center gap-1 mr-2 px-2 py-1 rounded-md">
-                    <button
-                      className={`
-                                p-1 rounded transition-colors duration-200
-                                ${
-                                  question.activeAnswerIndex === 0
-                                    ? 'text-gray-300 cursor-not-allowed'
-                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-                                }
-                              `}
-                      disabled={question.activeAnswerIndex === 0}
-                      onClick={() => onChangeVersion?.(conversation.id, question.id, 'prev')}
-                      title="上一个版本"
-                    >
-                      <LeftOutlined className="text-xs" />
-                    </button>
-                    <span className="text-xs text-gray-600 font-medium min-w-[40px] text-center">
-                      {(question.activeAnswerIndex ?? 0) + 1} / {question.answers.length}
-                    </span>
-                    <button
-                      className={`
-                                p-1 rounded transition-colors duration-200
-                                ${
-                                  question.activeAnswerIndex === question.answers.length - 1
-                                    ? 'text-gray-300 cursor-not-allowed'
-                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-                                }
-                              `}
-                      disabled={question.activeAnswerIndex === question.answers.length - 1}
-                      onClick={() => onChangeVersion?.(conversation.id, question.id, 'next')}
-                      title="下一个版本"
-                    >
-                      <RightOutlined className="text-xs" />
-                    </button>
+            <div className="mt-2 flex items-center gap-1.5 px-1">
+              {/* Token 统计图标 - hover 显示详情 */}
+              <Tooltip
+                color="#ffffff"
+                overlayInnerStyle={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                  color: '#333',
+                }}
+                overlayStyle={{ maxWidth: 'none' }}
+                title={
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-700">
+                    <span>首字符: {formatTime(activeAnswer?.firstTokenTime)}</span>
+                    <span>总耗时: {formatTime(activeAnswer?.totalTime)}</span>
+                    <span>输入Token: {activeAnswer?.inputTokens ?? '-'}</span>
+                    <span>输出Token: {activeAnswer?.outputTokens ?? '-'}</span>
                   </div>
-                )}
-              </div>
+                }
+              >
+                <button className="rounded-md p-1.5 text-gray-400 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-600">
+                  <BarChartOutlined className="text-sm" />
+                </button>
+              </Tooltip>
+
+              {/* 复制 */}
+              <button
+                className={`rounded-md p-1.5 transition-colors duration-200 ${copiedId === question.id ? 'text-colorPrimary' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'} `}
+                onClick={() => handleCopy(activeAnswer?.content || '', question.id)}
+                title="复制"
+              >
+                <CopyOutlined className="text-sm" />
+              </button>
+
+              {/* 重新生成 */}
+              <button
+                className="rounded-md p-1.5 text-gray-400 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-600"
+                onClick={() => {
+                  onRefresh?.(conversation, question, isLast);
+                }}
+                title={'重新生成'}
+              >
+                <ReloadOutlined className="text-sm" />
+              </button>
+
+              {/* 版本切换按钮 - 仅在有多个版本时显示 */}
+              {question.answers?.length > 1 && (
+                <div className="flex items-center gap-1 rounded-md px-1.5 py-1">
+                  <button
+                    className={`rounded p-1 transition-colors duration-200 ${
+                      question.activeAnswerIndex === 0
+                        ? 'cursor-not-allowed text-gray-300'
+                        : 'text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                    } `}
+                    disabled={question.activeAnswerIndex === 0}
+                    onClick={() => onChangeVersion?.(conversation.id, question.id, 'prev')}
+                    title="上一个版本"
+                  >
+                    <LeftOutlined className="text-xs" />
+                  </button>
+                  <span className="min-w-[40px] text-center text-xs font-medium text-gray-600">
+                    {(question.activeAnswerIndex ?? 0) + 1} / {question.answers.length}
+                  </span>
+                  <button
+                    className={`rounded p-1 transition-colors duration-200 ${
+                      question.activeAnswerIndex === question.answers.length - 1
+                        ? 'cursor-not-allowed text-gray-300'
+                        : 'text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                    } `}
+                    disabled={question.activeAnswerIndex === question.answers.length - 1}
+                    onClick={() => onChangeVersion?.(conversation.id, question.id, 'next')}
+                    title="下一个版本"
+                  >
+                    <RightOutlined className="text-xs" />
+                  </button>
+                </div>
+              )}
             </div>
           }
         </div>

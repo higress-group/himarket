@@ -8,9 +8,9 @@ import {
   DeleteOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Skeleton, Empty, Divider, message, Modal } from 'antd';
+import { Button, Card, Skeleton, Empty, Divider, message, Modal, Tooltip } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { DataTable } from '@/components/common/DataTable';
 import AddProductModal from '@/components/product-category/AddProductModal';
@@ -73,6 +73,8 @@ function getTypeLabel(type: string) {
 export default function ProductCategoryDetail() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = `${location.pathname}${location.search}${location.hash}`;
 
   const [category, setCategory] = useState<ProductCategory | null>(null);
   const [products, setProducts] = useState<ApiProduct[]>([]);
@@ -244,6 +246,15 @@ export default function ProductCategoryDetail() {
     selectedRowKeys: [...selectedProductIds],
   };
 
+  const handleOpenProductDetail = useCallback(
+    (productId: string) => {
+      navigate(`/api-products/${productId}`, {
+        state: { from: currentPath },
+      });
+    },
+    [currentPath, navigate],
+  );
+
   const columns: TableProps<ApiProduct>['columns'] = [
     {
       dataIndex: 'name',
@@ -251,22 +262,24 @@ export default function ProductCategoryDetail() {
         <div className="min-w-0">
           <button
             className="text-blue-600 hover:text-blue-500 font-medium cursor-pointer bg-transparent border-none p-0 truncate block max-w-[200px] text-left text-xs"
-            onClick={() => navigate(`/api-products/${record.productId}`)}
+            onClick={() => handleOpenProductDetail(record.productId)}
             type="button"
           >
             {record.name}
           </button>
-          <button
-            className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
-            onClick={() =>
-              copyToClipboard(record.productId).then(() => {
-                message.success('已复制到剪贴板');
-              })
-            }
-            type="button"
-          >
-            {record.productId}
-          </button>
+          <Tooltip title="点击复制">
+            <button
+              className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
+              onClick={() =>
+                copyToClipboard(record.productId).then(() => {
+                  message.success('已复制到剪贴板');
+                })
+              }
+              type="button"
+            >
+              {record.productId}
+            </button>
+          </Tooltip>
         </div>
       ),
       title: '产品名称/ID',

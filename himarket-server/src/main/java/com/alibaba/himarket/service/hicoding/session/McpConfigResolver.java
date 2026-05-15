@@ -4,8 +4,8 @@ import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.McpServerService;
-import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
-import com.alibaba.himarket.support.enums.MCPTransportMode;
+import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.enums.McpTransportMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -58,13 +58,13 @@ public class McpConfigResolver {
                                         (a, b) -> a));
 
         // 2. 通过 McpServerService 解析热数据（含订阅校验）
-        List<MCPTransportConfig> hotConfigs =
+        List<McpTransportConfig> hotConfigs =
                 mcpServerService.resolveTransportConfigs(productIds, userId);
-        Map<String, MCPTransportConfig> hotConfigMap =
+        Map<String, McpTransportConfig> hotConfigMap =
                 hotConfigs.stream()
                         .collect(
                                 Collectors.toMap(
-                                        MCPTransportConfig::getProductId, c -> c, (a, b) -> a));
+                                        McpTransportConfig::getProductId, c -> c, (a, b) -> a));
 
         // 3. 获取认证头（热数据已自带 headers，但冷数据 fallback 需要）
         Map<String, String> authHeaders = extractAuthHeaders();
@@ -73,12 +73,12 @@ public class McpConfigResolver {
         List<ResolvedSessionConfig.ResolvedMcpEntry> result = new ArrayList<>();
         for (CliSessionConfig.McpServerEntry entry : mcpEntries) {
             String productId = entry.getProductId();
-            MCPTransportConfig hotConfig = hotConfigMap.get(productId);
+            McpTransportConfig hotConfig = hotConfigMap.get(productId);
 
             if (hotConfig != null) {
                 // 热数据可用（已通过订阅校验）
                 String transportType =
-                        hotConfig.getTransportMode() == MCPTransportMode.STREAMABLE_HTTP
+                        hotConfig.getTransportMode() == McpTransportMode.STREAMABLE_HTTP
                                 ? "streamable-http"
                                 : "sse";
                 ResolvedSessionConfig.ResolvedMcpEntry resolved =

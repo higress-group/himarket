@@ -17,11 +17,13 @@ interface ApiProductFormModalProps {
   visible: boolean;
   onCancel: () => void;
   onSuccess: () => void;
+  defaultProductType?: ApiProduct['type'];
   productId?: string;
   initialData?: Partial<ApiProduct>;
 }
 
 export default function ApiProductFormModal({
+  defaultProductType,
   initialData,
   onCancel,
   onSuccess,
@@ -142,11 +144,14 @@ export default function ApiProductFormModal({
     } else if (visible && !isEditMode) {
       // 新建模式下清空表单
       form.resetFields();
+      if (defaultProductType) {
+        form.setFieldValue('type', defaultProductType);
+      }
       setFileList([]);
       setIconMode('URL');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+  }, [visible, defaultProductType]);
 
   // 将文件转为 Base64
   const getBase64 = (file: File): Promise<string> =>
@@ -327,6 +332,7 @@ export default function ApiProductFormModal({
 
         <Form.Item label="类型" name="type" rules={[{ message: '请选择类型', required: true }]}>
           <Select
+            disabled={!isEditMode && !!defaultProductType}
             onChange={() => {
               form.setFieldValue('feature', undefined);
             }}

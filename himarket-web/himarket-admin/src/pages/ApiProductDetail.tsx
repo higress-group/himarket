@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Dropdown, Modal, message } from 'antd';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 import { ApiProductLinkApi } from '@/components/api-product/ApiProductLinkApi';
@@ -30,6 +30,19 @@ interface MenuItem {
   key: string;
   label: string;
 }
+
+interface ApiProductDetailLocationState {
+  from?: string;
+}
+
+const PRODUCT_TYPE_PATHS: Record<ApiProduct['type'], string> = {
+  AGENT_API: '/api-products/agent-api',
+  AGENT_SKILL: '/api-products/agent-skill',
+  MCP_SERVER: '/api-products/mcp-server',
+  MODEL_API: '/api-products/model-api',
+  REST_API: '/api-products/rest-api',
+  WORKER: '/api-products/worker',
+};
 
 const BASE_MENU_ITEMS: MenuItem[] = [
   {
@@ -60,6 +73,7 @@ const BASE_MENU_ITEMS: MenuItem[] = [
 
 export default function ApiProductDetail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { productId } = useParams<{ productId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null);
@@ -157,7 +171,14 @@ export default function ApiProductDetail() {
   }, [searchParams, menuItems]);
 
   const handleBackToApiProducts = () => {
-    navigate('/api-products');
+    const from = (location.state as ApiProductDetailLocationState | null)?.from;
+    const currentPath = `${location.pathname}${location.search}${location.hash}`;
+    const fallbackPath = apiProduct
+      ? PRODUCT_TYPE_PATHS[apiProduct.type]
+      : '/api-products/model-api';
+    const targetPath = from && from.startsWith('/') && from !== currentPath ? from : fallbackPath;
+
+    navigate(targetPath, { replace: true });
   };
 
   const handleTabChange = (tabKey: string) => {
@@ -165,7 +186,7 @@ export default function ApiProductDetail() {
     // 更新URL query参数
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.set('tab', tabKey);
-    setSearchParams(newSearchParams);
+    setSearchParams(newSearchParams, { state: location.state });
   };
 
   const renderContent = () => {
@@ -248,7 +269,7 @@ export default function ApiProductDetail() {
       .deleteApiProduct(apiProduct.productId)
       .then(() => {
         message.success('删除成功');
-        navigate('/api-products');
+        handleBackToApiProducts();
       })
       .catch(() => {
         // message.error(error.response?.data?.message || '删除失败')
