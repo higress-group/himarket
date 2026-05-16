@@ -19,14 +19,17 @@
 
 package com.alibaba.himarket.dto.params.product;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
+@Schema(description = "Gateway import configuration")
 public class GatewayImportConfigParam extends ProductImportSourceConfigParam {
 
+    @Schema(description = "Imported gateway instance ID in HiMarket", example = "gw-xxx")
     @NotBlank(message = "Gateway instance ID is required")
     private String instanceId;
 }

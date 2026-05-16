@@ -22,10 +22,10 @@ package com.alibaba.himarket.service.vendor;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItemResult;
-import com.alibaba.himarket.entity.ApiDefinition;
-import com.alibaba.himarket.repository.APIDefinitionRepository;
+import com.alibaba.himarket.repository.ApiDefinitionRepository;
 import com.alibaba.himarket.support.enums.ApiType;
 import com.alibaba.himarket.support.enums.McpVendorType;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,7 +40,7 @@ import org.springframework.stereotype.Service;
 public class McpVendorServiceImpl implements McpVendorService {
 
     private final VendorAdapterRegistry vendorAdapterRegistry;
-    private final APIDefinitionRepository apiDefinitionRepository;
+    private final ApiDefinitionRepository apiDefinitionRepository;
 
     @Override
     public PageResult<RemoteMcpItemResult> listRemoteMcpItems(
@@ -49,7 +49,7 @@ public class McpVendorServiceImpl implements McpVendorService {
         McpVendorAdapter adapter = vendorAdapterRegistry.getAdapter(vendorType);
         PageResult<RemoteMcpItem> remotePage = adapter.listMcpServers(keyword, page, size);
 
-        // 收集本页所有 mcpName，批量查询平台已有记录
+        // Collect current page names and only count MCP definitions still bound to live products.
         Set<String> allNames =
                 remotePage.getContent().stream()
                         .map(RemoteMcpItem::getMcpName)
@@ -58,11 +58,9 @@ public class McpVendorServiceImpl implements McpVendorService {
         Set<String> existingNames =
                 allNames.isEmpty()
                         ? Set.of()
-                        : apiDefinitionRepository
-                                .findByTypeAndNameIn(ApiType.MCP_SERVER, allNames)
-                                .stream()
-                                .map(ApiDefinition::getName)
-                                .collect(Collectors.toSet());
+                        : new HashSet<>(
+                                apiDefinitionRepository.findLinkedNamesByTypeAndNameIn(
+                                        ApiType.MCP_SERVER, allNames));
 
         List<RemoteMcpItemResult> results =
                 remotePage.getContent().stream()

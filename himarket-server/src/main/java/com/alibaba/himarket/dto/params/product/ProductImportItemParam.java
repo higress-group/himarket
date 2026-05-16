@@ -20,16 +20,25 @@
 package com.alibaba.himarket.dto.params.product;
 
 import cn.hutool.core.util.StrUtil;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import lombok.Data;
 
 @Data
+@Schema(description = "Resource to import")
 public class ProductImportItemParam {
 
+    @Schema(
+            description = "Resource name. Required for gateway and Nacos imports.",
+            example = "fetch")
     private String resourceName;
 
+    @Schema(
+            description = "Resource ID. Required for external marketplace imports.",
+            example = "@modelcontextprotocol/fetch")
     private String resourceId;
 
+    @Schema(description = "Resource description", example = "Web content fetcher")
     private String description;
 
     @AssertTrue(message = "Resource name or resource ID is required")

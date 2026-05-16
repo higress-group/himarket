@@ -22,6 +22,9 @@ package com.alibaba.himarket.controller;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.idp.IdpResult;
 import com.alibaba.himarket.service.OidcService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -33,14 +36,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Slf4j
+@Tag(name = "Developer OIDC Authentication", description = "Developer OIDC authorization APIs")
 @RestController
 @RequestMapping("/developers/oidc")
+@Slf4j
 @RequiredArgsConstructor
 public class OidcController {
 
     private final OidcService oidcService;
 
+    @Operation(
+            summary = "Start OIDC authorization",
+            description = "Redirect the browser to the selected OIDC provider")
+    @ApiResponse(
+            responseCode = "302",
+            description = "Redirects to the OIDC provider authorization page")
     @GetMapping("/authorize")
     public void authorize(
             @RequestParam String provider,
@@ -54,6 +64,9 @@ public class OidcController {
         response.sendRedirect(authUrl);
     }
 
+    @Operation(
+            summary = "Handle OIDC callback",
+            description = "Exchange the callback code for developer authentication")
     @GetMapping("/callback")
     public AuthResult callback(
             @RequestParam String code,
@@ -63,6 +76,7 @@ public class OidcController {
         return oidcService.handleCallback(code, state, request, response);
     }
 
+    @Operation(summary = "List OIDC providers")
     @GetMapping("/providers")
     public List<IdpResult> getProviders() {
         return oidcService.getAvailableProviders();

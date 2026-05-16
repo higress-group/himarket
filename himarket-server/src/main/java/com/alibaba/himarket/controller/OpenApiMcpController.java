@@ -36,17 +36,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * MCP Server 开放接口 — 供外部系统通过 API Key 调用。
+ * Public MCP Server APIs for external systems using API Key authentication.
  *
- * <p>鉴权方式：请求头 X-API-Key，值需与配置项 open-api.api-key 一致。
+ * <p>Authentication: the X-API-Key request header must match the open-api.api-key configuration.
  *
- * <p>查询接口不暴露 productId 等内部字段：
+ * <p>Query APIs do not expose internal fields such as productId:
  * <ul>
- *   <li>列表接口返回 {@link McpMetaSimpleResult}（精简）</li>
- *   <li>详情接口返回 {@link McpMetaDetailResult}（完整但脱敏）</li>
+ *   <li>List APIs return {@link McpMetaSimpleResult}.</li>
+ *   <li>Detail APIs return {@link McpMetaDetailResult} with sensitive fields removed.</li>
  * </ul>
  */
-@Tag(name = "MCP Server 开放接口")
+@Tag(name = "Open MCP Server API", description = "API key protected MCP server integration APIs")
 @RestController
 @RequestMapping("/open-api/mcp-servers")
 @RequiredArgsConstructor
@@ -67,36 +67,40 @@ public class OpenApiMcpController {
         verifyApiKey(key);
     }
 
-    // ==================== 写入接口 ====================
+    // ==================== Write APIs ====================
 
-    @Operation(summary = "注册 MCP Server（自动创建 Product + Meta + ProductRef）")
+    @Operation(
+            summary = "Register MCP server",
+            description = "Register MCP metadata through the API key protected integration API")
     @PostMapping("/register")
     public McpMetaDetailResult register(@RequestBody @Valid RegisterMcpParam param) {
         McpMetaResult full = mcpServerService.registerMcp(param);
         return McpMetaDetailResult.fromFull(full);
     }
 
-    // 更新接口暂不对外开放
+    // Update APIs are not exposed yet.
     // @PostMapping("/meta")
     // public McpMetaDetailResult saveMeta(...)
 
-    // ==================== 查询接口（详情） ====================
+    // ==================== Detail query APIs ====================
 
-    @Operation(summary = "按 mcpServerId 查询 MCP Server 详情")
+    @Operation(summary = "Get MCP server by mcpServerId")
     @GetMapping("/meta/{mcpServerId}")
     public McpMetaDetailResult getMeta(@PathVariable String mcpServerId) {
         return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMeta(mcpServerId));
     }
 
-    @Operation(summary = "按 mcpName 查询 MCP Server 详情")
+    @Operation(summary = "Get MCP server by mcpName")
     @GetMapping("/meta/by-name/{mcpName}")
     public McpMetaDetailResult getMetaByName(@PathVariable String mcpName) {
         return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMetaByName(mcpName));
     }
 
-    // ==================== 查询接口（列表，精简） ====================
+    // ==================== List query APIs ====================
 
-    @Operation(summary = "分页查询指定来源的 MCP Server 列表（精简，仅已发布）")
+    @Operation(
+            summary = "List published MCP servers by origin",
+            description = "Return published MCP servers using a sanitized list schema")
     @GetMapping("/meta/list")
     public PageResult<McpMetaSimpleResult> listMeta(
             @RequestParam(required = false, defaultValue = "OPEN_API") String origin,
@@ -107,7 +111,9 @@ public class OpenApiMcpController {
                 .mapFrom(fullPage, McpMetaSimpleResult::fromFull);
     }
 
-    @Operation(summary = "分页查询所有 MCP Server 列表（精简，仅已发布）")
+    @Operation(
+            summary = "List all published MCP servers",
+            description = "Return all published MCP servers using a sanitized list schema")
     @GetMapping("/meta/list-all")
     public PageResult<McpMetaSimpleResult> listAllMeta(Pageable pageable) {
         PageResult<McpMetaResult> fullPage = mcpServerService.listAllPublishedMeta(pageable);
@@ -115,7 +121,7 @@ public class OpenApiMcpController {
                 .mapFrom(fullPage, McpMetaSimpleResult::fromFull);
     }
 
-    // DELETE 接口暂不对外开放
+    // Delete APIs are not exposed yet.
     // @DeleteMapping("/meta/{mcpServerId}")
 
     private void verifyApiKey(String key) {

@@ -26,6 +26,7 @@ interface ServiceItem {
   mcpRouteId?: string;
   agentApiId?: string;
   modelApiId?: string;
+  modelRouteName?: string;
   // Nacos fields
   mcpServerName?: string;
   agentName?: string;
@@ -96,7 +97,8 @@ export default function ImportProductsModal({
 
   const supportsApiGateway = productType === 'REST_API' && importSource !== 'NACOS';
 
-  const supportsHigress = productType === 'MCP_SERVER' && importSource !== 'NACOS';
+  const supportsHigress =
+    importSource !== 'NACOS' && (productType === 'MCP_SERVER' || productType === 'MODEL_API');
 
   const supportsAIGateway =
     importSource !== 'NACOS' &&
@@ -307,9 +309,10 @@ export default function ImportProductsModal({
                 const it = item as Record<string, string>;
                 return {
                   description: it.description,
-                  key: it.modelApiId || '',
+                  key: it.modelApiId || it.modelRouteName || '',
                   modelApiId: it.modelApiId,
-                  name: it.modelApiName || it.name || '',
+                  modelRouteName: it.modelRouteName,
+                  name: it.modelApiName || it.modelRouteName || it.name || '',
                 };
               });
               setServices(items);
@@ -409,6 +412,7 @@ export default function ImportProductsModal({
     service.mcpRouteId ||
     service.agentApiId ||
     service.modelApiId ||
+    service.modelRouteName ||
     service.mcpServerName ||
     service.agentName ||
     service.name;

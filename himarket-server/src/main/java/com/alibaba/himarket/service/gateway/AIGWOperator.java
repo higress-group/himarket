@@ -180,7 +180,40 @@ public class AIGWOperator extends APIGOperator {
     @Override
     public CredentialContext fetchApiCredential(
             Gateway gateway, ProductType productType, ProductRef productRef) {
-        return null;
+        // Only mcp server is supported for now
+        if (productType != ProductType.MCP_SERVER) {
+            return new CredentialContext();
+        }
+
+        APIGRefConfig config = productRef.getApigRefConfig();
+        if (config == null || StrUtil.isBlank(config.getMcpRouteId())) {
+            return new CredentialContext();
+        }
+
+        APIGClient client = getClient(gateway);
+        CompletableFuture<QueryConsumerAuthorizationRulesResponse> f =
+                client.execute(
+                        c ->
+                                c.queryConsumerAuthorizationRules(
+                                        QueryConsumerAuthorizationRulesRequest.builder()
+                                                .resourceId(config.getMcpRouteId())
+                                                .resourceType(APIGResourceType.MCP.getType())
+                                                .pageNumber(1)
+                                                .pageSize(1)
+                                                .build()));
+        QueryConsumerAuthorizationRulesResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
+        }
+
+        return Optional.ofNullable(response.getBody())
+                .map(QueryConsumerAuthorizationRulesResponseBody::getData)
+                .map(QueryConsumerAuthorizationRulesResponseBody.Data::getItems)
+                .filter(items -> !items.isEmpty())
+                .map(items -> items.get(0).getConsumerId())
+                .filter(StrUtil::isNotBlank)
+                .map(consumerId -> fetchConsumerCredential(gateway, consumerId))
+                .orElseGet(() -> CredentialContext.builder().build());
     }
 
     @Override
@@ -235,12 +268,12 @@ public class AIGWOperator extends APIGOperator {
                         .build();
         result.setAgentAPIConfig(agentAPIConfig);
 
-        // 构建元数据（与 agentAPIConfig 同级）
+        // Build metadata at the same level as agentAPIConfig
         AgentConfigResult.AgentMetadata meta =
                 AgentConfigResult.AgentMetadata.builder()
-                        .source(GatewayType.APIG_AI.name()) // 标识来源为 AI 网关
+                        .source(GatewayType.APIG_AI.name()) // Mark the source as AI gateway
                         .build();
-        result.setMeta(meta); // 设置元数据到顶层
+        result.setMeta(meta); // Set metadata on the top-level result
 
         return JsonUtil.toJson(result);
     }
@@ -277,53 +310,6 @@ public class AIGWOperator extends APIGOperator {
         return GatewayType.APIG_AI;
     }
 
-    public String fetchMcpTools(Gateway gateway, String routeId) {
-        APIGClient client = getClient(gateway);
-
-        try {
-            CompletableFuture<ListPluginAttachmentsResponse> f =
-                    client.execute(
-                            c -> {
-                                ListPluginAttachmentsRequest request =
-                                        ListPluginAttachmentsRequest.builder()
-                                                .gatewayId(gateway.getGatewayId())
-                                                .attachResourceId(routeId)
-                                                .attachResourceType("GatewayRoute")
-                                                .pageNumber(1)
-                                                .pageSize(100)
-                                                .build();
-
-                                return c.listPluginAttachments(request);
-                            });
-
-            ListPluginAttachmentsResponse response = f.join();
-            if (response.getStatusCode() != 200) {
-                throw new BusinessException(
-                        ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
-            }
-
-            for (ListPluginAttachmentsResponseBody.Items item :
-                    response.getBody().getData().getItems()) {
-                PluginClassInfo classInfo = item.getPluginClassInfo();
-
-                if (!StrUtil.equalsIgnoreCase(classInfo.getName(), "mcp-server")) {
-                    continue;
-                }
-
-                String pluginConfig = item.getPluginConfig();
-                if (StrUtil.isNotBlank(pluginConfig)) {
-                    return Base64.decodeStr(pluginConfig);
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error fetching Plugin Attachment", e);
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR,
-                    "Error fetching Plugin Attachment，Cause：" + e.getMessage());
-        }
-        return null;
-    }
-
     @Override
     public ConsumerAuthConfig authorizeConsumer(
             Gateway gateway, String consumerId, Object refConfig) {
@@ -345,7 +331,7 @@ public class AIGWOperator extends APIGOperator {
         }
 
         try {
-            // 确认Gateway的EnvId
+            // Confirm the gateway environment ID
             String envId = fetchGatewayEnv(gateway);
 
             CreateConsumerAuthorizationRulesRequest.AuthorizationRules rule =
@@ -383,6 +369,8 @@ public class AIGWOperator extends APIGOperator {
                                     response.getBody().getData().getConsumerAuthorizationRuleIds())
                             .build();
             return ConsumerAuthConfig.builder().apigAuthConfig(apigAuthConfig).build();
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             Throwable cause = e.getCause();
             if (cause instanceof PopClientException

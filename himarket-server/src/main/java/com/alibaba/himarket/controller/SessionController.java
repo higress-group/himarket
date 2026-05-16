@@ -27,6 +27,8 @@ import com.alibaba.himarket.dto.result.chat.ConversationResult_V1;
 import com.alibaba.himarket.dto.result.chat.ProductConversationResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.service.ChatSessionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
@@ -36,6 +38,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "Chat Session Management", description = "Chat session CRUD APIs")
 @RestController
 @RequestMapping("/sessions")
 @RequiredArgsConstructor
@@ -46,32 +49,38 @@ public class SessionController {
 
     private final ChatSessionService sessionService;
 
+    @Operation(summary = "Create chat session")
     @PostMapping
     public ChatSessionResult createSession(@Valid @RequestBody CreateChatSessionParam param) {
         return sessionService.createSession(param);
     }
 
+    @Operation(summary = "List chat sessions")
     @GetMapping
     public PageResult<ChatSessionResult> listSessions(Pageable pageable) {
         return sessionService.listSessions(pageable);
     }
 
+    @Operation(summary = "Update chat session")
     @PatchMapping("/{sessionId}")
     public ChatSessionResult updateSession(
             @PathVariable String sessionId, @Valid @RequestBody UpdateChatSessionParam param) {
         return sessionService.updateSession(sessionId, param);
     }
 
+    @Operation(summary = "Delete chat session")
     @DeleteMapping("/{sessionId}")
     public void deleteSession(@PathVariable String sessionId) {
         sessionService.deleteSession(sessionId);
     }
 
+    @Operation(summary = "List session conversations")
     @GetMapping("/{sessionId}/conversations")
     public List<ConversationResult_V1> listConversations(@PathVariable @NotBlank String sessionId) {
         return sessionService.listConversations(sessionId);
     }
 
+    @Operation(summary = "List session conversations by product")
     @GetMapping("/{sessionId}/conversations/v2")
     public List<ProductConversationResult> listConversationsByProduct(
             @PathVariable @NotBlank String sessionId) {

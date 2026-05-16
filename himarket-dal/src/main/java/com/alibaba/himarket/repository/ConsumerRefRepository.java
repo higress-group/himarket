@@ -22,9 +22,7 @@ package com.alibaba.himarket.repository;
 import com.alibaba.himarket.entity.ConsumerRef;
 import com.alibaba.himarket.support.enums.GatewayType;
 import java.util.List;
-import org.springframework.stereotype.Repository;
 
-@Repository
 public interface ConsumerRefRepository extends BaseRepository<ConsumerRef, Long> {
 
     /**

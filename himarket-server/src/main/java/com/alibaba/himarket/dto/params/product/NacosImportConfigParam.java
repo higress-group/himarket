@@ -19,16 +19,20 @@
 
 package com.alibaba.himarket.dto.params.product;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
+@Schema(description = "Nacos import configuration")
 public class NacosImportConfigParam extends ProductImportSourceConfigParam {
 
+    @Schema(description = "Imported Nacos instance ID in HiMarket", example = "nacos-xxx")
     @NotBlank(message = "Nacos instance ID is required")
     private String instanceId;
 
+    @Schema(description = "Nacos namespace. Defaults to public when omitted.", example = "public")
     private String namespace;
 }

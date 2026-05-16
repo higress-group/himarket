@@ -42,6 +42,18 @@ export function ModelApiConfigPanel({
       value: index,
     };
   });
+  const selectedModelDomain = modelDomainOptions[selectedDomainIndex];
+
+  const handleCopySelectedDomain = async () => {
+    if (!selectedModelDomain?.label) return;
+
+    try {
+      await copyToClipboard(selectedModelDomain.label);
+      message.success('域名已复制到剪贴板');
+    } catch {
+      message.error('复制失败');
+    }
+  };
 
   const getMatchTypePrefix = (matchType: string) => {
     switch (matchType) {
@@ -185,7 +197,28 @@ export function ModelApiConfigPanel({
                     <Select
                       bordered={false}
                       className="w-full"
+                      labelRender={() => (
+                        <div className="inline-flex max-w-full items-center gap-1.5">
+                          <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                            {selectedModelDomain?.label || '选择域名'}
+                          </span>
+                          <Button
+                            aria-label="复制域名"
+                            disabled={!selectedModelDomain?.label}
+                            icon={<CopyOutlined />}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleCopySelectedDomain();
+                            }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            size="small"
+                            title="复制域名"
+                            type="text"
+                          />
+                        </div>
+                      )}
                       onChange={onDomainChange}
+                      optionLabelProp="label"
                       placeholder="选择域名"
                       size="middle"
                       style={{
@@ -195,7 +228,7 @@ export function ModelApiConfigPanel({
                       value={selectedDomainIndex}
                     >
                       {modelDomainOptions.map((option) => (
-                        <Select.Option key={option.value} value={option.value}>
+                        <Select.Option key={option.value} label={option.label} value={option.value}>
                           <span className="text-xs text-gray-900 font-mono">{option.label}</span>
                         </Select.Option>
                       ))}

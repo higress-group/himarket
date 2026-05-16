@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "SLS可观测", description = "提供基于日志的可观测大盘查询能力、计量、日志检索")
+@Tag(name = "SLS Observability", description = "SLS-backed observability metric and log query APIs")
 @RestController
 @RequestMapping("/sls")
 @Slf4j
@@ -53,11 +53,13 @@ public class SlsController {
 
     private final SlsConfig slsConfig;
 
+    @Operation(
+            summary = "Aggregate log metrics",
+            description = "Execute a preset observability query against SLS")
     @PostMapping("/statistics")
-    @Operation(summary = "日志转指标聚合查询")
     public ScenarioQueryResponse slsScenarioQuery(
             @RequestBody @Validated GenericSlsQueryRequest request) {
-        // SLS未配置时优雅降级,避免大量错误日志
+        // Gracefully degrade when SLS is not configured to avoid noisy error logs.
         if (!slsConfig.isConfigured()) {
             log.debug(
                     "SLS endpoint not configured, returning empty result for scenario: {}",
@@ -72,7 +74,7 @@ public class SlsController {
                     request.getScenario());
             return buildEmptyResponse(request.getScenario());
         }
-        // 应用预置SQL
+        // Apply preset SQL.
         request.setSql(preset.getSql());
         GenericSlsQueryResponse response = slsLogService.executeQuery(request);
         Integer interval = request.getInterval() != null ? request.getInterval() : 60;
@@ -123,7 +125,7 @@ public class SlsController {
         }
     }
 
-    /** 构建空响应(用于SLS未配置或查询失败场景的优雅降级) */
+    /** Builds an empty response for graceful degradation when SLS is unavailable. */
     private ScenarioQueryResponse buildEmptyResponse(String scenario) {
         SlsPresetSqlRegistry.Preset preset = presetRegistry.getPreset(scenario);
         if (preset == null) {

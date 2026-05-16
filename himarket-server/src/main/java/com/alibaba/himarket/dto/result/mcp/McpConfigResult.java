@@ -23,6 +23,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.entity.ApiDefinition;
+import com.alibaba.himarket.support.api.meta.ApiDefinitionMeta;
 import com.alibaba.himarket.support.api.spec.HttpConnection;
 import com.alibaba.himarket.support.api.spec.McpServerSpec;
 import com.alibaba.himarket.support.api.spec.SseConnection;
@@ -38,7 +39,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Data
@@ -108,6 +112,9 @@ public class McpConfigResult {
     }
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class McpMetadata {
 
         /**
@@ -126,6 +133,33 @@ public class McpConfigResult {
          * Kept for backward compatibility of serialized JSON.
          */
         @Deprecated private String protocol;
+
+        /**
+         * Original source metadata, e.g. external marketplace provider and repository.
+         */
+        private McpOriginMetadata origin;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class McpOriginMetadata {
+
+        /**
+         * Original source type, e.g. EXTERNAL.
+         */
+        private String type;
+
+        /**
+         * Original provider, e.g. LOBEHUB.
+         */
+        private String provider;
+
+        /**
+         * Original repository URL.
+         */
+        private String repo;
     }
 
     @Data
@@ -199,12 +233,29 @@ public class McpConfigResult {
 
         result.setFromType(spec.getFromType());
         result.setProtocol(spec.getProtocol());
-
-        McpMetadata meta = new McpMetadata();
-        meta.setSource("API_DEFINITION");
-        result.setMeta(meta);
+        result.setMeta(
+                McpMetadata.builder()
+                        .source("API_DEFINITION")
+                        .origin(buildOriginMetadata(definition))
+                        .build());
 
         return result;
+    }
+
+    private static McpOriginMetadata buildOriginMetadata(ApiDefinition definition) {
+        return Optional.ofNullable(definition.getMeta())
+                .map(ApiDefinitionMeta::getSource)
+                .map(
+                        source ->
+                                McpOriginMetadata.builder()
+                                        .type(
+                                                source.getType() == null
+                                                        ? null
+                                                        : source.getType().name())
+                                        .provider(source.getProvider())
+                                        .repo(source.getRepo())
+                                        .build())
+                .orElse(null);
     }
 
     private static void parseUrlToServerConfig(String url, McpServerConfig serverConfig) {

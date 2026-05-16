@@ -94,6 +94,18 @@ function AgentDetail() {
       value: index,
     };
   });
+  const selectedAgentDomain = agentDomainOptions[selectedAgentDomainIndex];
+
+  const handleCopySelectedAgentDomain = async () => {
+    if (!selectedAgentDomain?.label) return;
+
+    try {
+      await copyToClipboard(selectedAgentDomain.label);
+      message.success('域名已复制到剪贴板', 1);
+    } catch {
+      message.error('复制失败，请手动复制');
+    }
+  };
 
   // Helper functions for route display - moved to component level
   const getMatchTypePrefix = (matchType: string) => {
@@ -391,14 +403,39 @@ function AgentDetail() {
                             <div className="flex-1">
                               <Select
                                 className="w-full"
+                                labelRender={() => (
+                                  <div className="inline-flex max-w-full items-center gap-1.5">
+                                    <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                                      {selectedAgentDomain?.label || '选择域名'}
+                                    </span>
+                                    <Button
+                                      aria-label="复制域名"
+                                      disabled={!selectedAgentDomain?.label}
+                                      icon={<CopyOutlined />}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleCopySelectedAgentDomain();
+                                      }}
+                                      onMouseDown={(event) => event.stopPropagation()}
+                                      size="small"
+                                      title="复制域名"
+                                      type="text"
+                                    />
+                                  </div>
+                                )}
                                 onChange={setSelectedAgentDomainIndex}
+                                optionLabelProp="label"
                                 placeholder="选择域名"
                                 size="middle"
                                 value={selectedAgentDomainIndex}
                                 variant="borderless"
                               >
                                 {agentDomainOptions.map((option) => (
-                                  <Select.Option key={option.value} value={option.value}>
+                                  <Select.Option
+                                    key={option.value}
+                                    label={option.label}
+                                    value={option.value}
+                                  >
                                     <span className="font-mono text-sm text-gray-900">
                                       {option.label}
                                     </span>
@@ -571,9 +608,7 @@ function AgentDetail() {
   const rightContent = (
     <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
       <div className="mb-4 flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
-          Agent 调试
-        </span>
+        <span className="text-xs font-medium text-gray-500">Agent Chat</span>
       </div>
 
       {/* 功能介绍卡片 */}

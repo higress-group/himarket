@@ -1,24 +1,43 @@
 import { ApiOutlined, CopyOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
-import { Tabs, Space, Button, message } from 'antd';
+import { Tabs, Button, message } from 'antd';
 import * as yaml from 'js-yaml';
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { EmptyState } from '../components/EmptyState';
 import MarkdownRender from '../components/MarkdownRender';
 import { ProductDetailLayout } from '../components/ProductDetailLayout';
-import { SwaggerUIWrapper } from '../components/SwaggerUIWrapper';
+import { RestApiDocsViewer } from '../components/RestApiDocsViewer';
 import APIs from '../lib/apis';
+import { copyToClipboard } from '../lib/utils';
 
+import type { RestApiExample } from '../components/RestApiDocsViewer';
 import type { IProductDetail } from '../lib/apis';
+
+const DEFAULT_REST_API_EXAMPLE: RestApiExample = {
+  method: 'GET',
+  path: '/{path}',
+  serverUrl: '',
+};
+
+function stripTrailingSlash(value: string): string {
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+function buildCurlCommand(example: RestApiExample): string {
+  const serverUrl = stripTrailingSlash(example.serverUrl || 'https://api.example.com');
+  return `curl -X ${example.method} \\
+  '${serverUrl}${example.path}' \\
+  -H 'Accept: application/json' \\
+  -H 'Content-Type: application/json'`;
+}
 
 function ApiDetailPage() {
   const { apiProductId } = useParams();
   const [, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [apiData, setApiData] = useState<IProductDetail>();
-  const [baseUrl, setBaseUrl] = useState<string>('');
-  const [examplePath, setExamplePath] = useState<string>('/{path}');
-  const [exampleMethod, setExampleMethod] = useState<string>('GET');
+  const [restApiExample, setRestApiExample] = useState<RestApiExample>(DEFAULT_REST_API_EXAMPLE);
   const fetchApiDetail = React.useCallback(async () => {
     setLoading(true);
     setError('');
@@ -40,10 +59,12 @@ function ApiDetailPage() {
 
             // 提取服务器URL并处理尾部斜杠
             let serverUrl = openApiDoc?.servers?.[0]?.url || '';
-            if (serverUrl && serverUrl.endsWith('/')) {
-              serverUrl = serverUrl.slice(0, -1); // 移除末尾的斜杠
-            }
-            setBaseUrl(serverUrl);
+            serverUrl = serverUrl ? stripTrailingSlash(serverUrl) : '';
+
+            const nextExample: RestApiExample = {
+              ...DEFAULT_REST_API_EXAMPLE,
+              serverUrl,
+            };
 
             // 提取第一个可用的路径和方法作为示例
             const paths = openApiDoc?.paths;
@@ -57,13 +78,14 @@ function ApiDetailPage() {
                     const methods = Object.keys(pathMethods as Record<string, unknown>);
                     if (methods.length > 0) {
                       const firstMethod = methods[0]?.toUpperCase() ?? 'GET';
-                      setExamplePath(firstPath);
-                      setExampleMethod(firstMethod);
+                      nextExample.path = firstPath;
+                      nextExample.method = firstMethod;
                     }
                   }
                 }
               }
             }
+            setRestApiExample(nextExample);
           } catch (error) {
             console.error('解析OpenAPI规范失败:', error);
           }
@@ -82,6 +104,60 @@ function ApiDetailPage() {
     fetchApiDetail();
   }, [apiProductId, fetchApiDetail]);
 
+  const handleRestApiExampleChange = React.useCallback((example: RestApiExample) => {
+    setRestApiExample((previous) => {
+      const nextExample = {
+        ...example,
+        serverUrl: stripTrailingSlash(example.serverUrl),
+      };
+      if (
+        previous.method === nextExample.method &&
+        previous.path === nextExample.path &&
+        previous.serverUrl === nextExample.serverUrl
+      ) {
+        return previous;
+      }
+      return nextExample;
+    });
+  }, []);
+
+  const handleCopyCurlCommand = async () => {
+    try {
+      await copyToClipboard(buildCurlCommand(restApiExample));
+      message.success('cURL命令已复制到剪贴板', 1);
+    } catch {
+      message.error('复制失败，请手动复制');
+    }
+  };
+
+  const handleDownloadSpec = (format: 'json' | 'yaml') => {
+    if (!apiData?.apiConfig?.spec) return;
+
+    try {
+      const content =
+        format === 'json'
+          ? JSON.stringify(yaml.load(apiData.apiConfig.spec), null, 2)
+          : apiData.apiConfig.spec;
+      const blob = new Blob([content], {
+        type: format === 'json' ? 'application/json' : 'text/yaml',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${apiData.name || 'api'}-openapi.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      message.success(`OpenAPI ${format.toUpperCase()} 文件已下载`, 1);
+    } catch (err) {
+      console.warn(err);
+      message.error(format === 'json' ? '转换JSON格式失败' : '下载OpenAPI规范失败');
+    }
+  };
+
+  const curlCommand = buildCurlCommand(restApiExample);
+
   const leftContent = apiData ? (
     <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6 pt-0">
       <Tabs
@@ -93,7 +169,7 @@ function ApiDetailPage() {
                 <MarkdownRender content={apiData.document} />
               </div>
             ) : (
-              <div className="text-gray-500 text-center py-16">暂无概览信息</div>
+              <EmptyState description="暂无概览信息" />
             ),
             key: 'overview',
             label: (
@@ -107,9 +183,12 @@ function ApiDetailPage() {
             children: (
               <div>
                 {apiData.apiConfig && apiData.apiConfig.spec ? (
-                  <SwaggerUIWrapper apiSpec={apiData.apiConfig.spec} />
+                  <RestApiDocsViewer
+                    apiSpec={apiData.apiConfig.spec}
+                    onExampleChange={handleRestApiExampleChange}
+                  />
                 ) : (
-                  <div className="text-gray-500 text-center py-16">暂无OpenAPI规范</div>
+                  <EmptyState description="暂无OpenAPI规范" />
                 )}
               </div>
             ),
@@ -129,104 +208,41 @@ function ApiDetailPage() {
 
   const rightContent = (
     <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
-      <h3 className="text-base font-semibold mb-4 text-gray-900">快速开始</h3>
-      <Tabs
-        defaultActiveKey="curl"
-        items={[
-          {
-            children: (
-              <div className="space-y-4">
-                {/* cURL示例 */}
-                <div className="relative">
-                  <pre className="bg-gray-900 text-gray-100 p-4 rounded-[10px] text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
-                    <code>{`curl -X ${exampleMethod} \\
-  '${baseUrl || 'https://api.example.com'}${examplePath}' \\
-  -H 'Accept: application/json' \\
-  -H 'Content-Type: application/json'`}</code>
-                  </pre>
-                  <Button
-                    className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                    icon={<CopyOutlined />}
-                    onClick={() => {
-                      const curlCommand = `curl -X ${exampleMethod} \\
-  '${baseUrl || 'https://api.example.com'}${examplePath}' \\
-  -H 'Accept: application/json' \\
-  -H 'Content-Type: application/json'`;
-                      navigator.clipboard.writeText(curlCommand);
-                      message.success('cURL命令已复制到剪贴板', 1);
-                    }}
-                    size="small"
-                    type="text"
-                  />
-                </div>
-              </div>
-            ),
-            key: 'curl',
-            label: 'cURL',
-          },
-          {
-            children: (
-              <div className="space-y-4">
-                <div className="text-xs text-gray-500 mb-3">
-                  下载完整的OpenAPI规范文件，用于代码生成、API测试等场景
-                </div>
-                <Space className="w-full" direction="vertical">
-                  <Button
-                    block
-                    icon={<DownloadOutlined />}
-                    onClick={() => {
-                      if (apiData?.apiConfig?.spec) {
-                        const blob = new Blob([apiData.apiConfig.spec], { type: 'text/yaml' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = `${apiData.name || 'api'}-openapi.yaml`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(url);
-                        message.success('OpenAPI规范文件下载成功', 1);
-                      }
-                    }}
-                    type="primary"
-                  >
-                    下载 YAML
-                  </Button>
-                  <Button
-                    block
-                    icon={<DownloadOutlined />}
-                    onClick={() => {
-                      if (apiData?.apiConfig?.spec) {
-                        try {
-                          const yamlDoc = yaml.load(apiData.apiConfig.spec);
-                          const jsonSpec = JSON.stringify(yamlDoc, null, 2);
-                          const blob = new Blob([jsonSpec], { type: 'application/json' });
-                          const url = URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `${apiData.name || 'api'}-openapi.json`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          URL.revokeObjectURL(url);
-                          message.success('OpenAPI规范文件下载成功', 1);
-                        } catch (err) {
-                          console.warn(err);
-                          message.error('转换JSON格式失败');
-                        }
-                      }
-                    }}
-                  >
-                    下载 JSON
-                  </Button>
-                </Space>
-              </div>
-            ),
-            key: 'download',
-            label: '下载',
-          },
-        ]}
-      />
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">调用示例</span>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={() => handleDownloadSpec('yaml')}
+            size="small"
+            title="下载 YAML"
+          >
+            YAML
+          </Button>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={() => handleDownloadSpec('json')}
+            size="small"
+            title="下载 JSON"
+          >
+            JSON
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <pre className="m-0 overflow-x-auto whitespace-pre-wrap rounded-[10px] border border-gray-700 bg-gray-900 p-4 pr-11 text-xs leading-6 text-gray-100">
+          <code>{curlCommand}</code>
+        </pre>
+        <Button
+          className="absolute right-2 top-2 text-gray-400 hover:text-white"
+          icon={<CopyOutlined />}
+          onClick={handleCopyCurlCommand}
+          size="small"
+          title="复制 cURL"
+          type="text"
+        />
+      </div>
     </div>
   );
 

@@ -31,7 +31,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "可观测统一入口", description = "根据配置自动路由到 SLS 或 DB 数据源")
+@Tag(
+        name = "Observability",
+        description = "Unified observability query API routed by configuration")
 @RestController
 @RequestMapping("/observability")
 @RequiredArgsConstructor
@@ -41,8 +43,10 @@ public class ObservabilityController {
     private final SlsController slsController;
     private final DBCollectorController dbCollectorController;
 
+    @Operation(
+            summary = "Query log metrics through the configured observability backend",
+            description = "Route the query to the configured SLS or DB Collector backend")
     @PostMapping("/statistics")
-    @Operation(summary = "统一日志指标聚合查询（自动路由 SLS / DB）")
     public ScenarioQueryResponse query(@RequestBody @Validated GenericSlsQueryRequest request) {
         if (observabilityConfig.getLogSource() == ObservabilityConfig.LogSource.SLS) {
             return slsController.slsScenarioQuery(request);

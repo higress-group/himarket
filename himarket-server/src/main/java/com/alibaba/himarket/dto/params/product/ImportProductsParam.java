@@ -5,6 +5,7 @@ import com.alibaba.himarket.support.enums.ProductImportSource;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotEmpty;
@@ -13,11 +14,20 @@ import java.util.List;
 import lombok.Data;
 
 @Data
+@Schema(description = "Product import request")
 public class ImportProductsParam {
 
+    @Schema(
+            description = "Import source",
+            example = "GATEWAY",
+            requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "Import source is required")
     private ProductImportSource source;
 
+    @Schema(
+            description = "Product type to create after import",
+            example = "MCP_SERVER",
+            requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "Product type is required")
     private ProductType productType;
 
@@ -32,8 +42,19 @@ public class ImportProductsParam {
         @JsonSubTypes.Type(value = NacosImportConfigParam.class, name = "NACOS"),
         @JsonSubTypes.Type(value = ExternalImportConfigParam.class, name = "EXTERNAL")
     })
+    @Schema(
+            description =
+                    "Import source configuration. GATEWAY and NACOS use instance configuration,"
+                            + " while EXTERNAL uses marketplace configuration.",
+            oneOf = {
+                GatewayImportConfigParam.class,
+                NacosImportConfigParam.class,
+                ExternalImportConfigParam.class
+            },
+            requiredMode = Schema.RequiredMode.REQUIRED)
     private ProductImportSourceConfigParam sourceConfig;
 
+    @Schema(description = "Resources to import", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotEmpty(message = "Import items cannot be empty")
     private List<@Valid ProductImportItemParam> items;
 

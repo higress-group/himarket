@@ -1,3 +1,5 @@
+import * as yaml from 'js-yaml';
+
 // 迁移自 portal-web/portal-frontend/src/lib/utils.ts
 export function fetcher(url: string) {
   return fetch(url).then((res) => res.json());
@@ -90,6 +92,130 @@ export const safeJSONParse = <T>(value: string, fallback: T): T => {
   } catch (error) {
     console.warn(error);
     return fallback;
+  }
+};
+
+// OpenAPI 规范解析相关类型和函数
+export interface OpenAPIEndpoint {
+  path: string;
+  method: string;
+  operationId?: string;
+  summary?: string;
+  description?: string;
+  parameters?: Array<{
+    name: string;
+    in: string;
+    description?: string;
+    required?: boolean;
+    schema?: Record<string, unknown>;
+  }>;
+  requestBody?: {
+    description?: string;
+    content?: Record<string, unknown>;
+    required?: boolean;
+  };
+  responses?: Record<
+    string,
+    {
+      description: string;
+      content?: Record<string, unknown>;
+    }
+  >;
+  tags?: string[];
+}
+
+export interface ParsedOpenAPI {
+  components?: {
+    schemas?: Record<string, Record<string, unknown>>;
+  };
+  info?: {
+    title?: string;
+    version?: string;
+    description?: string;
+  };
+  servers?: Array<{
+    url: string;
+    description?: string;
+  }>;
+  endpoints: OpenAPIEndpoint[];
+}
+
+interface LooseOpenAPIOperation {
+  description?: string;
+  operationId?: string;
+  parameters?: OpenAPIEndpoint['parameters'];
+  requestBody?: OpenAPIEndpoint['requestBody'];
+  responses?: OpenAPIEndpoint['responses'];
+  summary?: string;
+  tags?: string[];
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+export const parseOpenAPISpec = (spec: string): ParsedOpenAPI | null => {
+  try {
+    let openApiDoc: unknown;
+
+    try {
+      openApiDoc = yaml.load(spec);
+    } catch {
+      openApiDoc = JSON.parse(spec);
+    }
+
+    if (!openApiDoc || typeof openApiDoc !== 'object' || !('paths' in openApiDoc)) {
+      return null;
+    }
+
+    const doc = openApiDoc as Record<string, unknown>;
+    const paths = isPlainRecord(doc.paths)
+      ? (doc.paths as Record<string, Record<string, unknown>>)
+      : undefined;
+    const components = isPlainRecord(doc.components) ? doc.components : undefined;
+    const schemas =
+      components && isPlainRecord(components.schemas)
+        ? (components.schemas as Record<string, Record<string, unknown>>)
+        : undefined;
+
+    if (!paths) {
+      return null;
+    }
+
+    const endpoints: OpenAPIEndpoint[] = [];
+    const methods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace'];
+
+    Object.entries(paths).forEach(([path, pathItem]) => {
+      if (!isPlainRecord(pathItem)) return;
+
+      methods.forEach((method) => {
+        const raw = pathItem[method];
+        if (!isPlainRecord(raw)) return;
+
+        const operation = raw as LooseOpenAPIOperation;
+        endpoints.push({
+          description: operation.description,
+          method: method.toUpperCase(),
+          operationId: operation.operationId,
+          parameters: operation.parameters,
+          path,
+          requestBody: operation.requestBody,
+          responses: operation.responses,
+          summary: operation.summary,
+          tags: operation.tags,
+        });
+      });
+    });
+
+    return {
+      components: schemas ? { schemas } : undefined,
+      endpoints,
+      info: isPlainRecord(doc.info) ? (doc.info as ParsedOpenAPI['info']) : undefined,
+      servers: Array.isArray(doc.servers) ? (doc.servers as ParsedOpenAPI['servers']) : undefined,
+    };
+  } catch (error) {
+    console.error('OpenAPI规范解析失败:', error);
+    return null;
   }
 };
 

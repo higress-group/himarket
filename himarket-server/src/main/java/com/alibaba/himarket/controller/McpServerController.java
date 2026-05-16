@@ -41,7 +41,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "MCP Server 管理")
+@Tag(
+        name = "MCP Server Management",
+        description = "MCP metadata, endpoint, tool, sandbox deployment, and registration APIs")
 @RestController
 @RequestMapping("/mcp-servers")
 @RequiredArgsConstructor
@@ -50,53 +52,53 @@ public class McpServerController {
     private final McpServerService mcpServerService;
     private final ContextHolder contextHolder;
 
-    // ==================== 管理接口（需要 Admin 权限） ====================
+    // ==================== Management APIs (Admin required) ====================
 
-    @Operation(summary = "保存 MCP 元信息（创建/更新）")
+    @Operation(summary = "Save MCP metadata")
     @PostMapping("/meta")
     @AdminAuth
     public McpMetaResult saveMeta(@RequestBody @Valid SaveMcpMetaParam param) {
         return mcpServerService.saveMeta(param);
     }
 
-    @Operation(summary = "删除 MCP 元信息及关联 endpoint")
+    @Operation(summary = "Delete MCP metadata and endpoints")
     @DeleteMapping("/meta/{mcpServerId}")
     @AdminAuth
     public void deleteMeta(@PathVariable String mcpServerId) {
         mcpServerService.deleteMeta(mcpServerId);
     }
 
-    @Operation(summary = "删除产品下所有 MCP 配置（meta + endpoint + ref + 重置状态）")
+    @Operation(summary = "Delete all MCP configuration for a product")
     @DeleteMapping("/meta/by-product/{productId}")
     @AdminAuth
     public void deleteMetaByProduct(@PathVariable String productId) {
         mcpServerService.deleteMetaByProduct(productId);
     }
 
-    @Operation(summary = "保存 endpoint")
+    @Operation(summary = "Save MCP endpoint")
     @PostMapping("/endpoints")
     @AdminAuth
     public McpEndpointResult saveEndpoint(@RequestBody @Valid SaveMcpEndpointParam param) {
         return mcpServerService.saveEndpoint(param);
     }
 
-    @Operation(summary = "删除 endpoint")
+    @Operation(summary = "Delete MCP endpoint")
     @DeleteMapping("/endpoints/{endpointId}")
     @AdminAuth
     public void deleteEndpoint(@PathVariable String endpointId) {
         mcpServerService.deleteEndpoint(endpointId);
     }
 
-    // ==================== 查询接口（Portal 可访问） ====================
+    // ==================== Query APIs (Portal accessible) ====================
 
-    @Operation(summary = "获取 MCP 元信息")
+    @Operation(summary = "Get MCP metadata")
     @GetMapping("/meta/{mcpServerId}")
     public McpMetaResult getMeta(@PathVariable String mcpServerId) {
         McpMetaResult result = mcpServerService.getMeta(mcpServerId);
         return contextHolder.isAdministrator() ? result : result.sanitize();
     }
 
-    @Operation(summary = "获取产品下所有 MCP 元信息")
+    @Operation(summary = "List MCP metadata for product")
     @GetMapping("/meta")
     public List<McpMetaResult> listMetaByProduct(@RequestParam String productId) {
         List<McpMetaResult> results = mcpServerService.listMetaByProduct(productId);
@@ -106,7 +108,7 @@ public class McpServerController {
         return results;
     }
 
-    @Operation(summary = "批量获取多个产品的 MCP 元信息（含公共 endpoint 热数据）")
+    @Operation(summary = "Batch get MCP metadata for products")
     @GetMapping("/meta/batch")
     public List<McpMetaResult> listMetaByProductIds(@RequestParam List<String> productIds) {
         List<McpMetaResult> results = mcpServerService.listMetaByProductIds(productIds);
@@ -116,7 +118,7 @@ public class McpServerController {
         return results;
     }
 
-    @Operation(summary = "批量获取多个产品的 MCP 公开信息（匿名可访问，脱敏）")
+    @Operation(summary = "Batch get public MCP metadata for products")
     @GetMapping("/meta/batch/public")
     @PublicAccess
     public List<McpMetaPublicResult> listMetaByProductIdsPublic(
@@ -126,14 +128,16 @@ public class McpServerController {
                 .collect(java.util.stream.Collectors.toList());
     }
 
-    @Operation(summary = "刷新工具列表（连接 endpoint 获取 tools/list）")
+    @Operation(
+            summary = "Refresh MCP tool list",
+            description = "Synchronize tool metadata from the configured MCP connection")
     @PostMapping("/meta/{mcpServerId}/refresh-tools")
     @AdminAuth
     public McpMetaResult refreshTools(@PathVariable String mcpServerId) {
         return mcpServerService.refreshTools(mcpServerId);
     }
 
-    @Operation(summary = "更新服务介绍")
+    @Operation(summary = "Update service introduction")
     @PutMapping("/meta/{mcpServerId}/service-intro")
     @AdminAuth
     public McpMetaResult updateServiceIntro(
@@ -141,7 +145,9 @@ public class McpServerController {
         return mcpServerService.updateServiceIntro(mcpServerId, body.getServiceIntro());
     }
 
-    @Operation(summary = "更新工具配置（手动编辑）")
+    @Operation(
+            summary = "Update tool configuration",
+            description = "Replace the tool configuration JSON for the MCP server")
     @PutMapping("/meta/{mcpServerId}/tools-config")
     @AdminAuth
     public McpMetaResult updateToolsConfig(
@@ -149,7 +155,9 @@ public class McpServerController {
         return mcpServerService.updateToolsConfig(mcpServerId, toolsConfig);
     }
 
-    @Operation(summary = "管理员手动部署沙箱（为已保存的 MCP 配置部署沙箱 endpoint）")
+    @Operation(
+            summary = "Deploy MCP sandbox endpoint",
+            description = "Create or update a sandbox deployment endpoint for the MCP server")
     @PostMapping("/meta/{mcpServerId}/deploy-sandbox")
     @AdminAuth
     public McpMetaResult deploySandbox(
@@ -157,21 +165,23 @@ public class McpServerController {
         return mcpServerService.deploySandbox(mcpServerId, body.toSaveMcpMetaParam());
     }
 
-    @Operation(summary = "管理员取消沙箱托管（删除沙箱 CRD 和 endpoint）")
+    @Operation(
+            summary = "Undeploy MCP sandbox endpoint",
+            description = "Remove the active sandbox deployment endpoint for the MCP server")
     @DeleteMapping("/meta/{mcpServerId}/deploy-sandbox")
     @AdminAuth
     public McpMetaResult undeploySandbox(@PathVariable String mcpServerId) {
         return mcpServerService.undeploySandbox(mcpServerId);
     }
 
-    @Operation(summary = "获取 MCP Server 的所有 endpoint")
+    @Operation(summary = "List MCP server endpoints")
     @GetMapping("/endpoints")
     @AdminAuth
     public List<McpEndpointResult> listEndpoints(@RequestParam String mcpServerId) {
         return mcpServerService.listEndpoints(mcpServerId);
     }
 
-    @Operation(summary = "市场列表：已发布且公开的 MCP Server")
+    @Operation(summary = "List public MCP servers")
     @GetMapping("/published")
     public PageResult<McpMetaResult> listPublished(Pageable pageable) {
         PageResult<McpMetaResult> page = mcpServerService.listPublishedMcpServers(pageable);
@@ -181,13 +191,16 @@ public class McpServerController {
         return page;
     }
 
-    @Operation(summary = "我的 MCP：查询当前用户拥有的所有 endpoint")
+    @Operation(summary = "List my MCP endpoints")
     @GetMapping("/my-endpoints")
     public List<MyEndpointResult> listMyEndpoints() {
         return mcpServerService.listMyEndpoints();
     }
 
-    @Operation(summary = "用户注册 MCP Server（Portal 端，登录用户即可调用）")
+    @Operation(
+            summary = "Register MCP server",
+            description =
+                    "Register MCP metadata and return a sanitized response for non-admin users")
     @PostMapping("/register")
     public McpMetaResult register(@RequestBody @Valid RegisterMcpParam param) {
         McpMetaResult result = mcpServerService.registerMcp(param);

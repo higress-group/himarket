@@ -35,7 +35,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "管理员管理", description = "管理员初始化、登录、修改密码等相关接口")
+@Tag(
+        name = "Administrator Management",
+        description = "Administrator initialization, login, logout, and password management APIs")
 @RestController
 @RequestMapping("/admins")
 @RequiredArgsConstructor
@@ -44,39 +46,49 @@ public class AdministratorController {
 
     private final AdministratorService administratorService;
 
-    @Operation(summary = "管理员登录", description = "管理员登录，只需用户名和密码")
+    @Operation(
+            summary = "Log in as administrator",
+            description = "Log in with username and password")
     @PostMapping("/login")
     public AuthResult login(@Valid @RequestBody LoginParam param) {
         return administratorService.login(param.getUsername(), param.getPassword());
     }
 
-    @Operation(summary = "管理员登出", description = "管理员登出，将当前token加入黑名单")
+    @Operation(summary = "Log out administrator", description = "Revoke the current token")
     @PostMapping("/logout")
     @AdminAuth
     public void logout(HttpServletRequest request) {
         TokenUtil.revokeToken(request);
     }
 
-    @Operation(summary = "检查是否需要初始化管理员", description = "检查系统是否需要初始化管理员")
+    @Operation(
+            summary = "Check whether administrator initialization is required",
+            description = "Returns whether the system needs the initial administrator account")
     @GetMapping("/need-init")
     public Boolean needInit() {
         return administratorService.needInit();
     }
 
-    @Operation(summary = "初始化管理员", description = "仅允许首次调用，前端需传username和password")
+    @Operation(
+            summary = "Initialize administrator",
+            description = "Creates the first administrator account with username and password")
     @PostMapping("/init")
     public AdminResult initAdmin(@Valid @RequestBody CreateAdministratorParam param) {
         return administratorService.initAdmin(param.getUsername(), param.getPassword());
     }
 
-    @Operation(summary = "管理员修改密码", description = "修改当前登录管理员的密码")
+    @Operation(
+            summary = "Change administrator password",
+            description = "Change the password of the current administrator")
     @PatchMapping("/password")
     @AdminAuth
     public void resetPassword(@RequestBody ResetPasswordParam param) {
         administratorService.resetPassword(param.getOldPassword(), param.getNewPassword());
     }
 
-    @Operation(summary = "获取当前登录管理员信息", description = "根据token自动获取当前登录管理员的详细信息")
+    @Operation(
+            summary = "Get current administrator",
+            description = "Get administrator details from the current token")
     @GetMapping
     @AdminAuth
     public AdminResult getAdministrator() {

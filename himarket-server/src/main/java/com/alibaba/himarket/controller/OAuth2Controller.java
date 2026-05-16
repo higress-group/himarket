@@ -21,19 +21,25 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.service.OAuth2Service;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(name = "Developer OAuth2 Authentication", description = "Developer OAuth2 token API")
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/developers/oauth2")
+@RequiredArgsConstructor
 public class OAuth2Controller {
 
     private final OAuth2Service oAuth2Service;
 
+    @Operation(
+            summary = "Get OAuth2 token",
+            description = "Exchange an OAuth2 assertion for a developer access token")
     @PostMapping("/token")
     public AuthResult authenticate(
             @RequestParam("grant_type") String grantType,

@@ -40,44 +40,46 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(
+        name = "Portal Management",
+        description = "Developer portal configuration and publication APIs")
 @RestController
 @RequestMapping("/portals")
 @Slf4j
 @Validated
-@Tag(name = "门户管理")
 @RequiredArgsConstructor
 public class PortalController {
 
     private final PortalService portalService;
 
-    @Operation(summary = "创建门户")
+    @Operation(summary = "Create portal")
     @PostMapping
     @AdminAuth
     public PortalResult createPortal(@Valid @RequestBody CreatePortalParam param) {
         return portalService.createPortal(param);
     }
 
-    @Operation(summary = "获取门户详情")
+    @Operation(summary = "Get portal")
     @GetMapping("/{portalId}")
     public PortalResult getPortal(@PathVariable String portalId) {
         return portalService.getPortal(portalId);
     }
 
-    @Operation(summary = "获取当前门户信息")
+    @Operation(summary = "Get current portal profile")
     @GetMapping("/profile")
     @PublicAccess
     public PortalProfileResult getPortalProfile() {
         return portalService.getPortalProfile();
     }
 
-    @Operation(summary = "获取门户列表")
+    @Operation(summary = "List portals")
     @GetMapping
     @AdminAuth
     public PageResult<PortalResult> listPortals(Pageable pageable) {
         return portalService.listPortals(pageable);
     }
 
-    @Operation(summary = "更新门户信息")
+    @Operation(summary = "Update portal")
     @PutMapping("/{portalId}")
     @AdminAuth
     public PortalResult updatePortal(
@@ -85,14 +87,14 @@ public class PortalController {
         return portalService.updatePortal(portalId, param);
     }
 
-    @Operation(summary = "删除门户")
+    @Operation(summary = "Delete portal")
     @DeleteMapping("/{portalId}")
     @AdminAuth
     public void deletePortal(@PathVariable String portalId) {
         portalService.deletePortal(portalId);
     }
 
-    @Operation(summary = "绑定域名")
+    @Operation(summary = "Bind portal domain")
     @PostMapping("/{portalId}/domains")
     @AdminAuth
     public PortalResult bindDomain(
@@ -100,14 +102,14 @@ public class PortalController {
         return portalService.bindDomain(portalId, param);
     }
 
-    @Operation(summary = "解绑域名")
+    @Operation(summary = "Unbind portal domain")
     @DeleteMapping("/{portalId}/domains/{domain}")
     @AdminAuth
     public PortalResult unbindDomain(@PathVariable String portalId, @PathVariable String domain) {
         return portalService.unbindDomain(portalId, domain);
     }
 
-    @Operation(summary = "获取门户已发布的产品列表")
+    @Operation(summary = "List portal product publications")
     @GetMapping("/{portalId}/publications")
     @AdminAuth
     public PageResult<ProductPublicationResult> getPortalPublications(
@@ -115,7 +117,7 @@ public class PortalController {
         return portalService.getPublications(portalId, pageable);
     }
 
-    @Operation(summary = "获取门户上的API产品订阅列表")
+    @Operation(summary = "List portal product subscriptions")
     @GetMapping("/{portalId}/subscriptions")
     @AdminAuth
     public PageResult<SubscriptionResult> listSubscriptions(

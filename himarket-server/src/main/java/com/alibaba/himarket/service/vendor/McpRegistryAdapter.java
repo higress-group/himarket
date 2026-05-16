@@ -54,6 +54,7 @@ public class McpRegistryAdapter implements McpVendorAdapter {
 
     private static final String BASE_URL = "https://registry.modelcontextprotocol.io/v0.1/servers";
     private static final String META_KEY = "io.modelcontextprotocol.registry/official";
+    private static final String LATEST_VERSION = "latest";
 
     private final OkHttpClient httpClient;
 
@@ -217,12 +218,7 @@ public class McpRegistryAdapter implements McpVendorAdapter {
     }
 
     private ObjectNode fetchServer(String resourceId) throws IOException {
-        HttpUrl detailUrl =
-                Objects.requireNonNull(HttpUrl.parse(BASE_URL))
-                        .newBuilder()
-                        .addPathSegment(resourceId)
-                        .addQueryParameter("version", "latest")
-                        .build();
+        HttpUrl detailUrl = buildDetailUrl(resourceId);
         Request request = new Request.Builder().url(detailUrl).get().build();
 
         try (Response response = httpClient.newCall(request).execute()) {
@@ -249,6 +245,15 @@ public class McpRegistryAdapter implements McpVendorAdapter {
                     ? (ObjectNode) json.get("server")
                     : json;
         }
+    }
+
+    static HttpUrl buildDetailUrl(String resourceId) {
+        return Objects.requireNonNull(HttpUrl.parse(BASE_URL))
+                .newBuilder()
+                .addPathSegment(resourceId)
+                .addPathSegment("versions")
+                .addPathSegment(LATEST_VERSION)
+                .build();
     }
 
     private RemoteMcpItem convertToRemoteMcpItem(ObjectNode server) {

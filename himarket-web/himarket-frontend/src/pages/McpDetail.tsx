@@ -247,9 +247,21 @@ function McpDetail() {
   const domainOptions = useMemo(() => {
     return getDomainOptions(mcpConfig?.mcpServerConfig?.domains || []);
   }, [mcpConfig?.mcpServerConfig?.domains]);
+  const selectedDomainOption = domainOptions[selectedDomainIndex];
 
   const { description, name } = data || {};
   const hasLocalConfig = Boolean(mcpConfig?.mcpServerConfig.rawConfig);
+
+  const handleCopySelectedDomain = async () => {
+    if (!selectedDomainOption?.label) return;
+
+    try {
+      await copyToClipboard(selectedDomainOption.label);
+      message.success('域名已复制到剪贴板');
+    } catch {
+      message.error('复制失败，请手动复制');
+    }
+  };
 
   const leftContent = data ? (
     <div className="rounded-xl border border-white/40 bg-white/60 p-6 backdrop-blur-sm">
@@ -361,17 +373,6 @@ function McpDetail() {
             <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
               连接点配置
             </span>
-            <CopyOutlined
-              className="cursor-pointer text-xs text-gray-400 hover:text-gray-600"
-              onClick={() => {
-                const selectedOption = domainOptions[selectedDomainIndex];
-                if (selectedOption) {
-                  copyToClipboard(selectedOption.label).then(() => {
-                    message.success('域名已复制');
-                  });
-                }
-              }}
-            />
           </div>
 
           {/* 域名选择器 */}
@@ -384,7 +385,28 @@ function McpDetail() {
                 <div className="min-w-0 flex-1">
                   <Select
                     className="w-full"
+                    labelRender={() => (
+                      <div className="inline-flex max-w-full items-center gap-1.5">
+                        <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                          {selectedDomainOption?.label || '选择域名'}
+                        </span>
+                        <Button
+                          aria-label="复制域名"
+                          disabled={!selectedDomainOption?.label}
+                          icon={<CopyOutlined />}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleCopySelectedDomain();
+                          }}
+                          onMouseDown={(event) => event.stopPropagation()}
+                          size="small"
+                          title="复制域名"
+                          type="text"
+                        />
+                      </div>
+                    )}
                     onChange={setSelectedDomainIndex}
+                    optionLabelProp="label"
                     placeholder="选择域名"
                     size="middle"
                     style={{
@@ -395,7 +417,7 @@ function McpDetail() {
                     variant="borderless"
                   >
                     {domainOptions.map((option) => (
-                      <Select.Option key={option.value} value={option.value}>
+                      <Select.Option key={option.value} label={option.label} value={option.value}>
                         <Tooltip
                           classNames={{ root: 'bg-white' }}
                           title={<span className="bg-white text-gray-900">{option.label}</span>}

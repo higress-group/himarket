@@ -33,7 +33,7 @@ import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.entity.ApiDefinition;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.entity.ProductRef;
-import com.alibaba.himarket.repository.APIDefinitionRepository;
+import com.alibaba.himarket.repository.ApiDefinitionRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.ApiDefinitionService;
@@ -59,7 +59,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ApiDefinitionServiceImpl implements ApiDefinitionService {
 
-    private final APIDefinitionRepository apiDefinitionRepository;
+    private final ApiDefinitionRepository apiDefinitionRepository;
 
     private final ProductRepository productRepository;
 

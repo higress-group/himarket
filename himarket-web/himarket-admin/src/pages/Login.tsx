@@ -4,7 +4,12 @@ import { useNavigate } from 'react-router-dom';
 
 import { authApi } from '@/lib/api';
 
+import { AdminBrandMark } from '../components/AdminBrand';
 import api from '../lib/api';
+
+const inputClassName = 'h-[42px] rounded-lg text-sm';
+const buttonClassName = 'h-[42px] w-full rounded-lg text-sm font-medium active:scale-[0.985]';
+const formClassName = '[&_.ant-form-item]:mb-0 [&_.ant-form-item-label]:pb-1.5';
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -74,95 +79,125 @@ const Login: React.FC = () => {
     }
   };
 
+  const pageTitle = isRegister ? '初始化管理员账号' : '登录管理后台';
+  const pageCaption = isRegister ? '首次使用请创建管理员账号。' : '使用管理员账号继续~';
+
   return (
-    <div className="flex min-h-screen">
-      {/* 左侧品牌区域 - 移动端隐藏 */}
-      <div
-        className="hidden md:flex w-1/2 items-center justify-center relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #818CF8 100%)' }}
-      >
-        {/* 装饰性背景元素 */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-32 h-32 rounded-full bg-white" />
-          <div className="absolute bottom-32 right-16 w-48 h-48 rounded-full bg-white" />
-          <div className="absolute top-1/2 left-1/3 w-24 h-24 rounded-full bg-white" />
+    <main
+      className="flex min-h-[100dvh] items-center justify-center px-6 py-10"
+      style={{
+        background:
+          'radial-gradient(circle at 50% -18%, rgba(99, 102, 241, 0.18) 0, rgba(99, 102, 241, 0) 38%), radial-gradient(circle at 92% 84%, rgba(199, 210, 254, 0.38) 0, rgba(199, 210, 254, 0) 28%), linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%)',
+      }}
+    >
+      <section className="w-full max-w-[460px] rounded-[10px] border border-white/80 bg-white/[0.94] px-8 py-9 shadow-[0_24px_70px_-38px_rgba(79,70,229,0.45)] backdrop-blur-sm sm:px-9">
+        <div className="mb-10">
+          <AdminBrandMark />
         </div>
-        <div className="text-center text-white relative z-10">
-          <img alt="Logo" className="w-20 h-20 mx-auto mb-6 drop-shadow-lg" src="/logo.png" />
-          <h1 className="text-3xl font-bold mb-3">HiMarket</h1>
-          <p className="text-lg opacity-80">企业级 AI 开放平台管理后台</p>
+
+        <div className="mb-7">
+          <h1 className="m-0 text-[25px] font-semibold leading-snug tracking-normal text-[#18181b]">
+            {pageTitle}
+          </h1>
+          <p className="mt-2 text-[13px] leading-6 text-gray-500">{pageCaption}</p>
         </div>
-      </div>
 
-      {/* 右侧表单区域 */}
-      <div className="w-full md:w-1/2 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white md:bg-white">
-        <div className="w-full max-w-md px-8">
-          {/* 移动端 Logo */}
-          <div className="md:hidden mb-6 text-center">
-            <img alt="Logo" className="w-16 h-16 mx-auto mb-4" src="/logo.png" />
-          </div>
-
-          <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">
-            {isRegister ? '注册Admin账号' : '登录HiMarket-后台'}
-          </h2>
-
-          {/* 登录表单 */}
-          {!isRegister && (
-            <Form className="w-full flex flex-col gap-4" layout="vertical" onFinish={handleLogin}>
-              <Form.Item name="username" rules={[{ message: '请输入账号', required: true }]}>
-                <Input placeholder="账号" size="large" />
-              </Form.Item>
-              <Form.Item name="password" rules={[{ message: '请输入密码', required: true }]}>
-                <Input.Password placeholder="密码" size="large" />
-              </Form.Item>
-              {error && <Alert className="mb-2" message={error} showIcon type="error" />}
-              <Form.Item>
-                <Button
-                  className="w-full"
-                  htmlType="submit"
-                  loading={loading}
-                  size="large"
-                  type="primary"
-                >
-                  登录
-                </Button>
-              </Form.Item>
-            </Form>
-          )}
-
-          {/* 注册表单 */}
-          {isRegister && (
-            <Form
-              className="w-full flex flex-col gap-4"
-              layout="vertical"
-              onFinish={handleRegister}
+        {!isRegister && (
+          <Form
+            autoComplete="off"
+            className={`${formClassName} grid gap-[15px]`}
+            colon={false}
+            layout="vertical"
+            onFinish={handleLogin}
+            requiredMark={false}
+          >
+            <Form.Item
+              label="账号"
+              name="username"
+              rules={[{ message: '请输入账号', required: true }]}
             >
-              <Form.Item name="username" rules={[{ message: '请输入账号', required: true }]}>
-                <Input placeholder="账号" size="large" />
-              </Form.Item>
-              <Form.Item name="password" rules={[{ message: '请输入密码', required: true }]}>
-                <Input.Password placeholder="密码" size="large" />
-              </Form.Item>
-              <Form.Item name="confirmPassword" rules={[{ message: '请确认密码', required: true }]}>
-                <Input.Password placeholder="确认密码" size="large" />
-              </Form.Item>
-              {error && <Alert className="mb-2" message={error} showIcon type="error" />}
-              <Form.Item>
-                <Button
-                  className="w-full"
-                  htmlType="submit"
-                  loading={loading}
-                  size="large"
-                  type="primary"
-                >
-                  初始化
-                </Button>
-              </Form.Item>
-            </Form>
-          )}
-        </div>
-      </div>
-    </div>
+              <Input autoComplete="username" className={inputClassName} placeholder="请输入账号" />
+            </Form.Item>
+            <Form.Item
+              label="密码"
+              name="password"
+              rules={[{ message: '请输入密码', required: true }]}
+            >
+              <Input.Password
+                autoComplete="current-password"
+                className={inputClassName}
+                placeholder="请输入密码"
+              />
+            </Form.Item>
+            {error && <Alert className="my-1" message={error} showIcon type="error" />}
+            <Form.Item>
+              <Button
+                className={buttonClassName}
+                htmlType="submit"
+                loading={loading}
+                size="large"
+                type="primary"
+              >
+                登录
+              </Button>
+            </Form.Item>
+          </Form>
+        )}
+
+        {isRegister && (
+          <Form
+            autoComplete="off"
+            className={`${formClassName} grid gap-[15px]`}
+            colon={false}
+            layout="vertical"
+            onFinish={handleRegister}
+            requiredMark={false}
+          >
+            <Form.Item
+              label="账号"
+              name="username"
+              rules={[{ message: '请输入账号', required: true }]}
+            >
+              <Input autoComplete="username" className={inputClassName} placeholder="请输入账号" />
+            </Form.Item>
+            <Form.Item
+              label="密码"
+              name="password"
+              rules={[{ message: '请输入密码', required: true }]}
+            >
+              <Input.Password
+                autoComplete="new-password"
+                className={inputClassName}
+                placeholder="请输入密码"
+              />
+            </Form.Item>
+            <Form.Item
+              label="确认密码"
+              name="confirmPassword"
+              rules={[{ message: '请确认密码', required: true }]}
+            >
+              <Input.Password
+                autoComplete="new-password"
+                className={inputClassName}
+                placeholder="请再次输入密码"
+              />
+            </Form.Item>
+            {error && <Alert className="my-1" message={error} showIcon type="error" />}
+            <Form.Item>
+              <Button
+                className={buttonClassName}
+                htmlType="submit"
+                loading={loading}
+                size="large"
+                type="primary"
+              >
+                初始化
+              </Button>
+            </Form.Item>
+          </Form>
+        )}
+      </section>
+    </main>
   );
 };
 

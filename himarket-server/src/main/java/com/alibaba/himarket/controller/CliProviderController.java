@@ -43,7 +43,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "CLI Provider管理", description = "查询可用的 ACP CLI Provider 列表")
+@Tag(name = "CLI Provider Management", description = "ACP CLI provider and marketplace helper APIs")
 @RestController
 @RequestMapping("/cli-providers")
 @RequiredArgsConstructor
@@ -56,11 +56,11 @@ public class CliProviderController {
     private final ProductService productService;
     private final ContextHolder contextHolder;
 
-    @Operation(summary = "获取当前开发者已订阅的模型市场模型列表")
+    @Operation(summary = "List subscribed marketplace models")
     @GetMapping("/market-models")
     @DeveloperAuth
     public MarketModelsResponse listMarketModels() {
-        // 1. 获取 Primary Consumer
+        // 1. Get the primary consumer.
         ConsumerResult consumer;
         try {
             consumer = consumerService.getPrimaryConsumer();
@@ -74,7 +74,7 @@ public class CliProviderController {
 
         String consumerId = consumer.getConsumerId();
 
-        // 2. 获取订阅列表，筛选 APPROVED 状态
+        // 2. List subscriptions and keep only approved ones.
         List<SubscriptionResult> subscriptions =
                 consumerService.listConsumerSubscriptions(consumerId);
         List<SubscriptionResult> approvedSubscriptions =
@@ -82,7 +82,7 @@ public class CliProviderController {
                         .filter(s -> SubscriptionStatus.APPROVED.name().equals(s.getStatus()))
                         .collect(Collectors.toList());
 
-        // 3. 获取 apiKey
+        // 3. Extract the API key.
         String apiKey = extractApiKey(consumerId);
 
         if (approvedSubscriptions.isEmpty()) {
@@ -92,14 +92,14 @@ public class CliProviderController {
                     .build();
         }
 
-        // 4. 批量获取产品详情，然后按 MODEL_API 类型筛选
+        // 4. Batch load product details and filter by MODEL_API.
         List<String> productIds =
                 approvedSubscriptions.stream()
                         .map(SubscriptionResult::getProductId)
                         .collect(Collectors.toList());
         Map<String, ProductResult> productMap = productService.getProducts(productIds);
 
-        // 5. 对每个产品提取信息，仅处理 MODEL_API 类型
+        // 5. Extract metadata from MODEL_API products.
         List<MarketModelInfo> models = new ArrayList<>();
         for (SubscriptionResult subscription : approvedSubscriptions) {
             ProductResult product = productMap.get(subscription.getProductId());
@@ -110,7 +110,7 @@ public class CliProviderController {
                 continue;
             }
 
-            // 通过产品详情中的 type 字段筛选 MODEL_API
+            // Filter MODEL_API products by the type field in product details.
             if (product.getType() != ProductType.MODEL_API) {
                 continue;
             }
@@ -121,15 +121,15 @@ public class CliProviderController {
             }
         }
 
-        // 6. 组装响应
+        // 6. Build the response.
         return MarketModelsResponse.builder().models(models).apiKey(apiKey).build();
     }
 
-    @Operation(summary = "获取当前开发者已订阅的 MCP Server 列表")
+    @Operation(summary = "List subscribed MCP servers")
     @GetMapping("/market-mcps")
     @DeveloperAuth
     public MarketMcpsResponse listMarketMcps() {
-        // 1. 获取 Primary Consumer
+        // 1. Get the primary consumer.
         ConsumerResult consumer;
         try {
             consumer = consumerService.getPrimaryConsumer();
@@ -143,7 +143,7 @@ public class CliProviderController {
 
         String consumerId = consumer.getConsumerId();
 
-        // 2. 获取订阅列表，筛选 APPROVED 状态
+        // 2. List subscriptions and keep only approved ones.
         List<SubscriptionResult> subscriptions =
                 consumerService.listConsumerSubscriptions(consumerId);
         List<SubscriptionResult> approvedSubscriptions =
@@ -158,14 +158,14 @@ public class CliProviderController {
                     .build();
         }
 
-        // 3. 批量获取产品详情，筛选 MCP_SERVER 类型
+        // 3. Batch load product details and filter by MCP_SERVER.
         List<String> productIds =
                 approvedSubscriptions.stream()
                         .map(SubscriptionResult::getProductId)
                         .collect(Collectors.toList());
         Map<String, ProductResult> productMap = productService.getProducts(productIds);
 
-        // 4. 对每个产品提取 MCP 信息
+        // 4. Extract MCP metadata from each product.
         List<MarketMcpInfo> mcpServers = new ArrayList<>();
         for (SubscriptionResult subscription : approvedSubscriptions) {
             ProductResult product = productMap.get(subscription.getProductId());
@@ -186,14 +186,14 @@ public class CliProviderController {
             }
         }
 
-        // 5. 获取 CredentialContext 提取 authHeaders
+        // 5. Extract auth headers from CredentialContext.
         Map<String, String> authHeaders = extractAuthHeaders();
 
-        // 6. 组装响应
+        // 6. Build the response.
         return MarketMcpsResponse.builder().mcpServers(mcpServers).authHeaders(authHeaders).build();
     }
 
-    @Operation(summary = "获取已发布的 Skill 列表")
+    @Operation(summary = "List published Skills")
     @GetMapping("/market-skills")
     public List<MarketSkillInfo> listMarketSkills() {
         QueryProductParam param = new QueryProductParam();
@@ -296,7 +296,7 @@ public class CliProviderController {
     }
 
     private MarketModelInfo buildMarketModelInfo(ProductResult product) {
-        // 提取 modelId
+        // Extract modelId.
         String modelId = null;
         if (product.getFeature() != null
                 && product.getFeature().getModelFeature() != null
@@ -304,7 +304,7 @@ public class CliProviderController {
             modelId = product.getFeature().getModelFeature().getModel();
         }
 
-        // 提取 baseUrl
+        // Extract baseUrl.
         ModelConfigResult modelConfig = product.getModelConfig();
         if (modelConfig == null || modelConfig.getModelAPIConfig() == null) {
             logger.warn(
@@ -327,7 +327,7 @@ public class CliProviderController {
             return null;
         }
 
-        // 提取 protocolType
+        // Extract protocolType.
         String protocolType =
                 ProtocolTypeMapper.map(modelConfig.getModelAPIConfig().getAiProtocols());
 
@@ -341,20 +341,20 @@ public class CliProviderController {
                 .build();
     }
 
-    @Operation(summary = "获取 HiCoding 功能开关状态")
+    @Operation(summary = "Get HiCoding feature flags")
     @GetMapping("/features")
     public Map<String, Boolean> getFeatures() {
         return Map.of("terminalEnabled", acpProperties.isTerminalEnabled());
     }
 
-    @Operation(summary = "获取可用的 CLI Provider 列表（含运行时兼容性信息）")
+    @Operation(summary = "List available CLI providers")
     @GetMapping
     public List<CliProviderInfo> listProviders() {
         List<CliProviderInfo> result = new ArrayList<>();
         String defaultKey = acpProperties.getDefaultProvider();
         for (Map.Entry<String, CliProviderConfig> entry : acpProperties.getProviders().entrySet()) {
             CliProviderConfig config = entry.getValue();
-            // 兼容 K8S 运行时的 Provider 可在沙箱中运行，无需本机安装命令
+            // Providers compatible with the remote runtime can run in the sandbox.
             boolean canRunInSandbox =
                     config.getCompatibleRuntimes() != null
                             && config.getCompatibleRuntimes().contains(SandboxType.REMOTE);
@@ -377,10 +377,7 @@ public class CliProviderController {
         return result;
     }
 
-    /**
-     * 检测命令是否在系统 PATH 中可用。
-     * 对于 npx 类命令，只检查 npx 本身是否存在（包会按需下载）。
-     */
+    /** Checks whether a command is available in the system PATH. */
     static boolean isCommandAvailable(String command) {
         if (command == null || command.isBlank()) {
             return false;

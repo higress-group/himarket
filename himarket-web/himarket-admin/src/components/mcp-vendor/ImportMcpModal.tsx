@@ -46,6 +46,22 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
 
   const selectedVendor = VENDOR_OPTIONS.find((v) => v.value === vendorType);
 
+  const resetBrowseState = useCallback(() => {
+    setStep('select');
+    setVendorType(null);
+    setItems([]);
+    setSelectedKeys([]);
+    setSelectedItems([]);
+    setKeyword('');
+    setError(null);
+    setPagination({ current: 1, pageSize: 10, total: 0 });
+  }, []);
+
+  const closeAfterImportSuccess = useCallback(() => {
+    resetBrowseState();
+    onClose();
+  }, [onClose, resetBrowseState]);
+
   const handleSelectVendor = useCallback((vendor: VendorOption) => {
     setVendorType(vendor.value);
     setStep('list');
@@ -58,14 +74,8 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
   }, []);
 
   const handleBack = useCallback(() => {
-    setStep('select');
-    setVendorType(null);
-    setItems([]);
-    setSelectedKeys([]);
-    setSelectedItems([]);
-    setKeyword('');
-    setError(null);
-  }, []);
+    resetBrowseState();
+  }, [resetBrowseState]);
 
   const handleQuery = useCallback(
     async (page = 1, size = pagination.pageSize) => {
@@ -134,10 +144,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
       return;
     }
     setImporting(true);
-    const hide = message.loading(
-      '正在导入，请稍候（每个 MCP 需要获取详情，可能需要一些时间）...',
-      0,
-    );
+    const hide = message.loading('正在导入，请稍候...', 0);
     try {
       const importItems = selectedItems.map((item) => ({
         description: item.description,
@@ -172,13 +179,16 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
             successCount: result.successCount,
           });
           onImportSuccess();
+          closeAfterImportSuccess();
         } else {
           message.success(`成功导入 ${result.successCount} 个 MCP Server`);
           onImportSuccess();
+          closeAfterImportSuccess();
         }
       } else {
         message.success('导入完成');
         onImportSuccess();
+        closeAfterImportSuccess();
       }
     } catch (err: unknown) {
       if (
@@ -199,20 +209,13 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
       hide();
       setImporting(false);
     }
-  }, [selectedItems, vendorType, onImportSuccess]);
+  }, [closeAfterImportSuccess, selectedItems, vendorType, onImportSuccess]);
 
   const handleClose = useCallback(() => {
-    setStep('select');
-    setVendorType(null);
-    setItems([]);
-    setSelectedKeys([]);
-    setSelectedItems([]);
-    setKeyword('');
-    setError(null);
+    resetBrowseState();
     setImportResult(null);
-    setPagination({ current: 1, pageSize: 10, total: 0 });
     onClose();
-  }, [onClose]);
+  }, [onClose, resetBrowseState]);
 
   const handleCloseResult = useCallback(() => {
     setImportResult(null);

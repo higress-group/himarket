@@ -5,6 +5,10 @@ import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.service.hicoding.RemoteWorkspaceService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -23,7 +27,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-@Tag(name = "Workspace", description = "Read files from user workspace")
+@Tag(
+        name = "Workspace File Management",
+        description = "Workspace file upload, read, download, and change APIs")
 @RestController
 @RequestMapping("/workspace")
 @RequiredArgsConstructor
@@ -40,9 +46,14 @@ public class WorkspaceController {
 
     private final RemoteWorkspaceService remoteWorkspaceService;
 
-    @Operation(summary = "Upload file to workspace")
+    @Operation(
+            summary = "Upload workspace file",
+            description = "Upload a multipart file to the current user's remote workspace")
+    @ApiResponse(responseCode = "200", description = "Workspace file upload result")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadFile(
+            @Parameter(description = "File to upload", required = true) @RequestParam("file")
+                    MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "文件不能为空"));
         }
@@ -61,7 +72,10 @@ public class WorkspaceController {
         }
     }
 
-    @Operation(summary = "Read file content from workspace")
+    @Operation(
+            summary = "Read workspace file",
+            description = "Read text content as UTF-8 and binary content as base64")
+    @ApiResponse(responseCode = "200", description = "Workspace file content")
     @GetMapping("/file")
     public ResponseEntity<?> readFile(
             @RequestParam String path,
@@ -89,7 +103,14 @@ public class WorkspaceController {
         }
     }
 
-    @Operation(summary = "Download file from workspace as binary stream")
+    @Operation(summary = "Download workspace file")
+    @ApiResponse(
+            responseCode = "200",
+            description = "File binary content",
+            content =
+                    @Content(
+                            mediaType = "application/octet-stream",
+                            schema = @Schema(type = "string", format = "binary")))
     @GetMapping("/download")
     public ResponseEntity<byte[]> downloadFile(
             @RequestParam String path, @RequestParam(required = false) String runtime) {
@@ -131,7 +152,10 @@ public class WorkspaceController {
         };
     }
 
-    @Operation(summary = "List changed files in workspace directory")
+    @Operation(
+            summary = "List workspace file changes",
+            description = "List remote workspace file changes after the specified timestamp")
+    @ApiResponse(responseCode = "200", description = "Workspace file change list")
     @GetMapping("/changes")
     public ResponseEntity<?> listWorkspaceChanges(
             @RequestParam String cwd,
@@ -153,7 +177,10 @@ public class WorkspaceController {
 
     // ======================== Directory Tree API ========================
 
-    @Operation(summary = "Get directory tree for workspace")
+    @Operation(
+            summary = "Get workspace directory tree",
+            description = "Return a directory tree rooted at the requested workspace path")
+    @ApiResponse(responseCode = "200", description = "Workspace directory tree")
     @GetMapping("/tree")
     public ResponseEntity<?> getDirectoryTree(
             @RequestParam String cwd,

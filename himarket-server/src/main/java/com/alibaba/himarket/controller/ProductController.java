@@ -37,6 +37,9 @@ import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.service.importer.ProductImporter;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -46,9 +49,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(
-        name = "API Product Management",
+        name = "Product Management",
         description =
-                "Create, update, delete, query, publish, and manage subscriptions for API products")
+                "Product creation, update, publication, import, subscription, and category APIs")
 @RestController
 @RequestMapping("/products")
 @Slf4j
@@ -61,28 +64,28 @@ public class ProductController {
 
     private final ProductImporter productImporter;
 
-    @Operation(summary = "Create API product")
+    @Operation(summary = "Create product")
     @PostMapping
     @AdminAuth
     public ProductResult createProduct(@RequestBody @Valid CreateProductParam param) {
         return productService.createProduct(param);
     }
 
-    @Operation(summary = "List API products")
+    @Operation(summary = "List products")
     @GetMapping
     @PublicAccess
     public PageResult<ProductResult> listProducts(QueryProductParam param, Pageable pageable) {
         return productService.listProducts(param, pageable);
     }
 
-    @Operation(summary = "Get API product details")
+    @Operation(summary = "Get product")
     @GetMapping("/{productId}")
     @PublicAccess
     public ProductResult getProduct(@PathVariable String productId) {
         return productService.getProduct(productId);
     }
 
-    @Operation(summary = "Update API product")
+    @Operation(summary = "Update product")
     @PutMapping("/{productId}")
     @AdminAuth
     public ProductResult updateProduct(
@@ -90,7 +93,7 @@ public class ProductController {
         return productService.updateProduct(productId, param);
     }
 
-    @Operation(summary = "Publish API product")
+    @Operation(summary = "Publish product")
     @PostMapping("/{productId}/publications")
     @AdminAuth
     public void publishProduct(
@@ -98,7 +101,7 @@ public class ProductController {
         productService.publishProduct(productId, param.getPortalId());
     }
 
-    @Operation(summary = "List API product publications")
+    @Operation(summary = "List product publications")
     @GetMapping("/{productId}/publications")
     @AdminAuth
     public PageResult<ProductPublicationResult> getPublications(
@@ -106,7 +109,7 @@ public class ProductController {
         return productService.getPublications(productId, pageable);
     }
 
-    @Operation(summary = "Unpublish API product")
+    @Operation(summary = "Unpublish product")
     @DeleteMapping("/{productId}/publications/{publicationId}")
     @AdminAuth
     public void unpublishProduct(
@@ -114,14 +117,14 @@ public class ProductController {
         productService.unpublishProduct(productId, publicationId);
     }
 
-    @Operation(summary = "Delete API product")
+    @Operation(summary = "Delete product")
     @DeleteMapping("/{productId}")
     @AdminAuth
     public void deleteProduct(@PathVariable String productId) {
         productService.deleteProduct(productId);
     }
 
-    @Operation(summary = "Create or replace API product reference")
+    @Operation(summary = "Create or replace product reference")
     @PutMapping("/{productId}/ref")
     @AdminAuth
     public void addProductRef(
@@ -129,14 +132,14 @@ public class ProductController {
         productService.addProductRef(productId, param);
     }
 
-    @Operation(summary = "Get API product reference")
+    @Operation(summary = "Get product reference")
     @GetMapping("/{productId}/ref")
     @PublicAccess
     public ProductRefResult getProductRef(@PathVariable String productId) {
         return productService.getProductRef(productId);
     }
 
-    @Operation(summary = "Delete API product reference")
+    @Operation(summary = "Delete product reference")
     @DeleteMapping("/{productId}/ref")
     @AdminAuth
     public void deleteProductRef(@PathVariable String productId) {
@@ -168,21 +171,25 @@ public class ProductController {
         productService.setProductCategories(productId, categoryIds);
     }
 
-    @Operation(summary = "Reload API product configuration")
+    @Operation(
+            summary = "Reload product configuration",
+            description = "Refresh product configuration from the linked gateway or Nacos source")
     @PostMapping("/{productId}/configurations/reload")
     @AdminAuth
     public void reloadProductConfig(@PathVariable String productId) {
         productService.reloadProductConfig(productId);
     }
 
-    @Operation(summary = "List MCP tools for product")
+    @Operation(summary = "List product MCP tools")
     @GetMapping("/{productId}/tools")
     @PublicAccess
     public McpToolListResult listMcpTools(@PathVariable String productId) {
         return productService.listMcpTools(productId);
     }
 
-    @Operation(summary = "Update product source")
+    @Operation(
+            summary = "Update product source",
+            description = "Update the source binding used to reload product configuration")
     @PutMapping("/{productId}/source")
     @AdminAuth
     public void updateProductSource(
@@ -190,10 +197,44 @@ public class ProductController {
         productService.updateProductSource(productId, param);
     }
 
-    @Operation(summary = "Import AI API resources as products")
+    @Operation(
+            summary = "Import product resources",
+            description = "Import resources from a gateway, Nacos, or an external marketplace")
     @PostMapping("/import")
     @AdminAuth
-    public ImportProductsResult importProducts(@RequestBody @Valid ImportProductsParam param) {
+    public ImportProductsResult importProducts(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                            description =
+                                    "Product import request. The sourceConfig schema is determined"
+                                            + " by source.",
+                            required = true,
+                            content =
+                                    @Content(
+                                            mediaType = "application/json",
+                                            schema =
+                                                    @Schema(
+                                                            implementation =
+                                                                    ImportProductsParam.class),
+                                            examples = {
+                                                @ExampleObject(
+                                                        name = "Import from gateway",
+                                                        value =
+                                                                "{\"source\":\"GATEWAY\",\"productType\":\"MODEL_API\",\"sourceConfig\":{\"instanceId\":\"gw-xxx\"},\"items\":[{\"resourceName\":\"qwen-plus\",\"description\":\"Qwen"
+                                                                    + " model service\"}]}"),
+                                                @ExampleObject(
+                                                        name = "Import from Nacos",
+                                                        value =
+                                                                "{\"source\":\"NACOS\",\"productType\":\"MCP_SERVER\",\"sourceConfig\":{\"instanceId\":\"nacos-xxx\",\"namespace\":\"public\"},\"items\":[{\"resourceName\":\"fetch\",\"description\":\"Web"
+                                                                    + " content fetcher\"}]}"),
+                                                @ExampleObject(
+                                                        name = "Import from external marketplace",
+                                                        value =
+                                                                "{\"source\":\"EXTERNAL\",\"productType\":\"MCP_SERVER\",\"sourceConfig\":{\"provider\":\"MODELSCOPE\"},\"items\":[{\"resourceId\":\"@modelcontextprotocol/fetch\",\"resourceName\":\"Fetch"
+                                                                    + " web content\"}]}")
+                                            }))
+                    @RequestBody
+                    @Valid
+                    ImportProductsParam param) {
         return productImporter.importProducts(param);
     }
 }

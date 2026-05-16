@@ -85,9 +85,9 @@ function McpCard(props: McpCardProps) {
     >
       {/* 上部：Logo、名称和状态 */}
       <div className="flex gap-3 items-start">
-        <div className="h-14 w-14 shrink-0">
+        <div className="w-12 h-12 rounded-[14px] border border-white/60 bg-white/70 flex items-center justify-center flex-shrink-0 overflow-hidden">
           <ProductIconRenderer
-            className="h-full w-full object-cover"
+            className="w-full h-full object-cover"
             iconType={getIconString(data.icon, data.name)}
           />
         </div>

@@ -184,6 +184,12 @@ Close #456
 
 ## 代码规范
 
+统一的代码规范维护在 [`docs/standards/`](docs/standards/) 目录下：
+
+- 后端：[`docs/standards/backend/README.md`](docs/standards/backend/README.md)
+- 管理后台前端：[`docs/standards/frontend/admin.md`](docs/standards/frontend/admin.md)
+- 开发者门户前端：[`docs/standards/frontend/portal.md`](docs/standards/frontend/portal.md)
+
 ### Java 代码
 
 **代码格式化（必需）：**
@@ -213,4 +219,3 @@ Close #456
 - **命名**：遵循格式 `V{版本}__{描述}.sql`
   - 示例：`V3__Add_product_feature.sql`
 - **测试**：提交前务必在干净的数据库上测试你的迁移
-

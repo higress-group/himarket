@@ -1,0 +1,12 @@
+.himarket-markdown-body.markdown-body pre {
+  color: #1f2328;
+  background-color: #f6f8fa;
+  border: 1px solid #d0d7de;
+}
+
+.himarket-markdown-body.markdown-body pre code,
+.himarket-markdown-body.markdown-body pre code.hljs {
+  color: inherit;
+  background: transparent;
+  border: 0;
+}

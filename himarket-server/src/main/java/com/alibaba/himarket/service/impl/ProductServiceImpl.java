@@ -90,6 +90,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRefRepository productRefRepository;
 
+    private final ApiDefinitionRepository apiDefinitionRepository;
+
     private final ProductPublicationRepository publicationRepository;
 
     private final SubscriptionRepository subscriptionRepository;
@@ -376,6 +378,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void deleteProduct(String productId) {
         Product product = findProduct(productId);
+        ProductRef productRef = productRefRepository.findFirstByProductId(productId).orElse(null);
 
         // Unpublish from all portals first
         publicationRepository.deleteByProductId(productId);
@@ -387,10 +390,24 @@ public class ProductServiceImpl implements ProductService {
         clearProductCategoryRelations(productId);
 
         productRepository.delete(product);
+        deleteLinkedApiDefinition(productRef);
         productRefRepository.deleteByProductId(productId);
 
         // Asynchronously clean up product resources
         SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
+    }
+
+    private void deleteLinkedApiDefinition(ProductRef productRef) {
+        if (productRef == null
+                || productRef.getSourceType() == null
+                || !productRef.getSourceType().isApiDefinition()
+                || StrUtil.isBlank(productRef.getApiDefinitionId())) {
+            return;
+        }
+
+        apiDefinitionRepository
+                .findByApiDefinitionId(productRef.getApiDefinitionId())
+                .ifPresent(apiDefinitionRepository::delete);
     }
 
     private void cleanupNacosResources(Product product) {
@@ -729,7 +746,6 @@ public class ProductServiceImpl implements ProductService {
                     break;
 
                 case AGENT_API:
-                    // Agent 配置同步
                     String agentConfig =
                             nacosService.fetchAgentConfig(productRef.getNacosId(), nacosRefConfig);
                     productRef.setAgentConfig(agentConfig);

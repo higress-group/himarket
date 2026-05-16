@@ -35,7 +35,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "网关资源管理")
+@Tag(
+        name = "Gateway Resource Management",
+        description = "Gateway import, configuration, and upstream resource discovery APIs")
 @RestController
 @RequestMapping("/gateways")
 @RequiredArgsConstructor
@@ -44,7 +46,9 @@ public class GatewayController {
 
     private final GatewayService gatewayService;
 
-    @Operation(summary = "获取APIG Gateway列表")
+    @Operation(
+            summary = "List APIG gateways",
+            description = "Query available Alibaba Cloud APIG gateway instances")
     @GetMapping("/apig")
     public PageResult<GatewayResult> fetchGateways(
             @Valid QueryAPIGParam param,
@@ -53,7 +57,9 @@ public class GatewayController {
         return gatewayService.fetchAPIGGateways(param, page, size);
     }
 
-    @Operation(summary = "获取ADP AI Gateway列表")
+    @Operation(
+            summary = "List ADP AI gateways",
+            description = "Query available ADP AI gateway instances")
     @PostMapping("/adp")
     public PageResult<GatewayResult> fetchAdpGateways(
             @RequestBody @Valid QueryAdpAIGatewayParam param,
@@ -62,7 +68,9 @@ public class GatewayController {
         return gatewayService.fetchAdpGateways(param, page, size);
     }
 
-    @Operation(summary = "获取Apsara Gateway列表")
+    @Operation(
+            summary = "List Apsara gateways",
+            description = "Query available Apsara gateway instances")
     @PostMapping("/apsara")
     public PageResult<GatewayResult> fetchApsaraGateways(
             @RequestBody @Valid QueryApsaraGatewayParam param,
@@ -71,32 +79,34 @@ public class GatewayController {
         return gatewayService.fetchApsaraGateways(param, page, size);
     }
 
-    @Operation(summary = "获取导入的Gateway列表")
+    @Operation(summary = "List imported gateways")
     @GetMapping
     public PageResult<GatewayResult> listGateways(QueryGatewayParam param, Pageable pageable) {
         return gatewayService.listGateways(param, pageable);
     }
 
-    @Operation(summary = "导入Gateway")
+    @Operation(
+            summary = "Import gateway",
+            description = "Register an external gateway instance for product import")
     @PostMapping
     public void importGateway(@RequestBody @Valid ImportGatewayParam param) {
         gatewayService.importGateway(param);
     }
 
-    @Operation(summary = "更新Gateway")
+    @Operation(summary = "Update gateway")
     @PutMapping("/{gatewayId}")
     public void updateGateway(
             @PathVariable String gatewayId, @RequestBody @Valid UpdateGatewayParam param) {
         gatewayService.updateGateway(gatewayId, param);
     }
 
-    @Operation(summary = "删除Gateway")
+    @Operation(summary = "Delete gateway")
     @DeleteMapping("/{gatewayId}")
     public void deleteGateway(@PathVariable String gatewayId) {
         gatewayService.deleteGateway(gatewayId);
     }
 
-    @Operation(summary = "获取REST API列表")
+    @Operation(summary = "List REST APIs", description = "List REST APIs from an imported gateway")
     @GetMapping("/{gatewayId}/rest-apis")
     public PageResult<APIResult> fetchRESTAPIs(
             @PathVariable String gatewayId,
@@ -105,7 +115,9 @@ public class GatewayController {
         return gatewayService.fetchRESTAPIs(gatewayId, page, size);
     }
 
-    @Operation(summary = "获取MCP Server列表")
+    @Operation(
+            summary = "List MCP servers",
+            description = "List MCP servers from an imported gateway")
     @GetMapping("/{gatewayId}/mcp-servers")
     public PageResult<GatewayMcpServerResult> fetchMcpServers(
             @PathVariable String gatewayId,
@@ -114,7 +126,9 @@ public class GatewayController {
         return gatewayService.fetchMcpServers(gatewayId, page, size);
     }
 
-    @Operation(summary = "获取Agent API列表")
+    @Operation(
+            summary = "List Agent APIs",
+            description = "List Agent APIs from an imported gateway")
     @GetMapping("/{gatewayId}/agent-apis")
     public PageResult<AgentAPIResult> fetchAgentAPIs(
             @PathVariable String gatewayId,
@@ -123,7 +137,9 @@ public class GatewayController {
         return gatewayService.fetchAgentAPIs(gatewayId, page, size);
     }
 
-    @Operation(summary = "获取Model API列表")
+    @Operation(
+            summary = "List Model APIs",
+            description = "List Model APIs from an imported gateway")
     @GetMapping("/{gatewayId}/model-apis")
     public PageResult<GatewayModelAPIResult> fetchModelAPIs(
             @PathVariable String gatewayId,

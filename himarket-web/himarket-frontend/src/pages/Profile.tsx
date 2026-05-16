@@ -1,174 +1,231 @@
-import { message } from 'antd';
+import {
+  CalendarOutlined,
+  IdcardOutlined,
+  MailOutlined,
+  SafetyCertificateOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import { Skeleton, message } from 'antd';
 import React, { useEffect, useState } from 'react';
-// import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
-import aliyunIcon from '../assets/aliyun.png';
-import githubIcon from '../assets/github.png';
-import googleIcon from '../assets/google.png';
+import { ChangePasswordForm } from '../components/ChangePasswordForm';
 import { Layout } from '../components/Layout';
-import APIs, { type IIdentity, type IIdpProvider } from '../lib/apis';
+import { notifyAuthInvalidated } from '../hooks/useAuth';
+import APIs, { type IDeveloperInfo } from '../lib/apis';
+import { clearCachedUserInfo } from '../lib/userInfoCache';
+import { formatDateTime } from '../lib/utils';
 
-const providerIcons: Record<string, string> = {
-  aliyun: aliyunIcon,
-  github: githubIcon,
-  google: googleIcon,
-};
+type ProfileSection = 'identity' | 'profile' | 'security';
 
-interface UserProfile {
-  avatar?: string;
-  name?: string;
-  email?: string;
-  provider?: string;
-}
-
-const parseUserProfile = (identity: IIdentity): UserProfile => {
-  if (!identity) return {};
-  let raw: Record<string, unknown> = {};
-  try {
-    raw = JSON.parse(identity.rawInfoJson);
-  } catch {
-    // 忽略解析错误
+const getInitials = (name: string) => {
+  if (!name) return 'U';
+  if (/[\u4e00-\u9fa5]/.test(name)) {
+    return name.charAt(0);
   }
-  // 针对不同provider做兼容
-  if (identity.provider === 'github') {
-    return {
-      avatar: raw.avatar_url as string,
-      email: raw.email as string,
-      name: (raw.name as string) || (raw.login as string),
-      provider: 'github',
-    };
-  } else if (identity.provider === 'google') {
-    return {
-      avatar: raw.picture as string,
-      email: raw.email as string,
-      name: raw.name as string,
-      provider: 'google',
-    };
-  } else if (identity.provider === 'aliyun') {
-    return {
-      avatar: raw.avatar as string,
-      email: raw.email as string,
-      name: raw.name as string,
-      provider: 'aliyun',
-    };
-  }
-  return {};
+  return name.charAt(0).toUpperCase();
 };
 
 const Profile: React.FC = () => {
   const { t } = useTranslation('profile');
-  const [providers, setProviders] = useState<IIdpProvider[]>([]);
-  const [identities, setIdentities] = useState<IIdentity[]>([]);
+  const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState<ProfileSection>('profile');
+  const [developerInfo, setDeveloperInfo] = useState<IDeveloperInfo | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   useEffect(() => {
-    // 使用OidcController的接口获取OIDC提供商
-    APIs.getOidcProviders()
+    APIs.getDeveloperInfo()
       .then((response) => {
-        // 处理不同的响应格式
-        let providersData: IIdpProvider[];
-        if (Array.isArray(response)) {
-          providersData = response;
-        } else if (response && Array.isArray(response.data)) {
-          providersData = response.data;
-        } else if (response && response.data) {
-          console.warn('Unexpected response format:', response);
-          providersData = [];
-        } else {
-          providersData = [];
-        }
-
-        setProviders(providersData);
+        setDeveloperInfo(response.data || null);
       })
-      .catch((error) => {
-        console.error('Failed to fetch OIDC providers:', error);
-        setProviders([]);
+      .catch(() => {
+        setDeveloperInfo(null);
+      })
+      .finally(() => {
+        setProfileLoading(false);
       });
   }, []);
 
-  useEffect(() => {
-    APIs.developersListIdentities()
-      .then((res) => {
-        setIdentities(res.data || []);
-      })
-      .catch(() => setIdentities([]));
-  }, []);
-
-  // OIDC绑定功能 - 暂时简化实现
-  const handleBinding = (provider: string) => {
-    // 由于简化了OIDC流程，绑定功能需要单独实现
-    // 暂时提示用户功能开发中
-    message.info(t('bindingComingSoon', { provider }));
-
-    // 后续可以考虑以下实现方案：
-    // 1. 为绑定功能创建专门的回调页面
-    // 2. 通过URL参数区分登录和绑定模式
-    // 3. 或者使用弹窗方式处理绑定流程
+  const handleChangePassword = async (values: { newPassword: string; oldPassword: string }) => {
+    setChangePasswordLoading(true);
+    try {
+      await APIs.changeDeveloperPassword(values);
+      message.success(t('changePasswordSuccess'), 1);
+      localStorage.removeItem('access_token');
+      clearCachedUserInfo();
+      notifyAuthInvalidated();
+      navigate('/login');
+    } finally {
+      setChangePasswordLoading(false);
+    }
   };
 
-  // 判断provider是否已绑定
-  const isBound = (provider: string) => identities.some((id) => id.provider === provider);
+  const displayName = developerInfo?.username || developerInfo?.email || t('unknownDeveloper');
+  const displayEmail = developerInfo?.email;
+  const avatar = developerInfo?.avatarUrl;
+  const loadingProfile = profileLoading;
 
-  // 取第一个已绑定身份展示个人信息
-  const mainIdentity = identities[0];
-  const userProfile = mainIdentity ? parseUserProfile(mainIdentity) : null;
+  const navItems = [
+    { icon: <UserOutlined />, key: 'profile' as const, label: t('profileInfo') },
+    { icon: <SafetyCertificateOutlined />, key: 'security' as const, label: t('accountSecurity') },
+    {
+      comingSoon: true,
+      icon: <IdcardOutlined />,
+      key: 'identity' as const,
+      label: t('thirdPartyAccounts'),
+    },
+  ];
+
+  const profileFacts = [
+    {
+      icon: <UserOutlined />,
+      label: t('username'),
+      value: developerInfo?.username || t('notSet'),
+    },
+    {
+      icon: <MailOutlined />,
+      label: t('email'),
+      value: displayEmail || t('notSet'),
+    },
+    {
+      icon: <CalendarOutlined />,
+      label: t('joinedAt'),
+      value: developerInfo?.createAt ? formatDateTime(developerInfo.createAt) : '-',
+    },
+  ];
+
+  const renderProfileContent = () => (
+    <>
+      <div className="border-b border-gray-200 pb-4">
+        <h1 className="m-0 text-lg font-medium text-gray-800">{t('profileInfo')}</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-500">{t('profileInfoDescription')}</p>
+      </div>
+
+      {loadingProfile ? (
+        <Skeleton active className="mt-6" paragraph={{ rows: 6 }} />
+      ) : (
+        <dl className="mt-5 grid gap-3 md:grid-cols-2">
+          {profileFacts.map((item) => (
+            <div
+              className="min-w-0 rounded-[10px] border border-gray-200 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+              key={item.label}
+            >
+              <dt className="flex items-center gap-2 text-xs font-medium text-gray-500">
+                <span className="text-sm text-gray-400">{item.icon}</span>
+                <span>{item.label}</span>
+              </dt>
+              <dd className="mt-2 truncate text-sm font-normal text-gray-700">{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </>
+  );
+
+  const renderSecurityContent = () => (
+    <>
+      <div className="border-b border-gray-200 pb-4">
+        <h1 className="m-0 text-lg font-medium text-gray-800">{t('accountSecurity')}</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-500">{t('passwordDescription')}</p>
+      </div>
+
+      <ChangePasswordForm loading={changePasswordLoading} onSubmit={handleChangePassword} />
+    </>
+  );
+
+  const renderIdentityContent = () => (
+    <>
+      <div className="border-b border-gray-200 pb-4">
+        <h1 className="m-0 text-lg font-medium text-gray-800">{t('thirdPartyAccounts')}</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-500">{t('thirdPartyDescription')}</p>
+      </div>
+
+      <div className="mt-6 rounded-[10px] border border-dashed border-gray-200 bg-white px-6 py-10 text-center">
+        <div className="inline-flex rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500">
+          {t('comingSoon')}
+        </div>
+      </div>
+    </>
+  );
+
+  const renderActiveContent = () => {
+    if (activeSection === 'security') return renderSecurityContent();
+    if (activeSection === 'identity') return renderIdentityContent();
+    return renderProfileContent();
+  };
 
   return (
     <Layout>
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
-        <div className="bg-white/80 backdrop-blur-sm p-8 rounded-[10px] shadow-lg w-full max-w-md flex flex-col items-center border border-white/40">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">{t('title')}</h2>
-          {/* 个人信息展示区 */}
-          {userProfile && (
-            <div className="flex flex-col items-center mb-8">
-              {userProfile.avatar && (
-                <img
-                  alt="avatar"
-                  className="w-16 h-16 rounded-full mb-2"
-                  src={userProfile.avatar}
-                />
-              )}
-              <div className="text-lg font-semibold text-gray-900">{userProfile.name}</div>
-              {userProfile.email && (
-                <div className="text-gray-500 text-sm">{userProfile.email}</div>
-              )}
-              {userProfile.provider && (
-                <div className="text-gray-400 text-xs mt-1">
-                  {t('fromProvider', { provider: userProfile.provider })}
+      <div className="w-full">
+        <div className="min-h-[calc(100vh-96px)] rounded-2xl border border-white/40 bg-white p-6 shadow-xs backdrop-blur-xl">
+          <div className="grid w-full gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+            <aside className="min-w-0">
+              {loadingProfile ? (
+                <div>
+                  <Skeleton.Avatar active size={64} />
+                  <Skeleton active className="mt-4" paragraph={{ rows: 2 }} />
                 </div>
-              )}
-            </div>
-          )}
-          <div className="w-full flex flex-col gap-3 mb-6">
-            {!Array.isArray(providers) || providers.length === 0 ? (
-              <div className="text-gray-400 text-center">{t('noThirdParty')}</div>
-            ) : (
-              providers.map((provider) => {
-                const bound = isBound(provider.provider);
-                const icon = providerIcons[provider.provider] || '';
-                return (
-                  <div
-                    className={`w-full flex items-center gap-2 py-2 rounded border text-base font-medium shadow-sm px-3 ${bound ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-gray-900'}`}
-                    key={provider.provider}
-                  >
-                    {icon && <img alt={provider.provider} className="w-6 h-6" src={icon} />}
-                    <span className="flex-1">{provider.name || provider.provider}</span>
-                    {bound ? (
-                      <span className="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-semibold">
-                        {t('bound')}
-                      </span>
-                    ) : (
-                      <button
-                        className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 text-xs font-semibold transition-colors"
-                        onClick={() => handleBinding(provider.provider)}
-                      >
-                        {t('bind')}
-                      </button>
+              ) : (
+                <div className="mb-6 flex items-center gap-3">
+                  {avatar ? (
+                    <img
+                      alt={displayName}
+                      className="h-12 w-12 rounded-full object-cover"
+                      src={avatar}
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-lg font-medium text-gray-500">
+                      {getInitials(displayName)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="truncate text-base font-medium text-gray-800">
+                      {displayName}
+                    </div>
+                    {displayEmail && (
+                      <div className="mt-1 truncate text-xs text-gray-400">{displayEmail}</div>
                     )}
                   </div>
-                );
-              })
-            )}
+                </div>
+              )}
+
+              <nav className="space-y-1 border-b border-gray-200 pb-4">
+                {navItems.map((item) => {
+                  const isActive = activeSection === item.key;
+
+                  return (
+                    <button
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-indigo-50 text-indigo-700'
+                          : 'text-gray-600 hover:bg-white hover:text-gray-950'
+                      }`}
+                      key={item.key}
+                      onClick={() => setActiveSection(item.key)}
+                      type="button"
+                    >
+                      <span
+                        className={`text-base ${isActive ? 'text-indigo-600' : 'text-gray-500'}`}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                      {item.comingSoon && (
+                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                          {t('comingSoon')}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </aside>
+
+            <main className="min-w-0 rounded-[10px] border border-gray-200 bg-white p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+              {renderActiveContent()}
+            </main>
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ import com.alibaba.himarket.dto.result.chat.ChatAttachmentDetailResult;
 import com.alibaba.himarket.dto.result.chat.ChatAttachmentResult;
 import com.alibaba.himarket.service.ChatAttachmentService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-@Tag(name = "聊天附件管理", description = "提供聊天附件的上传功能，支持图片、视频、音频等多模态内容")
+@Tag(name = "Chat Attachment Management", description = "Chat attachment upload and retrieval APIs")
 @RestController
 @RequestMapping("/attachments")
 @RequiredArgsConstructor
@@ -46,13 +47,18 @@ public class AttachmentController {
 
     private final ChatAttachmentService chatAttachmentService;
 
-    @Operation(summary = "上传附件")
+    @Operation(
+            summary = "Upload attachment",
+            description = "Upload a multipart chat attachment file")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ChatAttachmentResult uploadAttachment(@RequestParam("file") MultipartFile file) {
+    public ChatAttachmentResult uploadAttachment(
+            @Parameter(description = "Attachment file to upload", required = true)
+                    @RequestParam("file")
+                    MultipartFile file) {
         return chatAttachmentService.uploadAttachment(file);
     }
 
-    @Operation(summary = "获取附件内容")
+    @Operation(summary = "Get attachment content")
     @GetMapping("/{attachmentId}")
     public ChatAttachmentDetailResult getAttachment(@PathVariable String attachmentId) {
         return chatAttachmentService.getAttachmentDetail(attachmentId);

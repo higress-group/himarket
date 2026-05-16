@@ -184,6 +184,12 @@ Every PR will automatically trigger the following checks:
 
 ## Coding Standards
 
+The canonical coding standards are maintained under [`docs/standards/`](docs/standards/):
+
+- Backend: [`docs/standards/backend/README.md`](docs/standards/backend/README.md)
+- Admin frontend: [`docs/standards/frontend/admin.md`](docs/standards/frontend/admin.md)
+- Developer portal frontend: [`docs/standards/frontend/portal.md`](docs/standards/frontend/portal.md)
+
 ### Java Code
 
 **Code Formatting (Required):**
@@ -213,4 +219,3 @@ Every PR will automatically trigger the following checks:
 - **Naming**: Follow the pattern `V{version}__{description}.sql`
   - Example: `V3__Add_product_feature.sql`
 - **Testing**: Always test your migrations on a clean database before submitting
-

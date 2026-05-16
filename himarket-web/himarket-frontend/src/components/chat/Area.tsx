@@ -423,7 +423,7 @@ export function ChatArea(props: ChatAreaProps) {
                   <TextType
                     cursorCharacter="_"
                     showCursor={true}
-                    text={['HiMarket HiChat']}
+                    text={['HiChat']}
                     typingSpeed={100}
                   />
                 </span>

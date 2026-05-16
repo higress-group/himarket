@@ -19,4 +19,13 @@
 
 package com.alibaba.himarket.dto.params.product;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(
+        description = "Product import source configuration",
+        oneOf = {
+            GatewayImportConfigParam.class,
+            NacosImportConfigParam.class,
+            ExternalImportConfigParam.class
+        })
 public abstract class ProductImportSourceConfigParam {}

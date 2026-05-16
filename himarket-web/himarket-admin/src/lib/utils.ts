@@ -152,6 +152,9 @@ export interface OpenAPIEndpoint {
 }
 
 export interface ParsedOpenAPI {
+  components?: {
+    schemas?: Record<string, Record<string, unknown>>;
+  };
   info?: {
     title?: string;
     version?: string;
@@ -173,6 +176,10 @@ interface LooseOpenAPIOperation {
   responses?: OpenAPIEndpoint['responses'];
   summary?: string;
   tags?: string[];
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
@@ -198,6 +205,11 @@ export const parseOpenAPISpec = (spec: string): ParsedOpenAPI | null => {
 
     const doc = openApiDoc as Record<string, unknown>;
     const paths = doc.paths as Record<string, Record<string, unknown>> | undefined;
+    const components = isPlainRecord(doc.components) ? doc.components : undefined;
+    const schemas =
+      components && isPlainRecord(components.schemas)
+        ? (components.schemas as Record<string, Record<string, unknown>>)
+        : undefined;
 
     if (!paths) {
       return null;
@@ -232,6 +244,7 @@ export const parseOpenAPISpec = (spec: string): ParsedOpenAPI | null => {
     });
 
     return {
+      components: schemas ? { schemas } : undefined,
       endpoints,
       info: doc.info as ParsedOpenAPI['info'],
       servers: doc.servers as ParsedOpenAPI['servers'],

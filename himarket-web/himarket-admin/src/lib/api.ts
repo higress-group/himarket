@@ -68,6 +68,9 @@ export default api;
 
 // 用户相关API
 export const authApi = {
+  changePassword: (data: { newPassword: string; oldPassword: string }) => {
+    return api.patch('/admins/password', data);
+  },
   getNeedInit: () => {
     return api.get('/admins/need-init');
   },

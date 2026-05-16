@@ -21,16 +21,7 @@ package com.alibaba.himarket.support.api.spec;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "format", visible = true)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "format")
 @JsonSubTypes({@JsonSubTypes.Type(value = OpenAPIToolsConfig.class, name = "OPEN_API")})
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public abstract class ToolsConfig {
-
-    private String format;
-}
+public abstract class ToolsConfig {}

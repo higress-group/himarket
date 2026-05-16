@@ -12,6 +12,10 @@ import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.service.SkillService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -23,7 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-@Tag(name = "Skill Management", description = "Skill CRUD and file operations via productId")
+@Tag(name = "Skill Management", description = "Skill package, file, version, and import APIs")
 @RestController
 @RequestMapping("/skills")
 @Slf4j
@@ -32,11 +36,15 @@ public class SkillController {
 
     private final SkillService skillService;
 
-    @Operation(summary = "Upload Skill from ZIP")
+    @Operation(
+            summary = "Upload Skill ZIP package",
+            description = "Upload a multipart Skill package for the product")
     @PostMapping(value = "/{productId}/package", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @AdminAuth
     public void uploadPackage(
-            @PathVariable String productId, @RequestParam("file") MultipartFile file)
+            @PathVariable String productId,
+            @Parameter(description = "Skill ZIP package", required = true) @RequestParam("file")
+                    MultipartFile file)
             throws IOException {
         skillService.uploadPackage(productId, file);
     }
@@ -74,7 +82,7 @@ public class SkillController {
         return skillService.listVersions(productId);
     }
 
-    @Operation(summary = "Publish (submit for review) a specific Skill version")
+    @Operation(summary = "Publish Skill version")
     @PostMapping("/{productId}/versions")
     @AdminAuth
     public void publishVersion(
@@ -82,7 +90,7 @@ public class SkillController {
         skillService.publishVersion(productId, param.getVersion());
     }
 
-    @Operation(summary = "Update status (online/offline) of a specific Skill version")
+    @Operation(summary = "Update Skill version status")
     @PatchMapping("/{productId}/versions/{version}")
     @AdminAuth
     public void updateVersionStatus(
@@ -92,7 +100,10 @@ public class SkillController {
         skillService.changeVersionStatus(productId, version, "online".equals(param.getStatus()));
     }
 
-    @Operation(summary = "Force-publish a Skill version, bypassing pipeline")
+    @Operation(
+            summary = "Force-publish Skill version",
+            description =
+                    "Publish an existing Skill version and optionally update the latest label")
     @PostMapping("/{productId}/versions/{version}/force-publish")
     @AdminAuth
     public void forcePublishVersion(
@@ -102,7 +113,7 @@ public class SkillController {
         skillService.forcePublishVersion(productId, version, updateLatestLabel);
     }
 
-    @Operation(summary = "Set a version as latest")
+    @Operation(summary = "Set latest Skill version")
     @PutMapping("/{productId}/versions/latest")
     @AdminAuth
     public void setLatestVersion(
@@ -110,14 +121,23 @@ public class SkillController {
         skillService.setLatestVersion(productId, param.getVersion());
     }
 
-    @Operation(summary = "Delete current editing draft")
+    @Operation(summary = "Delete Skill draft")
     @DeleteMapping("/{productId}/draft")
     @AdminAuth
     public void deleteDraft(@PathVariable String productId) {
         skillService.deleteDraft(productId);
     }
 
-    @Operation(summary = "Download Skill as ZIP")
+    @Operation(
+            summary = "Download Skill ZIP package",
+            description = "Return the Skill package as binary ZIP content")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Skill ZIP package",
+            content =
+                    @Content(
+                            mediaType = "application/zip",
+                            schema = @Schema(type = "string", format = "binary")))
     @GetMapping("/{productId}/download")
     public void downloadPackage(
             @PathVariable String productId,
@@ -127,14 +147,16 @@ public class SkillController {
         skillService.downloadPackage(productId, version, response);
     }
 
-    @Operation(summary = "Get CLI download info for Skill detail page")
+    @Operation(summary = "Get Skill CLI download info")
     @GetMapping("/{productId}/cli-info")
     @PublicAccess
     public CliDownloadInfo getCliDownloadInfo(@PathVariable String productId) {
         return skillService.getCliDownloadInfo(productId);
     }
 
-    @Operation(summary = "Import Skills from Nacos")
+    @Operation(
+            summary = "Import Skills from Nacos",
+            description = "Import Skill definitions from the selected Nacos instance")
     @PostMapping("/import")
     @AdminAuth
     public ImportResult importFromNacos(

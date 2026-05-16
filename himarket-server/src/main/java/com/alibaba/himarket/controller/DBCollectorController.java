@@ -40,7 +40,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "DBCollector可观测", description = "基于数据库 access_logs 的可观测大盘查询能力、计量、日志检索")
+@Tag(
+        name = "DB Collector Observability",
+        description = "Database-backed observability metric and log query APIs")
 @RestController
 @RequestMapping("/db-collector")
 @Slf4j
@@ -50,8 +52,10 @@ public class DBCollectorController {
     private final DBCollectorService DBCollectorService;
     private final DBCollectorPresetSqlRegistry presetRegistry;
 
+    @Operation(
+            summary = "Aggregate log metrics from DB Collector storage",
+            description = "Execute a preset observability query against DB Collector storage")
     @PostMapping("/statistics")
-    @Operation(summary = "日志转指标聚合查询（DBCollector 存储）")
     public ScenarioQueryResponse DBCollectorScenarioQuery(
             @RequestBody @Validated GenericSlsQueryRequest request) {
         DBCollectorPresetSqlRegistry.Preset preset =
@@ -63,7 +67,7 @@ public class DBCollectorController {
             return buildEmptyResponse(request.getScenario());
         }
 
-        // 应用预置 SQL（MySQL/MariaDB 方言）
+        // Apply preset SQL using the MySQL/MariaDB dialect.
         request.setSql(preset.getSqlTemplate());
 
         try {

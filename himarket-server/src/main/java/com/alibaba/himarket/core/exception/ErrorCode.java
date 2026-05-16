@@ -30,35 +30,55 @@ public enum ErrorCode {
 
     // Client errors (400-499)
 
-    /** Invalid parameter */
-    INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "无效的请求参数：{}"),
+    /**
+     * Invalid parameter
+     */
+    INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Invalid request parameter: {}"),
 
-    /** Invalid request */
-    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "请求无效：{}"),
+    /**
+     * Invalid request
+     */
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request: {}"),
 
-    /** Unauthorized */
-    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "认证失败：{}"),
+    /**
+     * Unauthorized
+     */
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication failed: {}"),
 
-    /** Resource not found */
-    NOT_FOUND(HttpStatus.NOT_FOUND, "资源不存在：{}:{}"),
+    /**
+     * Resource not found
+     */
+    NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found: {}:{}"),
 
-    /** Resource conflict */
-    CONFLICT(HttpStatus.CONFLICT, "资源冲突：{}"),
+    /**
+     * Resource conflict
+     */
+    CONFLICT(HttpStatus.CONFLICT, "Resource conflict: {}"),
 
     // Server errors (500-599)
-    /** Internal error */
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误：{}"),
+    /**
+     * Internal error
+     */
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error: {}"),
 
-    /** Gateway error */
-    GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "网关错误：{}"),
+    /**
+     * Gateway error
+     */
+    GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Gateway error: {}"),
 
-    /** Sandbox not ready (Pod 未就绪) */
-    SANDBOX_NOT_READY(HttpStatus.SERVICE_UNAVAILABLE, "沙箱未就绪：{}"),
+    /**
+     * Sandbox not ready
+     */
+    SANDBOX_NOT_READY(HttpStatus.SERVICE_UNAVAILABLE, "Sandbox is not ready: {}"),
 
-    /** Sandbox connection failed (Sidecar 不可达) */
-    SANDBOX_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "沙箱连接失败：{}"),
+    /**
+     * Sandbox connection failed
+     */
+    SANDBOX_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "Sandbox connection failed: {}"),
 
-    /** Sandbox error (Sidecar 返回错误) */
+    /**
+     * Sandbox error
+     */
     SANDBOX_ERROR(HttpStatus.BAD_GATEWAY, "{}"),
     ;
 

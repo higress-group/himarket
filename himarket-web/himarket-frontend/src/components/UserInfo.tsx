@@ -1,26 +1,24 @@
 import { Button, Avatar, Dropdown, Skeleton, message } from 'antd';
+import { AppWindow, UserRoundCog } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { LogOut, UserRoundCheck } from './icon';
+import { LogOut } from './icon';
 import APIs from '../lib/apis';
+import {
+  clearCachedUserInfo,
+  getCachedUserInfo,
+  isUserInfoLoading,
+  setCachedUserInfo,
+  setUserInfoLoading,
+} from '../lib/userInfoCache';
 import './UserInfo.css';
-
-interface UserInfo {
-  displayName: string;
-  email?: string;
-  avatar?: string;
-}
-
-// 全局缓存用户信息，避免重复请求
-let globalUserInfo: UserInfo | null = null;
-let globalLoading = false;
 
 export function UserInfo() {
   const { t } = useTranslation('userInfo');
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(globalUserInfo);
-  const [loading, setLoading] = useState(globalUserInfo ? false : true);
+  const [userInfo, setUserInfo] = useState(getCachedUserInfo());
+  const [loading, setLoading] = useState(getCachedUserInfo() ? false : true);
   const navigate = useNavigate();
   const mounted = useRef(true);
 
@@ -28,19 +26,20 @@ export function UserInfo() {
     mounted.current = true;
 
     // 如果已有缓存数据，直接使用
-    if (globalUserInfo) {
-      setUserInfo(globalUserInfo);
+    const cachedUserInfo = getCachedUserInfo();
+    if (cachedUserInfo) {
+      setUserInfo(cachedUserInfo);
       setLoading(false);
       return;
     }
 
     // 如果正在加载中，等待加载完成 - 优化轮询逻辑
-    if (globalLoading) {
+    if (isUserInfoLoading()) {
       const checkLoading = () => {
-        if (!globalLoading && mounted.current) {
-          setUserInfo(globalUserInfo);
+        if (!isUserInfoLoading() && mounted.current) {
+          setUserInfo(getCachedUserInfo());
           setLoading(false);
-        } else if (globalLoading && mounted.current) {
+        } else if (isUserInfoLoading() && mounted.current) {
           // 使用requestAnimationFrame替代setTimeout提升性能
           requestAnimationFrame(checkLoading);
         }
@@ -50,7 +49,7 @@ export function UserInfo() {
     }
 
     // 开始加载用户信息
-    globalLoading = true;
+    setUserInfoLoading(true);
     setLoading(true);
 
     APIs.getDeveloperInfo()
@@ -62,14 +61,14 @@ export function UserInfo() {
             displayName: data.username || data.email || t('unnamedUser'),
             email: data.email,
           };
-          globalUserInfo = userData;
+          setCachedUserInfo(userData);
           if (mounted.current) {
             setUserInfo(userData);
           }
         }
       })
       .finally(() => {
-        globalLoading = false;
+        setUserInfoLoading(false);
         if (mounted.current) {
           setLoading(false);
         }
@@ -91,8 +90,7 @@ export function UserInfo() {
       // 清除localStorage中的token
       localStorage.removeItem('access_token');
       // 清除全局用户信息
-      globalUserInfo = null;
-      globalLoading = false;
+      clearCachedUserInfo();
       setUserInfo(null);
       // 显示成功消息
       message.success(t('logoutSuccess'), 1);
@@ -116,7 +114,13 @@ export function UserInfo() {
       type: 'divider' as const,
     },
     {
-      icon: <UserRoundCheck className="mr-1" />,
+      icon: <UserRoundCog className="mr-1 h-4 w-4" />,
+      key: 'profile',
+      label: t('profile'),
+      onClick: () => navigate('/profile'),
+    },
+    {
+      icon: <AppWindow className="mr-1 h-4 w-4" />,
       key: 'my-applications',
       label: t('consumerManagement'),
       onClick: () => navigate('/consumers'),

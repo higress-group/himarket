@@ -57,6 +57,18 @@ export function AgentApiConfigPanel({
       value: index,
     };
   });
+  const selectedAgentDomain = agentDomainOptions[selectedDomainIndex];
+
+  const handleCopySelectedDomain = async () => {
+    if (!selectedAgentDomain?.label) return;
+
+    try {
+      await copyToClipboard(selectedAgentDomain.label);
+      message.success('域名已复制到剪贴板');
+    } catch {
+      message.error('复制失败');
+    }
+  };
 
   interface RouteItem {
     description?: string;
@@ -273,7 +285,28 @@ export function AgentApiConfigPanel({
                     <Select
                       bordered={false}
                       className="w-full"
+                      labelRender={() => (
+                        <div className="inline-flex max-w-full items-center gap-1.5">
+                          <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                            {selectedAgentDomain?.label || '选择域名'}
+                          </span>
+                          <Button
+                            aria-label="复制域名"
+                            disabled={!selectedAgentDomain?.label}
+                            icon={<CopyOutlined />}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleCopySelectedDomain();
+                            }}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            size="small"
+                            title="复制域名"
+                            type="text"
+                          />
+                        </div>
+                      )}
                       onChange={onDomainChange}
+                      optionLabelProp="label"
                       placeholder="选择域名"
                       size="middle"
                       style={{
@@ -283,7 +316,7 @@ export function AgentApiConfigPanel({
                       value={selectedDomainIndex}
                     >
                       {agentDomainOptions.map((option) => (
-                        <Select.Option key={option.value} value={option.value}>
+                        <Select.Option key={option.value} label={option.label} value={option.value}>
                           <span className="text-xs text-gray-900 font-mono">{option.label}</span>
                         </Select.Option>
                       ))}

@@ -29,6 +29,19 @@ export function McpServerConfigPanel({
   selectedDomainIndex,
   sseJson,
 }: McpServerConfigPanelProps) {
+  const selectedDomainOption = domainOptions[selectedDomainIndex];
+
+  const handleCopySelectedDomain = async () => {
+    if (!selectedDomainOption?.label) return;
+
+    try {
+      await copyToClipboard(selectedDomainOption.label);
+      message.success('域名已复制到剪贴板');
+    } catch {
+      message.error('复制失败，请手动复制');
+    }
+  };
+
   const renderAdminConfigBlock = (json: string) => (
     <div>
       <div className="relative bg-gray-50 border border-gray-200 rounded-md p-3">
@@ -194,7 +207,28 @@ export function McpServerConfigPanel({
                       <div className="flex-1 min-w-0">
                         <Select
                           className="w-full"
+                          labelRender={() => (
+                            <div className="inline-flex max-w-full items-center gap-1.5">
+                              <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                                {selectedDomainOption?.label || '选择域名'}
+                              </span>
+                              <Button
+                                aria-label="复制域名"
+                                disabled={!selectedDomainOption?.label}
+                                icon={<CopyOutlined />}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleCopySelectedDomain();
+                                }}
+                                onMouseDown={(event) => event.stopPropagation()}
+                                size="small"
+                                title="复制域名"
+                                type="text"
+                              />
+                            </div>
+                          )}
                           onChange={onDomainChange}
+                          optionLabelProp="label"
                           placeholder="选择域名"
                           size="middle"
                           style={{
@@ -205,7 +239,11 @@ export function McpServerConfigPanel({
                           variant="borderless"
                         >
                           {domainOptions.map((option) => (
-                            <Select.Option key={option.value} value={option.value}>
+                            <Select.Option
+                              key={option.value}
+                              label={option.label}
+                              value={option.value}
+                            >
                               <span
                                 className="text-xs text-gray-900 font-mono"
                                 title={option.label}

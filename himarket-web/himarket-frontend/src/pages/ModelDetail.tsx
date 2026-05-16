@@ -110,6 +110,18 @@ function ModelDetail() {
       value: index,
     };
   });
+  const selectedModelDomain = modelDomainOptions[selectedModelDomainIndex];
+
+  const handleCopySelectedModelDomain = async () => {
+    if (!selectedModelDomain?.label) return;
+
+    try {
+      await copyToClipboard(selectedModelDomain.label);
+      message.success('域名已复制到剪贴板', 1);
+    } catch {
+      message.error('复制失败，请手动复制');
+    }
+  };
 
   // Helper functions for route display
   const getMatchTypePrefix = (type: string) => {
@@ -201,24 +213,21 @@ function ModelDetail() {
     }
   };
 
-  // 生成curl命令示例
-  const generateCurlExample = () => {
+  const getPrimaryModelEndpointUrl = () => {
     if (!modelConfig?.modelAPIConfig?.routes || !allUniqueDomains.length) {
-      return null;
+      return '';
     }
 
-    // 直接使用第一个路由
     const firstRoute = modelConfig.modelAPIConfig.routes[0];
-
     if (!firstRoute?.match?.path?.value) {
-      return null;
+      return '';
     }
 
-    // 使用选择的域名
     const selectedDomain = allUniqueDomains[selectedModelDomainIndex] || allUniqueDomains[0];
     if (!selectedDomain) {
-      return null;
+      return '';
     }
+
     const formattedDomain = formatDomainWithPort(
       selectedDomain.domain,
       selectedDomain.port,
@@ -230,7 +239,14 @@ function ModelDetail() {
       firstRoute.match.path.type,
       modelConfig.modelAPIConfig.aiProtocols,
     );
-    const fullUrl = `${baseUrl}${resolvedPath}`;
+
+    return `${baseUrl}${resolvedPath}`;
+  };
+
+  // 生成curl命令示例
+  const generateCurlExample = () => {
+    const fullUrl = getPrimaryModelEndpointUrl();
+    if (!fullUrl) return null;
 
     const modelName = data?.feature?.modelFeature?.model || '{{model_name}}';
 
@@ -318,14 +334,39 @@ function ModelDetail() {
                             <div className="flex-1">
                               <Select
                                 className="w-full"
+                                labelRender={() => (
+                                  <div className="inline-flex max-w-full items-center gap-1.5">
+                                    <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                                      {selectedModelDomain?.label || '选择域名'}
+                                    </span>
+                                    <Button
+                                      aria-label="复制域名"
+                                      disabled={!selectedModelDomain?.label}
+                                      icon={<CopyOutlined />}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleCopySelectedModelDomain();
+                                      }}
+                                      onMouseDown={(event) => event.stopPropagation()}
+                                      size="small"
+                                      title="复制域名"
+                                      type="text"
+                                    />
+                                  </div>
+                                )}
                                 onChange={setSelectedModelDomainIndex}
+                                optionLabelProp="label"
                                 placeholder="选择域名"
                                 size="middle"
                                 value={selectedModelDomainIndex}
                                 variant="borderless"
                               >
                                 {modelDomainOptions.map((option) => (
-                                  <Select.Option key={option.value} value={option.value}>
+                                  <Select.Option
+                                    key={option.value}
+                                    label={option.label}
+                                    value={option.value}
+                                  >
                                     <span className="text-xs text-gray-900 font-mono">
                                       {option.label}
                                     </span>
@@ -505,9 +546,7 @@ function ModelDetail() {
     <>
       <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
         <div className="mb-4 flex items-center gap-2">
-          <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
-            Model 调试
-          </span>
+          <span className="text-xs font-medium text-gray-500">Model Chat</span>
         </div>
         <Tabs
           defaultActiveKey="chat"

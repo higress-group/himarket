@@ -26,11 +26,16 @@ interface OidcCallbackParams {
   state: string;
 }
 
-interface IDeveloperInfo {
+export interface IDeveloperInfo {
   username: string;
   email: string;
-  createdAt: string;
+  createAt: string;
   avatarUrl?: string;
+}
+
+interface ChangeDeveloperPasswordRequest {
+  newPassword: string;
+  oldPassword: string;
 }
 
 // ============ API 函数 ============
@@ -66,6 +71,13 @@ export function handleOidcCallback(params: OidcCallbackParams) {
  */
 export function developerLogout() {
   return request.post<RespI<void>, RespI<void>>('/developers/logout');
+}
+
+/**
+ * 修改当前开发者密码
+ */
+export function changeDeveloperPassword(data: ChangeDeveloperPasswordRequest) {
+  return request.patch<RespI<void>, RespI<void>>('/developers/password', data);
 }
 
 export function developersListIdentities() {

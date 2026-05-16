@@ -19,14 +19,17 @@
 
 package com.alibaba.himarket.dto.params.product;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
+@Schema(description = "External marketplace import configuration")
 public class ExternalImportConfigParam extends ProductImportSourceConfigParam {
 
+    @Schema(description = "External marketplace provider", example = "MODELSCOPE")
     @NotBlank(message = "External provider cannot be blank")
     private String provider;
 }

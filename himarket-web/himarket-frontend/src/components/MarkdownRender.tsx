@@ -4,6 +4,7 @@ import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import 'highlight.js/styles/github.css';
 import 'github-markdown-css/github-markdown-light.css';
+import './MarkdownRender.css';
 
 interface MarkdownRenderProps {
   content: string;
@@ -13,7 +14,7 @@ interface MarkdownRenderProps {
 const MarkdownRender = ({ content, imageStyle = 'default' }: MarkdownRenderProps) => {
   return (
     <div
-      className="markdown-body"
+      className="markdown-body himarket-markdown-body"
       style={{
         backgroundColor: 'transparent',
         color: '#24292e',

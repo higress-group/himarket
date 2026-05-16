@@ -40,7 +40,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "API Definition Management")
+@Tag(name = "API Definition Management", description = "API definition CRUD APIs")
 @RestController
 @RequestMapping("/api-definitions")
 @RequiredArgsConstructor
@@ -48,7 +48,7 @@ public class ApiDefinitionController {
 
     private final ApiDefinitionService apiDefinitionService;
 
-    @Operation(summary = "Create Api Definition")
+    @Operation(summary = "Create API definition")
     @PostMapping
     @AdminAuth
     public ApiDefinitionResult createApiDefinition(
@@ -56,20 +56,20 @@ public class ApiDefinitionController {
         return apiDefinitionService.createApiDefinition(param);
     }
 
-    @Operation(summary = "Get Api Definition")
+    @Operation(summary = "Get API definition")
     @GetMapping("/{apiDefinitionId}")
     public ApiDefinitionResult getApiDefinition(@PathVariable String apiDefinitionId) {
         return apiDefinitionService.getApiDefinition(apiDefinitionId);
     }
 
-    @Operation(summary = "List Api Definitions")
+    @Operation(summary = "List API definitions")
     @GetMapping
     public PageResult<ApiDefinitionResult> listApiDefinitions(
             QueryApiDefinitionParam param, Pageable pageable) {
         return apiDefinitionService.listApiDefinitions(param, pageable);
     }
 
-    @Operation(summary = "Update Api Definition")
+    @Operation(summary = "Update API definition")
     @PutMapping("/{apiDefinitionId}")
     @AdminAuth
     public void updateApiDefinition(
@@ -78,7 +78,7 @@ public class ApiDefinitionController {
         apiDefinitionService.updateApiDefinition(apiDefinitionId, param);
     }
 
-    @Operation(summary = "Delete Api Definition")
+    @Operation(summary = "Delete API definition")
     @DeleteMapping("/{apiDefinitionId}")
     @AdminAuth
     public void deleteApiDefinition(@PathVariable String apiDefinitionId) {

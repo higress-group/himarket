@@ -62,11 +62,14 @@ function McpModal(props: McpModal) {
 
   return (
     <Modal
+      {...modalProps}
       closable={false}
       footer={null}
       height={window.innerHeight * 0.8}
+      keyboard
+      maskClosable={false}
+      onCancel={onClose}
       width={window.innerWidth * 0.9}
-      {...modalProps}
     >
       <div className="flex p-2 gap-2 h-[70vh]">
         <div className="flex-1 flex flex-col overflow-y-auto" data-sign-name="sidebar">

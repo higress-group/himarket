@@ -38,7 +38,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "开发者管理", description = "提供开发者认证、管理等功能")
+@Tag(name = "Developer Management", description = "Developer authentication and management APIs")
 @RestController
 @RequestMapping("/developers")
 @RequiredArgsConstructor
@@ -47,26 +47,28 @@ public class DeveloperController {
 
     private final DeveloperService developerService;
 
-    @Operation(summary = "开发者注册", description = "注册新开发者账号")
+    @Operation(summary = "Register developer", description = "Register a new developer account")
     @PostMapping
     public AuthResult register(@Valid @RequestBody CreateDeveloperParam param) {
         return developerService.registerDeveloper(param);
     }
 
-    @Operation(summary = "开发者登录", description = "开发者账号密码登录")
+    @Operation(summary = "Log in as developer", description = "Log in with developer credentials")
     @PostMapping("/login")
     public AuthResult login(@Valid @RequestBody LoginParam param) {
         return developerService.login(param.getUsername(), param.getPassword());
     }
 
-    @Operation(summary = "开发者登出", description = "登出")
+    @Operation(summary = "Log out developer")
     @PostMapping("/logout")
     @DeveloperAuth
     public void logout(HttpServletRequest request) {
         developerService.logout(request);
     }
 
-    @Operation(summary = "获取门户的开发者列表", description = "管理员功能：获取当前门户下所有开发者的分页列表")
+    @Operation(
+            summary = "List portal developers",
+            description = "Administrator API for listing developers in the current portal")
     @GetMapping
     @AdminAuth
     public PageResult<DeveloperResult> listDevelopers(
@@ -74,28 +76,36 @@ public class DeveloperController {
         return developerService.listDevelopers(param, pageable);
     }
 
-    @Operation(summary = "获取当前开发者信息", description = "获取当前登录开发者的个人信息，未登录返回 null")
+    @Operation(
+            summary = "Get current developer profile",
+            description = "Returns the current developer profile, or null when not logged in")
     @GetMapping("/profile")
     @PublicAccess
     public DeveloperResult getCurrentDeveloperInfo() {
         return developerService.getCurrentDeveloperInfo();
     }
 
-    @Operation(summary = "开发者修改密码", description = "修改当前登录开发者的密码")
+    @Operation(
+            summary = "Change developer password",
+            description = "Change the password of the current developer")
     @PatchMapping("/password")
     @DeveloperAuth
     public void changePassword(@RequestBody ResetPasswordParam param) {
         developerService.resetDeveloperPassword(param.getOldPassword(), param.getNewPassword());
     }
 
-    @Operation(summary = "开发者更新个人信息", description = "开发者功能：更新当前登录开发者的个人信息")
+    @Operation(
+            summary = "Update developer profile",
+            description = "Update the profile of the current developer")
     @PutMapping("/profile")
     @DeveloperAuth
     public void updateProfile(@Valid @RequestBody UpdateDeveloperParam param) {
         developerService.updateProfile(param);
     }
 
-    @Operation(summary = "设置开发者状态", description = "管理员审核开发者账号，status为APPROVED/PENDING")
+    @Operation(
+            summary = "Update developer status",
+            description = "Administrator API for approving or resetting a developer account")
     @PatchMapping("/{developerId}/status")
     @AdminAuth
     public void setDeveloperStatus(
@@ -104,7 +114,7 @@ public class DeveloperController {
         developerService.setDeveloperStatus(developerId, param.getStatus());
     }
 
-    @Operation(summary = "删除Developer账号")
+    @Operation(summary = "Delete developer account")
     @DeleteMapping("/{developerId}")
     @AdminAuth
     public void deleteDeveloper(@PathVariable("developerId") String developerId) {

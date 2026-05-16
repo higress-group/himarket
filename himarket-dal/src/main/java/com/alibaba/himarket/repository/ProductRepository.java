@@ -24,9 +24,7 @@ import com.alibaba.himarket.support.enums.ProductType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.stereotype.Repository;
 
-@Repository
 public interface ProductRepository extends BaseRepository<Product, Long> {
 
     /**

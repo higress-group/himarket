@@ -12,11 +12,16 @@ import {
   DashboardOutlined,
   MonitorOutlined,
   RightOutlined,
+  LockOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
-import { Button, Tooltip } from 'antd';
+import { Button, Dropdown, message, Tooltip } from 'antd';
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { AdminBrand } from './AdminBrand';
+import { ChangePasswordModal } from './ChangePasswordModal';
+import { authApi } from '../lib/api';
 import { isAuthenticated, removeToken } from '../lib/utils';
 
 interface NavigationItem {
@@ -33,6 +38,8 @@ const Layout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   useEffect(() => {
     // 检查 cookie 中的 token 来判断登录状态
@@ -133,6 +140,18 @@ const Layout: React.FC = () => {
     removeToken();
     setIsLoggedIn(false);
     navigate('/login');
+  };
+
+  const handleChangePassword = async (values: { newPassword: string; oldPassword: string }) => {
+    setChangePasswordLoading(true);
+    try {
+      await authApi.changePassword(values);
+      message.success('密码修改成功，请重新登录', 1);
+      setChangePasswordOpen(false);
+      handleLogout();
+    } finally {
+      setChangePasswordLoading(false);
+    }
   };
 
   const toggleGroup = (name: string) => {
@@ -288,20 +307,48 @@ const Layout: React.FC = () => {
               type="text"
             />
           </div>
-          <span className="text-2xl font-bold">HiMarket</span>
+          <AdminBrand />
         </div>
         {/* 顶部右侧用户信息或登录按钮 */}
         {isLoggedIn ? (
-          <div className="flex items-center space-x-2">
-            <UserOutlined className="mr-2 text-lg" />
-            <span>admin</span>
-            <button
-              className="ml-2 px-2 py-1 rounded bg-gray-200 hover:bg-gray-300"
-              onClick={handleLogout}
+          <>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    icon: <LockOutlined />,
+                    key: 'change-password',
+                    label: '修改密码',
+                    onClick: () => setChangePasswordOpen(true),
+                  },
+                  {
+                    type: 'divider' as const,
+                  },
+                  {
+                    icon: <LogoutOutlined />,
+                    key: 'logout',
+                    label: '退出登录',
+                    onClick: handleLogout,
+                  },
+                ],
+              }}
+              placement="bottomRight"
+              trigger={['click']}
             >
-              退出
-            </button>
-          </div>
+              <button className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-2 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+                  <UserOutlined />
+                </span>
+                admin
+              </button>
+            </Dropdown>
+            <ChangePasswordModal
+              loading={changePasswordLoading}
+              onCancel={() => setChangePasswordOpen(false)}
+              onSubmit={handleChangePassword}
+              open={changePasswordOpen}
+            />
+          </>
         ) : (
           <button
             className="flex items-center px-4 py-2 rounded bg-black text-white hover:bg-gray-800"

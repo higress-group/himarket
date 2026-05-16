@@ -35,7 +35,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "沙箱实例管理")
+@Tag(
+        name = "Sandbox Instance Management",
+        description = "Sandbox instance, cluster, namespace, and deployment APIs")
 @RestController
 @RequestMapping("/sandboxes")
 @RequiredArgsConstructor
@@ -43,7 +45,7 @@ public class SandboxController {
 
     private final SandboxService sandboxService;
 
-    @Operation(summary = "获取所有运行中的沙箱实例（部署用）")
+    @Operation(summary = "List running sandbox instances")
     @GetMapping("/active")
     @AdminAuth
     public java.util.List<com.alibaba.himarket.dto.result.sandbox.SandboxSimpleResult>
@@ -51,21 +53,23 @@ public class SandboxController {
         return sandboxService.listActiveSandboxes();
     }
 
-    @Operation(summary = "获取沙箱实例列表")
+    @Operation(summary = "List sandbox instances")
     @GetMapping
     @AdminAuth
     public PageResult<SandboxResult> listSandboxes(QuerySandboxParam param, Pageable pageable) {
         return sandboxService.listSandboxes(param, pageable);
     }
 
-    @Operation(summary = "导入沙箱实例")
+    @Operation(
+            summary = "Import sandbox instance",
+            description = "Register an existing sandbox cluster for MCP deployment")
     @PostMapping
     @AdminAuth
     public void importSandbox(@RequestBody @Valid ImportSandboxParam param) {
         sandboxService.importSandbox(param);
     }
 
-    @Operation(summary = "更新沙箱实例")
+    @Operation(summary = "Update sandbox instance")
     @PutMapping("/{sandboxId}")
     @AdminAuth
     public void updateSandbox(
@@ -73,35 +77,41 @@ public class SandboxController {
         sandboxService.updateSandbox(sandboxId, param);
     }
 
-    @Operation(summary = "删除沙箱实例")
+    @Operation(summary = "Delete sandbox instance")
     @DeleteMapping("/{sandboxId}")
     @AdminAuth
     public void deleteSandbox(@PathVariable String sandboxId) {
         sandboxService.deleteSandbox(sandboxId);
     }
 
-    @Operation(summary = "获取集群信息")
+    @Operation(
+            summary = "Fetch cluster information",
+            description = "Read cluster metadata from the submitted kubeconfig")
     @PostMapping("/cluster-info")
     @AdminAuth
     public ClusterInfoResult fetchClusterInfo(@RequestBody @Valid ClusterInfoParam param) {
         return sandboxService.fetchClusterInfo(param.getKubeConfig());
     }
 
-    @Operation(summary = "手动触发单个沙箱健康检查")
+    @Operation(
+            summary = "Trigger sandbox health check",
+            description = "Refresh sandbox connectivity and runtime health status")
     @PostMapping("/{sandboxId}/health-check")
     @AdminAuth
     public SandboxResult healthCheck(@PathVariable String sandboxId) {
         return sandboxService.healthCheck(sandboxId);
     }
 
-    @Operation(summary = "获取沙箱集群的 Namespace 列表")
+    @Operation(summary = "List sandbox cluster namespaces")
     @GetMapping("/{sandboxId}/namespaces")
     @AdminAuth
     public java.util.List<String> listNamespaces(@PathVariable String sandboxId) {
         return sandboxService.listNamespaces(sandboxId);
     }
 
-    @Operation(summary = "查询沙箱上的活跃 MCP 部署数量")
+    @Operation(
+            summary = "Count active MCP deployments on sandbox",
+            description = "Return the number of active MCP deployments on the sandbox")
     @GetMapping("/{sandboxId}/active-deployments")
     @AdminAuth
     public java.util.Map<String, Object> getActiveDeployments(@PathVariable String sandboxId) {

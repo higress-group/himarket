@@ -33,7 +33,6 @@ import com.alibaba.himarket.dto.result.consumer.ConsumerCredentialResult;
 import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.service.ConsumerService;
-import com.alibaba.himarket.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -42,7 +41,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Consumer管理", description = "提供Consumer注册、审批、产品订阅等管理功能")
+@Tag(
+        name = "Consumer Management",
+        description = "Consumer registration, credential, and subscription APIs")
 @RestController
 @RequestMapping("/consumers")
 @RequiredArgsConstructor
@@ -51,34 +52,32 @@ public class ConsumerController {
 
     private final ConsumerService consumerService;
 
-    private final ProductService productService;
-
-    @Operation(summary = "获取Consumer列表")
+    @Operation(summary = "List consumers")
     @GetMapping
     public PageResult<ConsumerResult> listConsumers(QueryConsumerParam param, Pageable pageable) {
         return consumerService.listConsumers(param, pageable);
     }
 
-    @Operation(summary = "获取Consumer")
+    @Operation(summary = "Get consumer")
     @GetMapping("/{consumerId}")
     public ConsumerResult getConsumer(@PathVariable String consumerId) {
         return consumerService.getConsumer(consumerId);
     }
 
-    @Operation(summary = "注册Consumer")
+    @Operation(summary = "Register consumer")
     @PostMapping
     @DeveloperAuth
     public ConsumerResult createConsumer(@RequestBody @Valid CreateConsumerParam param) {
         return consumerService.createConsumer(param);
     }
 
-    @Operation(summary = "删除Consumer")
+    @Operation(summary = "Delete consumer")
     @DeleteMapping("/{consumerId}")
     public void deleteDevConsumer(@PathVariable String consumerId) {
         consumerService.deleteConsumer(consumerId);
     }
 
-    @Operation(summary = "生成Consumer凭证")
+    @Operation(summary = "Create consumer credential")
     @PostMapping("/{consumerId}/credentials")
     @DeveloperAuth
     public void createCredential(
@@ -86,14 +85,14 @@ public class ConsumerController {
         consumerService.createCredential(consumerId, param);
     }
 
-    @Operation(summary = "获取Consumer凭证信息")
+    @Operation(summary = "Get consumer credential")
     @GetMapping("/{consumerId}/credentials")
     @DeveloperAuth
     public ConsumerCredentialResult getCredential(@PathVariable String consumerId) {
         return consumerService.getCredential(consumerId);
     }
 
-    @Operation(summary = "更新Consumer凭证")
+    @Operation(summary = "Update consumer credential")
     @PutMapping("/{consumerId}/credentials")
     @DeveloperAuth
     public void updateCredential(
@@ -101,14 +100,14 @@ public class ConsumerController {
         consumerService.updateCredential(consumerId, param);
     }
 
-    @Operation(summary = "删除Consumer凭证")
+    @Operation(summary = "Delete consumer credential")
     @DeleteMapping("/{consumerId}/credentials")
     @DeveloperAuth
     public void deleteCredential(@PathVariable String consumerId) {
         consumerService.deleteCredential(consumerId);
     }
 
-    @Operation(summary = "订阅API产品")
+    @Operation(summary = "Subscribe to product")
     @PostMapping("/{consumerId}/subscriptions")
     @DeveloperAuth
     public SubscriptionResult subscribeProduct(
@@ -116,7 +115,7 @@ public class ConsumerController {
         return consumerService.subscribeProduct(consumerId, param);
     }
 
-    @Operation(summary = "获取Consumer的订阅列表")
+    @Operation(summary = "List consumer subscriptions")
     @GetMapping("/{consumerId}/subscriptions")
     @AdminOrDeveloperAuth
     public PageResult<SubscriptionResult> listSubscriptions(
@@ -124,14 +123,14 @@ public class ConsumerController {
         return consumerService.listSubscriptions(consumerId, param, pageable);
     }
 
-    @Operation(summary = "取消订阅")
+    @Operation(summary = "Cancel subscription")
     @DeleteMapping("/{consumerId}/subscriptions/{subscriptionId}")
     public void deleteSubscription(
             @PathVariable String consumerId, @PathVariable String subscriptionId) {
         consumerService.unsubscribeProduct(consumerId, subscriptionId);
     }
 
-    @Operation(summary = "审批订阅申请")
+    @Operation(summary = "Approve subscription")
     @PatchMapping("/{consumerId}/subscriptions/{subscriptionId}")
     @AdminAuth
     public SubscriptionResult approveSubscription(
@@ -139,14 +138,14 @@ public class ConsumerController {
         return consumerService.approveSubscription(consumerId, subscriptionId);
     }
 
-    @Operation(summary = "设置Primary Consumer")
+    @Operation(summary = "Set primary consumer")
     @PutMapping("/{consumerId}/primary")
     @DeveloperAuth
     public void setPrimaryConsumer(@PathVariable String consumerId) {
         consumerService.setPrimaryConsumer(consumerId);
     }
 
-    @Operation(summary = "获取Primary Consumer")
+    @Operation(summary = "Get primary consumer")
     @GetMapping("/primary")
     @DeveloperAuth
     public ConsumerResult getPrimaryConsumer() {

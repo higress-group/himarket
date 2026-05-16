@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "产品类别管理", description = "提供产品类别的创建、更新、删除、查询等管理功能")
+@Tag(name = "Product Category Management", description = "Product category CRUD and binding APIs")
 @RestController
 @RequestMapping("/product-categories")
 @Slf4j
@@ -45,7 +45,7 @@ public class ProductCategoryController {
 
     private final ProductCategoryService productCategoryService;
 
-    @Operation(summary = "创建产品类别")
+    @Operation(summary = "Create product category")
     @PostMapping
     @AdminAuth
     public ProductCategoryResult createProductCategory(
@@ -53,7 +53,7 @@ public class ProductCategoryController {
         return productCategoryService.createProductCategory(param);
     }
 
-    @Operation(summary = "获取产品类别列表")
+    @Operation(summary = "List product categories")
     @GetMapping
     @PublicAccess
     public PageResult<ProductCategoryResult> listProductCategories(
@@ -61,7 +61,7 @@ public class ProductCategoryController {
         return productCategoryService.listProductCategories(param, pageable);
     }
 
-    @Operation(summary = "更新产品类别")
+    @Operation(summary = "Update product category")
     @PutMapping("/{categoryId}")
     @AdminAuth
     public ProductCategoryResult updateProductCategory(
@@ -69,21 +69,21 @@ public class ProductCategoryController {
         return productCategoryService.updateProductCategory(categoryId, param);
     }
 
-    @Operation(summary = "获取产品类别详情")
+    @Operation(summary = "Get product category")
     @GetMapping("/{categoryId}")
     @PublicAccess
     public ProductCategoryResult getProductCategory(@PathVariable String categoryId) {
         return productCategoryService.getProductCategory(categoryId);
     }
 
-    @Operation(summary = "删除产品类别")
+    @Operation(summary = "Delete product category")
     @DeleteMapping("/{categoryId}")
     @AdminAuth
     public void deleteProductCategory(@PathVariable String categoryId) {
         productCategoryService.deleteProductCategory(categoryId);
     }
 
-    @Operation(summary = "从类别中移除产品")
+    @Operation(summary = "Remove products from category")
     @DeleteMapping("/{categoryId}/products")
     @AdminAuth
     public void unbindProductsFromCategory(
@@ -91,7 +91,7 @@ public class ProductCategoryController {
         productCategoryService.unbindProductsFromCategory(productIds, categoryId);
     }
 
-    @Operation(summary = "向类别中添加产品")
+    @Operation(summary = "Add products to category")
     @PostMapping("/{categoryId}/products")
     @AdminAuth
     public void bindProductsToCategory(

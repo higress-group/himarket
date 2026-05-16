@@ -38,7 +38,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Nacos资源管理", description = "Nacos实例管理与能力市场统一控制器")
+@Tag(
+        name = "Nacos Resource Management",
+        description = "Nacos instance and marketplace resource APIs")
 @RestController
 @RequestMapping("/nacos")
 @RequiredArgsConstructor
@@ -47,27 +49,31 @@ public class NacosController {
 
     private final NacosService nacosService;
 
-    @Operation(summary = "获取Nacos实例列表", description = "分页获取Nacos实例列表")
+    @Operation(summary = "List Nacos instances")
     @GetMapping
     public PageResult<NacosResult> listNacosInstances(Pageable pageable) {
         return nacosService.listNacosInstances(pageable);
     }
 
-    @Operation(summary = "从阿里云MSE获取Nacos集群列表")
+    @Operation(
+            summary = "List Nacos clusters from Alibaba Cloud MSE",
+            description = "Query available Nacos clusters from Alibaba Cloud MSE")
     @GetMapping("/mse")
     public PageResult<MseNacosResult> fetchNacos(@Valid QueryNacosParam param, Pageable pageable) {
         return nacosService.fetchNacos(param, pageable);
     }
 
-    @Operation(summary = "获取默认Nacos实例")
+    @Operation(summary = "Get default Nacos instance")
     @GetMapping("/default")
     public NacosResult getDefaultNacosInstance() {
         return nacosService.getDefaultNacosInstance();
     }
 
     @Operation(
-            summary = "设置默认Nacos实例",
-            description = "设为默认后，新建的 Agent Skill 将自动绑定该 Nacos 实例。可同步指定默认命名空间")
+            summary = "Set default Nacos instance",
+            description =
+                    "New Agent Skill products bind to the default Nacos instance automatically. A"
+                            + " default namespace can also be specified.")
     @PutMapping("/{nacosId}/default")
     public void setDefaultNacosInstance(
             @PathVariable String nacosId,
@@ -75,34 +81,35 @@ public class NacosController {
         nacosService.setDefaultNacos(nacosId, namespaceId);
     }
 
-    @Operation(summary = "获取Nacos实例详情", description = "根据ID获取Nacos实例详细信息")
+    @Operation(summary = "Get Nacos instance")
     @GetMapping("/{nacosId}")
     public NacosResult getNacosInstance(@PathVariable String nacosId) {
         return nacosService.getNacosInstance(nacosId);
     }
 
-    @Operation(summary = "创建Nacos实例", description = "创建新的Nacos实例")
+    @Operation(summary = "Create Nacos instance")
     @PostMapping
     public void createNacosInstance(@RequestBody @Valid CreateNacosParam param) {
         nacosService.createNacosInstance(param);
     }
 
-    @Operation(summary = "更新Nacos实例", description = "更新指定Nacos实例信息")
+    @Operation(summary = "Update Nacos instance")
     @PutMapping("/{nacosId}")
     public void updateNacosInstance(
             @PathVariable String nacosId, @RequestBody @Valid UpdateNacosParam param) {
         nacosService.updateNacosInstance(nacosId, param);
     }
 
-    @Operation(summary = "删除Nacos实例", description = "删除指定的Nacos实例")
+    @Operation(summary = "Delete Nacos instance")
     @DeleteMapping("/{nacosId}")
     public void deleteNacosInstance(@PathVariable String nacosId) {
         nacosService.deleteNacosInstance(nacosId);
     }
 
     @Operation(
-            summary = "获取Nacos中的MCP Server列表",
-            description = "获取指定Nacos实例中的MCP Server列表，可按命名空间过滤")
+            summary = "List MCP servers from Nacos",
+            description =
+                    "List MCP servers from a Nacos instance, optionally filtered by namespace")
     @GetMapping("/{nacosId}/mcp-servers")
     public PageResult<NacosMCPServerResult> fetchMcpServers(
             @PathVariable String nacosId,
@@ -112,23 +119,27 @@ public class NacosController {
         return nacosService.fetchMcpServers(nacosId, namespaceId, pageable);
     }
 
-    @Operation(summary = "获取指定Nacos实例的命名空间列表")
+    @Operation(
+            summary = "List Nacos namespaces",
+            description = "List namespaces from an imported Nacos instance")
     @GetMapping("/{nacosId}/namespaces")
     public PageResult<NacosNamespaceResult> fetchNamespaces(
             @PathVariable String nacosId, Pageable pageable) throws Exception {
         return nacosService.fetchNamespaces(nacosId, pageable);
     }
 
-    // ==================== Agent 相关 ====================
+    // ==================== Agent APIs ====================
 
-    /** 获取 Nacos 中的 Agent 列表 注意：与 GatewayController 保持一致，只提供列表接口，不提供详情接口 */
+    /** Lists Agents from Nacos. Keep this list-only behavior aligned with GatewayController. */
     @Operation(
-            summary = "获取 Nacos 中的 Agent 列表",
-            description = "获取指定 Nacos 实例中注册的 Agent 列表，可按命名空间过滤")
+            summary = "List Agents from Nacos",
+            description =
+                    "List Agents registered in a Nacos instance, optionally filtered by namespace")
     @GetMapping("/{nacosId}/agents")
     public PageResult<NacosAgentResult> fetchAgents(
-            @Parameter(description = "Nacos 实例 ID", required = true) @PathVariable String nacosId,
-            @Parameter(description = "命名空间 ID（可选，默认 public）")
+            @Parameter(description = "Nacos instance ID", required = true) @PathVariable
+                    String nacosId,
+            @Parameter(description = "Namespace ID, optional and defaults to public")
                     @RequestParam(value = "namespaceId", required = false)
                     String namespaceId,
             Pageable pageable)
