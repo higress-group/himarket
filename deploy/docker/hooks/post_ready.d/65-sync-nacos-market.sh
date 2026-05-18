@@ -39,7 +39,7 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
 NACOS_ADMIN_PASSWORD="${NACOS_ADMIN_PASSWORD:-nacos}"
 
 # ── 全局变量（Docker 环境使用 localhost） ────────────────────────────────────
-HIMARKET_HOST="http://localhost:5174"
+HIMARKET_HOST="http://localhost:${HIMARKET_ADMIN_PORT:-5174}"
 AUTH_TOKEN=""
 API_RESPONSE=""
 API_HTTP_CODE=""

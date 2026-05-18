@@ -30,8 +30,8 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # 全局变量（Docker 环境使用 localhost）
-FRONTEND_HOST="localhost:5173"
-ADMIN_HOST="localhost:5174"
+FRONTEND_HOST="localhost:${HIMARKET_FRONTEND_PORT:-5173}"
+ADMIN_HOST="localhost:${HIMARKET_ADMIN_PORT:-5174}"
 ADMIN_TOKEN=""
 DEVELOPER_ID=""
 PORTAL_ID=""

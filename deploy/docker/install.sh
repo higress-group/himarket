@@ -1133,15 +1133,15 @@ show_result_panel() {
     log "  $(msg install.complete)"
     log "========================================================"
     log ""
-    log "  HiMarket Admin:       http://localhost:5175"
-    log "  HiMarket Frontend:    http://localhost:5173"
+    log "  HiMarket Admin:       http://localhost:${HIMARKET_ADMIN_PORT:-5174}"
+    log "  HiMarket Frontend:    http://localhost:${HIMARKET_FRONTEND_PORT:-5173}"
     if [[ "${INSTALL_NACOS}" == "true" ]]; then
         log "  Nacos Console:        http://localhost:8080"
     fi
     if [[ "${INSTALL_HIGRESS}" == "true" ]]; then
         log "  Higress Console:      http://localhost:8001"
     fi
-    log "  HiMarket Server API:  http://localhost:8081"
+    log "  HiMarket Server API:  http://localhost:${HIMARKET_SERVER_PORT:-8081}"
     log ""
     log "  Admin login:          ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
     log "  Developer login:      ${FRONT_USERNAME} / ${FRONT_PASSWORD}"

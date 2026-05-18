@@ -21,7 +21,7 @@ log() { echo "[init-himarket-admin $(date +'%H:%M:%S')] $*"; }
 err() { echo "[ERROR] $*" >&2; }
 
 # 全局变量
-ADMIN_HOST="localhost:5174"
+ADMIN_HOST="localhost:${HIMARKET_ADMIN_PORT:-5174}"
 
 ########################################
 # 调用 API 通用函数

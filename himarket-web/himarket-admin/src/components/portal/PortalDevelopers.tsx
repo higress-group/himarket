@@ -244,24 +244,23 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
       key: 'action',
       render: (_: unknown, record: Developer) => (
         <Space size="middle">
-          {!portal.portalSettingConfig.autoApproveDevelopers &&
-            (record.status === 'APPROVED' ? (
-              <Button
-                icon={<UndoOutlined />}
-                onClick={() => handleUpdateDeveloperStatus(record.developerId, 'PENDING')}
-                type="link"
-              >
-                撤销
-              </Button>
-            ) : (
-              <Button
-                icon={<CheckOutlined />}
-                onClick={() => handleUpdateDeveloperStatus(record.developerId, 'APPROVED')}
-                type="link"
-              >
-                审批
-              </Button>
-            ))}
+          {record.status === 'APPROVED' ? (
+            <Button
+              icon={<UndoOutlined />}
+              onClick={() => handleUpdateDeveloperStatus(record.developerId, 'PENDING')}
+              type="link"
+            >
+              撤销
+            </Button>
+          ) : (
+            <Button
+              icon={<CheckOutlined />}
+              onClick={() => handleUpdateDeveloperStatus(record.developerId, 'APPROVED')}
+              type="link"
+            >
+              审批
+            </Button>
+          )}
           <Button
             danger
             icon={<DeleteOutlined />}

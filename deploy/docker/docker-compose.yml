@@ -159,7 +159,7 @@ services:
       - ACP_REMOTE_PORT=${ACP_REMOTE_PORT:-8080}
       - ACP_DEFAULT_RUNTIME=${ACP_DEFAULT_RUNTIME:-remote}
     ports:
-      - "8081-8082:8080"
+      - "${HIMARKET_SERVER_PORT:-8081}:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -174,7 +174,7 @@ services:
       retries: 20
       start_period: 60s
     deploy:
-      replicas: ${HIMARKET_REPLICAS:-1}
+      replicas: 1
       resources:
         limits:
           cpus: "${HIMARKET_CPU_LIMIT:-2}"
@@ -192,7 +192,7 @@ services:
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
     ports:
-      - "5175-5176:8000"
+      - "${HIMARKET_ADMIN_PORT:-5174}:8000"
     depends_on:
       himarket-server:
         condition: service_healthy
@@ -205,7 +205,7 @@ services:
       retries: 10
       start_period: 10s
     deploy:
-      replicas: ${HIMARKET_REPLICAS:-1}
+      replicas: 1
       resources:
         limits:
           cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"
@@ -219,7 +219,7 @@ services:
     environment:
       - HIMARKET_SERVER=http://himarket-server:8080
     ports:
-      - "5173-5174:8000"
+      - "${HIMARKET_FRONTEND_PORT:-5173}:8000"  # 开发者前台
     depends_on:
       himarket-server:
         condition: service_healthy
@@ -232,7 +232,7 @@ services:
       retries: 10
       start_period: 10s
     deploy:
-      replicas: ${HIMARKET_REPLICAS:-1}
+      replicas: 1
       resources:
         limits:
           cpus: "${HIMARKET_LIGHT_CPU_LIMIT:-1}"

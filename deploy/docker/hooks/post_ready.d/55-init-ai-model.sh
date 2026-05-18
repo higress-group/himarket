@@ -58,7 +58,7 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
 # ── 全局变量（Docker 环境使用 localhost）──────────────────────────────────────
 HIGRESS_SESSION_COOKIE=""
 HIGRESS_HOST="http://localhost:8001"
-HIMARKET_HOST="http://localhost:5174"
+HIMARKET_HOST="http://localhost:${HIMARKET_ADMIN_PORT:-5174}"
 AUTH_TOKEN=""
 
 MAX_RETRIES=3
