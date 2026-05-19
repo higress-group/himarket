@@ -59,6 +59,11 @@ public abstract class GatewayOperator<T> {
     public abstract PageResult<? extends GatewayMcpServerResult> fetchMcpServers(
             Gateway gateway, int page, int size);
 
+    public GatewayMcpServerResult fetchMcpServer(Gateway gateway, String mcpServerId) {
+        throw new BusinessException(
+                ErrorCode.INVALID_REQUEST, "Gateway does not support fetching MCP server");
+    }
+
     public abstract PageResult<AgentAPIResult> fetchAgentAPIs(Gateway gateway, int page, int size);
 
     public abstract PageResult<? extends GatewayModelAPIResult> fetchModelAPIs(

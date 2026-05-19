@@ -19,12 +19,12 @@
 
 package com.alibaba.himarket.core.utils;
 
-import cn.hutool.core.lang.ObjectId;
+import java.util.UUID;
 
 /**
  * ID Generator
  *
- * <p>Format: prefix + 24-char string
+ * <p>Format: prefix + 32-char string
  *
  * <p>Supported ID types:
  * - Portal ID: portal-xxxxxx
@@ -58,74 +58,78 @@ public class IdGenerator {
     private static final String API_DEFINITION_PREFIX = "api-definition-";
 
     public static String genHigressGatewayId() {
-        return HIGRESS_PREFIX + ObjectId.next();
+        return HIGRESS_PREFIX + randomId();
     }
 
     public static String genPortalId() {
-        return PORTAL_PREFIX + ObjectId.next();
+        return PORTAL_PREFIX + randomId();
     }
 
     public static String genApiProductId() {
-        return API_PRODUCT_PREFIX + ObjectId.next();
+        return API_PRODUCT_PREFIX + randomId();
     }
 
     public static String genDeveloperId() {
-        return DEVELOPER_PREFIX + ObjectId.next();
+        return DEVELOPER_PREFIX + randomId();
     }
 
     public static String genConsumerId() {
-        return CONSUMER_PREFIX + ObjectId.next();
+        return CONSUMER_PREFIX + randomId();
     }
 
     public static String genAdministratorId() {
-        return ADMINISTRATOR_PREFIX + ObjectId.next();
+        return ADMINISTRATOR_PREFIX + randomId();
     }
 
     public static String genCategoryId() {
-        return CATEGORY_PREFIX + ObjectId.next();
+        return CATEGORY_PREFIX + randomId();
     }
 
     public static String genNacosId() {
-        return NACOS_PREFIX + ObjectId.next();
+        return NACOS_PREFIX + randomId();
     }
 
     public static String genSessionId() {
-        return SESSION_PREFIX + ObjectId.next();
+        return SESSION_PREFIX + randomId();
     }
 
     public static String genChatId() {
-        return CHAT_PREFIX + ObjectId.next();
+        return CHAT_PREFIX + randomId();
     }
 
     public static String genSubscriptionId() {
-        return SUBSCRIPTION_PREFIX + ObjectId.next();
+        return SUBSCRIPTION_PREFIX + randomId();
     }
 
     public static String genPublicationId() {
-        return PUBLICATION_PREFIX + ObjectId.next();
+        return PUBLICATION_PREFIX + randomId();
     }
 
     public static String genIdWithPrefix(String prefix) {
-        return prefix + ObjectId.next();
+        return prefix + randomId();
     }
 
     public static String genChatAttachmentId() {
-        return CHAT_ATTACHMENT_PREFIX + ObjectId.next();
+        return CHAT_ATTACHMENT_PREFIX + randomId();
     }
 
     public static String genSandboxId() {
-        return SANDBOX_PREFIX + ObjectId.next();
+        return SANDBOX_PREFIX + randomId();
     }
 
     public static String genMcpServerId() {
-        return MCP_SERVER_PREFIX + ObjectId.next();
+        return MCP_SERVER_PREFIX + randomId();
     }
 
     public static String genEndpointId() {
-        return ENDPOINT_PREFIX + ObjectId.next();
+        return ENDPOINT_PREFIX + randomId();
     }
 
     public static String genApiDefinitionId() {
-        return API_DEFINITION_PREFIX + ObjectId.next();
+        return API_DEFINITION_PREFIX + randomId();
+    }
+
+    private static String randomId() {
+        return UUID.randomUUID().toString().replace("-", "");
     }
 }

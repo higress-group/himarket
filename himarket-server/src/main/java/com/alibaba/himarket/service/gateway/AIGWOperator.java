@@ -105,26 +105,21 @@ public class AIGWOperator extends APIGOperator {
     }
 
     @Override
+    public GatewayMcpServerResult fetchMcpServer(Gateway gateway, String mcpServerId) {
+        GetMcpServerResponseBody.Data resp = getMcpServer(gateway, mcpServerId);
+        APIGMcpServerResult result = new APIGMcpServerResult();
+        result.setMcpServerId(resp.getMcpServerId());
+        result.setMcpServerName(resp.getName());
+        result.setMcpRouteId(resp.getRouteId());
+        return result;
+    }
+
+    @Override
     public String fetchMcpConfig(Gateway gateway, Object conf) {
         APIGRefConfig config = (APIGRefConfig) conf;
-        APIGClient client = getClient(gateway);
         McpConfigResult mcpConfig = new McpConfigResult();
 
-        CompletableFuture<GetMcpServerResponse> f =
-                client.execute(
-                        c -> {
-                            GetMcpServerRequest request =
-                                    GetMcpServerRequest.builder()
-                                            .mcpServerId(config.getMcpServerId())
-                                            .build();
-                            return c.getMcpServer(request);
-                        });
-
-        GetMcpServerResponse response = f.join();
-        if (200 != response.getStatusCode()) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
-        }
-        GetMcpServerResponseBody.Data resp = response.getBody().getData();
+        GetMcpServerResponseBody.Data resp = getMcpServer(gateway, config.getMcpServerId());
 
         // mcpServer name
         mcpConfig.setMcpServerName(resp.getName());
@@ -175,6 +170,23 @@ public class AIGWOperator extends APIGOperator {
         }
 
         return JsonUtil.toJson(mcpConfig);
+    }
+
+    private GetMcpServerResponseBody.Data getMcpServer(Gateway gateway, String mcpServerId) {
+        APIGClient client = getClient(gateway);
+        CompletableFuture<GetMcpServerResponse> f =
+                client.execute(
+                        c ->
+                                c.getMcpServer(
+                                        GetMcpServerRequest.builder()
+                                                .mcpServerId(mcpServerId)
+                                                .build()));
+
+        GetMcpServerResponse response = f.join();
+        if (200 != response.getStatusCode()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, response.getBody().getMessage());
+        }
+        return response.getBody().getData();
     }
 
     @Override

@@ -221,6 +221,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     }
 
     @Override
+    public GatewayMcpServerResult fetchMcpServer(String gatewayId, String mcpServerId) {
+        Gateway gateway = findGateway(gatewayId);
+        return getOperator(gateway).fetchMcpServer(gateway, mcpServerId);
+    }
+
+    @Override
     public PageResult<AgentAPIResult> fetchAgentAPIs(String gatewayId, int page, int size) {
         Gateway gateway = findGateway(gatewayId);
         return getOperator(gateway).fetchAgentAPIs(gateway, page, size);

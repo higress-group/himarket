@@ -26,6 +26,8 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.apidefinition.CreateApiDefinitionParam;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
+import com.alibaba.himarket.dto.result.mcp.APIGMcpServerResult;
+import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
 import com.alibaba.himarket.dto.result.product.ImportProductsResult;
 import com.alibaba.himarket.dto.result.product.ProductImportResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
@@ -148,7 +150,7 @@ public class ProductImporter {
         HigressRefConfig higressRefConfig =
                 gatewayType.isHigress() ? buildHigressRefConfig(productType, item) : null;
         APIGRefConfig apigConfig =
-                gatewayType.isAPIG() ? buildApigRefConfig(productType, item) : null;
+                gatewayType.isAPIG() ? buildApigRefConfig(productType, item, gateway) : null;
 
         return AddProductRefParam.builder()
                 .sourceType(SourceType.GATEWAY)
@@ -163,9 +165,11 @@ public class ProductImporter {
      *
      * @param productType the product type to import
      * @param item the resource item selected for import
+     * @param gateway the gateway result
      * @return the APIG reference configuration
      */
-    private APIGRefConfig buildApigRefConfig(ProductType productType, ProductImportItemParam item) {
+    private APIGRefConfig buildApigRefConfig(
+            ProductType productType, ProductImportItemParam item, GatewayResult gateway) {
         APIGRefConfig config = new APIGRefConfig();
         switch (productType) {
             case REST_API -> {
@@ -175,6 +179,7 @@ public class ProductImporter {
             case MCP_SERVER -> {
                 config.setMcpServerId(item.getResourceId());
                 config.setMcpServerName(item.getResourceName());
+                completeMcpRouteId(gateway, config);
             }
             case AGENT_API -> {
                 config.setAgentApiId(item.getResourceId());
@@ -190,6 +195,31 @@ public class ProductImporter {
                             "Unsupported product type for gateway import");
         }
         return config;
+    }
+
+    /**
+     * Complete APIG AI gateway MCP route ID for imported MCP products.
+     *
+     * <p>Only APIG AI gateway MCP resources require both MCP server ID and route ID. Other gateways
+     * either do not use APIG reference config or do not need this compatibility field.
+     */
+    private void completeMcpRouteId(GatewayResult gateway, APIGRefConfig config) {
+        String mcpServerId = config.getMcpServerId();
+        if (!gateway.getGatewayType().isAIGateway() || StrUtil.isBlank(mcpServerId)) {
+            return;
+        }
+
+        GatewayMcpServerResult mcpServer =
+                gatewayService.fetchMcpServer(gateway.getGatewayId(), mcpServerId);
+        if (mcpServer instanceof APIGMcpServerResult m && StrUtil.isNotBlank(m.getMcpRouteId())) {
+            config.setMcpServerName(m.getMcpServerName());
+            config.setMcpRouteId(m.getMcpRouteId());
+            return;
+        }
+
+        throw new BusinessException(
+                ErrorCode.INVALID_REQUEST,
+                "Cannot resolve MCP route id for resource: " + mcpServerId);
     }
 
     /**

@@ -559,7 +559,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 for (ApiKeyConfig.ApiKeyCredential cred : apiKeyCredentials) {
                     if (cred.getMode() == CredentialMode.SYSTEM
                             && StrUtil.isBlank(cred.getApiKey())) {
-                        cred.setApiKey(IdGenerator.genIdWithPrefix("apikey-"));
+                        cred.setApiKey(generateApiKey());
                     }
                 }
             }
@@ -579,6 +579,16 @@ public class ConsumerServiceImpl implements ConsumerService {
                 }
             }
         }
+    }
+
+    private String generateApiKey() {
+        for (int i = 0; i < 10; i++) {
+            String apiKey = IdGenerator.genIdWithPrefix("apikey-");
+            if (credentialRepository.countByApiKey(apiKey) == 0) {
+                return apiKey;
+            }
+        }
+        throw new BusinessException(ErrorCode.CONFLICT, "Unable to generate unique API Key");
     }
 
     private ConsumerAuthConfig authorizeConsumer(

@@ -21,6 +21,8 @@ package com.alibaba.himarket.repository;
 
 import com.alibaba.himarket.entity.ConsumerCredential;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ConsumerCredentialRepository extends BaseRepository<ConsumerCredential, Long> {
 
@@ -31,6 +33,26 @@ public interface ConsumerCredentialRepository extends BaseRepository<ConsumerCre
      * @return the consumer credential if found
      */
     Optional<ConsumerCredential> findByConsumerId(String consumerId);
+
+    /**
+     * Count credentials containing the specified API Key.
+     *
+     * @param apiKey the API Key to check
+     * @return the number of credentials containing the API Key
+     */
+    @Query(
+            value =
+                    """
+                    SELECT COUNT(1)
+                    FROM consumer_credential
+                    WHERE apikey_config IS NOT NULL
+                      AND JSON_CONTAINS(
+                            JSON_EXTRACT(apikey_config, '$.credentials[*].apiKey'),
+                            JSON_QUOTE(:apiKey)
+                          )
+                    """,
+            nativeQuery = true)
+    long countByApiKey(@Param("apiKey") String apiKey);
 
     /**
      * Delete all credentials by consumer ID

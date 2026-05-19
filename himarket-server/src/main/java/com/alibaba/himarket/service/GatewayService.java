@@ -107,6 +107,8 @@ public interface GatewayService {
 
     PageResult<GatewayMcpServerResult> fetchMcpServers(String gatewayId, int page, int size);
 
+    GatewayMcpServerResult fetchMcpServer(String gatewayId, String mcpServerId);
+
     PageResult<AgentAPIResult> fetchAgentAPIs(String gatewayId, int page, int size);
 
     PageResult<GatewayModelAPIResult> fetchModelAPIs(String gatewayId, int page, int size);
