@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.dto.result.idp;
 
-import cn.hutool.core.annotation.Alias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
@@ -28,31 +28,31 @@ public class IdpTokenResult {
     /**
      * Access token
      */
-    @Alias("access_token")
+    @JsonProperty("access_token")
     private String accessToken;
 
     /**
      * ID token
      */
-    @Alias("id_token")
+    @JsonProperty("id_token")
     private String idToken;
 
     /**
      * Refresh token
      */
-    @Alias("refresh_token")
+    @JsonProperty("refresh_token")
     private String refreshToken;
 
     /**
      * Token type
      */
-    @Alias("token_type")
+    @JsonProperty("token_type")
     private String tokenType;
 
     /**
      * Expiration time in seconds
      */
-    @Alias("expires_in")
+    @JsonProperty("expires_in")
     private Integer expiresIn;
 
     /**
