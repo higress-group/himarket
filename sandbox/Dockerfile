@@ -113,7 +113,7 @@ RUN npm install -g @zed-industries/claude-agent-acp
 RUN npm install -g opencode-ai
 
 # --- nacos-cli (Nacos 命令行工具，用于沙箱内下载 Skill) ---
-RUN curl -fsSL https://nacos.io/nacos-installer.sh | bash -s -- --cli -v 0.0.9 && \
+RUN curl -fsSL https://nacos.io/nacos-installer.sh | bash -s -- --cli -v 1.0.0 && \
     nacos-cli help
 
 # ============================================================
