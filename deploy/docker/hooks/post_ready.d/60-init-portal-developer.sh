@@ -50,23 +50,33 @@ call_api() {
   local host="$3"
   local path="$4"
   local body="${5:-}"
-  local extra_args="${6:-}"
+  local auth_token="${6:-}"
   
   local url="http://${host}${path}"
   
   log "调用接口 [${api_name}]: ${method} ${url}"
   
-  local curl_cmd="curl -sS -w '\nHTTP_CODE:%{http_code}' -X ${method} '${url}'"
-  curl_cmd="${curl_cmd} -H 'Content-Type: application/json'"
-  curl_cmd="${curl_cmd} -H 'Accept: application/json, text/plain, */*'"
+  local curl_args=(
+    -sS
+    -w $'\nHTTP_CODE:%{http_code}'
+    -X "$method"
+    "$url"
+    -H "Content-Type: application/json"
+    -H "Accept: application/json, text/plain, */*"
+  )
   
   if [[ -n "$body" ]]; then
-    curl_cmd="${curl_cmd} -d '${body}'"
+    curl_args+=(-d "$body")
   fi
   
-  curl_cmd="${curl_cmd} ${extra_args} --connect-timeout 10 --max-time 30"
+  if [[ -n "$auth_token" ]]; then
+    curl_args+=(-H "Authorization: Bearer ${auth_token}")
+  fi
   
-  local result=$(eval "$curl_cmd" 2>&1 || echo "HTTP_CODE:000")
+  curl_args+=(--connect-timeout 10 --max-time 30)
+
+  local result
+  result=$(curl "${curl_args[@]}" 2>&1 || echo "HTTP_CODE:000")
   
   local http_code=""
   local response=""
@@ -198,13 +208,11 @@ step_2_admin_login() {
 ########################################
 step_3_get_developer_info() {
   # 先获取 Portal 列表获取 Portal ID
-  local extra_args="-H 'Authorization: Bearer ${ADMIN_TOKEN}'"
-  
   local attempt=1
   while (( attempt <= MAX_RETRIES )); do
     log "执行步骤 3.1: 获取 Portal ID (第 ${attempt}/${MAX_RETRIES} 次)..."
     
-    if call_api "查询Portal列表" "GET" "${ADMIN_HOST}" "/api/v1/portals" "" "$extra_args"; then
+    if call_api "查询Portal列表" "GET" "${ADMIN_HOST}" "/api/v1/portals" "" "${ADMIN_TOKEN}"; then
       # 从列表中提取第一个 portalId
       PORTAL_ID=$(extract_json_field "$API_RESPONSE" "portalId")
       
@@ -243,7 +251,7 @@ step_3_get_developer_info() {
   while (( attempt <= MAX_RETRIES )); do
     log "执行步骤 3.2: 获取 Developer ID (第 ${attempt}/${MAX_RETRIES} 次)..."
     
-    if call_api "查询开发者列表" "GET" "${ADMIN_HOST}" "/api/v1/developers?portalId=${PORTAL_ID}&page=1&size=10" "" "$extra_args"; then
+    if call_api "查询开发者列表" "GET" "${ADMIN_HOST}" "/api/v1/developers?portalId=${PORTAL_ID}&page=1&size=10" "" "${ADMIN_TOKEN}"; then
       local temp_response="$API_RESPONSE"
       
       # 查找包含目标用户名的开发者对象
@@ -300,13 +308,12 @@ step_4_approve_developer() {
   fi
   
   local body="{\"portalId\":\"${PORTAL_ID}\",\"status\":\"APPROVED\"}"
-  local extra_args="-H 'Authorization: Bearer ${ADMIN_TOKEN}'"
   
   local attempt=1
   while (( attempt <= MAX_RETRIES )); do
     log "执行步骤 4: 审批开发者 (第 ${attempt}/${MAX_RETRIES} 次)..."
     
-    if call_api "审批开发者" "PATCH" "${ADMIN_HOST}" "/api/v1/developers/${DEVELOPER_ID}/status" "$body" "$extra_args"; then
+    if call_api "审批开发者" "PATCH" "${ADMIN_HOST}" "/api/v1/developers/${DEVELOPER_ID}/status" "$body" "${ADMIN_TOKEN}"; then
       log "开发者审批成功"
       return 0
     else
@@ -390,13 +397,11 @@ step_6_get_subscription_info() {
     log "已有 Consumer ID: ${CONSUMER_ID}，跳过查询"
   else
     # 调用 consumers 列表接口获取 consumerId
-    local extra_args="-H 'Authorization: Bearer ${FRONTEND_TOKEN}'"
-    
     local attempt=1
     while (( attempt <= MAX_RETRIES )); do
       log "执行步骤 6.1: 获取 Consumer ID (第 ${attempt}/${MAX_RETRIES} 次)..."
       
-      if call_api "查询Consumers列表" "GET" "${FRONTEND_HOST}" "/api/v1/consumers?page=1&size=100" "" "$extra_args"; then
+      if call_api "查询Consumers列表" "GET" "${FRONTEND_HOST}" "/api/v1/consumers?page=1&size=100" "" "${FRONTEND_TOKEN}"; then
         # 从列表中提取第一个 consumerId
         # API 返回格式: {"code":"SUCCESS","data":{"content":[{"consumerId":"xxx",...}],...}}
         CONSUMER_ID=$(echo "$API_RESPONSE" | jq -r '.data.content[0]?.consumerId // empty' 2>/dev/null || echo "")
@@ -436,13 +441,11 @@ step_6_get_subscription_info() {
   fi
   
   # 获取产品列表，查找所有可订阅的产品
-  local extra_args="-H 'Authorization: Bearer ${FRONTEND_TOKEN}'"
-  
   local attempt=1
   while (( attempt <= MAX_RETRIES )); do
     log "执行步骤 6.2: 获取可订阅产品列表 (第 ${attempt}/${MAX_RETRIES} 次)..."
     
-    if call_api "查询产品列表" "GET" "${FRONTEND_HOST}" "/api/v1/products" "" "$extra_args"; then
+    if call_api "查询产品列表" "GET" "${FRONTEND_HOST}" "/api/v1/products" "" "${FRONTEND_TOKEN}"; then
       # 从列表中提取所有产品ID（使用 jq 处理）
       # API 返回格式: {"code":"SUCCESS","data":{"content":[{"productId":"xxx",...}],...}}
       local product_ids=$(echo "$API_RESPONSE" | jq -r '.data.content[]? | .productId // empty' 2>/dev/null || echo "")
@@ -506,13 +509,12 @@ step_7_subscribe_products() {
     log "订阅产品: ${product_id}..."
     
     local body="{\"productId\":\"${product_id}\"}"
-    local extra_args="-H 'Authorization: Bearer ${FRONTEND_TOKEN}'"
     
     local attempt=1
     local subscribed=false
 
     while (( attempt <= MAX_RETRIES )); do
-      if call_api "订阅产品(${product_id})" "POST" "${FRONTEND_HOST}" "/api/v1/consumers/${CONSUMER_ID}/subscriptions" "$body" "$extra_args"; then
+      if call_api "订阅产品(${product_id})" "POST" "${FRONTEND_HOST}" "/api/v1/consumers/${CONSUMER_ID}/subscriptions" "$body" "${FRONTEND_TOKEN}"; then
         # 如果是 409，说明已订阅
         if [[ "$API_HTTP_CODE" == "409" ]]; then
           log "产品 ${product_id} 已订阅（幂等）"
