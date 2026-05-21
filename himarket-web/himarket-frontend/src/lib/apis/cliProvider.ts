@@ -189,6 +189,7 @@ export function getSkillFileContent(productId: string, filePath: string, version
  */
 export interface SkillCliInfo {
   nacosHost: string;
+  nacosPort?: number;
   resourceName: string;
   resourceType: string;
 }
