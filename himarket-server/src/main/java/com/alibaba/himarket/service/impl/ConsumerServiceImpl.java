@@ -55,9 +55,12 @@ import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
 import com.alibaba.himarket.support.enums.CredentialMode;
+import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
+import com.alibaba.himarket.support.gateway.APIGConfig;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
+import com.alibaba.himarket.support.gateway.HigressConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -697,17 +700,37 @@ public class ConsumerServiceImpl implements ConsumerService {
     }
 
     private ConsumerRef matchConsumerRef(String consumerId, GatewayConfig gatewayConfig) {
+        GatewayType gatewayType = gatewayConfig.getGatewayType();
         List<ConsumerRef> consumeRefs =
                 consumerRefRepository.findAllByConsumerIdAndGatewayType(
-                        consumerId, gatewayConfig.getGatewayType());
-        if (consumeRefs.isEmpty()) {
-            return null;
-        }
+                        consumerId, gatewayType, Sort.by(Sort.Direction.ASC, "id"));
 
         for (ConsumerRef ref : consumeRefs) {
-            // Check if the gateway config matches
-            if (StrUtil.equals(
-                    JsonUtil.toJson(ref.getGatewayConfig()), JsonUtil.toJson(gatewayConfig))) {
+            GatewayConfig refGatewayConfig = ref.getGatewayConfig();
+            if (refGatewayConfig == null) {
+                continue;
+            }
+
+            boolean matched =
+                    switch (gatewayType) {
+                        case APIG_API, APIG_AI -> {
+                            APIGConfig apigConfig = gatewayConfig.getApigConfig();
+                            yield apigConfig != null
+                                    && apigConfig.matchesGatewayIdentity(
+                                            refGatewayConfig.getApigConfig());
+                        }
+                        case HIGRESS -> {
+                            HigressConfig higressConfig = gatewayConfig.getHigressConfig();
+                            yield higressConfig != null
+                                    && higressConfig.matchesGatewayIdentity(
+                                            refGatewayConfig.getHigressConfig());
+                        }
+                        default ->
+                                StrUtil.equals(
+                                        JsonUtil.toJson(refGatewayConfig),
+                                        JsonUtil.toJson(gatewayConfig));
+                    };
+            if (matched) {
                 return ref;
             }
         }
