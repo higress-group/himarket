@@ -22,6 +22,7 @@ package com.alibaba.himarket.repository;
 import com.alibaba.himarket.entity.ConsumerRef;
 import com.alibaba.himarket.support.enums.GatewayType;
 import java.util.List;
+import org.springframework.data.domain.Sort;
 
 public interface ConsumerRefRepository extends BaseRepository<ConsumerRef, Long> {
 
@@ -38,7 +39,9 @@ public interface ConsumerRefRepository extends BaseRepository<ConsumerRef, Long>
      *
      * @param consumerId the consumer ID
      * @param gatewayType the gateway type
+     * @param sort the sort order
      * @return the list of consumer references
      */
-    List<ConsumerRef> findAllByConsumerIdAndGatewayType(String consumerId, GatewayType gatewayType);
+    List<ConsumerRef> findAllByConsumerIdAndGatewayType(
+            String consumerId, GatewayType gatewayType, Sort sort);
 }

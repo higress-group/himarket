@@ -41,4 +41,12 @@ public class APIGConfig {
                 && StrUtil.isNotBlank(secretKey)
                 && StrUtil.isNotBlank(region);
     }
+
+    public boolean matchesGatewayIdentity(APIGConfig other) {
+        return other != null
+                && StrUtil.isNotBlank(accessKey)
+                && StrUtil.isNotBlank(region)
+                && StrUtil.equals(accessKey, other.getAccessKey())
+                && StrUtil.equals(region, other.getRegion());
+    }
 }

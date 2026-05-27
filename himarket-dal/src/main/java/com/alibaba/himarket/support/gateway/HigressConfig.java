@@ -63,4 +63,24 @@ public class HigressConfig {
 
         return true;
     }
+
+    public boolean matchesGatewayIdentity(HigressConfig other) {
+        String normalizedAddress = normalizeAddress(address);
+        return other != null
+                && StrUtil.isNotBlank(normalizedAddress)
+                && StrUtil.equals(normalizedAddress, normalizeAddress(other.getAddress()));
+    }
+
+    private static String normalizeAddress(String address) {
+        String trimmedAddress = StrUtil.trim(address);
+        if (StrUtil.isBlank(trimmedAddress)) {
+            return null;
+        }
+
+        String addressWithScheme =
+                StrUtil.startWithAnyIgnoreCase(trimmedAddress, "http://", "https://")
+                        ? trimmedAddress
+                        : "http://" + trimmedAddress;
+        return StrUtil.removeSuffix(addressWithScheme, "/");
+    }
 }
