@@ -277,7 +277,16 @@
                     <artifactId>dashscope-sdk-java</artifactId>
                     <groupId>com.alibaba</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>mcp-json-jackson3</artifactId>
+                    <groupId>io.modelcontextprotocol.sdk</groupId>
+                </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-json-jackson2</artifactId>
         </dependency>
 
         <dependency>
