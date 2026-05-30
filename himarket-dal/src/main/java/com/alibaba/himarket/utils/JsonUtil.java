@@ -20,6 +20,7 @@
 package com.alibaba.himarket.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
@@ -42,7 +43,17 @@ import org.springframework.util.Assert;
 @Slf4j
 public class JsonUtil {
 
+    public static final int MAX_JSON_STRING_LENGTH = 50_000_000;
+
     public static final ObjectMapper DEFAULT_JSON_MAPPER = createDefaultJsonMapper();
+
+    /**
+     * Configures Jackson's JVM-wide default stream read constraints for ObjectMapper instances that
+     * are created outside JsonUtil.
+     */
+    public static void configureDefaultStreamReadConstraints() {
+        StreamReadConstraints.overrideDefaultStreamReadConstraints(createStreamReadConstraints());
+    }
 
     /**
      * Creates default ObjectMapper instance.
@@ -62,6 +73,7 @@ public class JsonUtil {
     @NonNull
     public static ObjectMapper createJsonMapper(PropertyNamingStrategies.NamingBase strategy) {
         ObjectMapper mapper = new ObjectMapper();
+        mapper.getFactory().setStreamReadConstraints(createStreamReadConstraints());
         mapper.registerModule(new JavaTimeModule());
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
@@ -69,6 +81,10 @@ public class JsonUtil {
             mapper.setPropertyNamingStrategy(strategy);
         }
         return mapper;
+    }
+
+    private static StreamReadConstraints createStreamReadConstraints() {
+        return StreamReadConstraints.builder().maxStringLength(MAX_JSON_STRING_LENGTH).build();
     }
 
     /**
