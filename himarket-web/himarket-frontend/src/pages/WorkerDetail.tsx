@@ -28,6 +28,7 @@ import {
   getWorkerPackageUrl,
   getWorkerCliInfo,
 } from '../lib/apis/workerTemplateApi';
+import { buildNacosCliCommand } from '../lib/nacosCliCommand';
 import { parseSkillMd } from '../lib/skillMdUtils';
 import { copyToClipboard } from '../lib/utils';
 
@@ -910,17 +911,16 @@ function WorkerDetail() {
                     <button
                       className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
                       onClick={() => {
-                        const quotedName = cliInfo.resourceName.includes(' ')
-                          ? `"${cliInfo.resourceName}"`
-                          : cliInfo.resourceName;
-                        const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
-                        const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
                         const selectedVersionInfo = versions.find(
                           (v) => v.version === selectedVersion,
                         );
                         const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
-                        const cmd = `npx @nacos-group/cli${hostArg} agentspec-get ${quotedName}${versionArg}`;
+                        const cmd = buildNacosCliCommand({
+                          command: 'agentspec-get',
+                          resourceName: cliInfo.resourceName,
+                          server: cliInfo,
+                          version: isLatest ? undefined : selectedVersion,
+                        });
                         copyToClipboard(cmd).then(() => {
                           setCopiedCmd(true);
                           setTimeout(() => setCopiedCmd(false), 2000);
@@ -934,14 +934,16 @@ function WorkerDetail() {
                       style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
                     >
                       {(() => {
-                        const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
-                        const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
                         const selectedVersionInfo = versions.find(
                           (v) => v.version === selectedVersion,
                         );
                         const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
-                        return `npx @nacos-group/cli${hostArg} agentspec-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName}${versionArg}`;
+                        return buildNacosCliCommand({
+                          command: 'agentspec-get',
+                          resourceName: cliInfo.resourceName,
+                          server: cliInfo,
+                          version: isLatest ? undefined : selectedVersion,
+                        });
                       })()}
                     </code>
                   </div>
