@@ -870,15 +870,40 @@ try {
 
 ---
 
-## 11. Code Reusability Principles
+## 11. Internationalization (i18n)
 
-### 11.1 When to Extract for Reuse
+The admin console supports Simplified Chinese and English through `src/contexts/LocaleContext.tsx`
+and `src/i18n/locales.ts`. All new or modified user-facing copy must be wired through this
+mechanism unless the text is user-generated, returned from an external system, a brand/product name,
+or part of a code example.
+
+**Rules:**
+
+- Use `useLocale()` and `t('namespace.key')` for labels, placeholders, empty states, validation
+  messages, button text, menu text, notifications, and modal copy.
+- Add or update both `zh-CN` and `en-US` messages in `src/i18n/locales.ts` in the same change.
+- Keep translation keys stable and descriptive. Prefer domain prefixes such as `product.*`,
+  `portal.*`, `monitor.*`, `layout.*`, and `common.*`.
+- Pass variables through the locale helper instead of concatenating localized strings in components:
+  `t('common.createdAt', { time })`.
+- In Chinese copy, add one half-width space between Chinese text and adjacent English words,
+  acronyms, product names, API names, or numbers: `从 Nacos 导入`, `MCP 监控`,
+  `Model API 配置`, `6 到 32 个字符`.
+- Keep brand and protocol names intact: `HiMarket`, `HiChat`, `OpenAPI`, `OAuth2`, `REST API`.
+- Do not normalize spacing in user-generated content, backend-provided names, URLs, file names, or
+  code samples.
+
+---
+
+## 12. Code Reusability Principles
+
+### 12.1 When to Extract for Reuse
 
 - **Same UI pattern appears twice or more** -> Extract to `components/common/`
 - **Same state logic appears twice or more** -> Extract to `components/{domain}/hooks/` or `hooks/`
 - **Same data transformation appears twice or more** -> Extract to `lib/utils.ts`
 
-### 11.2 Reuse Decision Criteria
+### 12.2 Reuse Decision Criteria
 
 Reuse should be based on **consistent business meaning**:
 
@@ -893,7 +918,7 @@ Reuse should be based on **consistent business meaning**:
 
 ---
 
-## 12. Security and Sensitive Data
+## 13. Security and Sensitive Data
 
 The admin console may display or send credentials, tokens, gateway configs, and Nacos metadata. Treat these values as sensitive by default.
 
@@ -905,7 +930,7 @@ The admin console may display or send credentials, tokens, gateway configs, and 
 - Do not include secrets in URL query strings, route params, error messages, analytics events, or copied debug text.
 - Prefer typed request/response DTOs that expose only the fields required by the UI.
 
-## 13. Testing
+## 14. Testing
 
 Testing effort should match the user-facing risk and state complexity.
 
@@ -922,7 +947,7 @@ Testing effort should match the user-facing risk and state complexity.
 - Run `npm run lint` or `./scripts/code-check.sh admin` before submitting admin changes.
 - Manually verify critical UI flows when behavior changes cannot be covered by automated tests.
 
-## 14. Pre-Commit Checks
+## 15. Pre-Commit Checks
 
 ```bash
 # Run from project root

@@ -10,3 +10,200 @@
   background: transparent;
   border: 0;
 }
+
+.himarket-markdown-body.markdown-body .himarket-code-block {
+  position: relative;
+  margin: 1rem 0;
+}
+
+.himarket-markdown-body.markdown-body .himarket-code-block pre {
+  margin: 0;
+  padding-right: 3.4rem;
+}
+
+.himarket-markdown-body.markdown-body .himarket-code-copy {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.76;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.himarket-markdown-body.markdown-body .himarket-code-copy:hover {
+  border-color: rgba(208, 215, 222, 0.85);
+  background: rgba(255, 255, 255, 0.72);
+  color: #4b5563;
+  opacity: 1;
+}
+
+.himarket-markdown-body.markdown-body .himarket-code-copy:active {
+  transform: scale(0.96);
+}
+
+.himarket-markdown-chat.markdown-body .himarket-code-copy {
+  border-color: transparent;
+  background: transparent;
+  color: #94a3b8;
+  opacity: 0.78;
+}
+
+.himarket-markdown-chat.markdown-body .himarket-code-copy:hover {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.36);
+  color: #e2e8f0;
+  opacity: 1;
+}
+
+.himarket-markdown-chat.markdown-body {
+  color: #3f4a5a;
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+.himarket-markdown-chat.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.himarket-markdown-chat.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.himarket-markdown-chat.markdown-body p {
+  margin: 0.35rem 0;
+  color: #3f4a5a;
+  line-height: 1.72;
+}
+
+.himarket-markdown-chat.markdown-body h1,
+.himarket-markdown-chat.markdown-body h2,
+.himarket-markdown-chat.markdown-body h3,
+.himarket-markdown-chat.markdown-body h4 {
+  color: #111827;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.himarket-markdown-chat.markdown-body h1 {
+  margin: 0.2rem 0 0.65rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+  font-size: 1.3rem;
+}
+
+.himarket-markdown-chat.markdown-body h2 {
+  margin: 0.85rem 0 0.45rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+  font-size: 1.08rem;
+}
+
+.himarket-markdown-chat.markdown-body h3 {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.98rem;
+}
+
+.himarket-markdown-chat.markdown-body ul,
+.himarket-markdown-chat.markdown-body ol {
+  margin: 0.45rem 0;
+  padding-left: 1.25rem;
+}
+
+.himarket-markdown-chat.markdown-body li {
+  margin: 0.2rem 0;
+  color: #3f4a5a;
+}
+
+.himarket-markdown-chat.markdown-body li > p {
+  margin: 0.12rem 0;
+}
+
+.himarket-markdown-chat.markdown-body code:not(pre code) {
+  border: 1px solid #e3e8f1;
+  border-radius: 6px;
+  background: #f7f9fc;
+  color: #374151;
+  padding: 0.08rem 0.32rem;
+  font-size: 0.88em;
+  font-weight: 500;
+}
+
+.himarket-markdown-chat.markdown-body pre {
+  margin: 0.85rem 0;
+  border: 1px solid #dce4f0;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.himarket-markdown-chat.markdown-body pre code,
+.himarket-markdown-chat.markdown-body pre code.hljs {
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.himarket-markdown-chat.markdown-body blockquote {
+  margin: 0.85rem 0;
+  border-left: 3px solid #8b8cf6;
+  border-radius: 10px;
+  background: #f7f8ff;
+  color: #526071;
+  padding: 0.75rem 0.9rem;
+  font-style: normal;
+}
+
+.himarket-markdown-chat.markdown-body table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 0.85rem 0;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.himarket-markdown-chat.markdown-body th,
+.himarket-markdown-chat.markdown-body td {
+  border: 1px solid #dce4f0;
+  padding: 0.55rem 0.7rem;
+  white-space: nowrap;
+}
+
+.himarket-markdown-chat.markdown-body th {
+  background: #f8fafc;
+  color: #374151;
+  font-weight: 600;
+}
+
+.himarket-markdown-chat.markdown-body td {
+  color: #4b5563;
+}
+
+.himarket-markdown-chat.markdown-body a {
+  color: #4f5ff7;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.himarket-markdown-chat.markdown-body a:hover {
+  text-decoration: underline;
+}

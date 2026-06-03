@@ -3,6 +3,7 @@ import { Modal, Input, Button, Alert, message } from 'antd';
 import { useState, useCallback } from 'react';
 
 import { ImportResultModal, type ImportResultFailure } from '@/components/common/ImportResultModal';
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, mcpVendorApi } from '@/lib/api';
 import type { McpVendorType, RemoteMcpItemResult, VendorOption } from '@/types/mcp-vendor';
 import { VENDOR_OPTIONS } from '@/types/mcp-vendor';
@@ -32,6 +33,7 @@ interface ImportResultState {
 }
 
 export default function ImportMcpModal({ onClose, onImportSuccess, open }: ImportMcpModalProps) {
+  const { t } = useLocale();
   const [step, setStep] = useState<'select' | 'list'>('select');
   const [vendorType, setVendorType] = useState<McpVendorType | null>(null);
   const [keyword, setKeyword] = useState('');
@@ -45,6 +47,18 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
 
   const selectedVendor = VENDOR_OPTIONS.find((v) => v.value === vendorType);
+  const getVendorDescription = (vendor: VendorOption) => {
+    switch (vendor.value) {
+      case 'MODELSCOPE':
+        return t('product.marketImport.vendor.modelScopeDescription');
+      case 'MCP_REGISTRY':
+        return t('product.marketImport.vendor.mcpRegistryDescription');
+      case 'LOBEHUB':
+        return t('product.marketImport.vendor.lobeHubDescription');
+      default:
+        return vendor.description;
+    }
+  };
 
   const resetBrowseState = useCallback(() => {
     setStep('select');
@@ -112,14 +126,14 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
           (err as { response?: { data?: { message?: string } }; message?: string }).response?.data
             ?.message ||
           (err as { message?: string }).message ||
-          '查询失败';
+          t('product.marketImport.queryFailed');
         setError(msg);
         setItems([]);
       } finally {
         setLoading(false);
       }
     },
-    [vendorType, keyword, pagination],
+    [vendorType, keyword, pagination, t],
   );
 
   const handlePageChange = useCallback(
@@ -129,22 +143,25 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
     [handleQuery],
   );
 
-  const handleSelectionChange = useCallback((keys: string[], rows: RemoteMcpItemResult[]) => {
-    if (keys.length > 50) {
-      message.warning('最多选择 50 条');
-      return;
-    }
-    setSelectedKeys(keys);
-    setSelectedItems(rows);
-  }, []);
+  const handleSelectionChange = useCallback(
+    (keys: string[], rows: RemoteMcpItemResult[]) => {
+      if (keys.length > 50) {
+        message.warning(t('product.marketImport.maxSelection', { count: 50 }));
+        return;
+      }
+      setSelectedKeys(keys);
+      setSelectedItems(rows);
+    },
+    [t],
+  );
 
   const handleImport = useCallback(async () => {
     if (!vendorType || selectedItems.length === 0) {
-      message.warning('请先选择要导入的 MCP');
+      message.warning(t('product.marketImport.selectFirst'));
       return;
     }
     setImporting(true);
-    const hide = message.loading('正在导入，请稍候...', 0);
+    const hide = message.loading(t('product.marketImport.importing'), 0);
     try {
       const importItems = selectedItems.map((item) => ({
         description: item.description,
@@ -181,12 +198,12 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
           onImportSuccess();
           closeAfterImportSuccess();
         } else {
-          message.success(`成功导入 ${result.successCount} 个 MCP Server`);
+          message.success(t('product.marketImport.successCount', { count: result.successCount }));
           onImportSuccess();
           closeAfterImportSuccess();
         }
       } else {
-        message.success('导入完成');
+        message.success(t('action.importSuccess'));
         onImportSuccess();
         closeAfterImportSuccess();
       }
@@ -195,21 +212,21 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
         (err as { name?: string }).name === 'AbortError' ||
         (err as { code?: string }).code === 'ECONNABORTED'
       ) {
-        message.warning('导入请求超时，但后台可能已完成导入，请刷新页面查看');
+        message.warning(t('product.marketImport.timeoutWarning'));
         onImportSuccess();
       } else {
         const msg =
           (err as { response?: { data?: { message?: string } }; message?: string }).response?.data
             ?.message ||
           (err as { message?: string }).message ||
-          '导入失败';
+          t('product.import.failed');
         message.error(msg);
       }
     } finally {
       hide();
       setImporting(false);
     }
-  }, [closeAfterImportSuccess, selectedItems, vendorType, onImportSuccess]);
+  }, [closeAfterImportSuccess, selectedItems, vendorType, onImportSuccess, t]);
 
   const handleClose = useCallback(() => {
     resetBrowseState();
@@ -232,9 +249,13 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
           step === 'list' && items.length > 0 ? (
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-500">
-                已选择 <span className="font-medium text-blue-600">{selectedKeys.length}</span> 项
+                {t('product.marketImport.selectedPrefix')}{' '}
+                <span className="font-medium text-blue-600">{selectedKeys.length}</span>{' '}
+                {t('product.marketImport.selectedSuffix')}
                 {selectedKeys.length >= 50 && (
-                  <span className="text-orange-500 ml-2">（已达上限）</span>
+                  <span className="text-orange-500 ml-2">
+                    {t('product.marketImport.selectionLimitReached')}
+                  </span>
                 )}
               </span>
               <Button
@@ -244,7 +265,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
                 onClick={handleImport}
                 type="primary"
               >
-                导入选中项
+                {t('product.marketImport.importSelected')}
               </Button>
             </div>
           ) : null
@@ -269,10 +290,10 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
                 }}
                 src={selectedVendor.iconUrl}
               />
-              <span>从 {selectedVendor.label} 导入</span>
+              <span>{t('product.marketImport.fromVendor', { vendor: selectedVendor.label })}</span>
             </div>
           ) : (
-            '导入 MCP Server'
+            t('product.marketImport.title')
           )
         }
         width={step === 'list' ? 1000 : 640}
@@ -280,7 +301,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
         {step === 'select' ? (
           /* ========== Step 1: Vendor Selection Cards ========== */
           <div className="py-2">
-            <p className="text-gray-500 mb-5">选择 MCP 数据源，从第三方平台浏览并导入 MCP Server</p>
+            <p className="text-gray-500 mb-5">{t('product.marketImport.description')}</p>
             <div className="grid grid-cols-1 gap-3">
               {VENDOR_OPTIONS.map((vendor) => (
                 <div
@@ -311,7 +332,9 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-800 text-base">{vendor.label}</div>
-                    <div className="text-sm text-gray-500 mt-0.5">{vendor.description}</div>
+                    <div className="text-sm text-gray-500 mt-0.5">
+                      {getVendorDescription(vendor)}
+                    </div>
                   </div>
                   <div className="text-gray-300 group-hover:text-blue-400 transition-colors text-lg">
                     →
@@ -328,13 +351,13 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
                 allowClear
                 onChange={(e) => setKeyword(e.target.value)}
                 onPressEnter={() => handleQuery(1)}
-                placeholder="搜索 MCP Server..."
+                placeholder={t('product.marketImport.searchPlaceholder')}
                 prefix={<SearchOutlined className="text-gray-400" />}
                 style={{ flex: 1 }}
                 value={keyword}
               />
               <Button loading={loading} onClick={() => handleQuery(1)} type="primary">
-                搜索
+                {t('common.search')}
               </Button>
             </div>
 
@@ -342,7 +365,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
               <Alert
                 closable
                 description={error}
-                message="查询失败"
+                message={t('product.marketImport.queryFailed')}
                 onClose={() => setError(null)}
                 showIcon
                 type="error"
@@ -365,7 +388,7 @@ export default function ImportMcpModal({ onClose, onImportSuccess, open }: Impor
 
             {items.length === 0 && !loading && !error && (
               <div className="text-center py-12 text-gray-400">
-                输入关键词搜索，或直接点击&ldquo;搜索&rdquo;浏览全部 MCP Server
+                {t('product.marketImport.searchTip')}
               </div>
             )}
           </div>

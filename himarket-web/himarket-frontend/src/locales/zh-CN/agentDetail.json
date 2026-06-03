@@ -1,0 +1,84 @@
+{
+  "error": {
+    "dataLoadFailed": "数据加载失败",
+    "loadFailed": "加载失败，请稍后重试",
+    "agentNotFound": "未找到对应的 Agent API"
+  },
+  "message": {
+    "domainCopied": "域名已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制",
+    "linkCopied": "链接已复制到剪贴板",
+    "requestCopied": "请求示例已复制到剪贴板"
+  },
+  "matchType": {
+    "exact": "等于",
+    "prefix": "前缀是",
+    "regex": "正则是"
+  },
+  "empty": {
+    "overview": "暂无概览信息",
+    "configuration": "暂无配置信息"
+  },
+  "tabs": {
+    "overview": "概览",
+    "configuration": "配置",
+    "configurationWithCount": "配置 ({{count}})"
+  },
+  "field": {
+    "protocol": "协议",
+    "noProtocol": "未配置协议"
+  },
+  "agentCard": {
+    "title": "Agent Card 信息",
+    "name": "名称",
+    "version": "版本",
+    "protocolVersion": "协议版本",
+    "description": "描述",
+    "transport": "传输协议",
+    "additionalInterfaces": "附加接口",
+    "skills": "技能列表",
+    "capabilities": "能力",
+    "unknown": "未知"
+  },
+  "route": {
+    "title": "API 配置",
+    "unknown": "未知路由",
+    "domain": "域名",
+    "selectDomain": "选择域名",
+    "copyDomain": "复制域名",
+    "default": "默认",
+    "method": "方法",
+    "path": "路径",
+    "headerMatch": "请求头匹配",
+    "queryParamMatch": "查询参数匹配"
+  },
+  "usage": {
+    "tab": "Agent 对话",
+    "requestTab": "请求示例",
+    "title": "HiChat 对话",
+    "description": "在 HiChat 中使用该 Agent。",
+    "endpoint": "访问地址",
+    "copyEndpoint": "复制访问地址",
+    "noEndpoint": "暂无访问地址",
+    "copyRequestExample": "复制请求示例",
+    "noRequestExample": "暂无请求示例",
+    "comingSoon": "敬请期待",
+    "features": {
+      "planning": "任务规划",
+      "execution": "自主执行",
+      "toolCall": "工具调用",
+      "workflow": "工作流"
+    }
+  },
+  "lab": {
+    "title": "智能体实验室",
+    "description": "沉浸式体验 AI Agent 自主规划与执行能力",
+    "features": {
+      "planning": "任务规划",
+      "execution": "自主执行",
+      "toolCall": "工具调用",
+      "workflow": "工作流"
+    },
+    "comingSoon": "敬请期待"
+  }
+}

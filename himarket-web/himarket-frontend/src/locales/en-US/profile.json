@@ -1,7 +1,5 @@
 {
-  "pageLabel": "Developer Account",
   "title": "Account management",
-  "subtitle": "Manage your developer profile, login security, and third-party identities.",
   "manageConsumers": "Manage Consumers",
   "profileInfo": "Public profile",
   "profileInfoDescription": "View basic information for the current developer account.",
@@ -30,6 +28,7 @@
   "newPasswordPlaceholder": "6 to 32 characters",
   "passwordMinLength": "Password must be at least 6 characters",
   "passwordMaxLength": "Password cannot exceed 32 characters",
+  "passwordRequirementMatch": "Passwords match",
   "confirmPassword": "Confirm new password",
   "confirmPasswordRequired": "Please confirm your new password",
   "confirmPasswordPlaceholder": "Enter new password again",
@@ -38,7 +37,6 @@
   "cancelChangePassword": "Cancel",
   "thirdPartyAccounts": "Third-party Accounts",
   "thirdPartyDescription": "Bind third-party accounts to sign in with those identities or identify account sources.",
-  "thirdPartyComingSoon": "Third-party account binding is not available yet. Supported identity providers will appear here when it is ready.",
   "comingSoon": "Coming soon",
   "boundSummary": "{{bound}} / {{total}} bound",
   "noProfile": "No profile information",

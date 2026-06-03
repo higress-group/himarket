@@ -28,6 +28,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, nacosApi } from '@/lib/api';
 import { skillApi } from '@/lib/api';
 import type { ApiProduct } from '@/types/api-product';
@@ -362,6 +363,7 @@ export function ApiProductSkillPackage({
   onUploadSuccess,
 }: ApiProductSkillPackageProps) {
   const productId = apiProduct.productId;
+  const { locale, t } = useLocale();
   const hasNacos = !!apiProduct.skillConfig?.nacosId;
   const [fileTree, setFileTree] = useState<SkillFileTreeNode[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | undefined>();
@@ -449,7 +451,7 @@ export function ApiProductSkillPackage({
         namespace: values.namespace,
         sourceType: 'NACOS',
       });
-      message.success('Nacos 关联已更新');
+      message.success(t('product.package.nacosUpdated'));
       setNacosModalVisible(false);
       handleRefresh();
     } finally {
@@ -587,12 +589,13 @@ export function ApiProductSkillPackage({
     setActionLoading('publish');
     try {
       await skillApi.publishVersion(productId, version);
-      message.success(`版本 ${version} 提交审核成功`);
+      message.success(t('product.package.reviewSubmitSuccess', { version }));
       setPreviewVersion(version);
       await Promise.all([fetchVersions(), fetchFileTree(version)]);
       onUploadSuccess?.();
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : '提交审核失败';
+      const errMsg =
+        error instanceof Error ? error.message : t('product.package.reviewSubmitFailed');
       message.error(errMsg);
     } finally {
       setActionLoading(null);
@@ -601,26 +604,27 @@ export function ApiProductSkillPackage({
 
   const handleOfflineVersion = async (version: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要将版本 ${version} 下线吗？下线后该版本将无法被运行时查询。`,
+      cancelText: t('common.cancel'),
+      content: t('product.package.offlineConfirm', { version }),
       icon: <ExclamationCircleFilled />,
-      okText: '确认下线',
+      okText: t('product.package.offlineOk'),
       okType: 'danger',
       onOk: async () => {
         setActionLoading('offline');
         try {
           await skillApi.offlineVersion(productId, version);
-          message.success(`版本 ${version} 已下线`);
+          message.success(t('product.package.offlineSuccess', { version }));
           await fetchVersions();
           onUploadSuccess?.();
         } catch (error: unknown) {
-          const errMsg = error instanceof Error ? error.message : '下线失败';
+          const errMsg =
+            error instanceof Error ? error.message : t('product.package.offlineFailed');
           message.error(errMsg);
         } finally {
           setActionLoading(null);
         }
       },
-      title: '确认下线',
+      title: t('product.package.offlineTitle'),
     });
   };
 
@@ -628,10 +632,10 @@ export function ApiProductSkillPackage({
     setActionLoading('setLatest');
     try {
       await skillApi.setLatestVersion(productId, version);
-      message.success(`版本 ${version} 已设为 latest`);
+      message.success(t('product.package.setLatestSuccess', { version }));
       await fetchVersions();
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : '设置 latest 失败';
+      const errMsg = error instanceof Error ? error.message : t('product.package.setLatestFailed');
       message.error(errMsg);
     } finally {
       setActionLoading(null);
@@ -640,16 +644,16 @@ export function ApiProductSkillPackage({
 
   const handleDeleteDraft = async () => {
     Modal.confirm({
-      cancelText: '取消',
-      content: '删除草稿后不可恢复，已发布的版本不受影响。',
+      cancelText: t('common.cancel'),
+      content: t('product.package.deleteDraftConfirm'),
       icon: <ExclamationCircleFilled />,
-      okText: '确认删除',
+      okText: t('product.package.deleteDraftOk'),
       okType: 'danger',
       onOk: async () => {
         setActionLoading('deleteDraft');
         try {
           await skillApi.deleteDraft(productId);
-          message.success('草稿已删除');
+          message.success(t('product.package.deleteDraftSuccess'));
           const nextVersion = versions.find((v) => v.status === 'online')?.version;
           setPreviewVersion(nextVersion);
           await fetchVersions();
@@ -663,38 +667,40 @@ export function ApiProductSkillPackage({
           }
           onUploadSuccess?.();
         } catch (error: unknown) {
-          const errMsg = error instanceof Error ? error.message : '删除草稿失败';
+          const errMsg =
+            error instanceof Error ? error.message : t('product.package.deleteDraftFailed');
           message.error(errMsg);
         } finally {
           setActionLoading(null);
         }
       },
-      title: '确认删除草稿',
+      title: t('product.package.deleteDraftTitle'),
     });
   };
 
   const handleForcePublish = async (version: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `该版本审核未通过，确定要跳过审核流程强制发布版本 ${version} 吗？`,
+      cancelText: t('common.cancel'),
+      content: t('product.package.forcePublishConfirm', { version }),
       icon: <ExclamationCircleFilled />,
-      okText: '强制发布',
+      okText: t('product.package.forcePublishOk'),
       okType: 'danger',
       onOk: async () => {
         setActionLoading('forcePublish');
         try {
           await skillApi.forcePublishVersion(productId, version);
-          message.success(`版本 ${version} 已强制发布`);
+          message.success(t('product.package.forcePublishSuccess', { version }));
           await fetchVersions();
           onUploadSuccess?.();
         } catch (error: unknown) {
-          const errMsg = error instanceof Error ? error.message : '强制发布失败';
+          const errMsg =
+            error instanceof Error ? error.message : t('product.package.forcePublishFailed');
           message.error(errMsg);
         } finally {
           setActionLoading(null);
         }
       },
-      title: '确认强制发布',
+      title: t('product.package.forcePublishTitle'),
     });
   };
 
@@ -728,7 +734,7 @@ export function ApiProductSkillPackage({
       const res = (await skillApi.uploadSkillPackage(productId, fileToUpload)) as {
         data?: unknown;
       };
-      message.success('上传成功');
+      message.success(t('product.package.uploadSuccess'));
       onSuccess?.(res);
       const versionItems = await fetchVersions();
       const firstVersion = versionItems[0]?.version;
@@ -737,7 +743,7 @@ export function ApiProductSkillPackage({
       onUploadSuccess?.();
     } catch (error: unknown) {
       message.destroy();
-      const errMsg = error instanceof Error ? error.message : '上传失败';
+      const errMsg = error instanceof Error ? error.message : t('product.package.uploadFailed');
       message.error(errMsg);
       const errObj = error instanceof Error ? error : new Error(String(error));
       onError?.(errObj);
@@ -759,7 +765,7 @@ export function ApiProductSkillPackage({
         <div className="flex items-center justify-center h-full text-gray-400">
           <div className="text-center">
             <FileFilled className="text-4xl mb-2 text-gray-300" />
-            <p>点击左侧文件查看内容</p>
+            <p>{t('product.package.previewEmpty')}</p>
           </div>
         </div>
       );
@@ -767,7 +773,7 @@ export function ApiProductSkillPackage({
     if (selectedFile.encoding === 'base64')
       return (
         <div className="flex items-center justify-center h-full text-gray-400">
-          <p>二进制文件，不支持预览</p>
+          <p>{t('product.package.binaryPreviewUnsupported')}</p>
         </div>
       );
 
@@ -903,7 +909,7 @@ export function ApiProductSkillPackage({
     <div className="p-6 space-y-4 h-full flex flex-col">
       <div>
         <h1 className="text-2xl font-bold mb-1">Skill Package</h1>
-        <p className="text-gray-600">上传并管理技能包文件</p>
+        <p className="text-gray-600">{t('product.package.skillDescription')}</p>
       </div>
 
       {/* Card 1: Version Management */}
@@ -929,7 +935,9 @@ export function ApiProductSkillPackage({
             style={{ background: '#6B5CE7', borderColor: '#6B5CE7' }}
             type="primary"
           >
-            {apiProduct.skillConfig?.nacosId ? '切换Nacos' : '关联Nacos'}
+            {apiProduct.skillConfig?.nacosId
+              ? t('product.package.switchNacos')
+              : t('product.package.linkNacos')}
           </Button>
         </div>
         {/* Row 1: Version selector + action buttons + upload */}
@@ -955,7 +963,7 @@ export function ApiProductSkillPackage({
                   ),
                   value: item.version,
                 }))}
-                placeholder="版本"
+                placeholder={t('product.package.versionPlaceholder')}
                 value={previewVersion}
               />
               <Button
@@ -964,7 +972,7 @@ export function ApiProductSkillPackage({
                 loading={actionLoading === 'setLatest'}
                 onClick={() => previewVersion && handleSetLatest(previewVersion)}
               >
-                设为 Latest
+                {t('product.package.setLatest')}
               </Button>
             </Space.Compact>
             {loadingVersions && <Spin size="small" />}
@@ -975,7 +983,7 @@ export function ApiProductSkillPackage({
                 onClick={() => previewVersion && handlePublishVersion(previewVersion)}
                 type="primary"
               >
-                提交审核
+                {t('product.package.submitReview')}
               </Button>
             )}
             {(canDeleteDraft || isReviewing) && (
@@ -985,7 +993,7 @@ export function ApiProductSkillPackage({
                 loading={actionLoading === 'deleteDraft'}
                 onClick={handleDeleteDraft}
               >
-                删除草稿
+                {t('product.package.deleteDraft')}
               </Button>
             )}
             {canForcePublish && (
@@ -995,7 +1003,7 @@ export function ApiProductSkillPackage({
                 onClick={() => previewVersion && handleForcePublish(previewVersion)}
                 type="primary"
               >
-                强制发布
+                {t('product.package.forcePublishOk')}
               </Button>
             )}
             {canOffline && (
@@ -1004,7 +1012,7 @@ export function ApiProductSkillPackage({
                 loading={actionLoading === 'offline'}
                 onClick={() => previewVersion && handleOfflineVersion(previewVersion)}
               >
-                版本下线
+                {t('product.package.versionOffline')}
               </Button>
             )}
           </div>
@@ -1028,8 +1036,8 @@ export function ApiProductSkillPackage({
               }
             >
               <div className="leading-snug text-left">
-                <div className="text-sm">上传 Skill 包</div>
-                <div className="text-xs text-gray-400">.zip / .tar.gz，最大 10MB</div>
+                <div className="text-sm">{t('product.package.uploadSkill')}</div>
+                <div className="text-xs text-gray-400">{t('product.package.uploadSkillHint')}</div>
               </div>
             </Button>
           </Upload>
@@ -1048,13 +1056,14 @@ export function ApiProductSkillPackage({
             }`}
           >
             {previewItem?.status === 'online'
-              ? '已上线'
+              ? t('product.package.statusOnline')
               : previewItem?.status === 'reviewing'
-                ? '审核中'
-                : '未发布'}
+                ? t('product.package.statusReviewing')
+                : t('product.package.statusUnpublished')}
           </Tag>
           <span className="text-gray-400">
-            下载 <strong className="text-gray-600">{totalDownloads}</strong>
+            {t('product.package.downloads')}{' '}
+            <strong className="text-gray-600">{totalDownloads}</strong>
           </span>
           {(() => {
             const pStatus = pipelineStatus?.status;
@@ -1079,7 +1088,7 @@ export function ApiProductSkillPackage({
               return (
                 <span className="inline-flex items-center gap-1 text-xs text-green-600">
                   <CheckCircleFilled />
-                  <span className="font-medium">审核通过</span>
+                  <span className="font-medium">{t('product.package.reviewApproved')}</span>
                 </span>
               );
             }
@@ -1087,7 +1096,7 @@ export function ApiProductSkillPackage({
               return (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-100 rounded-lg text-xs text-red-500 ml-6">
                   <CloseCircleFilled />
-                  <span className="font-medium">审核未通过</span>
+                  <span className="font-medium">{t('product.package.reviewRejected')}</span>
                   <Button
                     className="!p-0 !text-red-500 !text-xs"
                     onClick={() =>
@@ -1121,7 +1130,7 @@ export function ApiProductSkillPackage({
                                         <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
                                           <span>⏱</span>
                                           <span>
-                                            {new Date(node.executedAt).toLocaleString('zh-CN')}
+                                            {new Date(node.executedAt).toLocaleString(locale)}
                                           </span>
                                         </div>
                                       )}
@@ -1132,14 +1141,14 @@ export function ApiProductSkillPackage({
                           </div>
                         ),
                         icon: null,
-                        title: '审核未通过',
+                        title: t('product.package.reviewRejected'),
                         width: 600,
                       })
                     }
                     size="small"
                     type="link"
                   >
-                    详情
+                    {t('product.package.reviewDetail')}
                   </Button>
                 </span>
               );
@@ -1189,7 +1198,7 @@ export function ApiProductSkillPackage({
               <SkillOverview content={overviewContent} />
             ) : (
               <div className="text-gray-400 text-sm text-center pt-8">
-                该技能包未包含 SKILL.md 文件
+                {t('product.package.skillMissingOverview')}
               </div>
             )}
           </div>
@@ -1205,7 +1214,7 @@ export function ApiProductSkillPackage({
                 </div>
               ) : fileTree.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                  暂无文件
+                  {t('product.package.noFiles')}
                 </div>
               ) : (
                 <SkillFileTree
@@ -1231,34 +1240,36 @@ export function ApiProductSkillPackage({
 
       {/* Nacos Modal */}
       <Modal
-        cancelText="取消"
+        cancelText={t('common.cancel')}
         confirmLoading={nacosSaving}
-        okText="确认"
+        okText={t('common.confirm')}
         onCancel={() => setNacosModalVisible(false)}
         onOk={handleNacosSave}
         open={nacosModalVisible}
-        title="关联 Nacos 实例"
+        title={t('product.package.nacosTitle')}
       >
         <Form form={nacosForm} layout="vertical">
           <Form.Item
-            label="Nacos 实例"
+            label={t('product.package.nacosInstance')}
             name="nacosId"
-            rules={[{ message: '请选择 Nacos 实例', required: true }]}
+            rules={[{ message: t('product.package.nacosRequired'), required: true }]}
           >
             <Select
               loading={nacosLoading}
               onChange={handleNacosChange}
               options={nacosInstances.map((n) => ({
-                label: `${n.nacosName}${n.isDefault ? ' (默认)' : ''}`,
+                label: `${n.nacosName}${
+                  n.isDefault ? ` (${t('product.package.nacosDefault')})` : ''
+                }`,
                 value: n.nacosId,
               }))}
-              placeholder="选择 Nacos 实例"
+              placeholder={t('product.package.selectNacos')}
             />
           </Form.Item>
           <Form.Item
-            label="命名空间"
+            label={t('product.package.namespace')}
             name="namespace"
-            rules={[{ message: '请选择命名空间', required: true }]}
+            rules={[{ message: t('product.package.namespaceRequired'), required: true }]}
           >
             <Select
               loading={nsLoading}
@@ -1266,7 +1277,7 @@ export function ApiProductSkillPackage({
                 label: ns.namespaceName || ns.namespaceId || 'public',
                 value: ns.namespaceId || '',
               }))}
-              placeholder="选择命名空间"
+              placeholder={t('product.package.selectNamespace')}
             />
           </Form.Item>
         </Form>

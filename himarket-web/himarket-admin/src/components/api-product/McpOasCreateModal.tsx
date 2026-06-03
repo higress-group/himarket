@@ -4,6 +4,7 @@ import { Modal, Button, Upload, message } from 'antd';
 import * as yaml from 'js-yaml';
 import { useState } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiDefinitionApi } from '@/lib/api';
 
 interface McpOasCreateModalProps {
@@ -212,6 +213,7 @@ export function McpOasCreateModal({
   productId,
   visible,
 }: McpOasCreateModalProps) {
+  const { t } = useLocale();
   const [oasText, setOasText] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState<string>('');
@@ -232,7 +234,7 @@ export function McpOasCreateModal({
       const content = String(e.target?.result || '');
       setOasText(content);
       setFileName(file.name);
-      message.success(`已加载文件:${file.name}`);
+      message.success(t('product.httpToMcp.fileLoaded', { name: file.name }));
     };
     reader.readAsText(file);
     return false;
@@ -240,19 +242,19 @@ export function McpOasCreateModal({
 
   const handleCreate = async () => {
     if (!oasText.trim()) {
-      message.error('请先输入或上传OpenAPI Spec');
+      message.error(t('product.httpToMcp.specRequired'));
       return;
     }
 
     const oas = parseOasText(oasText);
     if (!oas) {
-      message.error('OpenAPI Spec解析失败，请检查JSON/YAML格式');
+      message.error(t('product.httpToMcp.parseFailed'));
       return;
     }
 
     const result = convertOasToToolsConfig(oas);
     if (!result || result.toolCount === 0) {
-      message.error('未能从OpenAPI Spec中提取到有效工具，请检查内容');
+      message.error(t('product.httpToMcp.noValidTools'));
       return;
     }
 
@@ -280,12 +282,13 @@ export function McpOasCreateModal({
         type: 'MCP_SERVER',
       });
 
-      message.success(`HTTP转MCP创建成功，共${result.toolCount}个工具`);
+      message.success(t('product.httpToMcp.createSuccess', { count: result.toolCount }));
       reset();
       onSuccess();
     } catch (e: unknown) {
       message.error(
-        (e as { response?: { data?: { message?: string } } }).response?.data?.message || '创建失败',
+        (e as { response?: { data?: { message?: string } } }).response?.data?.message ||
+          t('product.httpToMcp.createFailed'),
       );
     } finally {
       setLoading(false);
@@ -297,21 +300,19 @@ export function McpOasCreateModal({
       confirmLoading={loading}
       footer={
         <div className="flex justify-end gap-2">
-          <Button onClick={handleCancel}>取消</Button>
+          <Button onClick={handleCancel}>{t('common.cancel')}</Button>
           <Button loading={loading} onClick={handleCreate} type="primary">
-            创建
+            {t('action.create')}
           </Button>
         </div>
       }
       onCancel={handleCancel}
       open={visible}
-      title="HTTP转MCP"
+      title={t('product.httpToMcp.title')}
       width={640}
     >
       <div className="space-y-3">
-        <div className="text-xs text-gray-500">
-          编辑或上传OpenAPI文件，系统自动解析并创建MCP Server
-        </div>
+        <div className="text-xs text-gray-500">{t('product.httpToMcp.description')}</div>
 
         <div className="border rounded overflow-hidden relative" style={{ height: 360 }}>
           <Editor
@@ -351,7 +352,9 @@ export function McpOasCreateModal({
             showUploadList={false}
           >
             <Button icon={<UploadOutlined />} size="small">
-              {fileName ? `已选择:${fileName}` : '上传OpenAPI文件'}
+              {fileName
+                ? t('product.httpToMcp.fileSelected', { name: fileName })
+                : t('product.httpToMcp.uploadFile')}
             </Button>
           </Upload>
         </div>

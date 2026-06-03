@@ -1,0 +1,66 @@
+{
+  "errors": {
+    "loadFailed": "加载失败，请稍后重试"
+  },
+  "messages": {
+    "copied": "已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制",
+    "curlCopied": "cURL 命令已复制到剪贴板",
+    "endpointCopied": "请求地址已复制到剪贴板",
+    "serverCopied": "服务器地址已复制到剪贴板",
+    "specDownloaded": "OpenAPI {{format}} 文件已下载",
+    "jsonConvertFailed": "转换 JSON 格式失败",
+    "specDownloadFailed": "下载 OpenAPI 规范失败"
+  },
+  "tabs": {
+    "overview": "概览",
+    "openapiSpec": "OpenAPI 规范"
+  },
+  "overview": {
+    "empty": "暂无概览信息"
+  },
+  "openapi": {
+    "empty": "暂无 OpenAPI 规范"
+  },
+  "example": {
+    "title": "请求示例",
+    "downloadYaml": "下载 YAML",
+    "downloadJson": "下载 JSON",
+    "copyCurl": "复制 cURL"
+  },
+  "usage": {
+    "tab": "API 使用",
+    "title": "接口调用",
+    "description": "选择接口并复制请求地址，快速接入 API。",
+    "currentEndpoint": "接口",
+    "baseUrl": "Base URL",
+    "noEndpoint": "暂无可选接口",
+    "noBaseUrl": "暂无可选 Base URL",
+    "requestUrl": "请求地址",
+    "copyRequestUrl": "复制请求地址",
+    "openapi": "OpenAPI 规范"
+  },
+  "restDocs": {
+    "noSchema": "暂无 Schema",
+    "noExample": "暂无 Example",
+    "copySchema": "复制 Schema",
+    "copyExample": "复制 Example",
+    "parseFailed": "无法解析 OpenAPI 规范，请检查 API 配置格式是否正确",
+    "parseFailedTitle": "无法解析 OpenAPI 规范",
+    "parseFailedHint": "请检查 API 配置格式是否正确",
+    "errorDetails": "错误详情",
+    "noEndpoints": "OpenAPI 规范中暂无接口定义",
+    "selectServer": "选择 Server",
+    "copyServerAddress": "复制服务器地址",
+    "noServers": "OpenAPI 文档未声明 servers",
+    "endpointList": "接口列表",
+    "endpointHint": "点击接口查看详情",
+    "searchPlaceholder": "搜索路径、描述、operationId",
+    "noDescription": "无描述",
+    "noMatchedEndpoints": "没有匹配的接口",
+    "noParameters": "暂无参数",
+    "noRequestBody": "暂无请求体",
+    "noResponses": "暂无响应定义",
+    "selectEndpoint": "请选择一个接口"
+  }
+}

@@ -1,6 +1,7 @@
 import { Alert, Spin, Button } from 'antd';
 import { RefreshCw } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { getMarketMcps, type MarketMcpInfo, type McpServerEntry } from '../../lib/apis/cliProvider';
 import { filterByKeyword } from '../../lib/utils/filterUtils';
@@ -20,6 +21,7 @@ const SEARCH_THRESHOLD = 4;
 // ============ 组件 ============
 
 export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
+  const { t } = useTranslation('coding');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<MarketMcpInfo[]>([]);
@@ -38,14 +40,14 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
         | Record<string, unknown>
         | undefined;
       if (response?.status === 401) {
-        setError('请先登录以使用市场 MCP Server');
+        setError(t('marketMcp.loginRequired'));
       } else {
-        setError(err instanceof Error ? err.message : '获取市场 MCP Server 列表失败');
+        setError(err instanceof Error ? err.message : t('marketMcp.fetchFailed'));
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // 组件挂载时获取数据
   useEffect(() => {
@@ -103,9 +105,9 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
     return (
       <div className="flex flex-col items-center gap-2 w-full">
         <Alert className="w-full" message={error} showIcon type="error" />
-        {error !== '请先登录以使用市场 MCP Server' && (
+        {error !== t('marketMcp.loginRequired') && (
           <Button icon={<RefreshCw size={14} />} onClick={fetchMcps} size="small">
-            重试
+            {t('cli.retry')}
           </Button>
         )}
       </div>
@@ -114,14 +116,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
 
   // MCP 列表为空
   if (mcpServers.length === 0) {
-    return (
-      <Alert
-        className="w-full"
-        message="暂无已订阅的 MCP Server，请先在市场中订阅"
-        showIcon
-        type="info"
-      />
-    );
+    return <Alert className="w-full" message={t('marketMcp.empty')} showIcon type="info" />;
   }
 
   // MCP 列表非空，展示卡片网格
@@ -131,14 +126,14 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
       {mcpServers.length > SEARCH_THRESHOLD && (
         <SearchFilterInput
           onChange={setSearchKeyword}
-          placeholder="搜索 MCP Server..."
+          placeholder={t('marketMcp.searchPlaceholder')}
           value={searchKeyword}
         />
       )}
 
       {/* 过滤后无匹配结果 */}
       {filteredServers.length === 0 ? (
-        <div className="text-center text-sm text-gray-400 py-4">无匹配结果</div>
+        <div className="text-center text-sm text-gray-400 py-4">{t('cli.noMatches')}</div>
       ) : (
         /* 卡片网格布局 */
         <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">

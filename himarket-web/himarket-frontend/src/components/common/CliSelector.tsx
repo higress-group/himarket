@@ -1,6 +1,7 @@
 import { Button, Segmented, Radio, Input } from 'antd';
 import { Plug, RefreshCw, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { CustomModelForm, type CustomModelFormData } from './CustomModelForm';
 import { MarketMcpSelector } from './MarketMcpSelector';
@@ -33,6 +34,7 @@ export interface CliSelectorProps {
 }
 
 export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
+  const { t } = useTranslation('coding');
   const [providers, setProviders] = useState<ICliProvider[]>([]);
   const [selectedCliId, setSelectedCliId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -66,8 +68,12 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
 
   // 根据选中 provider 的能力动态计算可见步骤
   const visibleSteps: StepConfig[] = useMemo(
-    () => getVisibleSteps(selectedProvider),
-    [selectedProvider],
+    () =>
+      getVisibleSteps(selectedProvider).map((step) => ({
+        ...step,
+        title: t(`cli.steps.${step.key}`),
+      })),
+    [selectedProvider, t],
   );
 
   // 当前步骤配置
@@ -148,11 +154,11 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
         setSelectedCliId(firstAvailable.key);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '获取 CLI 工具列表失败');
+      setError(err instanceof Error ? err.message : t('cli.fetchProvidersFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchProviders();
@@ -234,7 +240,7 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-gray-400">
         <Loader2 className="animate-spin" size={24} />
-        <span className="text-sm">正在加载 CLI 工具列表...</span>
+        <span className="text-sm">{t('cli.loadingProviders')}</span>
       </div>
     );
   }
@@ -253,7 +259,7 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
           onClick={fetchProviders}
           size="small"
         >
-          重试
+          {t('cli.retry')}
         </Button>
       </div>
     );
@@ -266,14 +272,14 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
     return (
       <div className="flex flex-col items-center gap-3 py-6 text-gray-400">
         <AlertCircle size={24} />
-        <span className="text-sm">没有可用的 CLI 工具</span>
+        <span className="text-sm">{t('cli.noProviders')}</span>
         <Button
           disabled={disabled}
           icon={<RefreshCw size={14} />}
           onClick={fetchProviders}
           size="small"
         >
-          刷新
+          {t('cli.refresh')}
         </Button>
       </div>
     );
@@ -287,7 +293,7 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
 
   // 认证方案显示名称映射
   const AUTH_OPTION_LABELS: Record<string, string> = {
-    default: '默认',
+    default: t('cli.auth.default'),
     personal_access_token: 'Personal Access Token',
   };
 
@@ -301,7 +307,7 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
         {/* 有 authOptions 时：展示认证方案单选 */}
         {authOptions.length > 0 && (
           <div className="flex flex-col gap-2 w-full">
-            <label className="text-sm font-medium text-gray-600">认证方案</label>
+            <label className="text-sm font-medium text-gray-600">{t('cli.auth.label')}</label>
             <Radio.Group
               className="flex flex-col gap-2"
               onChange={(e) => {
@@ -325,7 +331,7 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
             <label className="text-sm font-medium text-gray-600">Personal Access Token</label>
             <Input.Password
               onChange={(e) => setAuthTokenInput(e.target.value)}
-              placeholder={`请输入 ${authEnvVar} 对应的 Token`}
+              placeholder={t('cli.auth.tokenPlaceholder', { name: authEnvVar })}
               value={authTokenInput}
             />
           </div>
@@ -339,7 +345,7 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
     <div className="flex flex-col gap-4 w-full">
       {/* CLI 工具卡片式单选 */}
       <div className="flex flex-col gap-2 w-full">
-        <label className="text-sm font-medium text-gray-600">CLI 工具</label>
+        <label className="text-sm font-medium text-gray-600">{t('cli.tool.label')}</label>
         <div className="grid grid-cols-2 gap-2">
           {sortedProviders.map((p) => (
             <SelectableCard
@@ -354,7 +360,9 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
                 >
                   {p.displayName}
                 </span>
-                {!p.available && <span className="text-xs text-gray-400">不可用</span>}
+                {!p.available && (
+                  <span className="text-xs text-gray-400">{t('cli.unavailable')}</span>
+                )}
               </div>
             </SelectableCard>
           ))}
@@ -365,9 +373,9 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
 
   /** 步骤二：模型配置（Segmented Control 三选一） */
   const modelConfigOptions = [
-    { label: '市场模型', value: 'market' as ModelConfigMode },
-    { label: '自定义模型', value: 'custom' as ModelConfigMode },
-    { label: '默认模型', value: 'none' as ModelConfigMode },
+    { label: t('cli.model.market'), value: 'market' as ModelConfigMode },
+    { label: t('cli.model.custom'), value: 'custom' as ModelConfigMode },
+    { label: t('cli.model.default'), value: 'none' as ModelConfigMode },
   ];
 
   const handleModelConfigModeChange = (value: ModelConfigMode) => {
@@ -457,7 +465,10 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
       {visibleSteps.length > 1 && (
         <div className="flex items-center justify-center gap-2 text-sm text-gray-500 w-full">
           <span>
-            步骤 {currentStepIndex + 1} / {visibleSteps.length}
+            {t('cli.stepProgress', {
+              current: currentStepIndex + 1,
+              total: visibleSteps.length,
+            })}
           </span>
           <span className="text-gray-400">—</span>
           <span className="font-medium text-gray-700">{currentStep?.title}</span>
@@ -472,7 +483,7 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
         {/* 上一步按钮 - 仅在非第一步且有多步骤时显示 */}
         {visibleSteps.length > 1 && !isFirstStep && (
           <Button disabled={disabled} icon={<ChevronLeft size={14} />} onClick={handlePrevStep}>
-            上一步
+            {t('cli.previous')}
           </Button>
         )}
 
@@ -485,11 +496,11 @@ export function CliSelector({ disabled, onSelect }: CliSelectorProps) {
             onClick={handleConnect}
             type="primary"
           >
-            连接
+            {t('cli.connect')}
           </Button>
         ) : (
           <Button disabled={disabled || !canGoNext} onClick={handleNextStep} type="primary">
-            下一步
+            {t('cli.next')}
             <ChevronRight size={14} />
           </Button>
         )}

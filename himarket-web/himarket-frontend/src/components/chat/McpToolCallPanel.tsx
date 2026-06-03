@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Mcp } from '../icon';
 
@@ -11,6 +12,7 @@ interface McpToolCallItemProps {
 
 // 单个工具调用组件 - 用于内联展示
 export function McpToolCallItem({ toolCall, toolResponse }: McpToolCallItemProps) {
+  const { t } = useTranslation('chat');
   const [expanded, setExpanded] = useState(false);
 
   const mcpServerName = toolCall.mcpServerName;
@@ -35,56 +37,32 @@ export function McpToolCallItem({ toolCall, toolResponse }: McpToolCallItemProps
   }
 
   return (
-    <div
-      className="overflow-hidden rounded-xl transition-all duration-200 hover:shadow-md"
-      style={{
-        background: 'linear-gradient(135deg, #f0f7ff 0%, #e8f4f8 100%)',
-        border: '1px solid #dbeafe',
-      }}
-    >
+    <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-[#F8FAFE] transition-all duration-200 hover:border-[#CCD8EA]">
       {/* Header */}
       <button
-        className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-4 py-3.5 text-left transition-colors hover:bg-white/50"
+        className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent px-3.5 py-3 text-left transition-colors hover:bg-white/55"
         onClick={() => setExpanded(!expanded)}
         type="button"
       >
         <div className="flex items-center gap-3">
           {/* Icon 容器 - 白色背景 + 边框 + 阴影 */}
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-[10px]"
-            style={{
-              background: 'white',
-              border: '1px solid #dbeafe',
-              boxShadow: '0 2px 4px rgba(59, 130, 246, 0.08)',
-            }}
-          >
+          <div className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#DDE5F0] bg-white shadow-[0_4px_12px_rgba(37,56,88,0.05)]">
             <Mcp className="h-[18px] w-[18px] fill-colorPrimary" />
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-[15px] font-semibold" style={{ color: '#1e40af' }}>
-              {toolName}
-            </span>
+            <span className="text-[15px] font-semibold text-gray-800">{toolName}</span>
             <span className="text-xs text-gray-500">{mcpServerName}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {/* 状态标签 - 白色背景 + 边框 */}
           <div
-            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-            style={{
-              background: 'white',
-              border: isExecuting ? '1px solid #fef3c7' : '1px solid #dcfce7',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-              color: isExecuting ? '#d97706' : '#16a34a',
-            }}
+            className={`flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs font-medium shadow-[0_1px_2px_rgba(0,0,0,0.03)] ${isExecuting ? 'border-amber-100 text-amber-600' : 'border-emerald-100 text-emerald-600'}`}
           >
             <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{
-                background: isExecuting ? '#f59e0b' : '#22c55e',
-              }}
+              className={`h-1.5 w-1.5 rounded-full ${isExecuting ? 'bg-amber-500' : 'bg-emerald-500'}`}
             />
-            <span>{isExecuting ? '工具执行中...' : '工具执行完成'}</span>
+            <span>{isExecuting ? t('toolCall.executing') : t('toolCall.completed')}</span>
           </div>
           {/* 展开图标 */}
           <svg
@@ -101,12 +79,12 @@ export function McpToolCallItem({ toolCall, toolResponse }: McpToolCallItemProps
 
       {/* Content */}
       {expanded && (
-        <div className="border-t border-blue-100/50 px-4 pb-4">
+        <div className="border-t border-[#DDE5F0] px-3.5 pb-3.5">
           <div className="space-y-3 pt-3">
             {/* Parameters */}
             <div>
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                Parameters
+                {t('toolCall.parameters')}
               </div>
               <div className="overflow-x-auto rounded-lg border border-gray-100 bg-white p-3">
                 <pre className="whitespace-pre-wrap font-mono text-xs text-gray-700">
@@ -121,7 +99,7 @@ export function McpToolCallItem({ toolCall, toolResponse }: McpToolCallItemProps
             {toolResponse && (
               <div>
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                  Results
+                  {t('toolCall.results')}
                 </div>
                 <div className="overflow-x-auto rounded-lg border border-gray-100 bg-white p-3">
                   <pre className="whitespace-pre-wrap font-mono text-xs text-gray-700">
@@ -137,7 +115,7 @@ export function McpToolCallItem({ toolCall, toolResponse }: McpToolCallItemProps
             {!toolResponse && (
               <div className="flex items-center gap-2 py-2 text-sm text-gray-500">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-colorPrimary" />
-                <span>等待工具响应...</span>
+                <span>{t('toolCall.waiting')}</span>
               </div>
             )}
           </div>

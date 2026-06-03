@@ -1,6 +1,7 @@
 import { Select, Alert, Spin, Button } from 'antd';
 import { RefreshCw } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { getMarketModels, type MarketModelInfo } from '../../lib/apis/cliProvider';
 
@@ -22,6 +23,7 @@ export interface MarketModelSelectorProps {
 // ============ 组件 ============
 
 export function MarketModelSelector({ enabled, onChange }: MarketModelSelectorProps) {
+  const { t } = useTranslation('coding');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<MarketModelInfo[]>([]);
@@ -52,9 +54,9 @@ export function MarketModelSelector({ enabled, onChange }: MarketModelSelectorPr
         | Record<string, unknown>
         | undefined;
       if (response?.status === 401) {
-        setError('请先登录以使用模型市场模型');
+        setError(t('marketModel.loginRequired'));
       } else {
-        setError(err instanceof Error ? err.message : '获取模型市场模型列表失败');
+        setError(err instanceof Error ? err.message : t('marketModel.fetchFailed'));
       }
     } finally {
       setLoading(false);
@@ -109,7 +111,7 @@ export function MarketModelSelector({ enabled, onChange }: MarketModelSelectorPr
       <div className="flex flex-col items-center gap-2 w-full">
         <Alert className="w-full" message={error} showIcon type="error" />
         <Button icon={<RefreshCw size={14} />} onClick={fetchModels} size="small">
-          重试
+          {t('cli.retry')}
         </Button>
       </div>
     );
@@ -117,20 +119,15 @@ export function MarketModelSelector({ enabled, onChange }: MarketModelSelectorPr
 
   // 模型列表为空
   if (models.length === 0) {
-    return (
-      <Alert
-        className="w-full"
-        message="暂无已订阅的模型，请先在模型市场中订阅模型"
-        showIcon
-        type="info"
-      />
-    );
+    return <Alert className="w-full" message={t('marketModel.empty')} showIcon type="info" />;
   }
 
   // 模型列表非空，展示下拉选择器
   return (
     <div className="flex flex-col gap-1.5 w-full">
-      <label className="text-sm font-medium text-gray-600 text-center">模型市场模型</label>
+      <label className="text-sm font-medium text-gray-600 text-center">
+        {t('marketModel.label')}
+      </label>
       <Select
         className="w-full"
         onChange={handleSelect}
@@ -138,7 +135,7 @@ export function MarketModelSelector({ enabled, onChange }: MarketModelSelectorPr
           label: m.name,
           value: m.productId,
         }))}
-        placeholder="选择模型"
+        placeholder={t('marketModel.placeholder')}
         value={selectedProductId ?? undefined}
       />
     </div>

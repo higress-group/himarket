@@ -6,7 +6,9 @@ import { useNavigate } from 'react-router-dom';
 import ImportProductsModal from '@/components/api-product/ImportProductsModal';
 import ProductTable from '@/components/api-product/ProductTable';
 import type { ProductTableRef } from '@/components/api-product/ProductTable';
+import { AdminPageHeader } from '@/components/common';
 import ImportMcpModal from '@/components/mcp-vendor/ImportMcpModal';
+import { useLocale } from '@/contexts/LocaleContext';
 import { nacosApi, workerApi, skillApi } from '@/lib/api';
 import type { NacosInstance } from '@/types/gateway';
 
@@ -15,6 +17,11 @@ import type { MenuProps } from 'antd';
 type ProductType = 'MODEL_API' | 'MCP_SERVER' | 'AGENT_SKILL' | 'WORKER' | 'AGENT_API' | 'REST_API';
 type StandardImportSource = 'GATEWAY' | 'NACOS';
 type ImportMenuItems = NonNullable<MenuProps['items']>;
+type ImportMenuLabels = {
+  fromGateway: string;
+  fromNacos: string;
+  fromThirdPartyMarket: string;
+};
 
 const PRODUCT_TYPES = [
   { key: 'MODEL_API' as const, label: 'Model API', path: 'model-api' },
@@ -29,23 +36,23 @@ interface ProductTypePageProps {
   productType: ProductType;
 }
 
-function getImportMenuItems(productType: ProductType): ImportMenuItems {
+function getImportMenuItems(productType: ProductType, labels: ImportMenuLabels): ImportMenuItems {
   switch (productType) {
     case 'MCP_SERVER':
       return [
-        { key: 'GATEWAY', label: '从网关导入' },
-        { key: 'NACOS', label: '从 Nacos 导入' },
+        { key: 'GATEWAY', label: labels.fromGateway },
+        { key: 'NACOS', label: labels.fromNacos },
         { type: 'divider' },
-        { key: 'MARKET', label: '从第三方市场导入' },
+        { key: 'MARKET', label: labels.fromThirdPartyMarket },
       ];
     case 'AGENT_API':
       return [
-        { key: 'GATEWAY', label: '从网关导入' },
-        { key: 'NACOS', label: '从 Nacos 导入' },
+        { key: 'GATEWAY', label: labels.fromGateway },
+        { key: 'NACOS', label: labels.fromNacos },
       ];
     case 'MODEL_API':
     case 'REST_API':
-      return [{ key: 'GATEWAY', label: '从网关导入' }];
+      return [{ key: 'GATEWAY', label: labels.fromGateway }];
     default:
       return [];
   }
@@ -53,6 +60,7 @@ function getImportMenuItems(productType: ProductType): ImportMenuItems {
 
 const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const tableRef = useRef<ProductTableRef>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [defaultNacos, setDefaultNacos] = useState<NacosInstance | null>(null);
@@ -63,7 +71,11 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
   const showImportMenu = productType !== 'AGENT_SKILL' && productType !== 'WORKER';
   const isMcpServer = productType === 'MCP_SERVER';
-  const importMenuItems = getImportMenuItems(productType);
+  const importMenuItems = getImportMenuItems(productType, {
+    fromGateway: t('product.import.fromGateway'),
+    fromNacos: t('product.import.fromNacos'),
+    fromThirdPartyMarket: t('product.import.fromThirdPartyMarket'),
+  });
 
   // Fetch default Nacos instance for import feature
   useEffect(() => {
@@ -81,7 +93,7 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
 
   const handleImportFromNacos = async () => {
     if (!defaultNacos) {
-      message.warning('请先配置默认 Nacos 实例');
+      message.warning(t('product.import.defaultNacosMissing'));
       return;
     }
 
@@ -89,9 +101,12 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
     const typeName = isWorker ? 'Workers' : 'Skills';
 
     Modal.confirm({
-      cancelText: '取消',
-      content: `将从默认 Nacos 实例 "${defaultNacos.nacosName || defaultNacos.nacosId}" 导入所有 ${typeName}，是否继续？`,
-      okText: '确认导入',
+      cancelText: t('common.cancel'),
+      content: t('product.import.confirmDefaultNacosContent', {
+        name: defaultNacos.nacosName || defaultNacos.nacosId,
+        type: typeName,
+      }),
+      okText: t('product.import.confirmImport'),
       onOk: async () => {
         setImportLoading(true);
         try {
@@ -102,21 +117,26 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
 
           const importResult = res.data;
           if (importResult.successCount > 0) {
-            message.success(`成功导入 ${importResult.successCount} 个 ${typeName}`);
+            message.success(
+              t('product.import.successTypedCount', {
+                count: importResult.successCount,
+                type: typeName,
+              }),
+            );
             tableRef.current?.refresh();
           } else {
-            message.info(`没有新的 ${typeName} 需要导入`);
+            message.info(t('product.import.noNewTypedItems', { type: typeName }));
           }
         } catch (error: unknown) {
           message.error(
             (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
-              `导入 ${typeName} 失败`,
+              t('product.import.typedFailed', { type: typeName }),
           );
         } finally {
           setImportLoading(false);
         }
       },
-      title: `从 Nacos 导入 ${typeName}`,
+      title: t('product.import.nacosSourceTitle', { type: typeName }),
     });
   };
 
@@ -132,53 +152,51 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">API Products</h1>
-          <p className="text-gray-500 mt-2">管理和配置您的所有 API 产品</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {!isMcpServer && showNacosImport && (
-            <Button
-              disabled={!defaultNacos}
-              icon={<ImportOutlined />}
-              loading={importLoading}
-              onClick={handleImportFromNacos}
-            >
-              从 Nacos 导入
-            </Button>
-          )}
-          {showImportMenu && importMenuItems.length > 0 && (
-            <Dropdown
-              menu={{ items: importMenuItems, onClick: handleImportMenuClick }}
-              trigger={['click']}
-            >
-              <Button icon={<ImportOutlined />}>
-                导入
-                <DownOutlined />
+      <AdminPageHeader
+        actions={
+          <>
+            {!isMcpServer && showNacosImport && (
+              <Button
+                disabled={!defaultNacos}
+                icon={<ImportOutlined />}
+                loading={importLoading}
+                onClick={handleImportFromNacos}
+              >
+                {t('action.importFromNacos')}
               </Button>
-            </Dropdown>
-          )}
-          <Button
-            icon={<PlusOutlined />}
-            onClick={() => tableRef.current?.handleCreate()}
-            type="primary"
-          >
-            创建
-          </Button>
-        </div>
-      </div>
+            )}
+            {showImportMenu && importMenuItems.length > 0 && (
+              <Dropdown
+                menu={{ items: importMenuItems, onClick: handleImportMenuClick }}
+                trigger={['click']}
+              >
+                <Button icon={<ImportOutlined />}>
+                  {t('action.import')}
+                  <DownOutlined />
+                </Button>
+              </Dropdown>
+            )}
+            <Button
+              icon={<PlusOutlined />}
+              onClick={() => tableRef.current?.handleCreate()}
+              type="primary"
+            >
+              {t('action.create')}
+            </Button>
+          </>
+        }
+        description={t('page.apiProducts.description')}
+        title={t('page.apiProducts.title')}
+      />
 
-      {/* Product Type Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      <div>
+        <nav className="flex flex-wrap gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
           {PRODUCT_TYPES.map((type) => (
             <button
-              className={`whitespace-nowrap pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`h-9 whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors ${
                 productType === type.key
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-white text-gray-950 shadow-sm'
+                  : 'text-gray-500 hover:bg-white/70 hover:text-gray-800'
               }`}
               key={type.key}
               onClick={() => navigate(`/api-products/${type.path}`)}

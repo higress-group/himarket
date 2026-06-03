@@ -2,6 +2,7 @@ import { CameraOutlined } from '@ant-design/icons';
 import { Modal, Form, Input, message, Radio, Space } from 'antd';
 import { useState, useEffect } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { createProductCategory, updateProductCategory } from '@/lib/productCategoryApi';
 import type {
   ProductCategory,
@@ -27,6 +28,7 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
   onSuccess,
   visible,
 }) => {
+  const { t } = useLocale();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [iconMode, setIconMode] = useState<'URL' | 'BASE64'>('URL');
@@ -98,18 +100,20 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
           category.categoryId,
           categoryData as UpdateProductCategoryParam,
         );
-        message.success('更新成功');
+        message.success(t('page.categoryDetail.updateSuccess'));
       } else {
         // 调用创建API
         await createProductCategory(categoryData as CreateProductCategoryParam);
-        message.success('创建成功');
+        message.success(t('page.categoryDetail.createSuccess'));
       }
 
       onSuccess();
       handleCancel();
     } catch (error) {
       console.error('操作失败:', error);
-      message.error(isEdit ? '更新失败' : '创建失败');
+      message.error(
+        isEdit ? t('page.categoryDetail.updateFailed') : t('page.categoryDetail.createFailed'),
+      );
     } finally {
       setLoading(false);
     }
@@ -117,40 +121,41 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
 
   return (
     <Modal
+      cancelText={t('common.cancel')}
       confirmLoading={loading}
-      okText={isEdit ? '更新' : '创建'}
+      okText={isEdit ? t('action.update') : t('action.create')}
       onCancel={handleCancel}
       onOk={handleSubmit}
       open={visible}
-      title={isEdit ? '编辑类别' : '创建类别'}
+      title={isEdit ? t('page.categoryDetail.editTitle') : t('page.categoryDetail.createTitle')}
       width={600}
     >
       <Form className="mt-4" form={form} layout="vertical">
         <Form.Item
-          label="名称"
+          label={t('common.name')}
           name="name"
           rules={[
-            { message: '请输入名称', required: true },
-            { max: 50, message: '名称不能超过50个字符' },
+            { message: t('page.categoryDetail.nameRequired'), required: true },
+            { max: 50, message: t('page.categoryDetail.nameMax') },
           ]}
         >
-          <Input placeholder="如：数据分析、API网关、支付服务等" />
+          <Input placeholder={t('page.categoryDetail.namePlaceholder')} />
         </Form.Item>
 
         <Form.Item
-          label="描述"
+          label={t('common.description')}
           name="description"
-          rules={[{ max: 256, message: '描述不能超过256个字符' }]}
+          rules={[{ max: 256, message: t('page.categoryDetail.descriptionMax') }]}
         >
           <Input.TextArea
             maxLength={256}
-            placeholder="描述用途和特点，帮助用户更好地理解..."
+            placeholder={t('page.categoryDetail.descriptionPlaceholder')}
             rows={3}
             showCount
           />
         </Form.Item>
 
-        <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
+        <Form.Item label={t('page.categoryDetail.iconSetting')} style={{ marginBottom: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio.Group
               onChange={(e) => {
@@ -160,8 +165,8 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
               }}
               value={iconMode}
             >
-              <Radio value="URL">图片链接</Radio>
-              <Radio value="BASE64">本地上传</Radio>
+              <Radio value="URL">{t('page.categoryDetail.imageLink')}</Radio>
+              <Radio value="BASE64">{t('page.categoryDetail.localUpload')}</Radio>
             </Radio.Group>
 
             {iconMode === 'URL' ? (
@@ -169,13 +174,13 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
                 name="iconUrl"
                 rules={[
                   {
-                    message: '请输入有效的图片链接',
+                    message: t('page.categoryDetail.imageUrlInvalid'),
                     type: 'url',
                   },
                 ]}
                 style={{ marginBottom: 0 }}
               >
-                <Input placeholder="请输入图片链接地址" />
+                <Input placeholder={t('page.categoryDetail.imageUrlPlaceholder')} />
               </Form.Item>
             ) : (
               <Form.Item name="icon" style={{ marginBottom: 0 }}>
@@ -190,7 +195,9 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
                         const maxSize = 16 * 1024; // 16KB
                         if (file.size > maxSize) {
                           message.error(
-                            `图片大小不能超过 16KB，当前图片大小为 ${Math.round(file.size / 1024)}KB`,
+                            t('page.categoryDetail.imageSizeLimit', {
+                              size: Math.round(file.size / 1024),
+                            }),
                           );
                           return;
                         }
@@ -260,7 +267,9 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
                       }}
                     >
                       <CameraOutlined style={{ fontSize: '16px', marginBottom: '6px' }} />
-                      <span style={{ color: '#999', fontSize: '12px' }}>上传图片</span>
+                      <span style={{ color: '#999', fontSize: '12px' }}>
+                        {t('page.categoryDetail.uploadImage')}
+                      </span>
                     </div>
                   )}
                 </div>

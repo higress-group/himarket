@@ -1,6 +1,7 @@
 import { Tag, Checkbox, Pagination, Empty, Spin, message } from 'antd';
 import { useMemo, useCallback } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import type { RemoteMcpItemResult } from '@/types/mcp-vendor';
 
 interface RemoteMcpTableProps {
@@ -45,6 +46,7 @@ export default function RemoteMcpTable({
   pagination,
   selectedKeys,
 }: RemoteMcpTableProps) {
+  const { t } = useLocale();
   const selectedSet = useMemo(() => new Set(selectedKeys), [selectedKeys]);
   const isAtLimit = selectedKeys.length >= maxSelection;
 
@@ -55,7 +57,7 @@ export default function RemoteMcpTable({
       const isDeselecting = selectedSet.has(key);
       // If at limit and trying to select a new item, block it
       if (!isDeselecting && isAtLimit) {
-        message.warning('最多选择 50 条');
+        message.warning(t('product.marketImport.maxSelection', { count: maxSelection }));
         return;
       }
       const newKeys = isDeselecting
@@ -64,7 +66,7 @@ export default function RemoteMcpTable({
       const newItems = items.filter((i) => newKeys.includes(i.remoteId));
       onSelectionChange(newKeys, newItems);
     },
-    [selectedKeys, selectedSet, items, onSelectionChange, isAtLimit],
+    [selectedKeys, selectedSet, items, onSelectionChange, isAtLimit, maxSelection, t],
   );
 
   const selectableItems = useMemo(() => items.filter((i) => !i.existsInPlatform), [items]);
@@ -89,7 +91,7 @@ export default function RemoteMcpTable({
   }
 
   if (items.length === 0) {
-    return <Empty className="py-12" description="暂无数据" />;
+    return <Empty className="py-12" description={t('product.marketImport.noData')} />;
   }
 
   return (
@@ -102,10 +104,14 @@ export default function RemoteMcpTable({
           indeterminate={selectedKeys.length > 0 && !allSelected}
           onChange={handleSelectAll}
         >
-          <span className="text-sm text-gray-500">全选本页（{selectableItems.length} 项可选）</span>
+          <span className="text-sm text-gray-500">
+            {t('product.marketImport.selectCurrentPage', { count: selectableItems.length })}
+          </span>
         </Checkbox>
         {selectedKeys.length > 0 && (
-          <span className="text-sm text-blue-600">已选 {selectedKeys.length} 项</span>
+          <span className="text-sm text-blue-600">
+            {t('product.marketImport.selectedCount', { count: selectedKeys.length })}
+          </span>
         )}
       </div>
 
@@ -172,7 +178,7 @@ export default function RemoteMcpTable({
                   </div>
                   {item.existsInPlatform && (
                     <Tag className="mt-0.5 text-xs" color="default" style={{ fontSize: 10 }}>
-                      已存在
+                      {t('product.marketImport.exists')}
                     </Tag>
                   )}
                 </div>
@@ -180,7 +186,7 @@ export default function RemoteMcpTable({
 
               {/* Description */}
               <p className="text-xs text-gray-500 line-clamp-2 mb-2 leading-relaxed min-h-[2.5em]">
-                {item.description || '暂无描述'}
+                {item.description || t('common.noDescription')}
               </p>
 
               {/* Footer: protocol + tags */}
@@ -210,7 +216,7 @@ export default function RemoteMcpTable({
           pageSize={pagination.pageSize}
           pageSizeOptions={['10', '20', '50']}
           showSizeChanger
-          showTotal={(total) => `共 ${total} 条`}
+          showTotal={(total) => t('common.totalItems', { total })}
           size="small"
           total={pagination.total}
         />

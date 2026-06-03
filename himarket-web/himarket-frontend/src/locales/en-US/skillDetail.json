@@ -18,5 +18,22 @@
   "binaryNotSupported": "Binary file, preview not supported",
   "renderPreview": "Render Preview",
   "sourceCode": "Source Code",
-  "relatedSkills": "Related Skills"
+  "relatedSkills": "Related Skills",
+  "basicInfo": "Basic information",
+  "globalInstall": "Global install",
+  "localDownload": "Local download",
+  "author": "Author",
+  "repository": "Repository",
+  "noAuthorInfo": "No author information",
+  "viewRepository": "View repository",
+  "share": "Share",
+  "favorite": "Favorite",
+  "downloadFailed": "Download failed",
+  "copyFailed": "Copy failed",
+  "copiedToClipboard": "Copied to clipboard",
+  "copySkillMd": "Copy SKILL.md content",
+  "downloadFullSkillDirectory": "Download the complete skill directory with SKILL.md and related files",
+  "noContent": "No content",
+  "renderedView": "Rendered view",
+  "sourceView": "Source view"
 }

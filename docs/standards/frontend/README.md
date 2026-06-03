@@ -27,4 +27,8 @@ that does not fully comply should be treated as cleanup debt, not as a pattern t
 - Use `import type` for pure TypeScript type imports.
 - Avoid `any`; prefer typed request/response contracts, type guards, or explicit union types.
 - Keep user-facing text and UI behavior consistent with the target app.
+- Treat user-facing copy as internationalized by default, and keep Chinese copy spaced from adjacent
+  English terms or numbers with one half-width space.
+- For the developer portal, run `npm run i18n:scan:fail` after touching user-facing copy. If legacy
+  debt is intentionally kept, refresh the baseline with `npm run i18n:baseline` only after review.
 - Run the app-specific formatter, ESLint, and TypeScript checks before submitting changes.

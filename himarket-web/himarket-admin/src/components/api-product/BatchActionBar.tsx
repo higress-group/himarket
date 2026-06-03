@@ -2,6 +2,7 @@ import { DeleteOutlined, SendOutlined, CloseOutlined } from '@ant-design/icons';
 import { Button, Modal, Select, message } from 'antd';
 import { useEffect, useState } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, portalApi } from '@/lib/api';
 import type { ApiProduct } from '@/types/api-product';
 
@@ -20,6 +21,7 @@ export default function BatchActionBar({
   products,
   selectedIds,
 }: BatchActionBarProps) {
+  const { t } = useLocale();
   const selectedProducts = products.filter((p) => selectedIds.has(p.productId));
   const canPublish =
     selectedProducts.length > 0 &&
@@ -45,9 +47,9 @@ export default function BatchActionBar({
 
   const handleBatchDelete = () => {
     Modal.confirm({
-      cancelText: '取消',
-      content: '此操作不可恢复。',
-      okText: '确认删除',
+      cancelText: t('common.cancel'),
+      content: t('product.batch.unrecoverable'),
+      okText: t('common.confirmDelete'),
       okType: 'danger',
       onOk: async () => {
         const results = await Promise.allSettled(
@@ -62,13 +64,14 @@ export default function BatchActionBar({
           const failedDetails = failedResults.map((item) => {
             const product = products.find((p) => p.productId === item.id);
             const reason = (item.result as PromiseRejectedResult).reason;
-            const errorMsg = reason?.response?.data?.message || reason?.message || '未知错误';
+            const errorMsg =
+              reason?.response?.data?.message || reason?.message || t('common.unknown');
             return `${product?.name || item.id}: ${errorMsg}`;
           });
           Modal.warning({
             content: (
               <div className="mt-2">
-                <p className="font-medium mb-1">失败详情：</p>
+                <p className="font-medium mb-1">{t('product.batch.failureDetail')}</p>
                 <ul className="list-disc pl-4 text-sm text-gray-600">
                   {failedDetails.map((detail, i) => (
                     <li key={i}>{detail}</li>
@@ -76,14 +79,17 @@ export default function BatchActionBar({
                 </ul>
               </div>
             ),
-            title: `成功 ${succeeded} 个，失败 ${failedResults.length} 个`,
+            title: t('product.batch.partialFailed', {
+              failed: failedResults.length,
+              success: succeeded,
+            }),
           });
         } else {
-          message.success(`成功删除 ${succeeded} 个产品`);
+          message.success(t('product.batch.deleteSuccess', { count: succeeded }));
         }
         onComplete();
       },
-      title: `确认批量删除 ${selectedIds.size} 个产品？`,
+      title: t('product.batch.batchDeleteConfirm', { count: selectedIds.size }),
     });
   };
 
@@ -103,13 +109,14 @@ export default function BatchActionBar({
         const failedDetails = failedResults.map((item) => {
           const product = products.find((p) => p.productId === item.id);
           const reason = (item.result as PromiseRejectedResult).reason;
-          const errorMsg = reason?.response?.data?.message || reason?.message || '未知错误';
+          const errorMsg =
+            reason?.response?.data?.message || reason?.message || t('common.unknown');
           return `${product?.name || item.id}: ${errorMsg}`;
         });
         Modal.warning({
           content: (
             <div className="mt-2">
-              <p className="font-medium mb-1">失败详情：</p>
+              <p className="font-medium mb-1">{t('product.batch.failureDetail')}</p>
               <ul className="list-disc pl-4 text-sm text-gray-600">
                 {failedDetails.map((detail, i) => (
                   <li key={i}>{detail}</li>
@@ -117,10 +124,13 @@ export default function BatchActionBar({
               </ul>
             </div>
           ),
-          title: `成功 ${succeeded} 个，失败 ${failedResults.length} 个`,
+          title: t('product.batch.partialFailed', {
+            failed: failedResults.length,
+            success: succeeded,
+          }),
         });
       } else {
-        message.success(`成功发布 ${succeeded} 个产品`);
+        message.success(t('product.batch.publishSuccess', { count: succeeded }));
       }
       setPublishModalVisible(false);
       setSelectedPortalId(undefined);
@@ -135,7 +145,7 @@ export default function BatchActionBar({
       {inline ? (
         <div className="flex items-center gap-2">
           <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete} type="primary">
-            批量删除
+            {t('product.batch.batchDelete')}
           </Button>
           <Button
             disabled={!canPublish}
@@ -143,14 +153,16 @@ export default function BatchActionBar({
             onClick={() => setPublishModalVisible(true)}
             type="primary"
           >
-            批量发布
+            {t('product.batch.batchPublish')}
           </Button>
         </div>
       ) : (
         <div className="flex items-center gap-4 p-4 bg-colorPrimaryBg rounded-xl border border-colorPrimaryBorderHover mb-4">
-          <span className="text-sm font-medium">已选择 {selectedIds.size} 项</span>
+          <span className="text-sm font-medium">
+            {t('product.batch.selectedCount', { count: selectedIds.size })}
+          </span>
           <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete} size="small">
-            批量删除
+            {t('product.batch.batchDelete')}
           </Button>
           <Button
             disabled={!canPublish}
@@ -159,33 +171,35 @@ export default function BatchActionBar({
             size="small"
             type="primary"
           >
-            批量发布
+            {t('product.batch.batchPublish')}
           </Button>
           <Button icon={<CloseOutlined />} onClick={onCancel} size="small" type="text">
-            取消选择
+            {t('product.batch.cancelSelection')}
           </Button>
         </div>
       )}
 
       <Modal
-        cancelText="取消"
+        cancelText={t('common.cancel')}
         confirmLoading={publishing}
         okButtonProps={{ disabled: !selectedPortalId }}
-        okText="确认发布"
+        okText={t('product.batch.confirmPublish')}
         onCancel={() => {
           setPublishModalVisible(false);
           setSelectedPortalId(undefined);
         }}
         onOk={handleBatchPublish}
         open={publishModalVisible}
-        title="批量发布到门户"
+        title={t('product.batch.publishToPortal')}
       >
-        <p className="mb-3 text-gray-500">将选中的 {selectedIds.size} 个产品发布到指定门户</p>
+        <p className="mb-3 text-gray-500">
+          {t('product.batch.publishDescription', { count: selectedIds.size })}
+        </p>
         <Select
           loading={portalsLoading}
           onChange={setSelectedPortalId}
           options={portals.map((p) => ({ label: p.name, value: p.portalId }))}
-          placeholder="请选择目标门户"
+          placeholder={t('product.batch.selectPortal')}
           style={{ width: '100%' }}
           value={selectedPortalId}
         />

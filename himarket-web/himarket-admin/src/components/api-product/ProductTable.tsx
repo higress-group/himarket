@@ -1,19 +1,19 @@
-import {
-  ExclamationCircleOutlined,
-  CheckCircleFilled,
-  ClockCircleFilled,
-  ExclamationCircleFilled,
-  EditOutlined,
-  DeleteOutlined,
-} from '@ant-design/icons';
-import { Button, Modal, Tooltip, message } from 'antd';
+import { ExclamationCircleOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Checkbox, Empty, Modal, Pagination, Skeleton, Tooltip, message } from 'antd';
 import { useCallback, useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import ApiProductFormModal from '@/components/api-product/ApiProductFormModal';
 import BatchActionBar from '@/components/api-product/BatchActionBar';
 import { DataTable } from '@/components/common/DataTable';
+import { SearchInput } from '@/components/common/SearchInput';
+import { StatusIndicator } from '@/components/common/StatusIndicator';
+import { ViewModeToggle } from '@/components/common/ViewModeToggle';
+import { ProductIconRenderer } from '@/components/icons/ProductIconRenderer';
+import { useLocale } from '@/contexts/LocaleContext';
+import { useAdminViewMode } from '@/hooks/useAdminViewMode';
 import { apiProductApi } from '@/lib/api';
+import { getIconString } from '@/lib/iconUtils';
 import { copyToClipboard, formatDateTime } from '@/lib/utils';
 import type { ApiProduct } from '@/types/api-product';
 
@@ -28,38 +28,162 @@ export interface ProductTableRef {
   refresh: () => void;
 }
 
-function renderStatusTag(status: string) {
+const API_PRODUCTS_VIEW_MODE_SETTING_KEY = 'api-products.view-mode';
+
+const PRODUCT_TYPE_LABELS: Record<ApiProduct['type'], string> = {
+  AGENT_API: 'Agent API',
+  AGENT_SKILL: 'Agent Skill',
+  MCP_SERVER: 'MCP Server',
+  MODEL_API: 'Model API',
+  REST_API: 'REST API',
+  WORKER: 'Worker',
+};
+
+function renderStatusTag(status: string, t: ReturnType<typeof useLocale>['t']) {
   if (status === 'PUBLISHED') {
     return (
-      <div className="flex items-center gap-1.5 text-xs">
-        <CheckCircleFilled className="text-green-500" style={{ fontSize: '12px' }} />
-        <span className="text-gray-700">已发布</span>
-      </div>
+      <StatusIndicator tone="success">{t('product.overview.statusPublished')}</StatusIndicator>
     );
   }
   if (status === 'READY') {
     return (
-      <div className="flex items-center gap-1.5 text-xs">
-        <ClockCircleFilled className="text-blue-500" style={{ fontSize: '12px' }} />
-        <span className="text-gray-700">待发布</span>
-      </div>
+      <StatusIndicator icon="clock" tone="info">
+        {t('product.overview.statusReady')}
+      </StatusIndicator>
     );
   }
   if (status === 'PENDING') {
-    return (
-      <div className="flex items-center gap-1.5 text-xs">
-        <ExclamationCircleFilled className="text-yellow-500" style={{ fontSize: '12px' }} />
-        <span className="text-gray-700">待配置</span>
-      </div>
-    );
+    return <StatusIndicator tone="warning">{t('product.overview.statusPending')}</StatusIndicator>;
   }
   return <span className="text-xs text-gray-700">{status}</span>;
 }
 
+interface ProductCardProps {
+  checked: boolean;
+  onDelete: (productId: string, productName: string) => void;
+  onEdit: (product: ApiProduct) => void;
+  onOpenDetail: (productId: string) => void;
+  onToggleSelect: (productId: string, checked: boolean) => void;
+  product: ApiProduct;
+}
+
+function ProductCard({
+  checked,
+  onDelete,
+  onEdit,
+  onOpenDetail,
+  onToggleSelect,
+  product,
+}: ProductCardProps) {
+  const { t } = useLocale();
+
+  return (
+    <article
+      className={`group flex min-h-[184px] cursor-pointer flex-col rounded-lg border bg-white p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md ${
+        checked ? 'border-blue-300 ring-1 ring-blue-100' : 'border-gray-200'
+      }`}
+      onClick={() => onOpenDetail(product.productId)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpenDetail(product.productId);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+            <ProductIconRenderer
+              className="h-8 w-8"
+              iconType={getIconString(product.icon)}
+              type={product.type}
+            />
+          </div>
+          <div className="min-w-0">
+            <Tooltip placement="topLeft" title={product.name}>
+              <h3 className="truncate text-sm font-semibold text-gray-900">{product.name}</h3>
+            </Tooltip>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-xs text-gray-500">
+                {PRODUCT_TYPE_LABELS[product.type] || product.type}
+              </span>
+              {renderStatusTag(product.status, t)}
+            </div>
+          </div>
+        </div>
+        <Checkbox
+          checked={checked}
+          onChange={(event) => onToggleSelect(product.productId, event.target.checked)}
+          onClick={(event) => event.stopPropagation()}
+        />
+      </div>
+
+      <Tooltip placement="topLeft" title={product.description}>
+        <p className="mt-4 line-clamp-2 min-h-[40px] text-xs leading-5 text-gray-600">
+          {product.description || t('common.noDescription')}
+        </p>
+      </Tooltip>
+
+      <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+        <div className="min-w-0 text-xs text-gray-400">
+          <Tooltip title={t('common.copyToClipboard')}>
+            <button
+              className="block max-w-[180px] truncate border-none bg-transparent p-0 text-left text-xs text-gray-400 hover:text-blue-500"
+              onClick={(event) => {
+                event.stopPropagation();
+                copyToClipboard(product.productId).then(() => {
+                  message.success(t('common.copiedToClipboard'));
+                });
+              }}
+              type="button"
+            >
+              {product.productId}
+            </button>
+          </Tooltip>
+          <span>{product.createAt ? formatDateTime(product.createAt) : '-'}</span>
+        </div>
+        <div className="flex shrink-0 translate-y-1 items-center gap-1 opacity-0 transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus:translate-y-0 group-focus:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
+          <Button
+            icon={<EditOutlined />}
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(product);
+            }}
+            size="small"
+            type="text"
+          >
+            {t('common.edit')}
+          </Button>
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(product.productId, product.name);
+            }}
+            size="small"
+            type="text"
+          >
+            {t('common.delete')}
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productType }, ref) => {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
+  const {
+    loading: viewModeLoading,
+    setViewMode,
+    viewMode,
+  } = useAdminViewMode(API_PRODUCTS_VIEW_MODE_SETTING_KEY);
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -110,21 +234,21 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
   const handleDelete = useCallback(
     (productId: string, productName: string) => {
       Modal.confirm({
-        cancelText: '取消',
-        content: `确定要删除API产品 "${productName}" 吗？此操作不可恢复。`,
+        cancelText: t('common.cancel'),
+        content: t('product.table.deleteConfirm', { name: productName }),
         icon: <ExclamationCircleOutlined />,
-        okText: '确认删除',
+        okText: t('common.confirmDelete'),
         okType: 'danger',
         onOk() {
           return apiProductApi.deleteApiProduct(productId).then(() => {
-            message.success('API Product 删除成功');
+            message.success(t('product.table.deleteSuccess'));
             fetchProducts(pagination.current, pagination.pageSize);
           });
         },
-        title: '确认删除',
+        title: t('common.confirmDelete'),
       });
     },
-    [fetchProducts, pagination],
+    [fetchProducts, pagination, t],
   );
 
   const handleEdit = useCallback((product: ApiProduct) => {
@@ -174,6 +298,18 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
     selectedRowKeys: [...selectedIds],
   };
 
+  const handleToggleSelect = useCallback((productId: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(productId);
+      } else {
+        next.delete(productId);
+      }
+      return next;
+    });
+  }, []);
+
   // Table columns definition
   const columns: TableProps<ApiProduct>['columns'] = [
     {
@@ -189,12 +325,12 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
               {record.name}
             </button>
           </Tooltip>
-          <Tooltip title="点击复制">
+          <Tooltip title={t('common.copyToClipboard')}>
             <button
               className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
               onClick={() =>
                 copyToClipboard(record.productId).then(() => {
-                  message.success('已复制到剪贴板');
+                  message.success(t('common.copiedToClipboard'));
                 })
               }
               type="button"
@@ -204,13 +340,13 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
           </Tooltip>
         </div>
       ),
-      title: '产品名称/ID',
+      title: t('page.categoryDetail.nameAndId'),
       width: 280,
     },
     {
       dataIndex: 'status',
-      render: (status: string) => renderStatusTag(status),
-      title: '状态',
+      render: (status: string) => renderStatusTag(status, t),
+      title: t('common.status'),
       width: 110,
     },
     {
@@ -221,14 +357,14 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
           <span className="text-gray-600 text-xs">{description || '-'}</span>
         </Tooltip>
       ),
-      title: '描述',
+      title: t('common.description'),
     },
     {
       dataIndex: 'createAt',
       render: (createAt: string) => (
         <span className="text-xs text-gray-500">{createAt ? formatDateTime(createAt) : '-'}</span>
       ),
-      title: '创建时间',
+      title: t('product.overview.createAt'),
       width: 160,
     },
     {
@@ -240,7 +376,7 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
             onClick={() => handleEdit(record)}
             type="text"
           >
-            编辑
+            {t('common.edit')}
           </Button>
           <Button
             className="text-red-500 hover:text-red-600 hover:bg-red-50 !px-2 text-xs"
@@ -248,14 +384,128 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
             onClick={() => handleDelete(record.productId, record.name)}
             type="text"
           >
-            删除
+            {t('common.delete')}
           </Button>
         </div>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 160,
     },
   ];
+
+  const batchAction =
+    selectedIds.size > 0 ? (
+      <BatchActionBar
+        inline
+        onCancel={() => setSelectedIds(new Set())}
+        onComplete={() => {
+          setSelectedIds(new Set());
+          fetchProducts(pagination.current, pagination.pageSize);
+        }}
+        products={products}
+        selectedIds={selectedIds}
+      />
+    ) : null;
+
+  const viewModeToggle = (
+    <ViewModeToggle disabled={viewModeLoading} onChange={setViewMode} value={viewMode} />
+  );
+
+  const productFormModal = (
+    <ApiProductFormModal
+      defaultProductType={productType}
+      initialData={editingProduct || undefined}
+      onCancel={handleModalCancel}
+      onSuccess={handleModalSuccess}
+      productId={editingProduct?.productId}
+      visible={modalVisible}
+    />
+  );
+
+  if (viewMode === 'CARD') {
+    return (
+      <div>
+        <div className="mb-2 flex items-center justify-between px-1 py-3">
+          <SearchInput
+            onChange={(value) => {
+              setSearchInput(value);
+              if (!value) {
+                fetchProducts(1, pagination.pageSize, '');
+              }
+            }}
+            onClear={() => {
+              setSearchInput('');
+              fetchProducts(1, pagination.pageSize, '');
+            }}
+            onSearch={handleSearch}
+            placeholder={t('product.table.searchByName')}
+            value={searchInput}
+          />
+          <div className="flex items-center gap-2">
+            {batchAction}
+            {viewModeToggle}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: Math.min(pagination.pageSize || 6, 6) }).map((_, index) => (
+              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm" key={index}>
+                <div className="flex items-start gap-3">
+                  <Skeleton.Avatar active shape="square" size={44} />
+                  <div className="min-w-0 flex-1">
+                    <Skeleton.Input active size="small" style={{ width: '70%' }} />
+                    <Skeleton.Input active size="small" style={{ marginTop: 8, width: '45%' }} />
+                  </div>
+                </div>
+                <Skeleton active paragraph={{ rows: 2 }} title={false} />
+              </div>
+            ))}
+          </div>
+        ) : products.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {products.map((product) => (
+                <ProductCard
+                  checked={selectedIds.has(product.productId)}
+                  key={product.productId}
+                  onDelete={handleDelete}
+                  onEdit={handleEdit}
+                  onOpenDetail={handleOpenDetail}
+                  onToggleSelect={handleToggleSelect}
+                  product={product}
+                />
+              ))}
+            </div>
+            {pagination.total > 0 && (
+              <div className="flex justify-end px-1 py-3">
+                <Pagination
+                  current={pagination.current}
+                  onChange={(page, pageSize) => fetchProducts(page, pageSize)}
+                  pageSize={pagination.pageSize}
+                  pageSizeOptions={['10', '20', '50', '100']}
+                  showQuickJumper
+                  showSizeChanger
+                  showTotal={(total) => t('common.totalItems', { total })}
+                  total={pagination.total}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="rounded-lg border border-gray-200 bg-white py-14">
+            <Empty
+              description={t('product.table.emptyByType', {
+                type: PRODUCT_TYPE_LABELS[productType] || productType,
+              })}
+            />
+          </div>
+        )}
+
+        {productFormModal}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -279,34 +529,18 @@ const ProductTable = forwardRef<ProductTableRef, ProductTableProps>(({ productTy
             }
           },
           onSearch: handleSearch,
-          placeholder: '搜索产品名称',
+          placeholder: t('product.table.searchByName'),
           value: searchInput,
         }}
         toolbarRight={
-          selectedIds.size > 0 ? (
-            <BatchActionBar
-              inline
-              onCancel={() => setSelectedIds(new Set())}
-              onComplete={() => {
-                setSelectedIds(new Set());
-                fetchProducts(pagination.current, pagination.pageSize);
-              }}
-              products={products}
-              selectedIds={selectedIds}
-            />
-          ) : undefined
+          <>
+            {batchAction}
+            {viewModeToggle}
+          </>
         }
       />
 
-      {/* Create/Edit modal */}
-      <ApiProductFormModal
-        defaultProductType={productType}
-        initialData={editingProduct || undefined}
-        onCancel={handleModalCancel}
-        onSuccess={handleModalSuccess}
-        productId={editingProduct?.productId}
-        visible={modalVisible}
-      />
+      {productFormModal}
     </div>
   );
 });

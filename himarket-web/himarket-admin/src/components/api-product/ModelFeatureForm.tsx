@@ -1,5 +1,7 @@
 import { Form, Input, InputNumber, Switch, Row, Col, Divider } from 'antd';
 
+import { useLocale } from '@/contexts/LocaleContext';
+
 const tooltipStyle = {
   overlayInnerStyle: {
     backgroundColor: '#000',
@@ -14,18 +16,20 @@ interface ModelFeatureFormProps {
 export default function ModelFeatureForm({
   initialExpanded: _initialExpanded,
 }: ModelFeatureFormProps) {
+  const { t } = useLocale();
+
   return (
     <>
       <Divider style={{ marginBottom: 16, marginTop: 0 }} titlePlacement="left">
-        模型参数
+        {t('product.modelForm.title')}
       </Divider>
       <Row gutter={16}>
         <Col span={24}>
           <Form.Item
-            label="模型名称"
+            label={t('product.modelForm.modelName')}
             name={['feature', 'modelFeature', 'model']}
-            rules={[{ message: '请输入模型名称', required: true }]}
-            tooltip={{ title: '模型名称，如 qwen-max', ...tooltipStyle }}
+            rules={[{ message: t('product.modelForm.modelNameRequired'), required: true }]}
+            tooltip={{ title: t('product.modelForm.modelNameTooltip'), ...tooltipStyle }}
           >
             <Input placeholder="qwen-max" />
           </Form.Item>
@@ -34,18 +38,18 @@ export default function ModelFeatureForm({
       <Row gutter={16}>
         <Col span={12}>
           <Form.Item
-            label="最大输出 Tokens"
+            label={t('product.modelForm.maxTokens')}
             name={['feature', 'modelFeature', 'maxTokens']}
-            tooltip={{ title: '单次响应最多输出的 Tokens 数量，范围 1-8192', ...tooltipStyle }}
+            tooltip={{ title: t('product.modelForm.maxTokensTooltip'), ...tooltipStyle }}
           >
             <InputNumber max={8192} min={1} placeholder="5000" style={{ width: '100%' }} />
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item
-            label="温度"
+            label={t('product.modelForm.temperature')}
             name={['feature', 'modelFeature', 'temperature']}
-            tooltip={{ title: '控制输出随机性，数值越高结果越发散，范围 0.0-2.0', ...tooltipStyle }}
+            tooltip={{ title: t('product.modelForm.temperatureTooltip'), ...tooltipStyle }}
           >
             <InputNumber max={2} min={0} placeholder="0.9" step={0.1} style={{ width: '100%' }} />
           </Form.Item>
@@ -55,9 +59,9 @@ export default function ModelFeatureForm({
         <Col span={8}>
           <Form.Item
             initialValue={true}
-            label="联网搜索"
+            label={t('product.modelForm.webSearch')}
             name={['feature', 'modelFeature', 'webSearch']}
-            tooltip={{ title: '是否启用网络搜索能力', ...tooltipStyle }}
+            tooltip={{ title: t('product.modelForm.webSearchTooltip'), ...tooltipStyle }}
             valuePropName="checked"
           >
             <Switch />
@@ -66,9 +70,9 @@ export default function ModelFeatureForm({
         <Col span={8}>
           <Form.Item
             initialValue={false}
-            label="深度思考"
+            label={t('product.modelForm.thinking')}
             name={['feature', 'modelFeature', 'enableThinking']}
-            tooltip={{ title: '是否启用深度思考', ...tooltipStyle }}
+            tooltip={{ title: t('product.modelForm.thinkingTooltip'), ...tooltipStyle }}
             valuePropName="checked"
           >
             <Switch />
@@ -77,9 +81,9 @@ export default function ModelFeatureForm({
         <Col span={8}>
           <Form.Item
             initialValue={false}
-            label="多模态"
+            label={t('product.modelForm.multimodal')}
             name={['feature', 'modelFeature', 'enableMultiModal']}
-            tooltip={{ title: '支持多模态', ...tooltipStyle }}
+            tooltip={{ title: t('product.modelForm.multimodalTooltip'), ...tooltipStyle }}
             valuePropName="checked"
           >
             <Switch />

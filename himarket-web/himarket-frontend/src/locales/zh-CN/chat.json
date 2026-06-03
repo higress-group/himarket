@@ -1,0 +1,148 @@
+{
+  "page": {
+    "selectModelFirst": "请先选择一个模型"
+  },
+  "area": {
+    "multiModelCompare": "多模型对比",
+    "addCompareModel": "添加对比模型",
+    "welcomePrefix": "您好，欢迎来到",
+    "emptyTitle": "欢迎使用"
+  },
+  "input": {
+    "imageUploadHint": "最大 5MB，最多 10 个文件",
+    "uploadImage": "上传图片",
+    "textUploadHint": "上传文件时支持以下格式：txt、md、html、doc、docx、pdf、xls、xlsx、ppt、pptx、csv。单次最多上传 10 个文件。表格文件大小不超过 2MB。普通文档不超过 5MB。",
+    "uploadText": "上传文本",
+    "maxFiles": "最多支持上传 10 个文件",
+    "tableFile": "表格",
+    "file": "文件",
+    "fileTooLarge": "{{type}}大小不能超过 {{limit}}",
+    "uploadFailed": "上传失败",
+    "uploadError": "上传出错",
+    "dropArea": "拖放附件到此区域",
+    "mcpExecuting": "MCP 工具执行中...",
+    "placeholder": "输入您的问题...",
+    "webSearch": "联网"
+  },
+  "mcp": {
+    "maxAdded": "最多添加 10 个 MCP 服务",
+    "subscribeSuccess": "订阅成功",
+    "subscribeFailed": "订阅失败"
+  },
+  "mcpCard": {
+    "subscribed": "已订阅",
+    "noSubscriptionRequired": "无需订阅",
+    "notSubscribed": "未订阅",
+    "toolsWithCount": "工具 ({{count}})",
+    "noTools": "暂无工具",
+    "noDescription": "暂无描述",
+    "add": "添加",
+    "remove": "取消添加",
+    "quickSubscribe": "快速订阅"
+  },
+  "mcpModal": {
+    "title": "选择 MCP Server",
+    "description": "选择需要加入本次对话的 MCP Server，可按分类筛选或搜索名称。",
+    "enabled": "MCP: 启用",
+    "scope": "分类",
+    "availableServers": "可用 Server",
+    "addedServers": "已添加 Server",
+    "searchPlaceholder": "搜索 MCP Server...",
+    "addedCount": "已添加 {{count}} / 10",
+    "serverCount": "{{count}} 个 Server",
+    "removeAll": "批量取消添加",
+    "noServers": "暂无 MCP Server...",
+    "addedEmptyHint": "您可以从全部 MCP Server 中选择并添加您需要的 Server",
+    "viewAll": "预览全部 Server"
+  },
+  "toolCall": {
+    "executing": "工具执行中...",
+    "completed": "工具执行完成",
+    "waiting": "等待工具响应...",
+    "parameters": "参数",
+    "results": "结果"
+  },
+  "messages": {
+    "copied": "已复制到剪贴板",
+    "networkError": "网络异常，请重试",
+    "firstToken": "首字符",
+    "totalTime": "总耗时",
+    "inputTokens": "输入 Token",
+    "outputTokens": "输出 Token",
+    "copy": "复制",
+    "regenerate": "重新生成",
+    "previousVersion": "上一个版本",
+    "nextVersion": "下一个版本"
+  },
+  "session": {
+    "createFailed": "创建会话失败",
+    "missingId": "会话 ID 不存在",
+    "loadHistoryFailed": "加载聊天记录失败"
+  },
+  "modelSelector": {
+    "searchPlaceholder": "搜索模型...",
+    "loadingCategories": "加载分类中...",
+    "loading": "加载中...",
+    "noModels": "暂无模型",
+    "noModelsHint": "您需要首先在 Admin 中配置模型，才能在 HiChat 中体验",
+    "selectModel": "选择模型"
+  },
+  "multiModel": {
+    "cancel": "取消",
+    "startCompare": "开始对比",
+    "title": "选择对比模型",
+    "baseModels": "当前对比",
+    "selectedModels": "已选模型",
+    "currentModel": "当前模型",
+    "selectOne": "再选择 1 个模型（已选 {{current}}/1）",
+    "selectMore": "再选择 1-{{max}} 个模型（已选 {{current}}/{{max}}）",
+    "selectMoreDefault": "再选择 1-2 个模型（已选 {{current}}/2）",
+    "selectedCount": "已选 {{current}} / {{max}}",
+    "loadingModels": "加载模型列表...",
+    "current": "当前",
+    "noDescription": "暂无描述",
+    "noAvailableModels": "暂无可选模型"
+  },
+  "suggestions": {
+    "title": "推荐问题",
+    "refresh": "刷新推荐",
+    "questions": {
+      "reactHooks": "如何使用 React Hooks 优化组件性能？",
+      "typescriptType": "TypeScript 中 interface 和 type 的区别是什么？",
+      "tailwindBestPractices": "Tailwind CSS 的最佳实践有哪些？",
+      "viteEnv": "如何在 Vite 中配置环境变量？",
+      "reactRouter": "React Router v6 的主要变化有哪些？",
+      "customHook": "如何实现一个自定义的 React Hook？",
+      "antdTheme": "Ant Design 如何进行主题定制？",
+      "bundleSize": "如何优化 React 应用的打包体积？",
+      "stateReducer": "useState 和 useReducer 的使用场景有什么区别？"
+    }
+  },
+  "sidebar": {
+    "untitledSession": "未命名会话",
+    "fetchSessionsFailed": "获取会话列表失败",
+    "sessionNameRequired": "会话名称不能为空",
+    "renameSuccess": "重命名成功",
+    "renameFailed": "重命名失败",
+    "deleteConfirm": "确定要删除会话 \"{{name}}\" 吗？此操作无法撤销。",
+    "deleteSuccess": "删除成功",
+    "deleteFailed": "删除失败",
+    "deleteTitle": "确认删除",
+    "rename": "重命名",
+    "delete": "删除",
+    "cancel": "取消",
+    "save": "保存",
+    "moreActions": "更多操作",
+    "newChat": "新会话",
+    "languageModel": "语言模型",
+    "textToImage": "文生图",
+    "textToVideo": "文生视频",
+    "comingSoon": "敬请期待",
+    "noHistory": "暂无历史会话",
+    "today": "今天",
+    "last7Days": "近 7 天",
+    "last30Days": "近 30 天",
+    "expand": "展开",
+    "collapse": "收起"
+  }
+}

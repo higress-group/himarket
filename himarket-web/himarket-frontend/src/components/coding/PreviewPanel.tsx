@@ -1,5 +1,6 @@
 import { Monitor, Lightbulb, FileText, ChevronDown, Check } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ArtifactPreview } from './ArtifactPreview';
 
@@ -22,11 +23,12 @@ function ArtifactPreviewPane({
   artifacts: Artifact[];
   activeArtifactId: string | null;
 }) {
+  const { t } = useTranslation('coding');
   const active = artifacts.find((a) => a.id === activeArtifactId);
   if (!active) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-        未选择产物
+        {t('preview.noArtifactSelected')}
       </div>
     );
   }
@@ -36,15 +38,17 @@ function ArtifactPreviewPane({
 // ===== Empty State =====
 
 function EmptyState() {
+  const { t } = useTranslation('coding');
+
   return (
     <div className="flex-1 flex items-center justify-center bg-gray-50/50">
       <div className="text-center">
         <Monitor className="mx-auto mb-4 text-gray-300" size={48} />
-        <div className="text-base text-gray-500 mb-1">预览窗口</div>
-        <div className="text-xs text-gray-400 mb-4">等待 Agent 生成可预览的产物...</div>
+        <div className="text-base text-gray-500 mb-1">{t('preview.window')}</div>
+        <div className="text-xs text-gray-400 mb-4">{t('preview.waiting')}</div>
         <div className="inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-100/80 rounded-lg px-3 py-2">
           <Lightbulb className="text-amber-400 flex-shrink-0" size={12} />
-          <span>在对话中让 Agent 生成 HTML、图片、PDF 等文件即可预览</span>
+          <span>{t('preview.hint')}</span>
         </div>
       </div>
     </div>
@@ -62,6 +66,7 @@ function ArtifactSelector({
   activeArtifactId: string | null;
   onSelectArtifact: (artifactId: string) => void;
 }) {
+  const { t } = useTranslation('coding');
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -97,10 +102,10 @@ function ArtifactSelector({
       <button
         className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-100 transition-colors truncate max-w-[180px]"
         onClick={() => setOpen(!open)}
-        title={active?.fileName ?? '选择产物'}
+        title={active?.fileName ?? t('preview.selectArtifact')}
       >
         <FileText className="flex-shrink-0 text-gray-400" size={11} />
-        <span className="truncate">{active?.fileName ?? '选择产物'}</span>
+        <span className="truncate">{active?.fileName ?? t('preview.selectArtifact')}</span>
         <ChevronDown
           className={`flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
           size={10}

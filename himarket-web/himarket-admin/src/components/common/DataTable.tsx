@@ -1,5 +1,7 @@
 import { Pagination, Table } from 'antd';
 
+import { useLocale } from '@/contexts/LocaleContext';
+
 import { SearchInput } from './SearchInput';
 
 import type { TableProps } from 'antd';
@@ -44,11 +46,13 @@ export function DataTable<T extends object>({
   wrapperClassName,
   ...rest
 }: DataTableProps<T>) {
+  const { t } = useLocale();
+
   return (
     <div>
       {/* Toolbar */}
       {(search || toolbarLeft || toolbarRight) && (
-        <div className="flex items-center justify-between px-1 py-3 mb-2">
+        <div className="mb-2 flex items-center justify-between px-1 py-3">
           <div className="flex items-center gap-3">
             {search && (
               <SearchInput
@@ -58,7 +62,7 @@ export function DataTable<T extends object>({
                   search.onSearch();
                 }}
                 onSearch={search.onSearch}
-                placeholder={search.placeholder || '搜索'}
+                placeholder={search.placeholder || t('common.search')}
                 value={search.value}
               />
             )}
@@ -70,7 +74,7 @@ export function DataTable<T extends object>({
 
       {/* Table card */}
       <div
-        className={`bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm ${wrapperClassName || ''}`}
+        className={`overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm ${wrapperClassName || ''}`}
       >
         {batchActionBar}
         <Table<T>
@@ -99,7 +103,7 @@ export function DataTable<T extends object>({
             pageSizeOptions={['10', '20', '50', '100']}
             showQuickJumper
             showSizeChanger
-            showTotal={(total) => `共 ${total} 条`}
+            showTotal={(total) => t('common.totalItems', { total })}
             total={pagination.total}
           />
         </div>

@@ -1,5 +1,6 @@
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { DiffViewer } from './DiffViewer';
 import { TerminalOutput } from './TerminalOutput';
@@ -13,6 +14,7 @@ interface ToolPanelProps {
 }
 
 export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
+  const { t } = useTranslation('coding');
   const quest = useActiveCodingSession();
   const [jsonExpanded, setJsonExpanded] = useState(false);
 
@@ -38,7 +40,7 @@ export function ToolPanel({ collapsed, onToggleCollapse }: ToolPanelProps) {
           className="w-6 h-6 flex items-center justify-center rounded text-gray-400
                      hover:text-gray-600 hover:bg-gray-100 transition-colors"
           onClick={onToggleCollapse}
-          title="收起面板"
+          title={t('toolPanel.collapsePanel')}
         >
           <ChevronRight size={16} />
         </button>

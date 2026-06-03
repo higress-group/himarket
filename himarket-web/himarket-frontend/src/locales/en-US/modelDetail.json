@@ -1,0 +1,71 @@
+{
+  "errors": {
+    "dataLoadFailed": "Failed to load data",
+    "loadFailed": "Failed to load. Please try again later.",
+    "notFound": "Model not found"
+  },
+  "messages": {
+    "domainCopied": "Domain copied to clipboard",
+    "copyFailed": "Copy failed. Please copy manually.",
+    "linkCopied": "Link copied to clipboard",
+    "curlCopied": "cURL command copied to clipboard",
+    "subscribeFirst": "Subscribe to this product before starting a chat"
+  },
+  "match": {
+    "exact": "equals",
+    "prefix": "starts with",
+    "regex": "matches regex"
+  },
+  "modelCategory": {
+    "text": "Text generation",
+    "image": "Image generation",
+    "video": "Video generation",
+    "audio": "Speech synthesis",
+    "embedding": "Embedding",
+    "rerank": "Rerank",
+    "others": "Other",
+    "unknown": "Unknown"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "configuration": "Configuration"
+  },
+  "overview": {
+    "empty": "No overview information"
+  },
+  "configuration": {
+    "applicationScenario": "Scenario",
+    "protocol": "Protocol",
+    "routeConfig": "Route configuration",
+    "domain": "Domain",
+    "selectDomain": "Select domain",
+    "copyDomain": "Copy domain",
+    "unknownRoute": "Unknown route",
+    "defaultRoute": "Default",
+    "method": "Method",
+    "path": "Path",
+    "headerMatch": "Header match",
+    "queryParamMatch": "Query parameter match",
+    "empty": "No configuration information"
+  },
+  "chat": {
+    "tab": "Model chat",
+    "eyebrow": "HiChat conversation",
+    "description": "Validate model capabilities in HiChat.",
+    "features": {
+      "multiTurn": "Multi-turn context",
+      "multimodal": "Multimodal input",
+      "mcpIntegration": "MCP tools",
+      "modelComparison": "Model comparison"
+    },
+    "loginCta": "Sign in to start chatting",
+    "startCta": "Start chat",
+    "subscribeCta": "Subscribe and start chat"
+  },
+  "curl": {
+    "title": "Request example",
+    "copy": "Copy",
+    "noRoutes": "No routes found in the current configuration",
+    "noConfig": "No Model API configuration information"
+  }
+}

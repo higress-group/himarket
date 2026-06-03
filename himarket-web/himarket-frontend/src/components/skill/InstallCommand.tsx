@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { message, Tooltip } from 'antd';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { parseSkillMd } from '../../lib/skillMdUtils';
 import { copyToClipboard } from '../../lib/utils';
@@ -22,6 +23,7 @@ interface InstallCommandProps {
 type PackageManager = 'npx' | 'bunx' | 'pnpm';
 
 function InstallCommand({ document, productId, skillName }: InstallCommandProps) {
+  const { t } = useTranslation('skillDetail');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activePM, setActivePM] = useState<PackageManager>('pnpm');
 
@@ -41,7 +43,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
         headers['Authorization'] = `Bearer ${token}`;
       }
       const res = await fetch(`/api/v1/skills/${productId}/download`, { headers });
-      if (!res.ok) throw new Error('下载失败');
+      if (!res.ok) throw new Error(t('downloadFailed'));
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = window.document.createElement('a');
@@ -52,7 +54,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
       a.click();
       URL.revokeObjectURL(blobUrl);
     } catch {
-      message.error('下载失败');
+      message.error(t('downloadFailed'));
     }
   };
 
@@ -65,11 +67,11 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
   const handleCopy = async (text: string, id: string) => {
     try {
       await copyToClipboard(text);
-      message.success('已复制到剪贴板');
+      message.success(t('copiedToClipboard'));
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      message.error('复制失败');
+      message.error(t('copyFailed'));
     }
   };
 
@@ -91,12 +93,12 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
       {/* 卡片1: 作者与仓库信息 */}
       <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-gray-900">基本信息</h3>
+          <h3 className="text-base font-semibold text-gray-900">{t('basicInfo')}</h3>
           <div className="flex items-center gap-2">
-            <Tooltip title="分享">
+            <Tooltip title={t('share')}>
               <ShareAltOutlined className="text-gray-400 hover:text-gray-600 cursor-pointer text-sm" />
             </Tooltip>
-            <Tooltip title="收藏">
+            <Tooltip title={t('favorite')}>
               <HeartOutlined className="text-gray-400 hover:text-gray-600 cursor-pointer text-sm" />
             </Tooltip>
           </div>
@@ -113,7 +115,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-800">{author}</div>
-                <div className="text-xs text-gray-400">作者</div>
+                <div className="text-xs text-gray-400">{t('author')}</div>
               </div>
             </div>
           )}
@@ -126,13 +128,13 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm text-gray-700 truncate">{repository}</div>
-                <div className="text-xs text-gray-400">仓库</div>
+                <div className="text-xs text-gray-400">{t('repository')}</div>
               </div>
             </div>
           )}
 
           {!author && !repository && (
-            <div className="text-sm text-gray-400 text-center py-2">暂无作者信息</div>
+            <div className="text-sm text-gray-400 text-center py-2">{t('noAuthorInfo')}</div>
           )}
 
           {/* 查看仓库按钮 */}
@@ -152,7 +154,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
               }}
             >
               <GithubOutlined />
-              <span>查看仓库</span>
+              <span>{t('viewRepository')}</span>
             </button>
           )}
         </div>
@@ -160,7 +162,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
 
       {/* 卡片2: 全局安装 */}
       <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-5">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">全局安装</h3>
+        <h3 className="text-base font-semibold text-gray-900 mb-4">{t('globalInstall')}</h3>
 
         {/* 包管理器切换 */}
         <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs mb-3">
@@ -191,8 +193,8 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
       {/* 卡片3: 本地下载 */}
       <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-gray-900">本地下载</h3>
-          <Tooltip title="下载包含 SKILL.md 和所有相关文件的完整技能目录">
+          <h3 className="text-base font-semibold text-gray-900">{t('localDownload')}</h3>
+          <Tooltip title={t('downloadFullSkillDirectory')}>
             <InfoCircleOutlined className="text-gray-400 text-sm" />
           </Tooltip>
         </div>
@@ -209,7 +211,7 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
             onClick={handleDownloadPackage}
           >
             <DownloadOutlined />
-            <span>下载技能包</span>
+            <span>{t('downloadSkillPackage')}</span>
           </button>
 
           <button
@@ -226,12 +228,10 @@ function InstallCommand({ document, productId, skillName }: InstallCommandProps)
             ) : (
               <CopyOutlined />
             )}
-            <span>复制 SKILL.md 内容</span>
+            <span>{t('copySkillMd')}</span>
           </button>
 
-          <p className="text-xs text-gray-400 pt-1">
-            下载包含 SKILL.md 和所有相关文件的完整技能目录
-          </p>
+          <p className="text-xs text-gray-400 pt-1">{t('downloadFullSkillDirectory')}</p>
         </div>
       </div>
     </div>

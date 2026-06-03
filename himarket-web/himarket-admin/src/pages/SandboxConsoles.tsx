@@ -10,10 +10,13 @@ import {
   ReloadOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { Button, message, Modal, Tabs, Tag, Form, Input, Steps, Space, Tooltip } from 'antd';
+import { Button, message, Modal, Tabs, Form, Input, Steps, Space, Tooltip } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 
+import { AdminPageHeader } from '@/components/common';
 import { DataTable } from '@/components/common/DataTable';
+import { StatusIndicator } from '@/components/common/StatusIndicator';
+import { useLocale } from '@/contexts/LocaleContext';
 import { sandboxApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
 
@@ -38,6 +41,7 @@ export interface SandboxInstance {
 // ==================== 组件 ====================
 
 export default function SandboxConsoles() {
+  const { t } = useLocale();
   const [sandboxes, setSandboxes] = useState<SandboxInstance[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<SandboxType>('AGENT_RUNTIME');
@@ -91,13 +95,16 @@ export default function SandboxConsoles() {
 
   const handleDelete = (record: SandboxInstance) => {
     Modal.confirm({
-      content: `确定要删除 Sandbox 实例「${record.sandboxName}」吗？`,
+      cancelText: t('common.cancel'),
+      content: t('page.sandbox.deleteConfirm', { name: record.sandboxName }),
+      okText: t('common.confirmDelete'),
+      okType: 'danger',
       onOk: async () => {
         await sandboxApi.deleteSandbox(record.sandboxId);
-        message.success('删除成功');
+        message.success(t('common.deleteSuccess'));
         fetchList(activeTab, pagination.current, pagination.pageSize);
       },
-      title: '确认删除',
+      title: t('common.confirmDelete'),
     });
   };
 
@@ -131,12 +138,16 @@ export default function SandboxConsoles() {
         prev.map((s) => (s.sandboxId === record.sandboxId ? { ...s, ...updated } : s)),
       );
       if (updated.status === 'RUNNING') {
-        message.success(`${record.sandboxName} 连接正常`);
+        message.success(`${record.sandboxName} ${t('page.sandbox.clusterConnected')}`);
       } else {
-        message.warning(`${record.sandboxName} 状态异常: ${updated.statusMessage || '未知错误'}`);
+        message.warning(
+          `${record.sandboxName} ${t('page.sandbox.statusError')}: ${
+            updated.statusMessage || t('common.unknown')
+          }`,
+        );
       }
     } catch {
-      message.error('健康检查失败');
+      message.error(t('page.sandbox.healthCheckFailed'));
     } finally {
       setCheckingId(null);
     }
@@ -145,7 +156,7 @@ export default function SandboxConsoles() {
   const handleFetchCluster = async () => {
     const kubeConfig = form.getFieldValue('kubeConfig');
     if (!kubeConfig) {
-      message.warning('请先粘贴 KubeConfig');
+      message.warning(t('page.sandbox.kubeConfigRequired'));
       return;
     }
     setFetching(true);
@@ -158,14 +169,14 @@ export default function SandboxConsoles() {
         (res as { ok?: boolean; message?: string });
       if (result.ok) {
         setClusterFetched(true);
-        message.success('集群连接成功');
+        message.success(t('page.sandbox.clusterConnected'));
       } else {
         setFetchFailed(true);
-        message.error(result.message || '获取集群信息失败，请检查 KubeConfig');
+        message.error(result.message || t('page.sandbox.clusterConnectionFailed'));
       }
     } catch {
       setFetchFailed(true);
-      message.error('获取集群信息异常');
+      message.error(t('page.sandbox.clusterConnectionFailed'));
     } finally {
       setFetching(false);
     }
@@ -173,12 +184,12 @@ export default function SandboxConsoles() {
 
   const handleModalOk = async () => {
     if (!clusterFetched && !editingSandbox) {
-      message.warning('请先验证集群连通性');
+      message.warning(t('page.sandbox.verifyFirst'));
       return;
     }
     // 编辑模式下，如果填了新的 KubeConfig 但未验证，也需要先验证
     if (editingSandbox && form.getFieldValue('kubeConfig') && !clusterFetched) {
-      message.warning('检测到新的 KubeConfig，请先验证连通性');
+      message.warning(t('page.sandbox.newKubeConfigWarning'));
       return;
     }
 
@@ -190,12 +201,12 @@ export default function SandboxConsoles() {
           ((res as { data?: { count?: number } }).data || (res as { count?: number })).count || 0;
         if (count > 0) {
           Modal.confirm({
-            cancelText: '取消',
-            content: `该沙箱上仍有 ${count} 个 MCP 部署正在运行。更换 KubeConfig 后，这些部署将指向新集群，旧集群上的资源将变为孤儿资源且无法自动清理。确定要继续吗？`,
-            okText: '确认更换',
+            cancelText: t('common.cancel'),
+            content: t('page.sandbox.runningDeploymentsConfirm', { count }),
+            okText: t('page.sandbox.continueChange'),
             okType: 'danger',
             onOk: () => doSubmit(),
-            title: '⚠️ 检测到活跃的 MCP 部署',
+            title: t('page.sandbox.runningDeploymentsTitle'),
           });
           return;
         }
@@ -210,13 +221,13 @@ export default function SandboxConsoles() {
       return;
     }
     const values = form.getFieldsValue(true);
-    const sandboxName = values.sandboxName || '未命名';
+    const sandboxName = values.sandboxName || t('page.sandbox.unknownName');
     Modal.confirm({
-      cancelText: '再想想',
-      content: `即将更新 Sandbox 实例「${sandboxName}」的配置，更新后可能影响正在运行的 MCP 服务。是否确认提交？`,
-      okText: '确认提交',
+      cancelText: t('common.cancel'),
+      content: t('page.sandbox.kubeConfigChangedConfirm', { name: sandboxName }),
+      okText: t('common.confirm'),
       onOk: () => doSubmit(),
-      title: '确认更新 Sandbox 实例',
+      title: t('page.sandbox.kubeConfigChangedTitle'),
     });
   };
 
@@ -231,7 +242,7 @@ export default function SandboxConsoles() {
           kubeConfig: values.kubeConfig,
           sandboxName: values.sandboxName,
         });
-        message.success('更新成功');
+        message.success(t('page.categoryDetail.updateSuccess'));
       } else {
         await sandboxApi.importSandbox({
           description: values.description,
@@ -239,7 +250,7 @@ export default function SandboxConsoles() {
           sandboxName: values.sandboxName,
           sandboxType: activeTab,
         });
-        message.success('导入成功');
+        message.success(t('action.importSuccess'));
       }
       setModalVisible(false);
       form.resetFields();
@@ -262,12 +273,12 @@ export default function SandboxConsoles() {
 
   const statusTag = (status: SandboxInstance['status']) => {
     const map = {
-      ERROR: { color: 'red', text: '异常' },
-      RUNNING: { color: 'green', text: '运行中' },
-      STOPPED: { color: 'default', text: '已停止' },
+      ERROR: { text: t('page.sandbox.statusError'), tone: 'warning' as const },
+      RUNNING: { text: t('page.sandbox.running'), tone: 'success' as const },
+      STOPPED: { text: t('page.sandbox.statusStopped'), tone: 'neutral' as const },
     };
     const s = map[status];
-    return <Tag color={s.color}>{s.text}</Tag>;
+    return <StatusIndicator tone={s.tone}>{s.text}</StatusIndicator>;
   };
 
   const columns = [
@@ -279,7 +290,7 @@ export default function SandboxConsoles() {
           <div className="text-xs text-gray-500 truncate">{record.sandboxId}</div>
         </div>
       ),
-      title: '实例名称/ID',
+      title: t('page.sandbox.nameAndId'),
       width: 260,
     },
     {
@@ -300,7 +311,7 @@ export default function SandboxConsoles() {
           return <span className="text-xs text-gray-400">-</span>;
         }
       },
-      title: '集群 ID',
+      title: t('page.sandbox.clusterId'),
       width: 220,
     },
     {
@@ -330,26 +341,26 @@ export default function SandboxConsoles() {
           )}
           {record.lastCheckedAt && (
             <div className="text-xs text-gray-400 mt-0.5">
-              检查于 {formatDateTime(record.lastCheckedAt)}
+              {t('page.sandbox.checkAt', { time: formatDateTime(record.lastCheckedAt) })}
             </div>
           )}
         </div>
       ),
-      title: '状态',
+      title: t('common.status'),
       width: 160,
     },
     {
       dataIndex: 'createAt',
       key: 'createAt',
       render: (date: string) => formatDateTime(date),
-      title: '创建时间',
+      title: t('product.overview.createAt'),
       width: 180,
     },
     {
       key: 'action',
       render: (_: unknown, record: SandboxInstance) => (
         <div className="flex items-center gap-1">
-          <Tooltip title="检查集群连通性">
+          <Tooltip title={t('page.sandbox.checkHealth')}>
             <Button
               className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 !px-2 text-xs"
               icon={checkingId === record.sandboxId ? <SyncOutlined spin /> : <ReloadOutlined />}
@@ -357,7 +368,7 @@ export default function SandboxConsoles() {
               onClick={() => handleHealthCheck(record)}
               type="text"
             >
-              检查
+              {t('page.sandbox.check')}
             </Button>
           </Tooltip>
           <Button
@@ -366,7 +377,7 @@ export default function SandboxConsoles() {
             onClick={() => handleEdit(record)}
             type="text"
           >
-            编辑
+            {t('common.edit')}
           </Button>
           <Button
             className="text-red-500 hover:text-red-600 hover:bg-red-50 !px-2 text-xs"
@@ -375,11 +386,11 @@ export default function SandboxConsoles() {
             onClick={() => handleDelete(record)}
             type="text"
           >
-            删除
+            {t('common.delete')}
           </Button>
         </div>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 220,
     },
   ];
@@ -387,11 +398,13 @@ export default function SandboxConsoles() {
   const tabItems = [
     {
       children: (
-        <div className="bg-white rounded-lg">
-          <div className="py-4 pl-4">
-            <h3 className="text-lg font-medium text-gray-900">AgentRuntime 实例</h3>
+        <div>
+          <div className="px-1 pb-3">
+            <h3 className="text-lg font-medium text-gray-900">
+              {t('page.sandbox.agentRuntimeTitle')}
+            </h3>
             <p className="text-sm text-gray-500 mt-1">
-              导入 AgentRuntime 实例，用于 MCP Server 沙箱运行
+              {t('page.sandbox.agentRuntimeDescription')}
             </p>
           </div>
           <DataTable<SandboxInstance>
@@ -413,12 +426,12 @@ export default function SandboxConsoles() {
     },
     {
       children: (
-        <div className="bg-white rounded-lg">
-          <div className="py-4 pl-4">
-            <h3 className="text-lg font-medium text-gray-900">自建 Sandbox 实例</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              导入自建的 Sandbox 实例，用于自定义 MCP 运行环境
-            </p>
+        <div>
+          <div className="px-1 pb-3">
+            <h3 className="text-lg font-medium text-gray-900">
+              {t('page.sandbox.selfHostedTitle')}
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">{t('page.sandbox.selfHostedDescription')}</p>
           </div>
           <DataTable<SandboxInstance>
             columns={columns}
@@ -436,26 +449,26 @@ export default function SandboxConsoles() {
       ),
       disabled: true,
       key: 'SELF_HOSTED',
-      label: '自建 Sandbox（即将支持）',
+      label: t('page.sandbox.selfHostedLabel'),
     },
   ];
 
   const stepItems = [
-    { icon: <EditOutlined />, title: '基本信息' },
-    { icon: <CloudServerOutlined />, title: '连接集群' },
+    { icon: <EditOutlined />, title: t('page.sandbox.basicInfo') },
+    { icon: <CloudServerOutlined />, title: t('page.sandbox.connectCluster') },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Sandbox 实例</h1>
-          <p className="text-gray-500 mt-2">管理和配置您的沙箱运行环境</p>
-        </div>
-        <Button icon={<PlusOutlined />} onClick={handleAdd} type="primary">
-          导入{isAgentRuntime ? ' AgentRuntime' : ' Sandbox'} 实例
-        </Button>
-      </div>
+      <AdminPageHeader
+        actions={
+          <Button icon={<PlusOutlined />} onClick={handleAdd} type="primary">
+            {t('page.sandbox.create')}
+          </Button>
+        }
+        description={t('page.sandbox.description')}
+        title={t('page.sandbox.title')}
+      />
 
       <Tabs activeKey={activeTab} items={tabItems} onChange={handleTabChange} />
 
@@ -466,8 +479,10 @@ export default function SandboxConsoles() {
         open={modalVisible}
         title={
           editingSandbox
-            ? '编辑 Sandbox 实例'
-            : `导入${isAgentRuntime ? ' AgentRuntime' : ' Sandbox'} 实例`
+            ? t('page.sandbox.editTitle')
+            : t('page.sandbox.importTitle', {
+                type: isAgentRuntime ? 'AgentRuntime' : 'Sandbox',
+              })
         }
         width={720}
       >
@@ -477,20 +492,18 @@ export default function SandboxConsoles() {
           {/* ── Step 0: 基本信息 ── */}
           {importStep === 0 && (
             <div style={{ minHeight: 200 }}>
-              <div className="text-sm text-gray-500 mb-4">
-                为 Sandbox 实例设置一个名称，方便后续管理和识别。
-              </div>
+              <div className="text-sm text-gray-500 mb-4">{t('page.sandbox.nameTip')}</div>
               <Form.Item
-                label="实例名称"
+                label={t('page.nacos.instanceName')}
                 name="sandboxName"
-                rules={[{ message: '请输入实例名称', required: true }]}
+                rules={[{ message: t('page.sandbox.nameRequired'), required: true }]}
               >
-                <Input placeholder="例如：生产环境 AgentRuntime" size="large" />
+                <Input placeholder={t('page.sandbox.namePlaceholder')} size="large" />
               </Form.Item>
-              <Form.Item label="描述（选填）" name="description">
+              <Form.Item label={t('page.sandbox.descriptionField')} name="description">
                 <Input.TextArea
                   autoSize={{ maxRows: 4, minRows: 2 }}
-                  placeholder="简要描述该实例的用途"
+                  placeholder={t('page.sandbox.descriptionPlaceholder')}
                 />
               </Form.Item>
             </div>
@@ -501,13 +514,15 @@ export default function SandboxConsoles() {
             <div style={{ minHeight: 200 }}>
               <div className="text-sm text-gray-500 mb-4">
                 {editingSandbox
-                  ? '如需更换集群，请粘贴新的 KubeConfig 并验证连通性。留空则保持原有集群配置不变。'
-                  : '粘贴 Kubernetes 集群的 KubeConfig 文件内容，然后点击下方按钮验证连接。'}
+                  ? t('page.sandbox.kubeConfigEditTip')
+                  : t('page.sandbox.kubeConfigImportTip')}
               </div>
               <Form.Item
                 label="KubeConfig"
                 name="kubeConfig"
-                rules={[{ message: '请粘贴 KubeConfig 内容', required: !editingSandbox }]}
+                rules={[
+                  { message: t('page.sandbox.kubeConfigRequired'), required: !editingSandbox },
+                ]}
               >
                 <Input.TextArea
                   autoSize={{ maxRows: 18, minRows: 10 }}
@@ -521,11 +536,11 @@ export default function SandboxConsoles() {
               </Form.Item>
               {clusterFetched ? (
                 <div className="flex items-center gap-2 text-green-600 text-sm">
-                  <CheckCircleOutlined /> 集群连接成功
+                  <CheckCircleOutlined /> {t('page.sandbox.clusterConnected')}
                 </div>
               ) : fetchFailed ? (
                 <div className="flex items-center gap-2 text-red-500 text-sm">
-                  <CloseCircleOutlined /> 连接失败，请检查 KubeConfig
+                  <CloseCircleOutlined /> {t('page.sandbox.clusterConnectionFailed')}
                 </div>
               ) : null}
             </div>
@@ -536,11 +551,13 @@ export default function SandboxConsoles() {
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
           <div>
             {importStep > 0 && !editingSandbox && (
-              <Button onClick={() => setImportStep(importStep - 1)}>上一步</Button>
+              <Button onClick={() => setImportStep(importStep - 1)}>
+                {t('page.sandbox.previous')}
+              </Button>
             )}
           </div>
           <Space>
-            <Button onClick={handleModalCancel}>取消</Button>
+            <Button onClick={handleModalCancel}>{t('common.cancel')}</Button>
             {importStep === 0 && (
               <Button
                 onClick={async () => {
@@ -553,13 +570,13 @@ export default function SandboxConsoles() {
                 }}
                 type="primary"
               >
-                下一步
+                {t('page.sandbox.next')}
               </Button>
             )}
             {importStep === 1 &&
               (clusterFetched || (editingSandbox && !form.getFieldValue('kubeConfig')) ? (
                 <Button loading={submitting} onClick={handleModalOk} type="primary">
-                  {editingSandbox ? '保存' : '确认导入'}
+                  {editingSandbox ? t('page.sandbox.save') : t('page.sandbox.confirmImport')}
                 </Button>
               ) : (
                 <Button
@@ -568,7 +585,7 @@ export default function SandboxConsoles() {
                   onClick={handleFetchCluster}
                   type="primary"
                 >
-                  验证连通性
+                  {t('page.sandbox.validateConnectivity')}
                 </Button>
               ))}
           </Space>

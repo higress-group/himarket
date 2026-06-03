@@ -15,22 +15,37 @@ import {
 } from '../lib/userInfoCache';
 import './UserInfo.css';
 
+function hasAccessToken() {
+  return Boolean(localStorage.getItem('access_token'));
+}
+
 export function UserInfo() {
   const { t } = useTranslation('userInfo');
-  const [userInfo, setUserInfo] = useState(getCachedUserInfo());
-  const [loading, setLoading] = useState(getCachedUserInfo() ? false : true);
+  const [userInfo, setUserInfo] = useState(() => (hasAccessToken() ? getCachedUserInfo() : null));
+  const [loading, setLoading] = useState(() => hasAccessToken() && !getCachedUserInfo());
   const navigate = useNavigate();
   const mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
 
+    if (!hasAccessToken()) {
+      clearCachedUserInfo();
+      setUserInfo(null);
+      setLoading(false);
+      return () => {
+        mounted.current = false;
+      };
+    }
+
     // 如果已有缓存数据，直接使用
     const cachedUserInfo = getCachedUserInfo();
     if (cachedUserInfo) {
       setUserInfo(cachedUserInfo);
       setLoading(false);
-      return;
+      return () => {
+        mounted.current = false;
+      };
     }
 
     // 如果正在加载中，等待加载完成 - 优化轮询逻辑
@@ -45,7 +60,9 @@ export function UserInfo() {
         }
       };
       checkLoading();
-      return;
+      return () => {
+        mounted.current = false;
+      };
     }
 
     // 开始加载用户信息

@@ -1,6 +1,7 @@
 import { Drawer, Select, Button, Divider } from 'antd';
 import { Plug, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   getCliProviders,
@@ -38,6 +39,7 @@ export function ConfigSidebar({
   onConfigChange,
   open,
 }: ConfigSidebarProps) {
+  const { t } = useTranslation('coding');
   // CLI providers
   const [providers, setProviders] = useState<ICliProvider[]>([]);
   const [cliLoading, setCliLoading] = useState(true);
@@ -74,11 +76,11 @@ export function ConfigSidebar({
           )?.data ?? []) as ICliProvider[]);
       setProviders(list);
     } catch {
-      setCliError('获取 CLI 工具列表失败');
+      setCliError(t('config.fetchCliFailed'));
     } finally {
       setCliLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchMcps = useCallback(async () => {
     setMcpLoading(true);
@@ -232,7 +234,7 @@ export function ConfigSidebar({
             onClick={handleApply}
             type="primary"
           >
-            {isFirstTime ? '开始使用' : '应用配置'}
+            {isFirstTime ? t('config.startUsing') : t('config.applyConfig')}
           </Button>
         </div>
       }
@@ -241,19 +243,19 @@ export function ConfigSidebar({
       onClose={onClose}
       open={open}
       placement="right"
-      title="HiCoding 配置"
+      title={t('config.title')}
       width={400}
     >
       <div className="flex flex-col gap-6">
         {/* ===== 模型选择 ===== */}
         <section>
           <label className="text-sm font-medium text-gray-700 mb-2 block">
-            模型 <span className="text-red-400">*</span>
+            {t('config.model')} <span className="text-red-400">*</span>
           </label>
           {modelLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
               <Loader2 className="animate-spin" size={16} />
-              <span>加载中...</span>
+              <span>{t('config.loading')}</span>
             </div>
           ) : marketModels.length > 0 ? (
             <Select
@@ -263,11 +265,11 @@ export function ConfigSidebar({
                 label: m.name,
                 value: m.productId,
               }))}
-              placeholder="选择模型"
+              placeholder={t('config.selectModel')}
               value={config.modelProductId ?? undefined}
             />
           ) : (
-            <div className="text-sm text-gray-400">暂无可用模型</div>
+            <div className="text-sm text-gray-400">{t('config.noModels')}</div>
           )}
         </section>
 
@@ -276,12 +278,12 @@ export function ConfigSidebar({
         {/* ===== CLI 选择 ===== */}
         <section>
           <label className="text-sm font-medium text-gray-700 mb-2 block">
-            CLI 工具 <span className="text-red-400">*</span>
+            {t('config.cliTool')} <span className="text-red-400">*</span>
           </label>
           {cliLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
               <Loader2 className="animate-spin" size={16} />
-              <span>加载中...</span>
+              <span>{t('config.loading')}</span>
             </div>
           ) : cliError ? (
             <div className="flex flex-col gap-2">
@@ -290,7 +292,7 @@ export function ConfigSidebar({
                 <span>{cliError}</span>
               </div>
               <Button icon={<RefreshCw size={14} />} onClick={fetchProviders} size="small">
-                重试
+                {t('config.retry')}
               </Button>
             </div>
           ) : (
@@ -309,7 +311,9 @@ export function ConfigSidebar({
                       >
                         {p.displayName}
                       </span>
-                      {!p.available && <span className="text-xs text-gray-400">不可用</span>}
+                      {!p.available && (
+                        <span className="text-xs text-gray-400">{t('config.unavailable')}</span>
+                      )}
                     </div>
                   </SelectableCard>
                 ))}
@@ -326,10 +330,10 @@ export function ConfigSidebar({
           {skillLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
               <Loader2 className="animate-spin" size={16} />
-              <span>加载中...</span>
+              <span>{t('config.loading')}</span>
             </div>
           ) : skills.length === 0 ? (
-            <div className="text-sm text-gray-400">暂无可用 Skill</div>
+            <div className="text-sm text-gray-400">{t('config.noSkills')}</div>
           ) : (
             <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
               {skills.map((skill) => (
@@ -360,10 +364,10 @@ export function ConfigSidebar({
           {mcpLoading ? (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
               <Loader2 className="animate-spin" size={16} />
-              <span>加载中...</span>
+              <span>{t('config.loading')}</span>
             </div>
           ) : mcpServers.length === 0 ? (
-            <div className="text-sm text-gray-400">暂无可用 MCP Server</div>
+            <div className="text-sm text-gray-400">{t('config.noMcpServers')}</div>
           ) : (
             <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
               {mcpServers.map((mcp) => (

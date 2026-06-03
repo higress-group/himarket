@@ -8,9 +8,10 @@ import {
 } from '@ant-design/icons';
 import { Button, message, Modal, Table, Popconfirm, Select, Input } from 'antd';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import request from '../../lib/request';
-import { getSubscriptionStatusText, ProductTypeMap } from '../../lib/statusUtils';
+import { ProductTypeMap } from '../../lib/statusUtils';
 import { modelStyles } from '../../lib/styles';
 import { formatDateTime } from '../../lib/utils';
 
@@ -33,20 +34,19 @@ export function SubscriptionManager({
   onSubscriptionsChange,
   subscriptions,
 }: SubscriptionManagerProps) {
+  const { t } = useTranslation(['consumer', 'common']);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productLoading, setProductLoading] = useState(false);
   const [subscribeLoading, setSubscribeLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [subscriptionSearch, setSubscriptionSearch] = useState({ productName: '', status: '' });
-  const [searchInput, setSearchInput] = useState(''); // 输入框的值
+  const [searchInput, setSearchInput] = useState('');
 
-  // 处理搜索输入变化 - 只更新输入框值，不触发搜索
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value);
   };
 
-  // 执行搜索
   const handleSearch = () => {
     const newSearch = { ...subscriptionSearch, productName: searchInput };
     setSubscriptionSearch(newSearch);
@@ -56,19 +56,15 @@ export function SubscriptionManager({
     });
   };
 
-  // 清除搜索条件
   const handleClearSearch = () => {
     const emptySearch = { productName: '', status: '' };
     setSubscriptionSearch(emptySearch);
     onSubscriptionsChange({ productName: '', status: '' });
   };
 
-  // 过滤产品：移除已订阅的产品
   const filterProducts = (allProducts: Product[]) => {
-    // 获取已订阅的产品ID列表
     const subscribedProductIds = subscriptions.map((sub) => sub.productId);
 
-    // 过滤掉已订阅的产品
     return allProducts.filter((product) => !subscribedProductIds.includes(product.productId));
   };
 
@@ -81,13 +77,12 @@ export function SubscriptionManager({
       );
       if (response?.code === 'SUCCESS' && response?.data) {
         const allProducts = response.data.content || [];
-        // 初始化时过滤掉已订阅的产品
         const filtered = filterProducts(allProducts);
         setFilteredProducts(filtered);
       }
     } catch (error) {
-      console.error('获取产品列表失败:', error);
-      // message.error('获取产品列表失败');
+      console.error('Failed to fetch products:', error);
+      // message.error('Failed to fetch products');
     } finally {
       setProductLoading(false);
     }
@@ -95,20 +90,20 @@ export function SubscriptionManager({
 
   const handleSubscribeProducts = async () => {
     if (!selectedProduct) {
-      message.warning('请选择要订阅的产品');
+      message.warning(t('subscription.selectProductWarning'));
       return;
     }
 
     setSubscribeLoading(true);
     try {
       await request.post(`/consumers/${consumerId}/subscriptions`, { productId: selectedProduct });
-      message.success('订阅成功');
+      message.success(t('subscription.subscribeSuccess'));
       setProductModalVisible(false);
       setSelectedProduct('');
       onSubscriptionsChange();
     } catch (error) {
-      console.error('订阅失败:', error);
-      // message.error('订阅失败');
+      console.error('Subscribe failed:', error);
+      // message.error('Subscribe failed');
     } finally {
       setSubscribeLoading(false);
     }
@@ -117,11 +112,11 @@ export function SubscriptionManager({
   const handleUnsubscribe = async (productId: string) => {
     try {
       await request.delete(`/consumers/${consumerId}/subscriptions/${productId}`);
-      message.success('取消订阅成功');
+      message.success(t('subscription.unsubscribeSuccess'));
       onSubscriptionsChange();
     } catch (error) {
-      console.error('取消订阅失败:', error);
-      // message.error('取消订阅失败');
+      console.error('Unsubscribe failed:', error);
+      // message.error('Unsubscribe failed');
     }
   };
 
@@ -130,7 +125,7 @@ export function SubscriptionManager({
       dataIndex: 'productName',
       key: 'productName',
       render: (productName: Product['productName']) => productName || '-',
-      title: '产品名称',
+      title: t('subscription.productName'),
     },
     {
       dataIndex: 'productType',
@@ -138,7 +133,7 @@ export function SubscriptionManager({
       render: (productType: Product['productType']) => {
         return ProductTypeMap[productType] || productType || '-';
       },
-      title: '产品类型',
+      title: t('subscription.productType'),
     },
     {
       dataIndex: 'status',
@@ -152,39 +147,43 @@ export function SubscriptionManager({
             ) : (
               <ClockCircleOutlined className="mr-2 text-orange-500" style={{ fontSize: '10px' }} />
             )}
-            <span className="text-gray-900">{getSubscriptionStatusText(status)}</span>
+            <span className="text-gray-900">
+              {status === 'APPROVED'
+                ? t('subscription.approved')
+                : status === 'PENDING'
+                  ? t('subscription.pending')
+                  : status}
+            </span>
           </div>
         );
       },
-      title: '订阅状态',
+      title: t('subscription.status'),
     },
     {
       dataIndex: 'createAt',
       key: 'createAt',
       render: (date: string) => (date ? formatDateTime(date) : '-'),
-      title: '订阅时间',
+      title: t('subscription.subscribedAt'),
     },
     {
       key: 'action',
       render: (record: Subscription) => (
         <Popconfirm
           onConfirm={() => handleUnsubscribe(record.productId)}
-          title="确定要取消订阅吗？"
+          title={t('subscription.unsubscribeConfirm')}
         >
           <Button className="rounded-lg" icon={<DeleteOutlined className="text-red-500" />} />
         </Popconfirm>
       ),
-      title: '操作',
+      title: t('subscription.action'),
     },
   ];
 
-  // 确保 subscriptions 始终是数组
   const safeSubscriptions = Array.isArray(subscriptions) ? subscriptions : [];
 
   return (
     <>
       <div className="bg-white">
-        {/* 搜索框和订阅按钮在同一行 */}
         <div className="mb-4 flex justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -193,7 +192,7 @@ export function SubscriptionManager({
               onClick={openProductModal}
               type="primary"
             >
-              订阅
+              {t('subscription.subscribe')}
             </Button>
             <Input
               allowClear
@@ -201,7 +200,7 @@ export function SubscriptionManager({
               onChange={handleSearchChange}
               onClear={handleClearSearch}
               onPressEnter={handleSearch}
-              placeholder="请输入产品名称进行搜索"
+              placeholder={t('subscription.searchPlaceholder')}
               prefix={<SearchOutlined className="text-gray-400" />}
               style={{
                 backdropFilter: 'blur(10px)',
@@ -217,7 +216,7 @@ export function SubscriptionManager({
             columns={subscriptionColumns}
             dataSource={safeSubscriptions}
             loading={loading}
-            locale={{ emptyText: '暂无订阅记录，请点击上方按钮进行订阅' }}
+            locale={{ emptyText: t('subscription.empty') }}
             pagination={false}
             rowKey={(record) => record.productId}
             size="small"
@@ -225,7 +224,6 @@ export function SubscriptionManager({
         </div>
       </div>
 
-      {/* 产品选择弹窗 */}
       <Modal
         footer={
           <div className="flex justify-end space-x-2">
@@ -238,7 +236,7 @@ export function SubscriptionManager({
                 }
               }}
             >
-              取消
+              {t('common:cancel')}
             </Button>
             <Button
               disabled={!selectedProduct}
@@ -246,7 +244,7 @@ export function SubscriptionManager({
               onClick={handleSubscribeProducts}
               type="primary"
             >
-              确定订阅
+              {t('subscription.confirmSubscribe')}
             </Button>
           </div>
         }
@@ -258,11 +256,13 @@ export function SubscriptionManager({
         }}
         open={productModalVisible}
         styles={modelStyles}
-        title="订阅产品"
+        title={t('subscription.selectTitle')}
         width={500}
       >
         <div>
-          <div className="text-sm text-gray-700 mb-3 font-medium">选择要订阅的产品：</div>
+          <div className="text-sm text-gray-700 mb-3 font-medium">
+            {t('subscription.selectLabel')}
+          </div>
           <Select
             filterOption={(input, option) => {
               const product = filteredProducts.find((p) => p.productId === option?.value);
@@ -275,9 +275,9 @@ export function SubscriptionManager({
               );
             }}
             loading={productLoading}
-            notFoundContent={productLoading ? '加载中...' : '暂无可订阅的产品'}
+            notFoundContent={productLoading ? t('common:loading') : t('subscription.noProducts')}
             onChange={setSelectedProduct}
-            placeholder="请输入产品名称进行搜索或直接选择"
+            placeholder={t('subscription.selectPlaceholder')}
             showSearch={true}
             style={{ width: '100%' }}
             value={selectedProduct}

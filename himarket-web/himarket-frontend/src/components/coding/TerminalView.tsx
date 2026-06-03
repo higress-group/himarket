@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import { TerminalOutput } from './TerminalOutput';
 
 import type { ChatItemToolCall } from '../../types/coding-protocol';
@@ -8,6 +10,7 @@ interface TerminalViewProps {
 }
 
 export function TerminalView({ terminalId, toolCall }: TerminalViewProps) {
+  const { t } = useTranslation('coding');
   const outputs = (toolCall?.content ?? [])
     .filter(
       (c) =>
@@ -29,9 +32,9 @@ export function TerminalView({ terminalId, toolCall }: TerminalViewProps) {
         outputs.map((output, idx) => <TerminalOutput key={idx} text={output} />)
       ) : (
         <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2.5">
-          <div className="text-xs text-amber-700 font-medium">终端输出暂不可用</div>
+          <div className="text-xs text-amber-700 font-medium">{t('terminalView.unavailable')}</div>
           <div className="text-xs text-amber-600 mt-1 leading-relaxed">
-            当前前端仅展示 tool_call 中已上报的文本内容。尚未接入 terminal/output 的实时拉流能力。
+            {t('terminalView.hint')}
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@ import hljs from 'highlight.js/lib/core';
 import markdown from 'highlight.js/lib/languages/markdown';
 import yaml from 'highlight.js/lib/languages/yaml';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
@@ -21,6 +22,7 @@ interface SkillMdViewerProps {
 }
 
 function SkillMdViewer({ document }: SkillMdViewerProps) {
+  const { t } = useTranslation('skillDetail');
   const [viewMode, setViewMode] = useState<ViewMode>('rendered');
   const codeRef = useRef<HTMLElement>(null);
 
@@ -35,7 +37,7 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
     return (
       <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
         <h3 className="text-base font-semibold text-gray-900 mb-4">SKILL.md</h3>
-        <p className="text-gray-400 text-sm text-center py-8">暂无内容</p>
+        <p className="text-gray-400 text-sm text-center py-8">{t('noContent')}</p>
       </div>
     );
   }
@@ -55,7 +57,7 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
             onClick={() => setViewMode('rendered')}
           >
             <ReadOutlined />
-            <span>渲染视图</span>
+            <span>{t('renderedView')}</span>
           </button>
           <button
             className={`flex items-center gap-1 px-3 py-1.5 transition-colors duration-200 ${
@@ -66,7 +68,7 @@ function SkillMdViewer({ document }: SkillMdViewerProps) {
             onClick={() => setViewMode('source')}
           >
             <CodeOutlined />
-            <span>源码视图</span>
+            <span>{t('sourceView')}</span>
           </button>
         </div>
       </div>

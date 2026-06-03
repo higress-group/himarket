@@ -3,10 +3,69 @@
   "register": "注册",
   "confirm": "确认",
   "cancel": "取消",
+  "close": "关闭",
+  "copied": "已复制",
+  "copyCode": "复制代码",
+  "back": "返回",
   "search": "搜索",
   "loading": "加载中...",
+  "markdown": {
+    "generatedImage": "生成的图片",
+    "download": "下载",
+    "viewOriginal": "查看原图"
+  },
+  "status": {
+    "product": {
+      "deprecated": "已弃用",
+      "disabled": "非活跃",
+      "draft": "草稿",
+      "enabled": "活跃",
+      "pending": "待发布",
+      "published": "已发布",
+      "ready": "就绪"
+    },
+    "subscription": {
+      "approved": "已通过",
+      "pending": "待审批"
+    },
+    "category": {
+      "community": "社区",
+      "custom": "自定义",
+      "official": "官方"
+    },
+    "fromType": {
+      "database": "数据库",
+      "directRoute": "直接路由",
+      "http": "HTTP 转 MCP",
+      "mcp": "MCP 直接代理",
+      "openApi": "OpenAPI 转 MCP"
+    },
+    "source": {
+      "adpAiGateway": "专有云 AI 网关",
+      "apigAi": "AI 网关",
+      "apigApi": "API 网关"
+    }
+  },
+  "errorTitle": "错误",
   "error": {
     "fetchFailed": "获取数据失败",
-    "networkError": "网络错误"
+    "networkError": "网络错误",
+    "authExpired": "未登录或登录已过期，请重新登录",
+    "notFound": "请求的资源不存在",
+    "serverError": "服务器异常，请稍后再试",
+    "requestFailed": "请求发生错误",
+    "fileTooLargePreview": "文件过大，无法预览"
+  },
+  "authCallback": {
+    "missingParams": "缺少 code 或 state 参数",
+    "loginSuccess": "登录成功",
+    "loginFailed": "登录失败，请重试",
+    "loginFailedWithReason": "登录失败：{{reason}}",
+    "noAccessToken": "未获取到访问令牌",
+    "incompleteParams": "回调参数不完整，请重试",
+    "invalidCode": "授权码无效或已过期",
+    "oidcConfigMissing": "OIDC 配置不存在",
+    "processing": "正在处理登录信息...",
+    "loggingIn": "登录中，请稍候..."
   }
 }

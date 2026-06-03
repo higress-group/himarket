@@ -1,0 +1,265 @@
+{
+  "page": {
+    "connectingSandbox": "正在连接沙箱环境...",
+    "sessionExpired": "会话已过期，请选择其他会话或创建新会话",
+    "sessionCreateFailed": "会话创建失败，请重新连接",
+    "completeConfigFirst": "请先完成配置",
+    "welcomePrefix": "欢迎使用",
+    "welcomeDescription": "AI 驱动的编程助手，输入你的需求开始编程",
+    "files": "文件",
+    "loading": "加载中...",
+    "code": "代码",
+    "preview": "预览",
+    "hideFiles": "隐藏文件",
+    "showFiles": "显示文件"
+  },
+  "sidebar": {
+    "untitledSession": "未命名会话",
+    "fetchSessionsFailed": "获取会话列表失败",
+    "sessionNameRequired": "会话名称不能为空",
+    "renameSuccess": "重命名成功",
+    "renameFailed": "重命名失败",
+    "deleteConfirm": "确定要删除会话 \"{{name}}\" 吗？此操作无法撤销。",
+    "deleteSuccess": "删除成功",
+    "deleteFailed": "删除失败",
+    "deleteTitle": "确认删除",
+    "rename": "重命名",
+    "delete": "删除",
+    "cancel": "取消",
+    "save": "保存",
+    "moreActions": "更多操作",
+    "newSession": "新会话",
+    "noHistory": "暂无历史会话",
+    "today": "今天",
+    "last7Days": "近 7 天",
+    "last30Days": "近 30 天",
+    "expandSidebar": "展开侧栏",
+    "collapseSidebar": "收起侧栏",
+    "restoreUnsupported": "当前 CLI 不支持会话恢复"
+  },
+  "input": {
+    "dropArea": "拖放文件到此区域",
+    "uploading": "上传中...",
+    "queueCount": "队列中 {{count}} 条消息",
+    "attachmentOnly": "[仅附件]",
+    "removeQueuedMessage": "移除队列消息",
+    "remove": "移除",
+    "connecting": "正在连接...",
+    "placeholder": "输入消息… (Enter 发送)",
+    "addAttachment": "添加附件",
+    "sendToQueue": "发送到队列",
+    "stop": "停止",
+    "send": "发送"
+  },
+  "config": {
+    "title": "HiCoding 配置",
+    "model": "模型",
+    "cliTool": "CLI 工具",
+    "loading": "加载中...",
+    "fetchCliFailed": "获取 CLI 工具列表失败",
+    "selectModel": "选择模型",
+    "noModels": "暂无可用模型",
+    "noCli": "暂无可用 CLI",
+    "noSkills": "暂无可用 Skill",
+    "noMcpServers": "暂无可用 MCP Server",
+    "retry": "重试",
+    "unavailable": "不可用",
+    "startUsing": "开始使用",
+    "applyConfig": "应用配置"
+  },
+  "chatStream": {
+    "terminalUnavailable": "终端输出暂不可用",
+    "taskStopped": "任务已停止",
+    "taskFailed": "任务执行失败",
+    "taskCompleted": "任务已完成",
+    "notificationFailed": "任务执行失败，请返回查看详情。",
+    "notificationCompleted": "任务已完成。",
+    "restoringHistory": "正在恢复会话历史...",
+    "startHint": "在下方输入消息开始对话",
+    "toastView": "{{status}}，点击查看",
+    "scrollToBottom": "滚动到底部"
+  },
+  "activity": {
+    "editsCount": "{{count}}次编辑",
+    "readCount": "{{count}}次阅读",
+    "searchCount": "{{count}}次搜索",
+    "executeCount": "{{count}}次执行",
+    "fetchCount": "{{count}}次抓取",
+    "thinkCount": "{{count}}次思考",
+    "skillCount": "{{count}}个技能",
+    "mcpCallCount": "{{count}}次 MCP 调用",
+    "otherCount": "{{count}}次其他操作",
+    "operationsCount": "{{count}} 个操作",
+    "viewedFiles": "已查看 {{count}} 个文件{{files}}{{extra}}",
+    "searchedTimes": "搜索了 {{count}} 次",
+    "thoughtTimes": "思考了 {{count}} 次",
+    "fetchedTimes": "抓取了 {{count}} 次",
+    "switchedModeTimes": "切换模式 {{count}} 次",
+    "editedTimes": "编辑了 {{count}} 次",
+    "otherOperations": "其他操作 {{count}} 次",
+    "executing": "执行中...",
+    "deepThinking": "深度思考",
+    "editingFile": "编辑 {{file}}",
+    "completed": "已执行"
+  },
+  "connection": {
+    "reconnecting": "连接已断开，正在重连...（第 {{count}} 次）",
+    "disconnected": "连接已断开",
+    "reconnect": "重新连接",
+    "recovered": "已重新连接"
+  },
+  "sandbox": {
+    "readyShort": "沙箱已就绪",
+    "initFailed": "沙箱环境初始化失败",
+    "reconnect": "重新连接",
+    "ready": "沙箱环境已就绪",
+    "preparing": "正在准备沙箱环境..."
+  },
+  "editor": {
+    "pdfLoadFailed": "PDF 加载失败",
+    "pdfDecodeFailed": "PDF 解码失败",
+    "loadingPdf": "加载 PDF...",
+    "pdfPreviewFailed": "PDF 预览失败：{{error}}",
+    "unknownError": "未知错误",
+    "fileType": "{{type}} 文件",
+    "downloadFile": "下载文件",
+    "refreshFile": "刷新文件",
+    "copied": "已复制",
+    "copyCode": "复制代码",
+    "disableWrap": "取消换行",
+    "enableWrap": "自动换行",
+    "copiedToClipboard": "已复制到剪贴板",
+    "copyFailed": "复制失败",
+    "selectFileHint": "从左侧文件树选择文件查看"
+  },
+  "toolCall": {
+    "skillFailed": "技能执行失败",
+    "skillRunning": "技能执行中...",
+    "skillCompleted": "技能已完成",
+    "viewed": "已查看 {{name}}",
+    "mcpFailed": "MCP 调用失败",
+    "mcpRunning": "MCP 调用中...",
+    "mcpCompleted": "MCP 调用完成",
+    "search": "搜索",
+    "think": "思考",
+    "fetch": "抓取",
+    "switchMode": "切换模式",
+    "operation": "操作"
+  },
+  "preview": {
+    "noArtifactSelected": "未选择产物",
+    "window": "预览窗口",
+    "waiting": "等待 Agent 生成可预览的产物...",
+    "hint": "在对话中让 Agent 生成 HTML、图片、PDF 等文件即可预览",
+    "selectArtifact": "选择产物"
+  },
+  "artifact": {
+    "loadPreviewFailed": "加载预览失败",
+    "loadingPreview": "Loading preview...",
+    "previewFailed": "预览失败",
+    "retry": "重试"
+  },
+  "slash": {
+    "skill": "技能",
+    "builtinCommand": "内置命令",
+    "inputHint": "输入提示"
+  },
+  "fileMention": {
+    "loading": "加载文件列表...",
+    "noMatchedFiles": "未找到匹配的文件",
+    "noWorkspaceFiles": "工作区无文件"
+  },
+  "fileTree": {
+    "tooManyFiles": "⚠ 文件过多，仅显示部分",
+    "noFiles": "暂无文件"
+  },
+  "inlineArtifact": {
+    "preview": "预览"
+  },
+  "permission": {
+    "title": "需要权限确认",
+    "command": "命令"
+  },
+  "terminalView": {
+    "unavailable": "终端输出暂不可用",
+    "hint": "当前前端仅展示 tool_call 中已上报的文本内容。尚未接入 terminal/output 的实时拉流能力。"
+  },
+  "thought": {
+    "thinking": "思考中...",
+    "deepThinking": "深度思考"
+  },
+  "errorMessage": {
+    "title": "错误 {{code}}"
+  },
+  "terminalPanel": {
+    "title": "终端"
+  },
+  "toolPanel": {
+    "collapsePanel": "收起面板"
+  },
+  "cliProvider": {
+    "unavailableSuffix": " (不可用)",
+    "switchAgent": "切换 CLI Agent"
+  },
+  "cli": {
+    "fetchProvidersFailed": "获取 CLI 工具列表失败",
+    "loadingProviders": "正在加载 CLI 工具列表...",
+    "noProviders": "没有可用的 CLI 工具",
+    "retry": "重试",
+    "refresh": "刷新",
+    "unavailable": "不可用",
+    "noMatches": "无匹配结果",
+    "stepProgress": "步骤 {{current}} / {{total}}",
+    "previous": "上一步",
+    "next": "下一步",
+    "connect": "连接",
+    "steps": {
+      "select-tool": "选择工具",
+      "auth-config": "认证方案",
+      "model-config": "模型配置",
+      "extension-config": "扩展配置"
+    },
+    "auth": {
+      "label": "认证方案",
+      "default": "默认",
+      "tokenPlaceholder": "请输入 {{name}} 对应的 Token"
+    },
+    "tool": {
+      "label": "CLI 工具"
+    },
+    "model": {
+      "market": "市场模型",
+      "custom": "自定义模型",
+      "default": "默认模型"
+    }
+  },
+  "customModel": {
+    "baseUrl": "模型接入点 URL",
+    "baseUrlRequired": "请输入模型接入点 URL",
+    "baseUrlInvalid": "请输入合法的 URL（以 http:// 或 https:// 开头）",
+    "apiKeyRequired": "请输入 API Key",
+    "modelId": "模型 ID",
+    "modelIdRequired": "请输入模型 ID",
+    "modelName": "模型显示名称",
+    "modelNamePlaceholder": "留空则使用模型 ID",
+    "protocolType": "协议类型"
+  },
+  "marketModel": {
+    "loginRequired": "请先登录以使用模型市场模型",
+    "fetchFailed": "获取模型市场模型列表失败",
+    "empty": "暂无已订阅的模型，请先在模型市场中订阅模型",
+    "label": "模型市场模型",
+    "placeholder": "选择模型"
+  },
+  "marketMcp": {
+    "loginRequired": "请先登录以使用市场 MCP Server",
+    "fetchFailed": "获取市场 MCP Server 列表失败",
+    "empty": "暂无已订阅的 MCP Server，请先在市场中订阅",
+    "searchPlaceholder": "搜索 MCP Server..."
+  },
+  "marketSkill": {
+    "fetchFailed": "获取市场 Skill 列表失败",
+    "empty": "暂无已发布的 Skill",
+    "searchPlaceholder": "搜索 Skill..."
+  }
+}

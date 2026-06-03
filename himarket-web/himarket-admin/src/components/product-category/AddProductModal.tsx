@@ -1,6 +1,7 @@
 import { Modal, Table, message } from 'antd';
 import { useState, useEffect } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi } from '@/lib/api';
 import { bindProductsToCategory } from '@/lib/productCategoryApi';
 import { ProductTypeMap } from '@/lib/utils';
@@ -19,6 +20,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
   onSuccess,
   visible,
 }) => {
+  const { t } = useLocale();
   const [availableProducts, setAvailableProducts] = useState<ApiProduct[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +41,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
       setAvailableProducts(response.data.content || []);
     } catch (error) {
       console.error('Failed to fetch available products:', error);
-      message.error('获取可用产品失败');
+      message.error(t('page.categoryDetail.fetchAvailableProductsFailed'));
     } finally {
       setLoading(false);
     }
@@ -57,19 +59,19 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
   // Handle add products
   const handleAddProducts = async () => {
     if (selectedProductIds.length === 0) {
-      message.warning('请选择要添加的产品');
+      message.warning(t('page.categoryDetail.selectProductsToAdd'));
       return;
     }
 
     try {
       setAddLoading(true);
       await bindProductsToCategory(categoryId, selectedProductIds);
-      message.success('产品添加成功');
+      message.success(t('page.categoryDetail.addProductSuccess'));
       onSuccess();
       onCancel();
     } catch (error) {
       console.error('Failed to add products:', error);
-      message.error('添加产品失败');
+      message.error(t('page.categoryDetail.addProductFailed'));
     } finally {
       setAddLoading(false);
     }
@@ -86,36 +88,36 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
           <div className="text-xs text-gray-500 truncate">{record.productId}</div>
         </div>
       ),
-      title: '名称',
+      title: t('common.name'),
       width: 280,
     },
     {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => ProductTypeMap[type] || type,
-      title: '类型',
+      title: t('common.type'),
       width: 120,
     },
     {
       dataIndex: 'description',
       key: 'description',
-      title: '描述',
+      title: t('common.description'),
       width: 300,
     },
   ];
 
   return (
     <Modal
-      cancelText="取消"
+      cancelText={t('common.cancel')}
       confirmLoading={addLoading}
       okButtonProps={{
         disabled: selectedProductIds.length === 0,
       }}
-      okText="添加"
+      okText={t('common.add')}
       onCancel={onCancel}
       onOk={handleAddProducts}
       open={visible}
-      title="添加API产品"
+      title={t('page.categoryDetail.addProductTitle')}
       width={800}
     >
       <Table

@@ -1,6 +1,7 @@
 import { Alert, Spin, Button, Tag } from 'antd';
 import { RefreshCw } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { getMarketSkills, type MarketSkillInfo, type SkillEntry } from '../../lib/apis/cliProvider';
 import { filterByKeyword } from '../../lib/utils/filterUtils';
@@ -20,6 +21,7 @@ const SEARCH_THRESHOLD = 4;
 // ============ 组件 ============
 
 export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
+  const { t } = useTranslation('coding');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skills, setSkills] = useState<MarketSkillInfo[]>([]);
@@ -34,11 +36,11 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
       const data = res.data;
       setSkills(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '获取市场 Skill 列表失败');
+      setError(err instanceof Error ? err.message : t('marketSkill.fetchFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // 组件挂载时获取数据
   useEffect(() => {
@@ -96,7 +98,7 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
       <div className="flex flex-col items-center gap-2 w-full">
         <Alert className="w-full" message={error} showIcon type="error" />
         <Button icon={<RefreshCw size={14} />} onClick={fetchSkills} size="small">
-          重试
+          {t('cli.retry')}
         </Button>
       </div>
     );
@@ -104,7 +106,7 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
 
   // Skill 列表为空
   if (skills.length === 0) {
-    return <Alert className="w-full" message="暂无已发布的 Skill" showIcon type="info" />;
+    return <Alert className="w-full" message={t('marketSkill.empty')} showIcon type="info" />;
   }
 
   // Skill 列表非空，展示卡片网格
@@ -114,14 +116,14 @@ export function MarketSkillSelector({ onChange }: MarketSkillSelectorProps) {
       {skills.length > SEARCH_THRESHOLD && (
         <SearchFilterInput
           onChange={setSearchKeyword}
-          placeholder="搜索 Skill..."
+          placeholder={t('marketSkill.searchPlaceholder')}
           value={searchKeyword}
         />
       )}
 
       {/* 过滤后无匹配结果 */}
       {filteredSkills.length === 0 ? (
-        <div className="text-center text-sm text-gray-400 py-4">无匹配结果</div>
+        <div className="text-center text-sm text-gray-400 py-4">{t('cli.noMatches')}</div>
       ) : (
         /* 卡片网格布局 */
         <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">

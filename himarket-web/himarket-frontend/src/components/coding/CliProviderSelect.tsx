@@ -1,5 +1,6 @@
 import { Select } from 'antd';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { getCliProviders, type ICliProvider } from '@/lib/apis';
 
@@ -9,6 +10,7 @@ interface CliProviderSelectProps {
 }
 
 export function CliProviderSelect({ onChange, value }: CliProviderSelectProps) {
+  const { t } = useTranslation('coding');
   const [providers, setProviders] = useState<ICliProvider[]>([]);
 
   useEffect(() => {
@@ -60,12 +62,12 @@ export function CliProviderSelect({ onChange, value }: CliProviderSelectProps) {
       }}
       options={providers.map((p) => ({
         disabled: !p.available,
-        label: p.displayName + (!p.available ? ' (不可用)' : ''),
+        label: p.displayName + (!p.available ? t('cliProvider.unavailableSuffix') : ''),
         value: p.key,
       }))}
       placement="bottomLeft"
       size="small"
-      title="切换 CLI Agent"
+      title={t('cliProvider.switchAgent')}
       value={value}
       variant="outlined"
     />

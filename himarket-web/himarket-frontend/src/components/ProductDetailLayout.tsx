@@ -1,5 +1,6 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { Alert } from 'antd';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { Layout } from './Layout';
@@ -42,11 +43,12 @@ export function ProductDetailLayout({
   rightContent,
 }: ProductDetailLayoutProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
 
   if (loading) {
     return (
       <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="mx-auto w-full max-w-[1480px] py-5 sm:py-7">
           <DetailSkeleton />
         </div>
       </Layout>
@@ -57,7 +59,7 @@ export function ProductDetailLayout({
     return (
       <Layout>
         <div className="p-8">
-          <Alert description={error} message="错误" showIcon type="error" />
+          <Alert description={error} message={t('errorTitle')} showIcon type="error" />
         </div>
       </Layout>
     );
@@ -65,31 +67,31 @@ export function ProductDetailLayout({
 
   return (
     <Layout>
-      {/* 头部 */}
-      <div className="mb-8">
-        {/* 返回按钮 */}
-        <button
-          className="
-            flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px]
-            text-gray-600 hover:text-colorPrimary
-            hover:bg-colorPrimaryBgHover
-            transition-all duration-200
-          "
-          onClick={onBack || (() => navigate(-1))}
-        >
-          <ArrowLeftOutlined />
-          <span>返回</span>
-        </button>
+      <div className="mx-auto w-full max-w-[1480px] py-5 sm:py-7">
+        <div className="mb-5">
+          <button
+            className="
+              mb-4 inline-flex h-9 items-center gap-2 rounded-[10px] px-3
+              text-sm font-medium text-gray-600 transition-all duration-200
+              hover:bg-white/80 hover:text-gray-950 hover:shadow-sm
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-colorPrimary/30
+              active:translate-y-px
+            "
+            onClick={onBack || (() => navigate(-1))}
+          >
+            <ArrowLeftOutlined className="text-xs" />
+            <span>{t('back')}</span>
+          </button>
 
-        {headerProps && <ProductHeader {...headerProps} />}
-      </div>
+          {headerProps && <ProductHeader {...headerProps} />}
+        </div>
 
-      {/* 主要内容区域 */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,65fr)_minmax(0,35fr)]">
-        {/* 左侧内容 - 65% */}
-        <div className="order-2 min-w-0 lg:order-1">{leftContent}</div>
-        {/* 右侧内容 - 35% */}
-        <div className="order-1 min-w-0 lg:order-2">{rightContent}</div>
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_390px] xl:items-start">
+          <div className="order-2 min-w-0 xl:order-1">{leftContent}</div>
+          <div className="order-1 min-w-0 xl:sticky xl:top-24 xl:order-2 xl:self-start">
+            {rightContent}
+          </div>
+        </div>
       </div>
     </Layout>
   );

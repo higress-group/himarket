@@ -116,4 +116,22 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  .scrollbar-thin-soft {
+    scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin-soft::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .scrollbar-thin-soft::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin-soft::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.28);
+    border-radius: 999px;
+  }
+  .scrollbar-thin-soft::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.42);
+  }
 }

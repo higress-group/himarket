@@ -1,42 +1,74 @@
+import i18n from '../i18n';
+
+interface StatusInfo {
+  color: string;
+  text: string;
+}
+
+function localizedInfo(color: string, textKey: string): StatusInfo {
+  return {
+    color,
+    get text() {
+      return i18n.t(textKey);
+    },
+  };
+}
+
 // 产品状态映射
 export const ProductStatusMap: Record<string, { text: string; color: string }> = {
-  DEPRECATED: { color: 'red', text: '已弃用' },
-  DISABLE: { color: 'red', text: '非活跃' },
-  DRAFT: { color: 'default', text: '草稿' },
-  ENABLE: { color: 'green', text: '活跃' },
-  PENDING: { color: 'orange', text: '待发布' },
-  PUBLISHED: { color: 'green', text: '已发布' },
-  READY: { color: 'blue', text: '就绪' },
+  DEPRECATED: localizedInfo('red', 'status.product.deprecated'),
+  DISABLE: localizedInfo('red', 'status.product.disabled'),
+  DRAFT: localizedInfo('default', 'status.product.draft'),
+  ENABLE: localizedInfo('green', 'status.product.enabled'),
+  PENDING: localizedInfo('orange', 'status.product.pending'),
+  PUBLISHED: localizedInfo('green', 'status.product.published'),
+  READY: localizedInfo('blue', 'status.product.ready'),
 };
 
 // 订阅状态映射
 export const SubscriptionStatusMap: Record<string, { text: string; color: string }> = {
-  APPROVED: { color: 'green', text: '已通过' },
-  PENDING: { color: 'orange', text: '待审批' },
+  APPROVED: localizedInfo('green', 'status.subscription.approved'),
+  PENDING: localizedInfo('orange', 'status.subscription.pending'),
 };
 
 // 产品分类映射
 export const ProductCategoryMap: Record<string, { text: string; color: string }> = {
-  COMMUNITY: { color: 'green', text: '社区' },
-  CUSTOM: { color: 'orange', text: '自定义' },
-  OFFICIAL: { color: 'blue', text: '官方' },
-  official2: { color: 'blue', text: '官方' },
+  COMMUNITY: localizedInfo('green', 'status.category.community'),
+  CUSTOM: localizedInfo('orange', 'status.category.custom'),
+  OFFICIAL: localizedInfo('blue', 'status.category.official'),
+  official2: localizedInfo('blue', 'status.category.official'),
 };
 
 // 来源类型映射
 export const FromTypeMap: Record<string, string> = {
-  DATABASE: '数据库',
-  DIRECT_ROUTE: '直接路由',
-  HTTP: 'HTTP转MCP',
-  MCP: 'MCP直接代理',
-  OPEN_API: 'OpenAPI转MCP',
+  get DATABASE() {
+    return i18n.t('status.fromType.database');
+  },
+  get DIRECT_ROUTE() {
+    return i18n.t('status.fromType.directRoute');
+  },
+  get HTTP() {
+    return i18n.t('status.fromType.http');
+  },
+  get MCP() {
+    return i18n.t('status.fromType.mcp');
+  },
+  get OPEN_API() {
+    return i18n.t('status.fromType.openApi');
+  },
 };
 
 // 来源映射
 export const SourceMap: Record<string, string> = {
-  ADP_AI_GATEWAY: '专有云AI网关',
-  APIG_AI: 'AI网关',
-  APIG_API: 'API网关',
+  get ADP_AI_GATEWAY() {
+    return i18n.t('status.source.adpAiGateway');
+  },
+  get APIG_AI() {
+    return i18n.t('status.source.apigAi');
+  },
+  get APIG_API() {
+    return i18n.t('status.source.apigApi');
+  },
   HIGRESS: 'Higress',
   NACOS: 'Nacos',
 };

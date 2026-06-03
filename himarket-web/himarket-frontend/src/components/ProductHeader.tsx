@@ -102,6 +102,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     const { agentProductId, apiProductId, mcpProductId, modelProductId } = useParams();
 
     const { isLoggedIn } = useAuth();
+    const { i18n, t } = useTranslation('productHeader');
     const { t: tLoginPrompt } = useTranslation('loginPrompt');
     const [loginPromptOpen, setLoginPromptOpen] = useState(false);
     const [isManageModalVisible, setIsManageModalVisible] = useState(false);
@@ -188,7 +189,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
         });
       } catch (error) {
         console.error('获取订阅详情失败:', error);
-        message.error('获取订阅详情失败，请重试');
+        message.error(t('message.subscriptionDetailsFailed'));
       } finally {
         setDetailsLoading(false);
       }
@@ -230,14 +231,14 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     // 提交申请订阅
     const handleApplySubscription = async () => {
       if (!selectedConsumerId) {
-        message.warning('请选择消费者');
+        message.warning(t('message.selectConsumer'));
         return;
       }
 
       try {
         setSubmitLoading(true);
         await subscribeProduct(selectedConsumerId, productId);
-        message.success('申请提交成功');
+        message.success(t('message.applySuccess'));
 
         // 重置状态
         setIsApplyingSubscription(false);
@@ -248,7 +249,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
         await fetchSubscriptionDetails(currentPage, '');
       } catch (error) {
         console.error('申请订阅失败:', error);
-        message.error('申请提交失败，请重试');
+        message.error(t('message.applyFailed'));
       } finally {
         setSubmitLoading(false);
       }
@@ -316,127 +317,133 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
     const handleUnsubscribe = async (consumerId: string) => {
       try {
         await unsubscribeProduct(consumerId, productId);
-        message.success('取消订阅成功');
+        message.success(t('message.unsubscribeSuccess'));
 
         // 重新获取订阅状态和详情数据
         await fetchSubscriptionStatus();
         await fetchSubscriptionDetails(currentPage, '');
       } catch (error) {
         console.error('取消订阅失败:', error);
-        message.error('取消订阅失败，请重试');
+        message.error(t('message.unsubscribeFailed'));
       }
     };
 
     return (
       <>
-        <div className="mb-2">
-          {/* 第一行：图标和标题信息 */}
-          <div className="flex items-center gap-4 mb-3">
-            {(!icon || imageLoadFailed) &&
-            (productType === 'REST_API' ||
-              productType === 'AGENT_API' ||
-              productType === 'MODEL_API') ? (
-              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[10px] border border-gray-200 bg-gray-50">
-                {productType === 'REST_API' ? (
-                  <ApiOutlined className="text-3xl text-black" />
-                ) : productType === 'AGENT_API' ? (
-                  <RobotOutlined className="text-3xl text-black" />
+        <div className="rounded-[14px] border border-[#DDE5F0] bg-white/90 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex min-w-0 items-start gap-4">
+                {(!icon || imageLoadFailed) &&
+                (productType === 'REST_API' ||
+                  productType === 'AGENT_API' ||
+                  productType === 'MODEL_API') ? (
+                  <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[12px] border border-[#E1E7F0] bg-[#F7F9FC] text-gray-800">
+                    {productType === 'REST_API' ? (
+                      <ApiOutlined className="text-2xl" />
+                    ) : productType === 'AGENT_API' ? (
+                      <RobotOutlined className="text-2xl" />
+                    ) : (
+                      <BulbOutlined className="text-2xl" />
+                    )}
+                  </div>
                 ) : (
-                  <BulbOutlined className="text-3xl text-black" />
+                  <img
+                    alt={name}
+                    className="h-14 w-14 flex-shrink-0 rounded-[12px] border border-[#E1E7F0] bg-[#F7F9FC] object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      if (
+                        productType === 'REST_API' ||
+                        productType === 'AGENT_API' ||
+                        productType === 'MODEL_API'
+                      ) {
+                        setImageLoadFailed(true);
+                      } else {
+                        // 确保有一个最终的fallback图片，避免无限循环请求
+                        const fallbackIcon = defaultIcon || '/logo.svg';
+                        const currentUrl = new URL(target.src, window.location.href).href;
+                        const fallbackUrl = new URL(fallbackIcon, window.location.href).href;
+                        if (currentUrl !== fallbackUrl) {
+                          target.src = fallbackIcon;
+                        }
+                      }
+                    }}
+                    src={getIconUrl(icon, defaultIcon)}
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <Title
+                    className="!mb-1 !break-words !text-2xl !font-semibold !leading-tight !text-gray-950"
+                    level={2}
+                  >
+                    {name}
+                  </Title>
+                  {updatedAt && (
+                    <div className="text-sm text-gray-500">
+                      {t('updatedAt', {
+                        date: new Date(updatedAt)
+                          .toLocaleDateString(i18n.language, {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })
+                          .replace(/\//g, '.'),
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-3 lg:justify-end">
+                {shouldShowSubscribeButton ? (
+                  !isLoggedIn ? (
+                    <Button
+                      className="rounded-[10px]"
+                      onClick={() => setLoginPromptOpen(true)}
+                      type="primary"
+                    >
+                      {t('subscribe.loginRequired')}
+                    </Button>
+                  ) : subscriptionLoading ? (
+                    <Button loading>{t('loading')}</Button>
+                  ) : (
+                    <>
+                      {subscriptionStatus?.hasSubscription ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
+                          <CheckCircleFilled
+                            className="text-green-500"
+                            style={{ fontSize: '10px' }}
+                          />
+                          {t('subscribe.subscribed')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+                          <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
+                          {t('subscribe.notSubscribed')}
+                        </span>
+                      )}
+
+                      <Button className="rounded-[10px]" onClick={showManageModal} type="primary">
+                        {t('subscribe.manage')}
+                      </Button>
+                    </>
+                  )
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
+                    <InfoCircleOutlined className="text-gray-400" style={{ fontSize: '12px' }} />
+                    {t('subscribe.openAccess')}
+                  </span>
                 )}
               </div>
-            ) : (
-              <img
-                alt="icon"
-                className="h-16 w-16 flex-shrink-0 rounded-[10px] border border-gray-200 object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  if (
-                    productType === 'REST_API' ||
-                    productType === 'AGENT_API' ||
-                    productType === 'MODEL_API'
-                  ) {
-                    setImageLoadFailed(true);
-                  } else {
-                    // 确保有一个最终的fallback图片，避免无限循环请求
-                    const fallbackIcon = defaultIcon || '/logo.svg';
-                    const currentUrl = new URL(target.src, window.location.href).href;
-                    const fallbackUrl = new URL(fallbackIcon, window.location.href).href;
-                    if (currentUrl !== fallbackUrl) {
-                      target.src = fallbackIcon;
-                    }
-                  }
-                }}
-                src={getIconUrl(icon, defaultIcon)}
-              />
+            </div>
+
+            {description && (
+              <Paragraph className="!mb-0 max-w-5xl break-words text-sm leading-6 text-gray-600">
+                {description}
+              </Paragraph>
             )}
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <Title className="mb-1 text-xl font-semibold" level={3}>
-                {name}
-              </Title>
-              {updatedAt && (
-                <div className="text-sm text-gray-400">
-                  {new Date(updatedAt)
-                    .toLocaleDateString('zh-CN', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })
-                    .replace(/\//g, '.')}{' '}
-                  updated
-                </div>
-              )}
-            </div>
           </div>
-
-          {/* 第二行：描述信息，与左边框对齐 */}
-          <Paragraph className="text-gray-600 mb-3 text-sm leading-relaxed">
-            {description}
-          </Paragraph>
-
-          {/* 第三行：徽章式订阅状态 + 管理按钮，与左边框对齐 */}
-          {shouldShowSubscribeButton ? (
-            <div className="flex items-center gap-4">
-              {!isLoggedIn ? (
-                <Button
-                  className="rounded-[10px]"
-                  onClick={() => setLoginPromptOpen(true)}
-                  type="primary"
-                >
-                  登录后订阅
-                </Button>
-              ) : subscriptionLoading ? (
-                <Button loading>加载中...</Button>
-              ) : (
-                <>
-                  {/* 订阅状态徽章 - Pill样式 */}
-                  {subscriptionStatus?.hasSubscription ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
-                      <CheckCircleFilled className="text-green-500" style={{ fontSize: '10px' }} />
-                      已订阅
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
-                      <div className="h-1.5 w-1.5 rounded-full bg-gray-400"></div>
-                      未订阅
-                    </span>
-                  )}
-
-                  {/* 管理按钮 */}
-                  <Button className="rounded-[10px]" onClick={showManageModal} type="primary">
-                    管理订阅
-                  </Button>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-4">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500">
-                <InfoCircleOutlined className="text-gray-400" style={{ fontSize: '12px' }} />
-                无需订阅，开放访问
-              </span>
-            </div>
-          )}
         </div>
 
         {/* 订阅管理弹窗 */}
@@ -444,6 +451,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
           footer={null}
           onCancel={handleManageCancel}
           open={isManageModalVisible}
+          style={{ maxWidth: 'calc(100vw - 32px)' }}
           styles={{
             body: {
               padding: '0px',
@@ -454,26 +462,27 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
               paddingBottom: '8px',
             },
           }}
-          title="订阅管理"
-          width={600}
+          title={t('modal.title')}
+          width={640}
         >
-          <div className="px-6 py-4">
+          <div className="px-4 py-4 sm:px-6">
             {/* 搜索和操作栏 */}
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Input
                 allowClear
-                className="rounded-lg"
+                className="w-full rounded-lg sm:w-[250px]"
                 onChange={handleSearchChange}
                 onPressEnter={handleSearchKeyPress}
-                placeholder="搜索消费者名称"
+                placeholder={t('modal.searchConsumer')}
                 prefix={<SearchOutlined className="text-gray-400" />}
-                style={{ width: 250 }}
                 value={searchKeyword}
               />
               <Popover
                 content={
                   <div className="w-64">
-                    <div className="mb-3 text-sm font-medium text-gray-700">选择消费者</div>
+                    <div className="mb-3 text-sm font-medium text-gray-700">
+                      {t('modal.selectConsumer')}
+                    </div>
                     <Select
                       filterOption={(input, option) =>
                         (option?.children as unknown as string)
@@ -481,9 +490,9 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                           .includes(input.toLowerCase())
                       }
                       loading={consumersLoading}
-                      notFoundContent={consumersLoading ? '加载中...' : '暂无消费者数据'}
+                      notFoundContent={consumersLoading ? t('loading') : t('modal.noConsumers')}
                       onChange={setSelectedConsumerId}
-                      placeholder="搜索或选择消费者"
+                      placeholder={t('modal.consumerPlaceholder')}
                       showSearch
                       style={{ width: '100%' }}
                       value={selectedConsumerId}
@@ -507,7 +516,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                         onClick={cancelApplyingSubscription}
                         size="small"
                       >
-                        取消
+                        {t('modal.cancel')}
                       </Button>
                       <Button
                         className="rounded-lg"
@@ -517,7 +526,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                         size="small"
                         type="primary"
                       >
-                        确认
+                        {t('modal.confirm')}
                       </Button>
                     </div>
                   </div>
@@ -530,18 +539,18 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                 trigger="click"
               >
                 <Button
-                  className="rounded-[10px]"
+                  className="w-full rounded-[10px] sm:w-auto"
                   icon={<PlusOutlined />}
                   onClick={startApplyingSubscription}
                   type="primary"
                 >
-                  订阅
+                  {t('subscribe.action')}
                 </Button>
               </Popover>
             </div>
 
             {/* 订阅列表表格 */}
-            <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
               {detailsLoading ? (
                 <div className="p-8 text-center">
                   <Spin size="large" />
@@ -556,7 +565,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                       render: (text: string) => (
                         <span className="text-xs text-gray-800">{text}</span>
                       ),
-                      title: '消费者',
+                      title: t('table.consumer'),
                     },
                     {
                       dataIndex: 'status',
@@ -566,22 +575,28 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                           {status === 'APPROVED' ? (
                             <>
                               <CheckCircleFilled className="mr-1.5 text-xs text-green-500" />
-                              <span className="text-xs text-gray-700">已通过</span>
+                              <span className="text-xs text-gray-700">
+                                {t('table.status.approved')}
+                              </span>
                             </>
                           ) : status === 'PENDING' ? (
                             <>
                               <ClockCircleFilled className="mr-1.5 text-xs text-blue-500" />
-                              <span className="text-xs text-gray-700">审核中</span>
+                              <span className="text-xs text-gray-700">
+                                {t('table.status.pending')}
+                              </span>
                             </>
                           ) : (
                             <>
                               <ExclamationCircleFilled className="mr-1.5 text-xs text-red-500" />
-                              <span className="text-xs text-gray-700">已拒绝</span>
+                              <span className="text-xs text-gray-700">
+                                {t('table.status.rejected')}
+                              </span>
                             </>
                           )}
                         </div>
                       ),
-                      title: '状态',
+                      title: t('table.statusTitle'),
                       width: 120,
                     },
                     {
@@ -589,10 +604,10 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                       key: 'action',
                       render: (_: unknown, record: ISubscription) => (
                         <Popconfirm
-                          cancelText="取消"
-                          okText="确认"
+                          cancelText={t('modal.cancel')}
+                          okText={t('modal.confirm')}
                           onConfirm={() => handleUnsubscribe(record.consumerId)}
-                          title="确定要取消订阅吗？"
+                          title={t('table.unsubscribeConfirm')}
                         >
                           <Button
                             className="rounded border-gray-300"
@@ -601,7 +616,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                           />
                         </Popconfirm>
                       ),
-                      title: '操作',
+                      title: t('table.action'),
                       width: 100,
                     },
                   ]}
@@ -619,7 +634,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                 />
               ) : (
                 <div className="p-8 text-center text-gray-500">
-                  {searchKeyword ? '未找到匹配的订阅记录' : '暂无订阅记录'}
+                  {searchKeyword ? t('table.noMatchedRecords') : t('table.noRecords')}
                 </div>
               )}
             </div>
@@ -640,7 +655,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
                   pageSize={pageSize}
                   showQuickJumper={false}
                   showSizeChanger={false}
-                  showTotal={(total) => `共 ${total} 条`}
+                  showTotal={(total) => t('pagination.total', { total })}
                   size="small"
                   total={subscriptionDetails.totalElements}
                 />

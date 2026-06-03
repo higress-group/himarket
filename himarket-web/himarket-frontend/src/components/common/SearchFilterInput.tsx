@@ -1,5 +1,6 @@
 import { Input } from 'antd';
 import { Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import type React from 'react';
 
@@ -23,14 +24,16 @@ export interface SearchFilterInputProps {
  */
 export const SearchFilterInput: React.FC<SearchFilterInputProps> = ({
   onChange,
-  placeholder = '搜索...',
+  placeholder,
   value,
 }) => {
+  const { t } = useTranslation('common');
+
   return (
     <Input
       allowClear
       onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t('search')}
       prefix={<Search className="text-gray-400" size={16} />}
       size="middle"
       value={value}

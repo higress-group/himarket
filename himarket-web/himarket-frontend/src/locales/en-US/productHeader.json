@@ -1,0 +1,45 @@
+{
+  "loading": "Loading...",
+  "updatedAt": "Updated {{date}}",
+  "message": {
+    "subscriptionDetailsFailed": "Failed to load subscription details. Please try again.",
+    "selectConsumer": "Please select a consumer",
+    "applySuccess": "Subscription request submitted",
+    "applyFailed": "Failed to submit subscription request. Please try again.",
+    "unsubscribeSuccess": "Subscription canceled",
+    "unsubscribeFailed": "Failed to cancel subscription. Please try again."
+  },
+  "subscribe": {
+    "loginRequired": "Log in to subscribe",
+    "subscribed": "Subscribed",
+    "notSubscribed": "Not subscribed",
+    "manage": "Manage subscription",
+    "openAccess": "Open access, no subscription required",
+    "action": "Subscribe"
+  },
+  "modal": {
+    "title": "Subscription Management",
+    "searchConsumer": "Search consumers",
+    "selectConsumer": "Select consumer",
+    "noConsumers": "No consumer data",
+    "consumerPlaceholder": "Search or select a consumer",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "table": {
+    "consumer": "Consumer",
+    "statusTitle": "Status",
+    "action": "Actions",
+    "status": {
+      "approved": "Approved",
+      "pending": "Pending",
+      "rejected": "Rejected"
+    },
+    "unsubscribeConfirm": "Cancel this subscription?",
+    "noMatchedRecords": "No matching subscription records",
+    "noRecords": "No subscription records"
+  },
+  "pagination": {
+    "total": "{{total}} total"
+  }
+}

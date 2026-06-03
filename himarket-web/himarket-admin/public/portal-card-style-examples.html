@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HiMarket Portal Card Style Examples</title>
+    <style>
+      :root {
+        --page: #f7f8fa;
+        --panel: #ffffff;
+        --border: #dfe3ea;
+        --border-soft: #edf0f4;
+        --text: #111827;
+        --muted: #697386;
+        --subtle: #8b94a7;
+        --accent: #2563eb;
+        --green-bg: #eaf7ef;
+        --green-text: #16713a;
+        --yellow-bg: #fff6dd;
+        --yellow-text: #9a6700;
+        --purple-bg: #f2eafe;
+        --purple-text: #6d28d9;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--text);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 56px 40px 72px;
+      }
+
+      .heading {
+        margin-bottom: 28px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 32px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .intro {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .section {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 28px;
+        align-items: start;
+        padding: 28px 0;
+        border-top: 1px solid var(--border-soft);
+      }
+
+      .section:first-of-type {
+        border-top: 0;
+      }
+
+      .label {
+        position: sticky;
+        top: 20px;
+      }
+
+      .label strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .label span {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .portal-card {
+        width: min(100%, 560px);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 20px 14px;
+      }
+
+      .title-group {
+        min-width: 0;
+      }
+
+      .name-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .portal-name {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.25;
+        font-weight: 650;
+      }
+
+      .description {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .more {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--subtle);
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .more:hover {
+        background: #f3f5f8;
+        color: var(--text);
+      }
+
+      .domain {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 20px 16px;
+        padding: 10px 12px;
+        border: 1px solid var(--border-soft);
+        border-radius: 6px;
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 550;
+      }
+
+      .domain svg,
+      .status-dot svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+      }
+
+      .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        border-top: 1px solid var(--border-soft);
+      }
+
+      .meta-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 46px;
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border-soft);
+        color: #465164;
+        font-size: 13px;
+      }
+
+      .meta-item:nth-child(odd) {
+        border-right: 1px solid var(--border-soft);
+      }
+
+      .meta-item:nth-last-child(-n + 2) {
+        border-bottom: 0;
+      }
+
+      .value-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .value-status svg {
+        width: 14px;
+        height: 14px;
+        flex: none;
+        color: var(--status-icon-color);
+      }
+
+      .value-status.success {
+        --status-icon-color: var(--green-text);
+      }
+
+      .value-status.warning {
+        --status-icon-color: var(--yellow-text);
+      }
+
+      .value-status.neutral {
+        --status-icon-color: #64748b;
+      }
+
+      .compact-card {
+        width: min(100%, 680px);
+      }
+
+      .compact-row {
+        display: grid;
+        grid-template-columns: minmax(180px, 1.4fr) minmax(160px, 1fr) 120px 36px;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 18px;
+      }
+
+      .compact-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .status-dot {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--green-text);
+        font-size: 12px;
+      }
+
+      .avatar-card .card-head {
+        align-items: center;
+      }
+
+      .avatar {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        background: #f1f5f9;
+        color: #334155;
+        font-weight: 700;
+      }
+
+      .avatar-title {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .avatar-card .meta-grid {
+        margin: 0 20px 18px;
+        border: 1px solid var(--border-soft);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .avatar-card .meta-item:nth-last-child(-n + 2) {
+        border-bottom: 0;
+      }
+
+      @media (max-width: 820px) {
+        .page {
+          padding: 32px 18px 56px;
+        }
+
+        .section {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        .label {
+          position: static;
+        }
+
+        .meta-grid,
+        .compact-row {
+          grid-template-columns: 1fr;
+        }
+
+        .meta-item:nth-child(odd) {
+          border-right: 0;
+        }
+
+        .meta-item:nth-last-child(2) {
+          border-bottom: 1px solid var(--border-soft);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="heading">
+        <h1>Portal Card 样式示例</h1>
+        <p class="intro">目标是降低装饰感，让后台对象更容易扫描、比较和管理。</p>
+      </div>
+
+      <section class="section">
+        <div class="label">
+          <strong>方案 A：推荐</strong>
+          <span>保留卡片，但去掉渐变、发光和大色块。信息块用线分隔，适合后台管理。</span>
+        </div>
+
+        <article class="portal-card">
+          <header class="card-head">
+            <div class="title-group">
+              <div class="name-row">
+                <h2 class="portal-name">himarket-demo</h2>
+                <span class="status-dot">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                  可用
+                </span>
+              </div>
+              <p class="description">Himarket Demo Portal</p>
+            </div>
+            <button class="more" type="button" aria-label="更多操作">...</button>
+          </header>
+
+          <div class="domain">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L11 4.93" />
+              <path d="M14 11a5 5 0 0 0-7.07 0L4.81 13.12a5 5 0 0 0 7.07 7.07L13 19.07" />
+            </svg>
+            www.example.com
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span>账号密码登录</span>
+              <span class="value-status success">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16" />
+                  <path
+                    d="m4.8 8.2 2 2L11.4 5.6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                支持
+              </span>
+            </div>
+            <div class="meta-item">
+              <span>开发者自动审批</span>
+              <span class="value-status success">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16" />
+                  <path
+                    d="m4.8 8.2 2 2L11.4 5.6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                是
+              </span>
+            </div>
+            <div class="meta-item">
+              <span>订阅自动审批</span>
+              <span class="value-status warning">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16" />
+                  <path
+                    d="M8 4.6v4.2"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <circle cx="8" cy="11.3" r="0.8" fill="currentColor" />
+                </svg>
+                否
+              </span>
+            </div>
+            <div class="meta-item">
+              <span>域名配置</span>
+              <span class="value-status neutral">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.12" />
+                  <path
+                    d="M5.2 8h5.6M8 5.2v5.6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                2 个
+              </span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="section">
+        <div class="label">
+          <strong>方案 B：最克制</strong>
+          <span>接近列表的横向卡片，适合未来 Portal 数量多时使用，信息密度最高。</span>
+        </div>
+
+        <article class="portal-card compact-card">
+          <div class="compact-row">
+            <div class="title-group">
+              <h2 class="portal-name">himarket-demo</h2>
+              <p class="description">Himarket Demo Portal</p>
+            </div>
+            <div class="domain" style="margin: 0; padding: 8px 10px">www.example.com</div>
+            <div class="compact-meta">
+              <span>登录: 支持</span>
+              <span>审批: 是 / 否</span>
+              <span>域名: 2 个</span>
+            </div>
+            <button class="more" type="button" aria-label="更多操作">...</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="section">
+        <div class="label">
+          <strong>方案 C：折中</strong>
+          <span>保留头像识别，但头像变成中性灰；适合想要一点对象感，但不想花哨。</span>
+        </div>
+
+        <article class="portal-card avatar-card">
+          <header class="card-head">
+            <div class="avatar-title">
+              <div class="avatar">H</div>
+              <div class="title-group">
+                <h2 class="portal-name">himarket-demo</h2>
+                <p class="description">Himarket Demo Portal</p>
+              </div>
+            </div>
+            <button class="more" type="button" aria-label="更多操作">...</button>
+          </header>
+
+          <div class="domain">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L11 4.93" />
+              <path d="M14 11a5 5 0 0 0-7.07 0L4.81 13.12a5 5 0 0 0 7.07 7.07L13 19.07" />
+            </svg>
+            www.example.com
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span>账号密码登录</span>
+              <span class="value-status success">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16" />
+                  <path
+                    d="m4.8 8.2 2 2L11.4 5.6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                支持
+              </span>
+            </div>
+            <div class="meta-item">
+              <span>开发者自动审批</span>
+              <span class="value-status success">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16" />
+                  <path
+                    d="m4.8 8.2 2 2L11.4 5.6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                是
+              </span>
+            </div>
+            <div class="meta-item">
+              <span>订阅自动审批</span>
+              <span class="value-status warning">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.16" />
+                  <path
+                    d="M8 4.6v4.2"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                  <circle cx="8" cy="11.3" r="0.8" fill="currentColor" />
+                </svg>
+                否
+              </span>
+            </div>
+            <div class="meta-item">
+              <span>域名配置</span>
+              <span class="value-status neutral">
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" fill="currentColor" opacity="0.12" />
+                  <path
+                    d="M5.2 8h5.6M8 5.2v5.6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                2 个
+              </span>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

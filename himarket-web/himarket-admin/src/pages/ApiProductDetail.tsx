@@ -1,13 +1,11 @@
 import {
-  MoreOutlined,
-  LeftOutlined,
   EyeOutlined,
   LinkOutlined,
   BookOutlined,
   GlobalOutlined,
   InboxOutlined,
 } from '@ant-design/icons';
-import { Button, Dropdown, Modal, message } from 'antd';
+import { Modal, message } from 'antd';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -18,8 +16,12 @@ import { ApiProductPortal } from '@/components/api-product/ApiProductPortal';
 import { ApiProductSkillPackage } from '@/components/api-product/ApiProductSkillPackage';
 import { ApiProductUsageGuide } from '@/components/api-product/ApiProductUsageGuide';
 import { ApiProductWorkerPackage } from '@/components/api-product/ApiProductWorkerPackage';
+import { AdminDetailSidebar } from '@/components/common';
 // import { ApiProductDashboard } from '@/components/api-product/ApiProductDashboard'
+import { ProductIconRenderer } from '@/components/icons/ProductIconRenderer';
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi } from '@/lib/api';
+import { getIconString } from '@/lib/iconUtils';
 import type { ApiProduct, LinkedService } from '@/types/api-product';
 
 import type { MenuProps } from 'antd';
@@ -44,81 +46,94 @@ const PRODUCT_TYPE_PATHS: Record<ApiProduct['type'], string> = {
   WORKER: '/api-products/worker',
 };
 
-const BASE_MENU_ITEMS: MenuItem[] = [
-  {
-    description: '产品概览',
-    icon: EyeOutlined,
-    key: 'overview',
-    label: 'Overview',
-  },
-  {
-    description: 'API关联',
-    icon: LinkOutlined,
-    key: 'link-api',
-    label: 'Link API',
-  },
-  {
-    description: '使用指南',
-    icon: BookOutlined,
-    key: 'usage-guide',
-    label: 'Usage Guide',
-  },
-  {
-    description: '发布的门户',
-    icon: GlobalOutlined,
-    key: 'portal',
-    label: 'Portal',
-  },
-];
+const PRODUCT_TYPE_LABELS: Record<ApiProduct['type'], string> = {
+  AGENT_API: 'Agent API',
+  AGENT_SKILL: 'Agent Skill',
+  MCP_SERVER: 'MCP Server',
+  MODEL_API: 'Model API',
+  REST_API: 'REST API',
+  WORKER: 'Worker',
+};
 
 export default function ApiProductDetail() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLocale();
   const { productId } = useParams<{ productId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [apiProduct, setApiProduct] = useState<ApiProduct | null>(null);
   const [linkedService, setLinkedService] = useState<LinkedService | null>(null);
   const [, setLoading] = useState(true); // 添加 loading 状态
 
+  const baseMenuItems = useMemo<MenuItem[]>(
+    () => [
+      {
+        description: t('product.detail.menu.overview.description'),
+        icon: EyeOutlined,
+        key: 'overview',
+        label: t('product.detail.menu.overview.label'),
+      },
+      {
+        description: t('product.detail.menu.linkApi.description'),
+        icon: LinkOutlined,
+        key: 'link-api',
+        label: t('product.detail.menu.linkApi.label'),
+      },
+      {
+        description: t('product.detail.menu.usageGuide.description'),
+        icon: BookOutlined,
+        key: 'usage-guide',
+        label: t('product.detail.menu.usageGuide.label'),
+      },
+      {
+        description: t('product.detail.menu.portal.description'),
+        icon: GlobalOutlined,
+        key: 'portal',
+        label: t('product.detail.menu.portal.label'),
+      },
+    ],
+    [t],
+  );
+
   // 动态计算 menuItems（AGENT_SKILL / WORKER 类型：隐藏 Link API 和 Usage Guide，插入包管理和 Link Nacos）
   const menuItems = useMemo(
     () =>
       apiProduct?.type === 'AGENT_SKILL'
         ? [
-            BASE_MENU_ITEMS[0], // overview
+            baseMenuItems[0], // overview
             {
-              description: '技能包管理',
+              description: t('product.detail.menu.skillPackage.description'),
               icon: InboxOutlined,
               key: 'skill-package',
-              label: 'Skill Package',
+              label: t('product.detail.menu.skillPackage.label'),
             },
-            BASE_MENU_ITEMS[3], // portal
+            baseMenuItems[3], // portal
           ]
         : apiProduct?.type === 'WORKER'
           ? [
-              BASE_MENU_ITEMS[0], // overview
+              baseMenuItems[0], // overview
               {
-                description: 'Worker 包管理',
+                description: t('product.detail.menu.workerPackage.description'),
                 icon: InboxOutlined,
                 key: 'worker-package',
-                label: 'Worker Package',
+                label: t('product.detail.menu.workerPackage.label'),
               },
-              BASE_MENU_ITEMS[3], // portal
+              baseMenuItems[3], // portal
             ]
           : apiProduct?.type === 'MCP_SERVER'
             ? [
-                BASE_MENU_ITEMS[0], // overview
+                baseMenuItems[0], // overview
                 {
-                  description: 'API关联',
+                  description: t('product.detail.menu.linkApi.description'),
                   icon: LinkOutlined,
                   key: 'link-api',
-                  label: 'Link API',
+                  label: t('product.detail.menu.linkApi.label'),
                 },
-                BASE_MENU_ITEMS[2], // usage-guide
-                BASE_MENU_ITEMS[3], // portal
+                baseMenuItems[2], // usage-guide
+                baseMenuItems[3], // portal
               ]
-            : BASE_MENU_ITEMS,
-    [apiProduct?.type],
+            : baseMenuItems,
+    [apiProduct?.type, baseMenuItems, t],
   );
 
   // 从URL query参数获取当前tab，默认为overview
@@ -191,7 +206,7 @@ export default function ApiProductDetail() {
 
   const renderContent = () => {
     if (!apiProduct) {
-      return <div className="p-6">Loading...</div>;
+      return <div className="p-6">{t('common.loading')}</div>;
     }
 
     switch (activeTab) {
@@ -249,14 +264,14 @@ export default function ApiProductDetail() {
     {
       danger: true,
       key: 'delete',
-      label: '删除',
+      label: t('common.delete'),
       onClick: () => {
         Modal.confirm({
-          content: '确定要删除该产品吗？',
+          content: t('product.detail.deleteConfirm'),
           onOk: () => {
             handleDeleteApiProduct();
           },
-          title: '确认删除',
+          title: t('product.detail.deleteTitle'),
         });
       },
     },
@@ -268,7 +283,7 @@ export default function ApiProductDetail() {
     apiProductApi
       .deleteApiProduct(apiProduct.productId)
       .then(() => {
-        message.success('删除成功');
+        message.success(t('common.deleteSuccess'));
         handleBackToApiProducts();
       })
       .catch(() => {
@@ -292,71 +307,28 @@ export default function ApiProductDetail() {
   return (
     <div className="flex h-full w-full overflow-hidden">
       {/* API Product 详情侧边栏 */}
-      <div className="w-64 border-r bg-white flex flex-col flex-shrink-0">
-        {/* 返回按钮 */}
-        <div className="pb-4 border-b">
-          <Button
-            icon={<LeftOutlined />}
-            // className="w-full justify-start"
-            onClick={handleBackToApiProducts}
-            type="text"
-          >
-            返回
-          </Button>
-        </div>
-
-        {/* API Product 信息 */}
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-2">
-            {apiProduct ? (
-              <h2 className="text-lg font-semibold">{apiProduct.name}</h2>
-            ) : (
-              <div className="h-6 bg-gray-200 rounded animate-pulse w-32" />
-            )}
-            <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
-              <Button icon={<MoreOutlined />} type="text" />
-            </Dropdown>
-          </div>
-        </div>
-
-        {/* 导航菜单 - 等待产品数据加载后再渲染，避免菜单项闪烁 */}
-        <nav className="flex-1 p-4 space-y-1">
-          {apiProduct ? (
-            menuItems
-              .filter((item): item is MenuItem => !!item)
-              .map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                      activeTab === item.key ? 'bg-blue-500 text-white' : 'hover:bg-gray-100'
-                    }`}
-                    key={item.key}
-                    onClick={() => handleTabChange(item.key)}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium">{item.label}</div>
-                      <div className="text-xs opacity-70">{item.description}</div>
-                    </div>
-                  </button>
-                );
-              })
-          ) : (
-            <div className="space-y-2">
-              {[1, 2, 3, 4].map((i) => (
-                <div className="flex items-center gap-3 px-3 py-2" key={i}>
-                  <div className="w-4 h-4 rounded bg-gray-200 animate-pulse flex-shrink-0" />
-                  <div className="flex-1 space-y-1">
-                    <div className="h-4 bg-gray-200 rounded animate-pulse w-20" />
-                    <div className="h-3 bg-gray-100 rounded animate-pulse w-14" />
-                  </div>
-                </div>
-              ))}
+      <AdminDetailSidebar
+        activeKey={activeTab}
+        backLabel={t('common.back')}
+        icon={
+          apiProduct ? (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50">
+              <ProductIconRenderer
+                className="h-7 w-7"
+                iconType={getIconString(apiProduct.icon)}
+                type={apiProduct.type}
+              />
             </div>
-          )}
-        </nav>
-      </div>
+          ) : undefined
+        }
+        items={apiProduct ? menuItems.filter((item): item is MenuItem => !!item) : []}
+        loading={!apiProduct}
+        menuItems={dropdownItems}
+        onBack={handleBackToApiProducts}
+        onItemClick={handleTabChange}
+        subtitle={apiProduct ? PRODUCT_TYPE_LABELS[apiProduct.type] || apiProduct.type : undefined}
+        title={apiProduct?.name}
+      />
 
       {/* 主内容区域 */}
       <div className="flex-1 overflow-auto min-w-0">

@@ -2,6 +2,7 @@ import { CameraOutlined } from '@ant-design/icons';
 import { Modal, Form, Input, Select, Image, message, Switch, Radio, Space } from 'antd';
 import { useState, useEffect } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi } from '@/lib/api';
 import { getProductCategories } from '@/lib/productCategoryApi';
 import type { ApiProduct } from '@/types/api-product';
@@ -30,6 +31,7 @@ export default function ApiProductFormModal({
   productId,
   visible,
 }: ApiProductFormModalProps) {
+  const { t } = useLocale();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -49,7 +51,7 @@ export default function ApiProductFormModal({
       setProductCategories(response.data.content || []);
     } catch (error: unknown) {
       console.error('获取产品类别失败:', error);
-      message.error('获取产品类别失败');
+      message.error(t('product.form.fetchCategoriesFailed'));
     }
   };
 
@@ -173,7 +175,9 @@ export default function ApiProductFormModal({
       }}
     >
       <CameraOutlined style={{ fontSize: '16px', marginBottom: '6px' }} />
-      <span style={{ color: '#999', fontSize: '12px' }}>上传图片</span>
+      <span style={{ color: '#999', fontSize: '12px' }}>
+        {t('page.categoryDetail.uploadImage')}
+      </span>
     </div>
   );
 
@@ -266,7 +270,7 @@ export default function ApiProductFormModal({
 
         await apiProductApi.updateApiProduct(productId, params);
 
-        message.success('API Product 更新成功');
+        message.success(t('product.form.updateSuccess'));
       } else {
         const params = { ...otherValues };
 
@@ -290,7 +294,7 @@ export default function ApiProductFormModal({
 
         await apiProductApi.createApiProduct(params);
 
-        message.success('API Product 创建成功');
+        message.success(t('product.form.createSuccess'));
       }
 
       resetForm();
@@ -298,7 +302,7 @@ export default function ApiProductFormModal({
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (err?.errorFields) return;
-      message.error('操作失败');
+      message.error(t('product.form.operationFailed'));
     } finally {
       setLoading(false);
     }
@@ -306,37 +310,42 @@ export default function ApiProductFormModal({
 
   return (
     <Modal
+      cancelText={t('common.cancel')}
       confirmLoading={loading}
       onCancel={handleCancel}
       onOk={handleSubmit}
       open={visible}
-      title={isEditMode ? '编辑API Product' : '创建API Product'}
+      title={isEditMode ? t('product.form.editTitle') : t('product.form.createTitle')}
       width={600}
     >
       <Form form={form} layout="vertical">
         <Form.Item
-          label="名称"
+          label={t('common.name')}
           name="name"
-          rules={[{ message: '请输入API Product名称', required: true }]}
+          rules={[{ message: t('product.form.nameRequired'), required: true }]}
         >
-          <Input placeholder="请输入API Product名称" />
+          <Input placeholder={t('product.form.namePlaceholder')} />
         </Form.Item>
 
         <Form.Item
-          label="描述"
+          label={t('common.description')}
           name="description"
-          rules={[{ message: '请输入描述', required: true }]}
+          rules={[{ message: t('product.form.descriptionRequired'), required: true }]}
         >
-          <Input.TextArea placeholder="请输入描述" rows={3} />
+          <Input.TextArea placeholder={t('product.form.descriptionRequired')} rows={3} />
         </Form.Item>
 
-        <Form.Item label="类型" name="type" rules={[{ message: '请选择类型', required: true }]}>
+        <Form.Item
+          label={t('common.type')}
+          name="type"
+          rules={[{ message: t('product.form.typeRequired'), required: true }]}
+        >
           <Select
             disabled={!isEditMode && !!defaultProductType}
             onChange={() => {
               form.setFieldValue('feature', undefined);
             }}
-            placeholder="请选择类型"
+            placeholder={t('product.form.selectType')}
           >
             <Select.Option value="MODEL_API">Model API</Select.Option>
             <Select.Option value="MCP_SERVER">MCP Server</Select.Option>
@@ -347,7 +356,7 @@ export default function ApiProductFormModal({
           </Select>
         </Form.Item>
 
-        <Form.Item label="产品类别" name="categories">
+        <Form.Item label={t('product.form.category')} name="categories">
           <Select
             filterOption={(input, option) =>
               (option?.searchText || '').toLowerCase().includes(input.toLowerCase())
@@ -356,7 +365,7 @@ export default function ApiProductFormModal({
             maxTagTextLength={10}
             mode="multiple"
             optionLabelProp="label"
-            placeholder="请选择产品类别（可多选）"
+            placeholder={t('product.form.selectCategories')}
           >
             {productCategories.map((category) => {
               return (
@@ -380,7 +389,7 @@ export default function ApiProductFormModal({
 
         {productType !== 'AGENT_SKILL' && productType !== 'WORKER' && (
           <Form.Item
-            label="自动审批订阅"
+            label={t('product.form.autoApproveSubscription')}
             name="autoApprove"
             tooltip={{
               overlayInnerStyle: {
@@ -404,7 +413,7 @@ export default function ApiProductFormModal({
                     padding: '4px 0',
                   }}
                 >
-                  启用后，该产品的订阅申请将自动审批通过，否则使用Portal的消费者订阅审批设置。
+                  {t('product.form.autoApproveTooltip')}
                 </div>
               ),
             }}
@@ -414,11 +423,11 @@ export default function ApiProductFormModal({
           </Form.Item>
         )}
 
-        <Form.Item label="Icon设置" style={{ marginBottom: '16px' }}>
+        <Form.Item label={t('page.categoryDetail.iconSetting')} style={{ marginBottom: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio.Group onChange={(e) => handleIconModeChange(e.target.value)} value={iconMode}>
-              <Radio value="URL">图片链接</Radio>
-              <Radio value="BASE64">本地上传</Radio>
+              <Radio value="URL">{t('page.categoryDetail.imageLink')}</Radio>
+              <Radio value="BASE64">{t('page.categoryDetail.localUpload')}</Radio>
             </Radio.Group>
 
             {iconMode === 'URL' ? (
@@ -426,13 +435,13 @@ export default function ApiProductFormModal({
                 name="iconUrl"
                 rules={[
                   {
-                    message: '请输入有效的图片链接',
+                    message: t('page.categoryDetail.imageUrlInvalid'),
                     type: 'url',
                   },
                 ]}
                 style={{ marginBottom: 0 }}
               >
-                <Input placeholder="请输入图片链接地址" />
+                <Input placeholder={t('page.categoryDetail.imageUrlPlaceholder')} />
               </Form.Item>
             ) : (
               <Form.Item name="icon" style={{ marginBottom: 0 }}>
@@ -449,7 +458,9 @@ export default function ApiProductFormModal({
                         const maxSize = 16 * 1024; // 16KB
                         if (file.size > maxSize) {
                           message.error(
-                            `图片大小不能超过 16KB，当前图片大小为 ${Math.round(file.size / 1024)}KB`,
+                            t('page.categoryDetail.imageSizeLimit', {
+                              size: Math.round(file.size / 1024),
+                            }),
                           );
                           return;
                         }

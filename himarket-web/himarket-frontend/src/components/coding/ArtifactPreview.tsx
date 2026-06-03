@@ -1,5 +1,6 @@
 import { Download, Maximize2, Loader2, RefreshCcw, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ArtifactRenderer } from './renderers/ArtifactRenderer';
 import { useCodingDispatch } from '../../context/CodingSessionContext';
@@ -12,6 +13,7 @@ interface ArtifactPreviewProps {
 }
 
 export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
+  const { t } = useTranslation('coding');
   const dispatch = useCodingDispatch();
   const [error, setError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
@@ -60,13 +62,13 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
           type: 'UPDATE_ARTIFACT_CONTENT',
         });
       } else {
-        setError(result.error?.message ?? '加载预览失败');
+        setError(result.error?.message ?? t('artifact.loadPreviewFailed'));
       }
     };
 
     load().catch(() => {
       if (!cancelled) {
-        setError('加载预览失败');
+        setError(t('artifact.loadPreviewFailed'));
       }
     });
 
@@ -81,6 +83,7 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
     artifact.updatedAt,
     dispatch,
     retryToken,
+    t,
   ]);
 
   const hasContent = artifact.content !== null;
@@ -162,14 +165,14 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm gap-2">
             <Loader2 className="animate-spin" size={16} />
-            Loading preview...
+            {t('artifact.loadingPreview')}
           </div>
         ) : error ? (
           <div className="flex h-full items-center justify-center p-6">
             <div className="max-w-md text-center space-y-3">
               <div className="flex items-center justify-center gap-2 text-amber-600">
                 <AlertCircle size={16} />
-                <span className="text-sm font-medium">预览失败</span>
+                <span className="text-sm font-medium">{t('artifact.previewFailed')}</span>
               </div>
               <div className="text-xs text-gray-500 break-words">{error}</div>
               <div className="flex items-center justify-center gap-2">
@@ -179,7 +182,7 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
                   onClick={handleRetry}
                 >
                   <RefreshCcw size={12} />
-                  重试
+                  {t('artifact.retry')}
                 </button>
               </div>
             </div>

@@ -2,6 +2,7 @@ import { CopyOutlined } from '@ant-design/icons';
 import { Button, Card, Collapse, Select } from 'antd';
 import { message } from 'antd';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { copyToClipboard, formatDomainWithPort } from '@/lib/utils';
 import type { ApiProductAgentConfig } from '@/types/api-product';
 
@@ -16,6 +17,7 @@ export function AgentApiConfigPanel({
   onDomainChange,
   selectedDomainIndex,
 }: AgentApiConfigPanelProps) {
+  const { t } = useLocale();
   const agentAPIConfig = agentConfig.agentAPIConfig;
   const routes = agentAPIConfig.routes || [];
   const protocols = agentAPIConfig.agentProtocols || [];
@@ -25,13 +27,13 @@ export function AgentApiConfigPanel({
   const getMatchTypePrefix = (matchType: string) => {
     switch (matchType) {
       case 'Exact':
-        return '等于';
+        return t('product.config.matchEquals');
       case 'Prefix':
-        return '前缀是';
+        return t('product.config.matchPrefix');
       case 'Regex':
-        return '正则是';
+        return t('product.config.matchRegex');
       default:
-        return '等于';
+        return t('product.config.matchEquals');
     }
   };
 
@@ -64,9 +66,9 @@ export function AgentApiConfigPanel({
 
     try {
       await copyToClipboard(selectedAgentDomain.label);
-      message.success('域名已复制到剪贴板');
+      message.success(t('common.domainCopied'));
     } catch {
-      message.error('复制失败');
+      message.error(t('common.copyLinkFailed'));
     }
   };
 
@@ -143,40 +145,40 @@ export function AgentApiConfigPanel({
   };
 
   return (
-    <Card title="配置详情">
+    <Card title={t('product.linkApi.configDetail')}>
       <div className="space-y-6">
         {protocols.length > 0 && (
           <div>
-            <div className="text-sm text-gray-600">支持协议</div>
+            <div className="text-sm text-gray-600">{t('product.config.supportedProtocols')}</div>
             <div className="font-medium">{protocols.join(', ')}</div>
           </div>
         )}
 
         {isA2A && agentCard && (
           <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold mb-4">Agent Card 信息</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('product.config.agentCard')}</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-gray-600">名称</div>
+                  <div className="text-sm text-gray-600">{t('common.name')}</div>
                   <div className="font-medium">{agentCard.name}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-600">版本</div>
+                  <div className="text-sm text-gray-600">{t('product.config.version')}</div>
                   <div className="font-medium">{agentCard.version}</div>
                 </div>
               </div>
 
               {agentCard.protocolVersion && (
                 <div>
-                  <div className="text-sm text-gray-600">协议版本</div>
+                  <div className="text-sm text-gray-600">{t('product.config.protocolVersion')}</div>
                   <div className="font-mono text-sm">{agentCard.protocolVersion}</div>
                 </div>
               )}
 
               {agentCard.description && (
                 <div>
-                  <div className="text-sm text-gray-600">描述</div>
+                  <div className="text-sm text-gray-600">{t('common.description')}</div>
                   <div>{agentCard.description}</div>
                 </div>
               )}
@@ -190,14 +192,16 @@ export function AgentApiConfigPanel({
 
               {agentCard.preferredTransport && (
                 <div>
-                  <div className="text-sm text-gray-600">传输协议</div>
+                  <div className="text-sm text-gray-600">{t('product.config.transport')}</div>
                   <div>{agentCard.preferredTransport}</div>
                 </div>
               )}
 
               {agentCard.additionalInterfaces && agentCard.additionalInterfaces.length > 0 && (
                 <div>
-                  <div className="text-sm text-gray-600 mb-2">附加接口</div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    {t('product.config.additionalInterfaces')}
+                  </div>
                   <div className="space-y-2">
                     {agentCard.additionalInterfaces.map(
                       (iface: Record<string, unknown>, idx: number) => (
@@ -231,7 +235,7 @@ export function AgentApiConfigPanel({
 
               {agentCard.skills && agentCard.skills.length > 0 && (
                 <div>
-                  <div className="text-sm text-gray-600 mb-2">技能列表</div>
+                  <div className="text-sm text-gray-600 mb-2">{t('product.config.skills')}</div>
                   <div className="space-y-2">
                     {agentCard.skills.map((skill: Record<string, unknown>, idx: number) => (
                       <div className="border border-gray-200 rounded p-3" key={idx}>
@@ -261,7 +265,9 @@ export function AgentApiConfigPanel({
 
               {agentCard.capabilities && (
                 <div>
-                  <div className="text-sm text-gray-600 mb-2">能力</div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    {t('product.config.capabilities')}
+                  </div>
                   <pre className="bg-gray-50 p-3 rounded text-sm overflow-auto">
                     {JSON.stringify(agentCard.capabilities, null, 2)}
                   </pre>
@@ -273,13 +279,13 @@ export function AgentApiConfigPanel({
 
         {routes.length > 0 && (
           <div className={isA2A && agentCard ? 'border-t pt-4' : ''}>
-            <div className="text-sm text-gray-600 mb-3">路由配置:</div>
+            <div className="text-sm text-gray-600 mb-3">{t('product.config.routeConfig')}:</div>
 
             {agentDomainOptions.length > 1 && (
               <div className="mb-2">
                 <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
                   <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
-                    域名
+                    {t('common.domain')}
                   </div>
                   <div className="flex-1">
                     <Select
@@ -288,10 +294,10 @@ export function AgentApiConfigPanel({
                       labelRender={() => (
                         <div className="inline-flex max-w-full items-center gap-1.5">
                           <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                            {selectedAgentDomain?.label || '选择域名'}
+                            {selectedAgentDomain?.label || t('common.selectDomain')}
                           </span>
                           <Button
-                            aria-label="复制域名"
+                            aria-label={t('product.config.copyDomain')}
                             disabled={!selectedAgentDomain?.label}
                             icon={<CopyOutlined />}
                             onClick={(event) => {
@@ -300,14 +306,14 @@ export function AgentApiConfigPanel({
                             }}
                             onMouseDown={(event) => event.stopPropagation()}
                             size="small"
-                            title="复制域名"
+                            title={t('product.config.copyDomain')}
                             type="text"
                           />
                         </div>
                       )}
                       onChange={onDomainChange}
                       optionLabelProp="label"
-                      placeholder="选择域名"
+                      placeholder={t('common.selectDomain')}
                       size="middle"
                       style={{
                         fontSize: '12px',
@@ -344,9 +350,9 @@ export function AgentApiConfigPanel({
                             if (fullUrl) {
                               try {
                                 await copyToClipboard(fullUrl);
-                                message.success('链接已复制到剪贴板');
+                                message.success(t('product.config.copyUrlSuccess'));
                               } catch (_error) {
-                                message.error('复制失败');
+                                message.error(t('common.copyLinkFailed'));
                               }
                             }
                           }}
@@ -365,20 +371,22 @@ export function AgentApiConfigPanel({
                     <div className="pl-4 space-y-3">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <div className="text-xs text-gray-500">路径:</div>
+                          <div className="text-xs text-gray-500">{t('product.config.path')}:</div>
                           <div className="font-mono">
                             {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500">方法:</div>
+                          <div className="text-xs text-gray-500">{t('product.config.method')}:</div>
                           <div>{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
                         </div>
                       </div>
 
                       {route.match?.headers && route.match.headers.length > 0 && (
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            {t('product.config.headerMatch')}:
+                          </div>
                           <div className="space-y-1">
                             {route.match.headers.map(
                               (
@@ -397,7 +405,9 @@ export function AgentApiConfigPanel({
 
                       {route.match?.queryParams && route.match.queryParams.length > 0 && (
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            {t('product.config.queryMatch')}:
+                          </div>
                           <div className="space-y-1">
                             {route.match.queryParams.map(
                               (
@@ -415,7 +425,7 @@ export function AgentApiConfigPanel({
 
                       {route.description && (
                         <div>
-                          <div className="text-xs text-gray-500">描述:</div>
+                          <div className="text-xs text-gray-500">{t('common.description')}:</div>
                           <div className="text-sm">{route.description}</div>
                         </div>
                       )}

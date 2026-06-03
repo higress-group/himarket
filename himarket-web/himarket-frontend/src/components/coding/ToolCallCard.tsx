@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Mcp } from '../icon';
 import { DiffViewer } from './DiffViewer';
@@ -204,6 +205,7 @@ function DiffStatsDisplay({ content }: { content?: ToolCallContentItem[] }) {
 // ===== Main component =====
 
 export function ToolCallCard({ item, onClick, selected, variant = 'default' }: ToolCallCardProps) {
+  const { t } = useTranslation('coding');
   const isSkill = isSkillItem(item);
   const filePath = item.kind !== 'execute' && !isSkill ? getFilePath(item) : null;
   const fileName = filePath ? extractFileName(filePath) : null;
@@ -392,7 +394,11 @@ export function ToolCallCard({ item, onClick, selected, variant = 'default' }: T
               <span
                 className={`text-[11px] ${isFailed ? 'text-red-400' : inProgress ? 'text-violet-400' : 'text-gray-400'}`}
               >
-                {isFailed ? '技能执行失败' : inProgress ? '技能执行中...' : '技能已完成'}
+                {isFailed
+                  ? t('toolCall.skillFailed')
+                  : inProgress
+                    ? t('toolCall.skillRunning')
+                    : t('toolCall.skillCompleted')}
               </span>
             </div>
             <StatusBadge item={item} />
@@ -440,7 +446,7 @@ export function ToolCallCard({ item, onClick, selected, variant = 'default' }: T
       >
         <Eye className="text-gray-300 flex-shrink-0" size={13} />
         <span className="text-xs text-gray-400 truncate flex-1 min-w-0">
-          已查看 {fileName || item.title}
+          {t('toolCall.viewed', { name: fileName || item.title })}
         </span>
         <StatusBadge item={item} />
       </div>
@@ -543,7 +549,11 @@ export function ToolCallCard({ item, onClick, selected, variant = 'default' }: T
                   <span
                     className={`text-[11px] ${isFailed ? 'text-red-400' : inProgress ? 'text-blue-400' : 'text-gray-400'}`}
                   >
-                    {isFailed ? 'MCP 调用失败' : inProgress ? 'MCP 调用中...' : 'MCP 调用完成'}
+                    {isFailed
+                      ? t('toolCall.mcpFailed')
+                      : inProgress
+                        ? t('toolCall.mcpRunning')
+                        : t('toolCall.mcpCompleted')}
                   </span>
                 )}
               </div>
@@ -567,14 +577,14 @@ export function ToolCallCard({ item, onClick, selected, variant = 'default' }: T
               : CircleHelp;
     const label =
       item.kind === 'search'
-        ? '搜索'
+        ? t('toolCall.search')
         : item.kind === 'think'
-          ? '思考'
+          ? t('toolCall.think')
           : item.kind === 'fetch'
-            ? '抓取'
+            ? t('toolCall.fetch')
             : item.kind === 'switch_mode'
-              ? '切换模式'
-              : '操作';
+              ? t('toolCall.switchMode')
+              : t('toolCall.operation');
     return (
       <div
         className="flex items-center gap-2 px-1 py-1 cursor-pointer hover:opacity-70 transition-opacity"

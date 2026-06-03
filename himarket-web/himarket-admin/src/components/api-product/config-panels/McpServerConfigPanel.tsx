@@ -2,6 +2,7 @@ import { CopyOutlined } from '@ant-design/icons';
 import { Button, Card, Col, Collapse, Row, Select, Tabs } from 'antd';
 import { message } from 'antd';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { copyToClipboard } from '@/lib/utils';
 import type { ApiProduct } from '@/types/api-product';
 
@@ -29,6 +30,7 @@ export function McpServerConfigPanel({
   selectedDomainIndex,
   sseJson,
 }: McpServerConfigPanelProps) {
+  const { t } = useLocale();
   const selectedDomainOption = domainOptions[selectedDomainIndex];
 
   const handleCopySelectedDomain = async () => {
@@ -36,9 +38,9 @@ export function McpServerConfigPanel({
 
     try {
       await copyToClipboard(selectedDomainOption.label);
-      message.success('域名已复制到剪贴板');
+      message.success(t('common.domainCopied'));
     } catch {
-      message.error('复制失败，请手动复制');
+      message.error(t('common.copyFailed'));
     }
   };
 
@@ -51,9 +53,9 @@ export function McpServerConfigPanel({
           onClick={async () => {
             try {
               await copyToClipboard(json);
-              message.success('已复制到剪贴板');
+              message.success(t('common.copiedToClipboard'));
             } catch {
-              message.error('复制失败，请手动复制');
+              message.error(t('common.copyFailed'));
             }
           }}
           size="small"
@@ -96,7 +98,7 @@ export function McpServerConfigPanel({
   }
 
   return (
-    <Card title="配置详情">
+    <Card title={t('product.linkApi.configDetail')}>
       <Row gutter={24}>
         <Col span={15}>
           <Card>
@@ -125,7 +127,7 @@ export function McpServerConfigPanel({
                                       {tool.args && tool.args.length > 0 && (
                                         <div>
                                           <p className="font-medium text-gray-700 mb-3">
-                                            输入参数:
+                                            {t('product.config.inputParameters')}:
                                           </p>
                                           {tool.args.map((arg, argIdx) => (
                                             <div className="mb-3" key={argIdx}>
@@ -154,12 +156,12 @@ export function McpServerConfigPanel({
                                                     ? JSON.stringify(arg.default)
                                                     : ''
                                                 }
-                                                placeholder={arg.description || `请输入${arg.name}`}
+                                                placeholder={arg.description || arg.name}
                                                 type="text"
                                               />
                                               {arg.enum && (
                                                 <div className="text-xs text-gray-500">
-                                                  可选值:{' '}
+                                                  {t('product.config.enumValues')}:{' '}
                                                   {arg.enum.map((value) => (
                                                     <code className="mr-1" key={value}>
                                                       {value}
@@ -182,10 +184,12 @@ export function McpServerConfigPanel({
                         ))}
                       </div>
                     ) : (
-                      <div className="text-gray-500 text-center py-8">暂无工具</div>
+                      <div className="text-gray-500 text-center py-8">
+                        {t('product.config.noTools')}
+                      </div>
                     ),
                   key: 'tools',
-                  label: `工具列表（${parsedTools.length}）`,
+                  label: t('product.config.tools', { count: parsedTools.length }),
                 },
               ]}
             />
@@ -195,14 +199,14 @@ export function McpServerConfigPanel({
         <Col span={9}>
           <Card>
             <div className="mb-4">
-              <h3 className="text-sm font-semibold mb-3">连接点配置</h3>
+              <h3 className="text-sm font-semibold mb-3">{t('product.config.connectionConfig')}</h3>
 
               {apiProduct.mcpConfig?.mcpServerConfig?.domains &&
                 apiProduct.mcpConfig.mcpServerConfig.domains.length > 0 && (
                   <div className="mb-2">
                     <div className="flex border border-gray-200 rounded-md overflow-hidden">
                       <div className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
-                        域名
+                        {t('common.domain')}
                       </div>
                       <div className="flex-1 min-w-0">
                         <Select
@@ -210,10 +214,10 @@ export function McpServerConfigPanel({
                           labelRender={() => (
                             <div className="inline-flex max-w-full items-center gap-1.5">
                               <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                                {selectedDomainOption?.label || '选择域名'}
+                                {selectedDomainOption?.label || t('common.selectDomain')}
                               </span>
                               <Button
-                                aria-label="复制域名"
+                                aria-label={t('product.config.copyDomain')}
                                 disabled={!selectedDomainOption?.label}
                                 icon={<CopyOutlined />}
                                 onClick={(event) => {
@@ -222,14 +226,14 @@ export function McpServerConfigPanel({
                                 }}
                                 onMouseDown={(event) => event.stopPropagation()}
                                 size="small"
-                                title="复制域名"
+                                title={t('product.config.copyDomain')}
                                 type="text"
                               />
                             </div>
                           )}
                           onChange={onDomainChange}
                           optionLabelProp="label"
-                          placeholder="选择域名"
+                          placeholder={t('common.selectDomain')}
                           size="middle"
                           style={{
                             fontSize: '12px',

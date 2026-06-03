@@ -1,6 +1,7 @@
 import { Card, Form, Switch, Divider, message } from 'antd';
 import { useMemo } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { portalApi } from '@/lib/api';
 import type { Portal, ThirdPartyAuthConfig, OidcConfig, OAuth2Config } from '@/types';
 import { AuthenticationType } from '@/types';
@@ -13,6 +14,7 @@ interface PortalSecurityProps {
 }
 
 export function PortalSecurity({ onRefresh, portal }: PortalSecurityProps) {
+  const { t } = useLocale();
   const [form] = Form.useForm();
 
   const handleSave = async () => {
@@ -34,10 +36,10 @@ export function PortalSecurity({ onRefresh, portal }: PortalSecurityProps) {
         portalUiConfig: portal.portalUiConfig,
       });
 
-      message.success('安全设置保存成功');
+      message.success(t('portal.security.saveSuccess'));
       onRefresh?.();
     } catch (_error) {
-      message.error('保存安全设置失败');
+      message.error(t('portal.security.saveFailed'));
     }
   };
 
@@ -122,8 +124,8 @@ export function PortalSecurity({ onRefresh, portal }: PortalSecurityProps) {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-2">Portal安全配置</h1>
-        <p className="text-gray-600">配置Portal的认证与审批方式</p>
+        <h1 className="text-2xl font-bold mb-2">{t('portal.security.title')}</h1>
+        <p className="text-gray-600">{t('portal.security.description')}</p>
       </div>
 
       <Form
@@ -140,22 +142,26 @@ export function PortalSecurity({ onRefresh, portal }: PortalSecurityProps) {
         <Card>
           <div className="space-y-6">
             {/* 基本安全配置标题 */}
-            <h3 className="text-lg font-medium">基本安全配置</h3>
+            <h3 className="text-lg font-medium">{t('portal.security.basic')}</h3>
 
             {/* 基本安全设置内容 */}
             <div className="grid grid-cols-2 gap-6">
-              <Form.Item label="账号密码登录" name="builtinAuthEnabled" valuePropName="checked">
+              <Form.Item
+                label={t('portal.security.accountLogin')}
+                name="builtinAuthEnabled"
+                valuePropName="checked"
+              >
                 <Switch onChange={() => handleSettingUpdate()} />
               </Form.Item>
               <Form.Item
-                label="开发者自动审批"
+                label={t('portal.security.developerApproval')}
                 name="autoApproveDevelopers"
                 valuePropName="checked"
               >
                 <Switch onChange={() => handleSettingUpdate()} />
               </Form.Item>
               <Form.Item
-                label="订阅自动审批"
+                label={t('portal.security.subscriptionApproval')}
                 name="autoApproveSubscriptions"
                 valuePropName="checked"
               >

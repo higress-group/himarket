@@ -2,6 +2,7 @@ import { message } from 'antd';
 import hljs from 'highlight.js';
 import { Download, FileBox, Loader2, RefreshCw, Copy, WrapText, Check } from 'lucide-react';
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import 'highlight.js/styles/github.css';
 import { ImageRenderer } from './renderers/ImageRenderer';
@@ -84,6 +85,7 @@ function escapeHtml(text: string): string {
 // ===== PDF Preview =====
 
 function PdfPreview({ file }: { file: OpenFile }) {
+  const { t } = useTranslation('coding');
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ function PdfPreview({ file }: { file: OpenFile }) {
         setBlobUrl(URL.createObjectURL(blob));
       })
       .catch((e: Error) => {
-        if (!cancelled) setError(e.message ?? 'PDF 加载失败');
+        if (!cancelled) setError(e.message ?? t('editor.pdfLoadFailed'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -122,20 +124,20 @@ function PdfPreview({ file }: { file: OpenFile }) {
         return null;
       });
     };
-  }, [file.path]);
+  }, [file.path, t]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-gray-400 text-sm gap-2">
         <Loader2 className="animate-spin" size={16} />
-        加载 PDF...
+        {t('editor.loadingPdf')}
       </div>
     );
   }
   if (error || !blobUrl) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-gray-400">
-        PDF 预览失败：{error ?? '未知错误'}
+        {t('editor.pdfPreviewFailed', { error: error ?? t('editor.unknownError') })}
       </div>
     );
   }
@@ -145,6 +147,7 @@ function PdfPreview({ file }: { file: OpenFile }) {
 // ===== Binary File Placeholder =====
 
 function BinaryFilePlaceholder({ file }: { file: OpenFile }) {
+  const { t } = useTranslation('coding');
   const ext = getExt(file.fileName);
   const label = EXT_LABELS[ext] ?? ext.toUpperCase();
   const handleDownload = () => downloadWorkspaceFile(file.path, file.fileName);
@@ -155,7 +158,7 @@ function BinaryFilePlaceholder({ file }: { file: OpenFile }) {
         <FileBox className="mx-auto text-gray-300" size={48} />
         <div>
           <div className="text-sm font-medium text-gray-700">{file.fileName}</div>
-          <div className="text-xs text-gray-400 mt-1">{label} 文件</div>
+          <div className="text-xs text-gray-400 mt-1">{t('editor.fileType', { type: label })}</div>
         </div>
         <button
           className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium
@@ -164,7 +167,7 @@ function BinaryFilePlaceholder({ file }: { file: OpenFile }) {
           onClick={handleDownload}
         >
           <Download size={14} />
-          下载文件
+          {t('editor.downloadFile')}
         </button>
       </div>
     </div>
@@ -259,6 +262,7 @@ function CodeHeader({
   onDownload: () => void;
   copySuccess: boolean;
 }) {
+  const { t } = useTranslation('coding');
   const btnCls =
     'w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors';
 
@@ -267,21 +271,25 @@ function CodeHeader({
       <span className="text-sm text-gray-600 font-medium truncate">{fileName}</span>
       <div className="flex items-center gap-0.5">
         {onRefresh && (
-          <button className={btnCls} onClick={onRefresh} title="刷新文件">
+          <button className={btnCls} onClick={onRefresh} title={t('editor.refreshFile')}>
             <RefreshCw size={14} />
           </button>
         )}
-        <button className={btnCls} onClick={onCopy} title={copySuccess ? '已复制' : '复制代码'}>
+        <button
+          className={btnCls}
+          onClick={onCopy}
+          title={copySuccess ? t('editor.copied') : t('editor.copyCode')}
+        >
           {copySuccess ? <Check className="text-green-500" size={14} /> : <Copy size={14} />}
         </button>
         <button
           className={`${btnCls} ${wordWrap ? 'text-blue-500 bg-blue-50' : ''}`}
           onClick={onToggleWrap}
-          title={wordWrap ? '取消换行' : '自动换行'}
+          title={wordWrap ? t('editor.disableWrap') : t('editor.enableWrap')}
         >
           <WrapText size={14} />
         </button>
-        <button className={btnCls} onClick={onDownload} title="下载文件">
+        <button className={btnCls} onClick={onDownload} title={t('editor.downloadFile')}>
           <Download size={14} />
         </button>
       </div>
@@ -292,6 +300,7 @@ function CodeHeader({
 // ===== Main Component =====
 
 export function EditorArea({ activeFilePath, onRefreshFile, openFiles }: EditorAreaProps) {
+  const { t } = useTranslation('coding');
   const [wordWrap, setWordWrap] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -302,12 +311,12 @@ export function EditorArea({ activeFilePath, onRefreshFile, openFiles }: EditorA
     try {
       await navigator.clipboard.writeText(activeFile.content);
       setCopySuccess(true);
-      message.success('已复制到剪贴板');
+      message.success(t('editor.copiedToClipboard'));
       setTimeout(() => setCopySuccess(false), 2000);
     } catch {
-      message.error('复制失败');
+      message.error(t('editor.copyFailed'));
     }
-  }, [activeFile]);
+  }, [activeFile, t]);
 
   const handleRefresh = useCallback(() => {
     if (activeFile && onRefreshFile) {
@@ -324,7 +333,7 @@ export function EditorArea({ activeFilePath, onRefreshFile, openFiles }: EditorA
   if (openFiles.length === 0 || !activeFile) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50/50 text-gray-400 text-sm">
-        从左侧文件树选择文件查看
+        {t('editor.selectFileHint')}
       </div>
     );
   }

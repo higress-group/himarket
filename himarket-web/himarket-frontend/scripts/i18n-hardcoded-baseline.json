@@ -1,0 +1,4 @@
+{
+  "allowed": [],
+  "description": "Known hardcoded Chinese candidates in developer portal source. The i18n scan fails only on candidates not listed here."
+}

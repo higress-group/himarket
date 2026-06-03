@@ -1,4 +1,5 @@
 import { AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ErrorMessageProps {
   code: number;
@@ -7,12 +8,14 @@ interface ErrorMessageProps {
 }
 
 export function ErrorMessage({ code, data, message }: ErrorMessageProps) {
+  const { t } = useTranslation('coding');
+
   return (
     <div className="rounded-lg border border-red-200 bg-red-50/80 px-4 py-3 text-sm" role="alert">
       <div className="flex items-start gap-2">
         <AlertCircle className="text-red-500 mt-0.5 shrink-0" size={16} />
         <div className="min-w-0">
-          <p className="font-medium text-red-700">错误 {code}</p>
+          <p className="font-medium text-red-700">{t('errorMessage.title', { code })}</p>
           <p className="mt-0.5 text-red-600">{message}</p>
           {data && Object.keys(data).length > 0 && (
             <dl className="mt-2 space-y-1 text-xs text-red-500">

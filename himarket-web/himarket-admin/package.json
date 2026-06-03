@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
+    "i18n:scan": "node scripts/scan-i18n-hardcoded.mjs",
+    "i18n:scan:fail": "node scripts/scan-i18n-hardcoded.mjs --fail",
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
     "preview": "vite preview",

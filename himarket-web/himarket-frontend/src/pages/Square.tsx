@@ -1,10 +1,4 @@
-import {
-  SearchOutlined,
-  DownloadOutlined,
-  FireOutlined,
-  ClockCircleOutlined,
-  FolderOutlined,
-} from '@ant-design/icons';
+import { SearchOutlined, DownloadOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { Input, message, Pagination } from 'antd';
 import dayjs from 'dayjs';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -19,33 +13,14 @@ import { LoginPrompt } from '../components/LoginPrompt';
 import BackToTopButton from '../components/scroll-to-top';
 import { CategoryMenu } from '../components/square/CategoryMenu';
 import { ModelCard } from '../components/square/ModelCard';
+import { ProductMarketLayout } from '../components/square/ProductMarketLayout';
 import { SkillCard } from '../components/square/SkillCard';
 import { WorkerCard } from '../components/square/WorkerCard';
 import APIs, { type ICategory } from '../lib/apis';
 import { getIconString } from '../lib/iconUtils';
+import { getProductCardTags } from '../lib/utils/productCardTags';
 
 import type { IProductDetail } from '../lib/apis/product';
-
-function SparkleStar({ className = 'w-5 h-5' }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M12 2C12.5 8 14 9.5 20 10C14 10.5 12.5 12 12 18C11.5 12 10 10.5 4 10C10 9.5 11.5 8 12 2Z"
-        fill="currentColor"
-      />
-      <path
-        d="M6 4C6.2 6.5 7 7.3 9.5 7.5C7 7.7 6.2 8.5 6 11C5.8 8.5 5 7.7 2.5 7.5C5 7.3 5.8 6.5 6 4Z"
-        fill="currentColor"
-        opacity="0.6"
-      />
-      <path
-        d="M18 14C18.2 16.5 19 17.3 21.5 17.5C19 17.7 18.2 18.5 18 21C17.8 18.5 17 17.7 14.5 17.5C17 17.3 17.8 16.5 18 14Z"
-        fill="currentColor"
-        opacity="0.6"
-      />
-    </svg>
-  );
-}
 
 function Square(props: { activeType: string }) {
   const { activeType } = props;
@@ -185,26 +160,26 @@ function Square(props: { activeType: string }) {
       case 'MCP_SERVER':
         return {
           enLabel: 'Model Context Protocol',
-          slogan: '基于 MCP 协议的标准化工具服务，即插即用扩展 AI 能力边界',
-          title: 'MCP 市场',
+          slogan: t('mcpMarketSlogan'),
+          title: t('mcpMarketTitle'),
         };
       case 'AGENT_API':
         return {
           enLabel: 'Autonomous AI Agent',
-          slogan: '可编排的智能体服务，让 AI 自主理解并执行复杂任务',
-          title: 'Agent 市场',
+          slogan: t('agentMarketSlogan'),
+          title: t('agentMarketTitle'),
         };
       case 'MODEL_API':
         return {
           enLabel: 'Large Language Model',
-          slogan: '一键接入主流大模型，按需调用顶尖 AI 推理能力',
-          title: 'Model 市场',
+          slogan: t('modelMarketSlogan'),
+          title: t('modelMarketTitle'),
         };
       case 'REST_API':
         return {
           enLabel: 'RESTful API',
-          slogan: '标准化 REST API 集合，快速构建应用数据底座',
-          title: 'API 市场',
+          slogan: t('apiMarketSlogan'),
+          title: t('apiMarketTitle'),
         };
       case 'AGENT_SKILL':
         return { subtitleKey: 'skillMarketSubtitle', title: t('skillMarketTitle') };
@@ -228,6 +203,11 @@ function Square(props: { activeType: string }) {
       default:
         return '';
     }
+  };
+
+  const getUpdatedAtLabel = (product: IProductDetail) => {
+    const updatedAt = product.updatedAt || product.createAt;
+    return `${t('updatedAt')} ${dayjs(updatedAt).format('YYYY-MM-DD')}`;
   };
 
   const handleViewDetail = (product: IProductDetail) => {
@@ -282,12 +262,13 @@ function Square(props: { activeType: string }) {
       />
     ) : (
       <ModelCard
-        description={product.description}
+        description={product.description || t('noDescription')}
         icon={getIconString(product.icon, product.name)}
         key={product.productId}
         name={product.name}
         onClick={() => handleViewDetail(product)}
-        releaseDate={dayjs(product.createAt).format('YYYY-MM-DD HH:mm:ss')}
+        tags={getProductCardTags(product, t)}
+        updatedAt={getUpdatedAtLabel(product)}
       />
     ),
   );
@@ -313,162 +294,37 @@ function Square(props: { activeType: string }) {
       >
         {useNewLayout ? (
           // 产品市场列表：MCP / Agent / Model / API
-          <div className="flex w-full flex-1 flex-col px-4 pt-4 pb-4">
-            {slogan && slogan.enLabel && slogan.slogan && (
-              <div className="pb-4">
-                <div className="relative px-1 py-2">
-                  {watermarkLabel && (
-                    <div className="pointer-events-none text-[72px] font-extrabold leading-none text-colorPrimary/[0.1]">
-                      {watermarkLabel}
-                    </div>
-                  )}
-                  <h1 className="sr-only">{slogan.title}</h1>
-                  <p className="sr-only">{slogan.slogan}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-1 flex-col gap-6 md:flex-row">
-              <aside className="w-full flex-shrink-0 self-start rounded-xl border border-white/70 bg-white/55 p-3 shadow-[0_8px_28px_rgba(99,102,241,0.05)] backdrop-blur-sm md:w-[15.5rem]">
-                <span className="mb-3 inline-block rounded-md bg-colorPrimaryBg px-2.5 py-1 text-xs font-semibold tracking-wide text-colorPrimary md:mb-3">
-                  分类
-                </span>
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide md:flex-col md:overflow-visible">
-                  {categoriesLoading
-                    ? Array.from({ length: 5 }).map((_, i) => (
-                        <div
-                          className="mx-1 h-10 flex-shrink-0 animate-pulse rounded-lg bg-gray-200/70"
-                          key={i}
-                          style={{ width: `${100 + i * 10}px` }}
-                        />
-                      ))
-                    : categories.map((category) => {
-                        const isActive = category.id === activeCategory;
-                        return (
-                          <button
-                            className={`flex flex-shrink-0 items-center gap-3 rounded-[10px] border px-3 py-2.5 text-left transition-all duration-200 md:w-full ${
-                              isActive
-                                ? 'border-colorPrimary/20 bg-white text-colorPrimary shadow-sm'
-                                : 'border-transparent bg-white/55 text-gray-700 hover:border-gray-200 hover:bg-white hover:shadow-sm'
-                            }`}
-                            key={category.id}
-                            onClick={() => {
-                              setActiveCategory(category.id);
-                              setCurrentPage(1);
-                            }}
-                            type="button"
-                          >
-                            <div
-                              className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md ${
-                                isActive
-                                  ? 'bg-colorPrimary text-white'
-                                  : 'border border-gray-200 bg-white text-gray-500'
-                              }`}
-                            >
-                              <FolderOutlined className="text-sm" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div
-                                className={`truncate text-sm font-semibold ${
-                                  isActive ? 'text-colorPrimary' : 'text-gray-700'
-                                }`}
-                              >
-                                {category.name}
-                              </div>
-                            </div>
-                            {isActive && (
-                              <div className="flex-shrink-0 text-colorPrimary">
-                                <SparkleStar className="h-5 w-5" />
-                              </div>
-                            )}
-                            {!isActive && category.count > 0 && (
-                              <span className="flex-shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                                {category.count}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                </div>
-              </aside>
-
-              <div className="flex-1 min-w-0 flex flex-col">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="w-full sm:max-w-[420px]">
-                    <Input
-                      className="rounded-[10px] bg-white/80 backdrop-blur-sm"
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      onPressEnter={handleSearch}
-                      placeholder={t('searchPlaceholder')}
-                      prefix={<SearchOutlined className="text-gray-400" />}
-                      size="large"
-                      value={searchQuery}
-                    />
-                  </div>
-
-                  <div className="inline-flex w-fit items-center overflow-hidden rounded-[10px] border border-[#D6DEEA] bg-white shadow-[0_8px_24px_rgba(74,85,120,0.18)] p-[2px] gap-[2px]">
-                    {[
-                      {
-                        icon: <FireOutlined />,
-                        label: t('sortMostDownloads'),
-                        value: 'DOWNLOAD_COUNT',
-                      },
-                      {
-                        icon: <ClockCircleOutlined />,
-                        label: t('sortRecentlyUpdated'),
-                        value: 'UPDATED_AT',
-                      },
-                    ].map((option) => (
-                      <button
-                        className={`
-                          flex h-9 items-center gap-1 rounded-[8px] px-3 text-xs font-medium
-                          transition-all duration-200 ease-out
-                          ${
-                            sortBy === option.value
-                              ? 'bg-colorPrimary text-white'
-                              : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                          }
-                        `}
-                        key={option.value}
-                        onClick={() => {
-                          setSortBy(option.value);
-                          setCurrentPage(1);
-                        }}
-                        type="button"
-                      >
-                        <span
-                          className={`text-xs transition-colors duration-200 ${
-                            sortBy === option.value ? 'text-white' : 'text-gray-500'
-                          }`}
-                        >
-                          {option.icon}
-                        </span>
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex-1">
-                  {loading ? (
-                    <CardGridSkeleton count={8} />
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 animate-in fade-in duration-300">
-                        {productCards}
-                        {!loading && filteredModels.length === 0 && (
-                          <EmptyState className="col-span-full" description="暂无数据" />
-                        )}
-                      </div>
-                      {paginationSection}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProductMarketLayout
+            activeCategory={activeCategory}
+            categories={categories}
+            categoriesLoading={categoriesLoading}
+            categoryLabel={t('category')}
+            emptyLabel={t('emptyData')}
+            hasProducts={filteredModels.length > 0}
+            loading={loading}
+            onCategorySelect={(categoryId) => {
+              setActiveCategory(categoryId);
+              setCurrentPage(1);
+            }}
+            onSearch={handleSearch}
+            onSearchChange={handleSearchChange}
+            onSortChange={(nextSortBy) => {
+              setSortBy(nextSortBy);
+              setCurrentPage(1);
+            }}
+            pagination={paginationSection}
+            productCards={productCards}
+            searchPlaceholder={t('searchPlaceholder')}
+            searchQuery={searchQuery}
+            slogan={slogan?.slogan}
+            sortBy={sortBy}
+            sortMostDownloadsLabel={t('sortMostDownloads')}
+            sortRecentlyUpdatedLabel={t('sortRecentlyUpdated')}
+            title={slogan?.title}
+            watermarkLabel={watermarkLabel}
+          />
         ) : (
-          // 旧设计：Skill / Worker / REST_API（完全保持原始版本）
+          // 旧设计：Skill / Worker（完全保持原始版本）
           <>
             {/* 引导语 */}
             {slogan && slogan.subtitleKey && (
@@ -582,7 +438,7 @@ function Square(props: { activeType: string }) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
                       {productCards}
                       {!loading && filteredModels.length === 0 && (
-                        <EmptyState className="col-span-full" description="暂无数据" />
+                        <EmptyState className="col-span-full" description={t('emptyData')} />
                       )}
                     </div>
                     {paginationSection}

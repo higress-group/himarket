@@ -1,6 +1,7 @@
 import { CopyOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Empty, Input, Segmented, Select, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { copyToClipboard, parseOpenAPISpec } from '../lib/utils';
 
@@ -340,6 +341,7 @@ function getBodyDisplay(entry: ContentEntry, parsed: ParsedOpenAPI): BodyDisplay
 }
 
 function BodyPreview({ display }: { display: BodyDisplay }) {
+  const { t } = useTranslation('apiDetail');
   const defaultMode: BodyPreviewMode = display.schema ? 'schema' : 'example';
   const [activeMode, setActiveMode] = useState<BodyPreviewMode>(defaultMode);
 
@@ -348,17 +350,17 @@ function BodyPreview({ display }: { display: BodyDisplay }) {
   }, [defaultMode, display.example, display.schema]);
 
   const activeValue = activeMode === 'schema' ? display.schema : display.example;
-  const emptyText = activeMode === 'schema' ? '暂无 Schema' : '暂无 Example';
-  const copyLabel = activeMode === 'schema' ? '复制 Schema' : '复制 Example';
+  const emptyText = activeMode === 'schema' ? t('restDocs.noSchema') : t('restDocs.noExample');
+  const copyLabel = activeMode === 'schema' ? t('restDocs.copySchema') : t('restDocs.copyExample');
 
   const handleCopyActiveValue = async () => {
     if (!activeValue) return;
 
     try {
       await copyToClipboard(activeValue);
-      message.success('已复制到剪贴板', 1);
+      message.success(t('messages.copied'), 1);
     } catch {
-      message.error('复制失败，请手动复制');
+      message.error(t('messages.copyFailed'));
     }
   };
 
@@ -409,6 +411,7 @@ function buildEndpoints(parsed: ParsedOpenAPI | null): EndpointView[] {
 }
 
 export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewerProps) {
+  const { t } = useTranslation('apiDetail');
   const parsed = useMemo(() => parseOpenAPISpec(apiSpec), [apiSpec]);
   const endpoints = useMemo(() => buildEndpoints(parsed), [parsed]);
   const [selectedEndpointKey, setSelectedEndpointKey] = useState<string>();
@@ -458,9 +461,9 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
   const handleCopyServer = async (serverUrl: string) => {
     try {
       await copyToClipboard(serverUrl);
-      message.success('服务器地址已复制到剪贴板', 1);
+      message.success(t('messages.serverCopied'), 1);
     } catch {
-      message.error('复制失败，请手动复制');
+      message.error(t('messages.copyFailed'));
     }
   };
 
@@ -477,7 +480,7 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
   if (!parsed) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white py-12">
-        <Empty description="无法解析OpenAPI规范，请检查API配置格式是否正确" />
+        <Empty description={t('restDocs.parseFailed')} />
       </div>
     );
   }
@@ -485,7 +488,7 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
   if (endpoints.length === 0) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white py-12">
-        <Empty description="OpenAPI规范中暂无接口定义" />
+        <Empty description={t('restDocs.noEndpoints')} />
       </div>
     );
   }
@@ -503,10 +506,10 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
               labelRender={() => (
                 <div className="inline-flex max-w-full items-center gap-1.5">
                   <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                    {selectedServer?.url || '选择 Server'}
+                    {selectedServer?.url || t('restDocs.selectServer')}
                   </span>
                   <Button
-                    aria-label="复制服务器地址"
+                    aria-label={t('restDocs.copyServerAddress')}
                     disabled={!selectedServer?.url}
                     icon={<CopyOutlined />}
                     onClick={(event) => {
@@ -517,14 +520,14 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                     }}
                     onMouseDown={(event) => event.stopPropagation()}
                     size="small"
-                    title="复制服务器地址"
+                    title={t('restDocs.copyServerAddress')}
                     type="text"
                   />
                 </div>
               )}
               onChange={setSelectedServerIndex}
               optionLabelProp="label"
-              placeholder="选择 Server"
+              placeholder={t('restDocs.selectServer')}
               size="middle"
               style={{
                 fontSize: '12px',
@@ -548,7 +551,7 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
         </div>
       ) : (
         <div className="rounded-md border border-dashed border-gray-200 bg-slate-50 px-4 py-3 text-sm text-gray-500">
-          OpenAPI 文档未声明 servers
+          {t('restDocs.noServers')}
         </div>
       )}
 
@@ -556,14 +559,16 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
         <aside className="overflow-hidden rounded-xl border border-gray-200 bg-white">
           <div className="border-b border-gray-100 bg-slate-50 p-4">
             <div>
-              <h3 className="m-0 text-base font-semibold text-gray-900">接口列表</h3>
-              <p className="m-0 mt-1 text-xs text-gray-500">点击接口查看详情</p>
+              <h3 className="m-0 text-base font-semibold text-gray-900">
+                {t('restDocs.endpointList')}
+              </h3>
+              <p className="m-0 mt-1 text-xs text-gray-500">{t('restDocs.endpointHint')}</p>
             </div>
             <div className="mt-4">
               <Input
                 allowClear
                 onChange={(event) => setSearchText(event.target.value)}
-                placeholder="搜索路径、描述、operationId"
+                placeholder={t('restDocs.searchPlaceholder')}
                 prefix={<SearchOutlined className="text-gray-400" />}
                 value={searchText}
               />
@@ -593,7 +598,10 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                       </span>
                     </div>
                     <div className="mt-2 line-clamp-2 text-xs leading-5 text-gray-600">
-                      {endpoint.summary || endpoint.description || endpoint.operationId || '无描述'}
+                      {endpoint.summary ||
+                        endpoint.description ||
+                        endpoint.operationId ||
+                        t('restDocs.noDescription')}
                     </div>
                   </button>
                 );
@@ -601,7 +609,7 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
             ) : (
               <Empty
                 className="py-10"
-                description="没有匹配的接口"
+                description={t('restDocs.noMatchedEndpoints')}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             )}
@@ -629,7 +637,7 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                       operationId: {selectedEndpoint.operationId}
                     </span>
                   )}
-                  {(selectedEndpoint.tags || ['接口列表']).map((tag) => (
+                  {(selectedEndpoint.tags || [t('restDocs.endpointList')]).map((tag) => (
                     <span
                       className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600"
                       key={tag}
@@ -646,8 +654,8 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                     Parameters
                   </div>
                   {selectedEndpoint.parameters && selectedEndpoint.parameters.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-sm">
+                    <div className="max-w-full overflow-x-auto">
+                      <table className="min-w-[620px] w-full text-left text-sm">
                         <thead className="bg-slate-50 text-xs text-gray-500">
                           <tr>
                             <th className="px-4 py-3 font-semibold">Name</th>
@@ -679,7 +687,9 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                       </table>
                     </div>
                   ) : (
-                    <div className="px-4 py-8 text-center text-sm text-gray-500">暂无参数</div>
+                    <div className="px-4 py-8 text-center text-sm text-gray-500">
+                      {t('restDocs.noParameters')}
+                    </div>
                   )}
                 </div>
 
@@ -715,7 +725,9 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                       })}
                     </div>
                   ) : (
-                    <div className="px-4 py-8 text-center text-sm text-gray-500">暂无请求体</div>
+                    <div className="px-4 py-8 text-center text-sm text-gray-500">
+                      {t('restDocs.noRequestBody')}
+                    </div>
                   )}
                 </div>
 
@@ -725,8 +737,8 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                   </div>
                   {responseRows.length > 0 ? (
                     <div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
+                      <div className="max-w-full overflow-x-auto">
+                        <table className="min-w-[520px] w-full text-left text-sm">
                           <thead className="bg-slate-50 text-xs text-gray-500">
                             <tr>
                               <th className="px-4 py-3 font-semibold">Code</th>
@@ -783,13 +795,15 @@ export function RestApiDocsViewer({ apiSpec, onExampleChange }: RestApiDocsViewe
                       </div>
                     </div>
                   ) : (
-                    <div className="px-4 py-8 text-center text-sm text-gray-500">暂无响应定义</div>
+                    <div className="px-4 py-8 text-center text-sm text-gray-500">
+                      {t('restDocs.noResponses')}
+                    </div>
                   )}
                 </div>
               </div>
             </>
           ) : (
-            <Empty className="py-16" description="请选择一个接口" />
+            <Empty className="py-16" description={t('restDocs.selectEndpoint')} />
           )}
         </section>
       </div>

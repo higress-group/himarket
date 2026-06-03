@@ -1,5 +1,6 @@
-import { Modal, Checkbox, Spin } from 'antd';
+import { Button, Checkbox, Modal, Spin } from 'antd';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ProductIconRenderer } from '../icon/ProductIconRenderer';
 
@@ -22,6 +23,7 @@ export function MultiModelSelector({
   onCancel,
   onConfirm,
 }: MultiModelSelectorProps) {
+  const { t } = useTranslation('chat');
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   // 过滤掉已排除的模型
@@ -59,58 +61,66 @@ export function MultiModelSelector({
 
   // 计算还能选择多少个
   const maxSelectable = 3 - excludeModels.length;
+  const baseModelIds = excludeModels.length > 0 ? excludeModels : [currentModelId];
 
   return (
     <Modal
-      cancelButtonProps={{
-        className: 'rounded-lg',
-      }}
-      cancelText="取消"
       className="multi-model-selector-modal"
-      okButtonProps={{
-        className: 'rounded-lg',
-        disabled: selectedModels.length < 1,
-      }}
-      okText="开始对比"
+      footer={null}
       onCancel={onCancel}
-      onOk={handleConfirm}
       open={true}
       styles={{
         body: {
-          borderRadius: '10px',
+          borderRadius: 16,
           overflow: 'hidden',
+          paddingTop: 14,
         },
       }}
-      title="选择对比模型"
-      width={600}
+      title={t('multiModel.title')}
+      width={700}
     >
-      <div className="py-4">
-        <div className="mb-4 text-sm text-gray-500">
-          {excludeModels.length > 0 ? (
-            <>
-              已选模型：
-              <span className="font-medium text-colorPrimary">
-                {excludeModels.map((id) => getModelName(id)).join('、')}
-              </span>{' '}
-              | 再选择 1-{maxSelectable} 个模型（已选 {selectedModels.length}/{maxSelectable}）
-            </>
-          ) : (
-            <>
-              当前模型：
-              <span className="font-medium text-colorPrimary">
-                {getModelName(currentModelId)}
-              </span>{' '}
-              | 再选择 1-2 个模型（已选 {selectedModels.length}/2）
-            </>
-          )}
+      <div className="pb-1">
+        <div className="mb-4 rounded-[16px] bg-[#F7F9FC] p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="mb-2 text-xs font-medium text-gray-400">
+                {t('multiModel.baseModels')}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {baseModelIds.map((modelId) => (
+                  <span
+                    className="max-w-[220px] truncate rounded-[10px] border border-[#E1E8F2] bg-white px-3 py-1.5 text-sm font-medium text-gray-800"
+                    key={modelId}
+                  >
+                    {getModelName(modelId)}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex-shrink-0 rounded-[12px] bg-white px-3.5 py-2 text-sm font-medium text-gray-500 shadow-[0_6px_18px_rgba(37,56,88,0.045)]">
+              <span className="text-colorPrimary">{selectedModels.length}</span>
+              <span className="mx-1 text-gray-300">/</span>
+              <span>{maxSelectable}</span>
+            </div>
+          </div>
+          <div className="mt-3 text-sm text-gray-500">
+            {excludeModels.length > 0
+              ? maxSelectable === 1
+                ? t('multiModel.selectOne', { current: selectedModels.length })
+                : t('multiModel.selectMore', {
+                    current: selectedModels.length,
+                    max: maxSelectable,
+                  })
+              : t('multiModel.selectMoreDefault', { current: selectedModels.length })}
+          </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Spin size="large" tip="加载模型列表..." />
+            <Spin size="large" tip={t('multiModel.loadingModels')} />
           </div>
         ) : (
-          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
             {availableModels.map((model) => {
               const isCurrentModel =
                 model.productId === currentModelId && excludeModels.length === 0;
@@ -121,15 +131,15 @@ export function MultiModelSelector({
               return (
                 <button
                   className={`
-                    px-4 py-3 rounded-[10px] border transition-all duration-200 w-full text-left
+                    flex w-full items-center gap-3.5 rounded-[14px] border px-4 py-3 text-left transition-all duration-200 active:scale-[0.99]
                     ${
                       isCurrentModel
-                        ? 'bg-colorPrimary/5 border-colorPrimary/30 cursor-default'
+                        ? 'cursor-default border-colorPrimary/25 bg-[#F8FAFF]'
                         : isSelected
-                          ? 'bg-colorPrimary/10 border-colorPrimary shadow-sm '
+                          ? 'border-colorPrimary/45 bg-[#F6F7FF]'
                           : isDisabled
-                            ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
-                            : 'bg-white border-gray-200 hover:border-colorPrimary/50 hover:bg-colorPrimaryBgHover cursor-pointer hover:shadow-sm'
+                            ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60'
+                            : 'cursor-pointer border-[#DDE5F0] bg-white hover:border-colorPrimary/35 hover:bg-[#FAFBFF]'
                     }
                   `}
                   disabled={isDisabled}
@@ -137,10 +147,21 @@ export function MultiModelSelector({
                   onClick={() => !isDisabled && handleToggleModel(model.productId)}
                   type="button"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] border border-[#E6ECF4] bg-[#F8FAFC]">
+                    <ProductIconRenderer className="h-6 w-6" iconType={model.icon?.value} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-0.5 truncate font-semibold text-gray-900">{model.name}</div>
+                    <p className="line-clamp-1 text-sm text-gray-500">
+                      {model.description || t('multiModel.noDescription')}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-shrink-0 items-center">
                     {isCurrentModel ? (
-                      <div className="px-2 py-0.5 text-xs text-colorPrimary font-medium bg-colorPrimary/10 rounded">
-                        当前
+                      <div className="rounded-[9px] bg-colorPrimary/10 px-2.5 py-1 text-xs font-medium text-colorPrimary">
+                        {t('multiModel.current')}
                       </div>
                     ) : (
                       <Checkbox
@@ -150,22 +171,39 @@ export function MultiModelSelector({
                         onClick={(e) => e.stopPropagation()}
                       />
                     )}
-
-                    <ProductIconRenderer className="w-6 h-6" iconType={model.icon?.value} />
-
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 mb-0.5">{model.name}</div>
-                      <p className="text-sm text-gray-500 line-clamp-1">{model.description}</p>
-                    </div>
                   </div>
                 </button>
               );
             })}
             {!loading && availableModels.length === 0 && (
-              <div className="text-center py-12 text-gray-400">暂无可选模型</div>
+              <div className="flex flex-col items-center justify-center rounded-[16px] border border-dashed border-[#DDE5F0] bg-[#F8FAFC] py-12 text-center text-gray-400">
+                {t('multiModel.noAvailableModels')}
+              </div>
             )}
           </div>
         )}
+
+        <div className="mt-5 flex items-center justify-between gap-3 border-t border-[#EEF2F7] pt-4">
+          <div className="text-sm text-gray-500">
+            {t('multiModel.selectedCount', {
+              current: selectedModels.length,
+              max: maxSelectable,
+            })}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button className="rounded-[10px]" onClick={onCancel}>
+              {t('multiModel.cancel')}
+            </Button>
+            <Button
+              className="rounded-[10px]"
+              disabled={selectedModels.length < 1}
+              onClick={handleConfirm}
+              type="primary"
+            >
+              {t('multiModel.startCompare')}
+            </Button>
+          </div>
+        </div>
       </div>
     </Modal>
   );

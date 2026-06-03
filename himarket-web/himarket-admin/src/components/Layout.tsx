@@ -1,11 +1,9 @@
 import {
   HomeOutlined,
   ProductOutlined,
-  DesktopOutlined,
   UserOutlined,
   MenuOutlined,
   CloudServerOutlined,
-  GatewayOutlined,
   CodeSandboxOutlined,
   TagsOutlined,
   BarChartOutlined,
@@ -14,27 +12,46 @@ import {
   RightOutlined,
   LockOutlined,
   LogoutOutlined,
+  GlobalOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, message, Tooltip } from 'antd';
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { useLocale } from '@/contexts/LocaleContext';
+
 import { AdminBrand } from './AdminBrand';
 import { ChangePasswordModal } from './ChangePasswordModal';
+import GatewayIcon from './icons/GatewayIcon';
+import NacosIcon from './icons/NacosIcon';
 import { authApi } from '../lib/api';
 import { isAuthenticated, removeToken } from '../lib/utils';
 
 interface NavigationItem {
   name: string;
-  cn: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  key: string;
   children?: NavigationItem[];
+}
+
+function SidebarIcon({ icon: Icon, level = 0 }: { icon: NavigationItem['icon']; level?: number }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center overflow-visible ${
+        level > 0 ? 'h-5 w-5 text-[14px]' : 'h-5 w-5 text-[16px]'
+      }`}
+    >
+      <Icon />
+    </span>
+  );
 }
 
 const Layout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { locale, setLocale, t } = useLocale();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -58,7 +75,7 @@ const Layout: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // 进入详情页自动折叠侧边栏
+    // 进入对象详情页自动折叠全局侧边栏，避免和详情页内部导航抢层级。
     const apiProductTypeRoutes = [
       'model-api',
       'mcp-server',
@@ -72,8 +89,10 @@ const Layout: React.FC = () => {
       apiProductMatch &&
       apiProductMatch[1] !== undefined &&
       !apiProductTypeRoutes.includes(apiProductMatch[1]);
+    const isPortalDetail = location.pathname.match(/^\/portals\/[^/]+$/);
+    const isCategoryDetail = location.pathname.match(/^\/product-categories\/[^/]+$/);
 
-    if (location.pathname.match(/^\/portals\/[^/]+$/) || isApiProductDetail) {
+    if (isPortalDetail || isApiProductDetail || isCategoryDetail) {
       setSidebarCollapsed(true);
     } else {
       setSidebarCollapsed(false);
@@ -81,54 +100,64 @@ const Layout: React.FC = () => {
   }, [location.pathname]);
 
   const navigation: NavigationItem[] = [
-    { cn: '门户', href: '/portals', icon: HomeOutlined, name: 'Portal' },
+    { href: '/portals', icon: HomeOutlined, key: 'portal', name: t('nav.portal') },
     {
-      cn: 'API产品',
       href: '/api-products/model-api',
       icon: ProductOutlined,
-      name: 'API Products',
+      key: 'api-products',
+      name: t('nav.apiProducts'),
     },
     {
-      cn: '产品类别',
       href: '/product-categories',
       icon: TagsOutlined,
-      name: 'Categories',
+      key: 'categories',
+      name: t('nav.categories'),
     },
     {
       children: [
-        { cn: 'Nacos实例', href: '/consoles/nacos', icon: DesktopOutlined, name: 'Nacos实例' },
-        { cn: '网关实例', href: '/consoles/gateway', icon: GatewayOutlined, name: '网关实例' },
         {
-          cn: 'Sandbox实例',
+          href: '/consoles/gateway',
+          icon: GatewayIcon,
+          key: 'gateway-instances',
+          name: t('nav.gatewayInstances'),
+        },
+        {
+          href: '/consoles/nacos',
+          icon: NacosIcon,
+          key: 'nacos-instances',
+          name: t('nav.nacosInstances'),
+        },
+        {
           href: '/consoles/sandbox',
           icon: CodeSandboxOutlined,
-          name: 'Sandbox实例',
+          key: 'sandbox-instances',
+          name: t('nav.sandboxInstances'),
         },
       ],
-      cn: '实例管理',
       href: '/consoles',
       icon: CloudServerOutlined,
-      name: '实例管理',
+      key: 'instances',
+      name: t('nav.instanceManagement'),
     },
     {
       children: [
         {
-          cn: '模型监控',
           href: '/observability/model-dashboard',
           icon: DashboardOutlined,
-          name: '模型监控',
+          key: 'model-monitor',
+          name: t('nav.modelMonitor'),
         },
         {
-          cn: 'MCP监控',
           href: '/observability/mcp-monitor',
           icon: MonitorOutlined,
-          name: 'MCP监控',
+          key: 'mcp-monitor',
+          name: t('nav.mcpMonitor'),
         },
       ],
-      cn: '观测分析',
       href: '/observability',
       icon: BarChartOutlined,
-      name: '观测分析',
+      key: 'observability',
+      name: t('nav.observability'),
     },
   ];
 
@@ -146,7 +175,7 @@ const Layout: React.FC = () => {
     setChangePasswordLoading(true);
     try {
       await authApi.changePassword(values);
-      message.success('密码修改成功，请重新登录', 1);
+      message.success(t('layout.passwordChanged'), 1);
       setChangePasswordOpen(false);
       handleLogout();
     } finally {
@@ -154,8 +183,23 @@ const Layout: React.FC = () => {
     }
   };
 
-  const toggleGroup = (name: string) => {
-    setCollapsedGroups((prev) => ({ ...prev, [name]: !prev[name] }));
+  const localeMenuItems = [
+    {
+      icon: locale === 'zh-CN' ? <CheckOutlined /> : <span className="w-[14px]" />,
+      key: 'locale-zh-CN',
+      label: t('language.zhCN'),
+      onClick: () => setLocale('zh-CN'),
+    },
+    {
+      icon: locale === 'en-US' ? <CheckOutlined /> : <span className="w-[14px]" />,
+      key: 'locale-en-US',
+      label: t('language.enUS'),
+      onClick: () => setLocale('en-US'),
+    },
+  ];
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const isMenuActive = (item: NavigationItem): boolean => {
@@ -173,10 +217,14 @@ const Layout: React.FC = () => {
   };
 
   const renderMenuItem = (item: NavigationItem, level: number = 0) => {
-    const Icon = item.icon;
     const isActive = isMenuActive(item);
     const hasChildren = item.children && item.children.length > 0;
-    const isGroupCollapsed = collapsedGroups[item.name] ?? false;
+    const isGroupCollapsed = collapsedGroups[item.key] ?? false;
+    const itemTone = isActive
+      ? hasChildren
+        ? 'bg-gray-50 text-gray-900 font-semibold'
+        : 'bg-gray-100 text-gray-950 font-semibold shadow-[inset_0_0_0_1px_rgba(17,24,39,0.04)]'
+      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-950';
 
     // 折叠状态：隐藏子菜单，图标居中，添加 Tooltip
     if (sidebarCollapsed) {
@@ -184,7 +232,7 @@ const Layout: React.FC = () => {
       if (hasChildren) {
         return (
           <Tooltip
-            key={item.name}
+            key={item.key}
             placement="right"
             title={
               <div className="flex flex-col">
@@ -195,7 +243,7 @@ const Layout: React.FC = () => {
                         ? 'text-white font-semibold'
                         : 'text-gray-300 hover:text-white'
                     }`}
-                    key={child.name}
+                    key={child.key}
                     to={child.href}
                   >
                     {child.name}
@@ -205,28 +253,20 @@ const Layout: React.FC = () => {
             }
           >
             <div
-              className={`flex items-center justify-center mt-2 p-3 rounded-lg transition-colors duration-150 cursor-pointer ${
-                isActive
-                  ? 'bg-gray-100 text-black'
-                  : 'text-gray-500 hover:text-black hover:bg-gray-50'
-              }`}
+              className={`flex h-11 cursor-pointer items-center justify-center rounded-lg transition-colors duration-150 ${itemTone}`}
             >
-              <Icon className="h-5 w-5" />
+              <SidebarIcon icon={item.icon} />
             </div>
           </Tooltip>
         );
       }
       return (
-        <Tooltip key={item.name} placement="right" title={item.cn || item.name}>
+        <Tooltip key={item.key} placement="right" title={item.name}>
           <Link
-            className={`flex items-center justify-center mt-2 p-3 rounded-lg transition-colors duration-150 ${
-              isActive
-                ? 'bg-gray-100 text-black'
-                : 'text-gray-500 hover:text-black hover:bg-gray-50'
-            }`}
+            className={`flex h-11 items-center justify-center rounded-lg transition-colors duration-150 ${itemTone}`}
             to={item.href}
           >
-            <Icon className="h-5 w-5" />
+            <SidebarIcon icon={item.icon} />
           </Link>
         </Tooltip>
       );
@@ -236,37 +276,37 @@ const Layout: React.FC = () => {
     // 分组项：可折叠
     if (hasChildren) {
       return (
-        <div key={item.name}>
+        <div className={level === 0 ? 'py-px' : undefined} key={item.key}>
           <div
-            className={`flex items-center mt-2 px-3 py-3 rounded-lg transition-colors duration-150 cursor-pointer ${
-              isActive
-                ? 'bg-gray-100 text-black font-semibold'
-                : 'text-gray-500 hover:text-black hover:bg-gray-50'
-            }`}
-            onClick={() => toggleGroup(item.name)}
+            className={`flex h-11 cursor-pointer items-center rounded-lg px-3.5 transition-colors duration-150 ${itemTone}`}
+            onClick={() => toggleGroup(item.key)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                toggleGroup(item.name);
+                toggleGroup(item.key);
               }
             }}
             role="button"
             tabIndex={0}
           >
-            <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-            <div className="flex flex-col flex-1">
-              <span className="text-base leading-none">{item.name}</span>
+            <SidebarIcon icon={item.icon} />
+            <div className="ml-3 flex flex-1 flex-col">
+              <span className="text-[15px] leading-none">{item.name}</span>
             </div>
             <RightOutlined
-              className={`text-xs transition-transform duration-200 ${isGroupCollapsed ? '' : 'rotate-90'}`}
+              className={`text-[11px] text-gray-400 transition-transform duration-200 ${
+                isGroupCollapsed ? '' : 'rotate-90'
+              }`}
             />
           </div>
           <div
-            className={`ml-2 overflow-hidden transition-all duration-200 ${
+            className={`mb-1.5 ml-[18px] mt-1 overflow-hidden border-l border-gray-100/80 pl-3 transition-all duration-200 ${
               isGroupCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-1'
             }`}
           >
-            {(item.children || []).map((child) => renderMenuItem(child, level + 1))}
+            <div className="space-y-1 py-0.5">
+              {(item.children || []).map((child) => renderMenuItem(child, level + 1))}
+            </div>
           </div>
         </div>
       );
@@ -274,20 +314,16 @@ const Layout: React.FC = () => {
 
     // 普通菜单项 / 子菜单项
     return (
-      <div key={item.name}>
+      <div className={level === 0 ? 'py-px' : undefined} key={item.key}>
         <Link
-          className={`flex items-center mt-2 px-3 py-3 rounded-lg transition-colors duration-150 ${
-            level > 0 ? 'ml-4' : ''
-          } ${
-            isActive
-              ? 'bg-gray-100 text-black font-semibold'
-              : 'text-gray-500 hover:text-black hover:bg-gray-50'
-          }`}
+          className={`flex items-center rounded-lg transition-colors duration-150 ${
+            level > 0 ? 'h-9 px-3 text-[14px]' : 'h-11 px-3.5 text-[15px]'
+          } ${itemTone}`}
           to={item.href}
         >
-          <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-          <div className="flex flex-col flex-1">
-            <span className="text-base leading-none">{item.name}</span>
+          <SidebarIcon icon={item.icon} level={level} />
+          <div className="ml-3 flex flex-1 flex-col">
+            <span className="leading-none">{item.name}</span>
           </div>
         </Link>
       </div>
@@ -311,14 +347,22 @@ const Layout: React.FC = () => {
         </div>
         {/* 顶部右侧用户信息或登录按钮 */}
         {isLoggedIn ? (
-          <>
+          <div className="flex items-center gap-2">
+            <Dropdown menu={{ items: localeMenuItems }} placement="bottomRight" trigger={['click']}>
+              <Button
+                className="rounded-full border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                icon={<GlobalOutlined />}
+              >
+                {t('layout.languageShort')}
+              </Button>
+            </Dropdown>
             <Dropdown
               menu={{
                 items: [
                   {
                     icon: <LockOutlined />,
                     key: 'change-password',
-                    label: '修改密码',
+                    label: t('layout.changePassword'),
                     onClick: () => setChangePasswordOpen(true),
                   },
                   {
@@ -327,7 +371,7 @@ const Layout: React.FC = () => {
                   {
                     icon: <LogoutOutlined />,
                     key: 'logout',
-                    label: '退出登录',
+                    label: t('layout.logout'),
                     onClick: handleLogout,
                   },
                 ],
@@ -348,24 +392,29 @@ const Layout: React.FC = () => {
               onSubmit={handleChangePassword}
               open={changePasswordOpen}
             />
-          </>
+          </div>
         ) : (
-          <button
-            className="flex items-center px-4 py-2 rounded bg-black text-white hover:bg-gray-800"
-            onClick={() => navigate('/login')}
-          >
-            <UserOutlined className="mr-2" /> 登录
-          </button>
+          <div className="flex items-center gap-2">
+            <Dropdown menu={{ items: localeMenuItems }} placement="bottomRight" trigger={['click']}>
+              <Button icon={<GlobalOutlined />}>{t('layout.languageShort')}</Button>
+            </Dropdown>
+            <button
+              className="flex items-center px-4 py-2 rounded bg-black text-white hover:bg-gray-800"
+              onClick={() => navigate('/login')}
+            >
+              <UserOutlined className="mr-2" /> {t('layout.login')}
+            </button>
+          </div>
         )}
       </header>
       <div className="flex">
         {/* 侧边栏 */}
         <aside
-          className={`bg-white border-r min-h-screen pt-8 transition-all duration-300 ${
-            sidebarCollapsed ? 'w-16' : 'w-64'
+          className={`min-h-screen border-r bg-white pt-8 transition-all duration-300 ${
+            sidebarCollapsed ? 'w-[72px]' : 'w-64'
           }`}
         >
-          <nav className="flex flex-col space-y-2 px-4">
+          <nav className={`flex flex-col gap-1 ${sidebarCollapsed ? 'px-3' : 'px-4'}`}>
             {navigation.map((item) => renderMenuItem(item))}
           </nav>
         </aside>

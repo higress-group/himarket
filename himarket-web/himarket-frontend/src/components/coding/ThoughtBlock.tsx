@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, Brain } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ThoughtBlockProps {
   text: string;
@@ -19,6 +20,7 @@ function formatDuration(ms: number): string {
 }
 
 export function ThoughtBlock({ streaming, text, variant = 'standalone' }: ThoughtBlockProps) {
+  const { t } = useTranslation('coding');
   const isInline = variant === 'inline';
 
   const { hasMore, preview } = useMemo(() => {
@@ -102,7 +104,7 @@ export function ThoughtBlock({ streaming, text, variant = 'standalone' }: Though
             size={12}
           />
           <span className={streaming ? 'text-purple-600 font-medium' : 'text-gray-400'}>
-            {streaming ? '思考中...' : '深度思考'}
+            {streaming ? t('thought.thinking') : t('thought.deepThinking')}
           </span>
           {streaming && (
             <span className="flex gap-0.5 ml-0.5">
@@ -159,7 +161,7 @@ export function ThoughtBlock({ streaming, text, variant = 'standalone' }: Though
           size={13}
         />
         <span className={streaming ? 'text-purple-600 font-medium' : 'text-gray-400'}>
-          {streaming ? '思考中...' : '深度思考'}
+          {streaming ? t('thought.thinking') : t('thought.deepThinking')}
         </span>
         {streaming && (
           <span className="flex gap-0.5 ml-1">

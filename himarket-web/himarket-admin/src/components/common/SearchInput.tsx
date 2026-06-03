@@ -20,7 +20,7 @@ export function SearchInput({
 }: SearchInputProps) {
   return (
     <div
-      className="flex items-center border border-gray-300 rounded-md overflow-hidden hover:border-blue-500 focus-within:border-blue-500 transition-colors"
+      className="flex items-center overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-colors hover:border-gray-300 focus-within:border-blue-400"
       style={{ width }}
     >
       <Input

@@ -1,5 +1,6 @@
 import { FileText, FileCode, Image, Loader2 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { FlatFileItem } from '../../lib/utils/fileTreeUtils';
 
@@ -50,6 +51,7 @@ function getFileIcon(extension?: string) {
 }
 
 export function FileMentionMenu({ files, filter, loading, onSelect }: FileMentionMenuProps) {
+  const { t } = useTranslation('coding');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -99,7 +101,7 @@ export function FileMentionMenu({ files, filter, loading, onSelect }: FileMentio
       >
         <div className="flex items-center gap-2 text-sm text-gray-400">
           <Loader2 className="animate-spin" size={14} />
-          <span>加载文件列表...</span>
+          <span>{t('fileMention.loading')}</span>
         </div>
       </div>
     );
@@ -111,7 +113,9 @@ export function FileMentionMenu({ files, filter, loading, onSelect }: FileMentio
         className="absolute bottom-full left-4 mb-1 w-80 rounded-[10px] border border-gray-200/80
                       bg-white/95 backdrop-blur-md shadow-lg px-3 py-2"
       >
-        <div className="text-sm text-gray-400">{filter ? '未找到匹配的文件' : '工作区无文件'}</div>
+        <div className="text-sm text-gray-400">
+          {filter ? t('fileMention.noMatchedFiles') : t('fileMention.noWorkspaceFiles')}
+        </div>
       </div>
     );
   }

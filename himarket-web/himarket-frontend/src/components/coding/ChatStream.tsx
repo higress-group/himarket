@@ -1,5 +1,6 @@
 import { MessageCircle, ArrowDown } from 'lucide-react';
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { groupMessages } from '@/lib/utils/groupMessages.ts';
 
@@ -38,6 +39,7 @@ export function ChatStream({
   onSandboxRetry,
   onSelectToolCall,
 }: ChatStreamProps) {
+  const { t } = useTranslation('coding');
   const quest = useActiveCodingSession();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -112,7 +114,7 @@ export function ChatStream({
               {outputs.length > 0 ? (
                 outputs.map((text, idx) => <TerminalOutput key={idx} text={text} />)
               ) : (
-                <div className="text-xs text-gray-400">终端输出暂不可用</div>
+                <div className="text-xs text-gray-400">{t('chatStream.terminalUnavailable')}</div>
               )}
             </InlineArtifact>,
           );
@@ -121,7 +123,7 @@ export function ChatStream({
 
       return blocks;
     },
-    [artifacts, onPreviewArtifact],
+    [artifacts, onPreviewArtifact, t],
   );
 
   // Track scroll position to determine if user is near bottom.
@@ -226,10 +228,10 @@ export function ChatStream({
     if (!isUserNearBottom.current) {
       const text =
         lastStopReason === 'cancelled'
-          ? '任务已停止'
+          ? t('chatStream.taskStopped')
           : lastStopReason === 'error'
-            ? '任务执行失败'
-            : '任务已完成';
+            ? t('chatStream.taskFailed')
+            : t('chatStream.taskCompleted');
       setCompletionToast(text);
       if (toastTimerRef.current) {
         clearTimeout(toastTimerRef.current);
@@ -243,14 +245,17 @@ export function ChatStream({
       if (document.hidden) {
         if (Notification.permission === 'granted') {
           void new Notification('HiWork', {
-            body: lastStopReason === 'error' ? '任务执行失败，请返回查看详情。' : '任务已完成。',
+            body:
+              lastStopReason === 'error'
+                ? t('chatStream.notificationFailed')
+                : t('chatStream.notificationCompleted'),
           });
         } else if (Notification.permission === 'default') {
           void Notification.requestPermission();
         }
       }
     }
-  }, [lastCompletedAt, lastStopReason]);
+  }, [lastCompletedAt, lastStopReason, t]);
 
   useEffect(() => {
     return () => {
@@ -279,12 +284,12 @@ export function ChatStream({
               {isLoading ? (
                 <>
                   <div className="mx-auto mb-3 w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-sm">正在恢复会话历史...</span>
+                  <span className="text-sm">{t('chatStream.restoringHistory')}</span>
                 </>
               ) : (
                 <>
                   <MessageCircle className="mx-auto mb-2 opacity-40" size={32} />
-                  <span className="text-sm">在下方输入消息开始对话</span>
+                  <span className="text-sm">{t('chatStream.startHint')}</span>
                 </>
               )}
             </div>
@@ -439,12 +444,12 @@ export function ChatStream({
                      text-xs text-blue-700 shadow-sm hover:bg-blue-100 transition-colors"
           onClick={scrollToBottom}
         >
-          {completionToast}，点击查看
+          {t('chatStream.toastView', { status: completionToast })}
         </button>
       )}
       {showScrollButton && (
         <button
-          aria-label="滚动到底部"
+          aria-label={t('chatStream.scrollToBottom')}
           className="absolute bottom-4 right-4 bg-gray-800/80 text-white rounded-full p-2 shadow-lg
                      hover:bg-gray-800 transition-all duration-200 backdrop-blur-sm"
           onClick={scrollToBottom}

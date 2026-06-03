@@ -3,6 +3,7 @@ import { Modal, Form, Select, Table, message, Space, Input, Button } from 'antd'
 import { useState, useEffect } from 'react';
 
 import { ImportResultModal, type ImportResultFailure } from '@/components/common/ImportResultModal';
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api';
 import type { Gateway } from '@/types/gateway';
 
@@ -61,13 +62,6 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
   WORKER: 'Worker',
 };
 
-const SOURCE_TYPE_LABELS: Record<SourceType, string> = {
-  AI_GATEWAY: 'AI网关',
-  API_GATEWAY: '网关',
-  HIGRESS: 'Higress网关',
-  NACOS: 'Nacos',
-};
-
 export default function ImportProductsModal({
   importSource,
   onCancel,
@@ -75,6 +69,7 @@ export default function ImportProductsModal({
   productType,
   visible,
 }: ImportProductsModalProps) {
+  const { t } = useLocale();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [servicesLoading, setServicesLoading] = useState(false);
@@ -94,6 +89,12 @@ export default function ImportProductsModal({
   const [tablePageSize, setTablePageSize] = useState<number>(10);
 
   const pageSize = 500;
+  const sourceTypeLabels: Record<SourceType, string> = {
+    AI_GATEWAY: t('product.import.source.aiGateway'),
+    API_GATEWAY: t('product.import.source.apiGateway'),
+    HIGRESS: t('product.import.source.higress'),
+    NACOS: t('product.import.source.nacos'),
+  };
 
   const supportsApiGateway = productType === 'REST_API' && importSource !== 'NACOS';
 
@@ -123,12 +124,14 @@ export default function ImportProductsModal({
   const showSourceTypeSelector =
     !importSource || (importSource === 'GATEWAY' && gatewaySourceTypes.length > 1);
 
+  const productTypeLabel = PRODUCT_TYPE_LABELS[productType] ?? productType;
+
   const modalTitle =
     importSource === 'GATEWAY'
-      ? `从网关导入 ${PRODUCT_TYPE_LABELS[productType]}`
+      ? t('product.import.gatewaySourceTitle', { type: productTypeLabel })
       : importSource === 'NACOS'
-        ? `从 Nacos 导入 ${PRODUCT_TYPE_LABELS[productType]}`
-        : `导入 ${PRODUCT_TYPE_LABELS[productType]}`;
+        ? t('product.import.nacosSourceTitle', { type: productTypeLabel })
+        : t('product.import.title', { type: productTypeLabel });
 
   const getDefaultSourceType = () => sourceTypeOptions[0] ?? 'API_GATEWAY';
 
@@ -185,7 +188,7 @@ export default function ImportProductsModal({
       setHigressGateways(higress);
       setAiGateways(aiGws);
     } catch (_error) {
-      message.error('获取网关列表失败');
+      message.error(t('product.import.fetchGatewaysFailed'));
     }
   };
 
@@ -196,7 +199,11 @@ export default function ImportProductsModal({
       setNacosInstances(instances);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
-      message.error(`获取 Nacos 列表失败: ${err.response?.data?.message || err.message}`);
+      message.error(
+        t('product.import.fetchNacosFailed', {
+          message: err.response?.data?.message || err.message || t('common.unknown'),
+        }),
+      );
       setNacosInstances([]);
     }
   };
@@ -214,7 +221,7 @@ export default function ImportProductsModal({
         form.setFieldValue('namespaceId', 'public');
       }
     } catch (_error) {
-      message.error('获取命名空间列表失败');
+      message.error(t('product.import.fetchNamespacesFailed'));
       setNamespaces([]);
     }
   };
@@ -223,12 +230,12 @@ export default function ImportProductsModal({
     const values = form.getFieldsValue();
 
     if (isGatewaySource && !values.gatewayId) {
-      message.warning('请先选择网关实例');
+      message.warning(t('product.import.selectGatewayFirst'));
       return;
     }
 
     if (sourceType === 'NACOS' && (!values.nacosId || !values.namespaceId)) {
-      message.warning('请先选择 Nacos 实例和命名空间');
+      message.warning(t('product.import.selectNacosNamespaceFirst'));
       return;
     }
 
@@ -319,7 +326,7 @@ export default function ImportProductsModal({
             }
             break;
           default:
-            message.error('该产品类型不支持从 Gateway 导入');
+            message.error(t('product.import.unsupportedGatewayImport'));
             setServices([]);
         }
       } else {
@@ -367,7 +374,7 @@ export default function ImportProductsModal({
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
-      message.error(err.response?.data?.message || '获取资源列表失败');
+      message.error(err.response?.data?.message || t('product.import.fetchResourcesFailed'));
       setServices([]);
     } finally {
       setServicesLoading(false);
@@ -422,7 +429,7 @@ export default function ImportProductsModal({
       await form.validateFields();
 
       if (selectedServiceKeys.length === 0) {
-        message.warning('请至少选择一个资源');
+        message.warning(t('product.import.selectAtLeastOneResource'));
         return;
       }
 
@@ -459,15 +466,15 @@ export default function ImportProductsModal({
           onSuccess();
         }
       } else if ((result.successCount ?? 0) > 0) {
-        message.success(`成功导入 ${result.successCount} 个产品`);
+        message.success(t('product.import.successCount', { count: result.successCount ?? 0 }));
         onSuccess();
         resetForm();
       } else {
-        message.warning('没有成功导入任何产品');
+        message.warning(t('product.import.emptySuccess'));
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
-      message.error(err.response?.data?.message || '导入失败');
+      message.error(err.response?.data?.message || t('product.import.failed'));
     } finally {
       setLoading(false);
     }
@@ -477,7 +484,7 @@ export default function ImportProductsModal({
     {
       dataIndex: 'name',
       key: 'name',
-      title: '资源名称',
+      title: t('product.import.resourceName'),
     },
   ];
 
@@ -489,10 +496,10 @@ export default function ImportProductsModal({
   return (
     <>
       <Modal
-        cancelText="取消"
+        cancelText={t('common.cancel')}
         confirmLoading={loading}
         destroyOnClose
-        okText="导入"
+        okText={t('action.import')}
         onCancel={handleCancel}
         onOk={handleImport}
         open={visible}
@@ -503,14 +510,21 @@ export default function ImportProductsModal({
           {showSourceTypeSelector && (
             <Form.Item
               initialValue={sourceType}
-              label={importSource === 'GATEWAY' ? '网关类型' : '数据源'}
+              label={
+                importSource === 'GATEWAY'
+                  ? t('product.import.gatewayType')
+                  : t('product.import.dataSource')
+              }
               name="sourceType"
-              rules={[{ message: '请选择数据源', required: true }]}
+              rules={[{ message: t('product.import.selectDataSource'), required: true }]}
             >
-              <Select onChange={handleSourceTypeChange} placeholder="请选择数据源">
+              <Select
+                onChange={handleSourceTypeChange}
+                placeholder={t('product.import.selectDataSource')}
+              >
                 {sourceTypeOptions.map((type) => (
                   <Select.Option key={type} value={type}>
-                    {SOURCE_TYPE_LABELS[type]}
+                    {sourceTypeLabels[type]}
                   </Select.Option>
                 ))}
               </Select>
@@ -519,14 +533,14 @@ export default function ImportProductsModal({
 
           {sourceType === 'API_GATEWAY' && (
             <Form.Item
-              label="选择网关"
+              label={t('product.import.selectGateway')}
               name="gatewayId"
-              rules={[{ message: '请选择网关', required: true }]}
+              rules={[{ message: t('product.import.selectGateway'), required: true }]}
             >
               <Select
                 onChange={fetchServices}
                 optionFilterProp="children"
-                placeholder="请选择网关"
+                placeholder={t('product.import.selectGateway')}
                 showSearch
               >
                 {apiGateways.map((gw) => (
@@ -540,14 +554,14 @@ export default function ImportProductsModal({
 
           {sourceType === 'HIGRESS' && (
             <Form.Item
-              label="选择Higress网关"
+              label={t('product.import.selectHigressGateway')}
               name="gatewayId"
-              rules={[{ message: '请选择Higress网关', required: true }]}
+              rules={[{ message: t('product.import.selectHigressGateway'), required: true }]}
             >
               <Select
                 onChange={fetchServices}
                 optionFilterProp="children"
-                placeholder="请选择Higress网关"
+                placeholder={t('product.import.selectHigressGateway')}
                 showSearch
               >
                 {higressGateways.map((gw) => (
@@ -561,14 +575,14 @@ export default function ImportProductsModal({
 
           {sourceType === 'AI_GATEWAY' && (
             <Form.Item
-              label="选择AI网关"
+              label={t('product.import.selectAiGateway')}
               name="gatewayId"
-              rules={[{ message: '请选择AI网关', required: true }]}
+              rules={[{ message: t('product.import.selectAiGateway'), required: true }]}
             >
               <Select
                 onChange={fetchServices}
                 optionFilterProp="children"
-                placeholder="请选择AI网关"
+                placeholder={t('product.import.selectAiGateway')}
                 showSearch
               >
                 {aiGateways.map((gw) => (
@@ -583,16 +597,18 @@ export default function ImportProductsModal({
           {sourceType === 'NACOS' && (
             <>
               <Form.Item
-                label="选择Nacos"
+                label={t('product.import.selectNacos')}
                 name="nacosId"
-                rules={[{ message: '请选择Nacos', required: true }]}
+                rules={[{ message: t('product.import.selectNacos'), required: true }]}
               >
                 <Select
-                  notFoundContent="暂无Nacos"
+                  notFoundContent={t('product.import.noNacos')}
                   onChange={handleNacosChange}
                   optionFilterProp="children"
                   placeholder={
-                    nacosInstances.length === 0 ? '暂无Nacos，请先在系统中添加' : '请选择Nacos'
+                    nacosInstances.length === 0
+                      ? t('product.import.noNacosCreateFirst')
+                      : t('product.import.selectNacos')
                   }
                   showSearch
                 >
@@ -605,14 +621,14 @@ export default function ImportProductsModal({
               </Form.Item>
 
               <Form.Item
-                label="选择命名空间"
+                label={t('product.import.selectNamespace')}
                 name="namespaceId"
-                rules={[{ message: '请选择命名空间', required: true }]}
+                rules={[{ message: t('product.import.selectNamespace'), required: true }]}
               >
                 <Select
                   onChange={fetchServices}
                   optionFilterProp="children"
-                  placeholder="请选择命名空间"
+                  placeholder={t('product.import.selectNamespace')}
                   showSearch
                 >
                   {namespaces.map((ns: unknown) => {
@@ -635,7 +651,7 @@ export default function ImportProductsModal({
               <Input
                 allowClear
                 onChange={(e) => setSearchText(e.target.value)}
-                placeholder="搜索资源名称"
+                placeholder={t('product.import.searchResourceName')}
                 prefix={<SearchOutlined />}
                 style={{ width: 160 }}
                 value={searchText}
@@ -644,10 +660,10 @@ export default function ImportProductsModal({
             </Space>
             <div className="flex items-center gap-2">
               <Button onClick={handleSelectAll} size="small">
-                全选
+                {t('common.selectAll')}
               </Button>
               <Button onClick={handleDeselectAll} size="small">
-                清空
+                {t('common.clear')}
               </Button>
               <span
                 className="text-sm text-gray-500"
@@ -662,7 +678,9 @@ export default function ImportProductsModal({
             dataSource={filteredServices}
             loading={servicesLoading}
             locale={{
-              emptyText: searchText ? '没有匹配的资源' : '暂无可导入的资源，请先选择数据源',
+              emptyText: searchText
+                ? t('product.import.noMatchedResource')
+                : t('product.import.noImportableResource'),
             }}
             pagination={{
               current: currentPage,
@@ -677,7 +695,7 @@ export default function ImportProductsModal({
               pageSize: tablePageSize,
               pageSizeOptions: ['3', '20', '50', '100'],
               showSizeChanger: true,
-              showTotal: (total) => `共 ${total} 个`,
+              showTotal: (total) => t('product.import.totalCount', { total }),
             }}
             rowSelection={{
               onChange: (keys) => setSelectedServiceKeys(keys as string[]),

@@ -1,5 +1,6 @@
 import { FileBox, Download, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { downloadWorkspaceFile } from '../../../lib/utils/workspaceApi';
 
@@ -33,6 +34,7 @@ function getExtLabel(fileName: string): string {
 }
 
 export function FileRenderer({ fileName, path }: FileRendererProps) {
+  const { t } = useTranslation('coding');
   const label = getExtLabel(fileName);
   const [downloading, setDownloading] = useState(false);
 
@@ -63,7 +65,7 @@ export function FileRenderer({ fileName, path }: FileRendererProps) {
           onClick={handleDownload}
         >
           {downloading ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}
-          下载文件
+          {t('editor.downloadFile')}
         </button>
       </div>
     </div>

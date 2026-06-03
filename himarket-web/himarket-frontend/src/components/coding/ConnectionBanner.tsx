@@ -1,5 +1,6 @@
 import { WifiOff, Wifi, RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { WsStatus } from '../../hooks/useCodingWebSocket';
 
@@ -14,6 +15,7 @@ export function ConnectionBanner({
   onManualReconnect,
   reconnectAttempt,
 }: ConnectionBannerProps) {
+  const { t } = useTranslation('coding');
   const prevStatusRef = useRef<WsStatus>(acpStatus);
   const [showRecovered, setShowRecovered] = useState(false);
 
@@ -42,7 +44,7 @@ export function ConnectionBanner({
         role="alert"
       >
         <WifiOff className="shrink-0" size={16} />
-        <span>连接已断开，正在重连...（第 {reconnectAttempt} 次）</span>
+        <span>{t('connection.reconnecting', { count: reconnectAttempt })}</span>
       </div>
     );
   }
@@ -55,13 +57,13 @@ export function ConnectionBanner({
         role="alert"
       >
         <WifiOff className="shrink-0" size={16} />
-        <span>连接已断开</span>
+        <span>{t('connection.disconnected')}</span>
         <button
           className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-red-100 hover:bg-red-200 text-red-700 transition-colors"
           onClick={onManualReconnect}
         >
           <RefreshCw size={12} />
-          重新连接
+          {t('connection.reconnect')}
         </button>
       </div>
     );
@@ -75,7 +77,7 @@ export function ConnectionBanner({
         role="alert"
       >
         <Wifi className="shrink-0" size={16} />
-        <span>已重新连接</span>
+        <span>{t('connection.recovered')}</span>
       </div>
     );
   }

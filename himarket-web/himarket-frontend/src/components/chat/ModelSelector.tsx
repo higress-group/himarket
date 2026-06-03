@@ -1,6 +1,7 @@
 import { DownOutlined, CheckOutlined, SearchOutlined } from '@ant-design/icons';
 import { Dropdown, Input, Tabs, Spin } from 'antd';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import EmptyData from '../../assets/empty-data.svg';
 import { ProductIconRenderer } from '../icon/ProductIconRenderer';
@@ -24,6 +25,7 @@ export function ModelSelector({
   onSelectModel,
   selectedModelId,
 }: ModelSelectorProps) {
+  const { t } = useTranslation('chat');
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -54,14 +56,14 @@ export function ModelSelector({
 
   // 浮层内容
   const dropdownContent = (
-    <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-[420px] max-h-[500px] flex flex-col">
+    <div className="flex max-h-[500px] w-[min(420px,calc(100vw-48px))] flex-col rounded-[14px] border border-[#DDE5F0] bg-white shadow-xl">
       {/* 搜索框 */}
       <div className="p-4 pb-3">
         <Input
           allowClear
           className="rounded-lg"
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="搜索模型..."
+          placeholder={t('modelSelector.searchPlaceholder')}
           prefix={<SearchOutlined className="text-gray-400" />}
           value={searchQuery}
         />
@@ -71,7 +73,7 @@ export function ModelSelector({
       <div className="px-4">
         {categoriesLoading ? (
           <div className="flex items-center justify-center py-4">
-            <span className="text-gray-400 text-sm">加载分类中...</span>
+            <span className="text-gray-400 text-sm">{t('modelSelector.loadingCategories')}</span>
           </div>
         ) : (
           <Tabs
@@ -89,7 +91,7 @@ export function ModelSelector({
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Spin tip="加载中..." />
+            <Spin tip={t('modelSelector.loading')} />
           </div>
         ) : (
           <div className="space-y-1">
@@ -118,11 +120,10 @@ export function ModelSelector({
               </button>
             ))}
             {!loading && filteredModels.length === 0 && (
-              <div className="text-center flex gap-4 flex-col items-center justify-center py-14 text-gray-400">
-                <img alt="" src={EmptyData} />
-                <div className="text-[#333] text-[16px] font-medium">暂无模型</div>
-                <div className="text-[#333]">
-                  您需要首先在 Admin 中配置模型，才能在 HiChat 中体验
+              <div className="flex flex-col items-center justify-center gap-3 py-10 text-center text-gray-400">
+                <img alt="" className="w-28 opacity-80" src={EmptyData} />
+                <div className="text-[15px] font-medium text-gray-700">
+                  {t('modelSelector.noModels')}
                 </div>
               </div>
             )}
@@ -135,7 +136,7 @@ export function ModelSelector({
   return (
     <>
       {/* 顶部模型选择器 */}
-      <div className="p-4 pr-0">
+      <div className="min-w-0">
         <Dropdown
           onOpenChange={setIsOpen}
           open={isOpen}
@@ -144,11 +145,18 @@ export function ModelSelector({
           trigger={['click']}
         >
           {/* 当前模型 */}
-          <button className="flex items-center gap-2 px-4 py-2 rounded-[10px] transition-all duration-200 hover:scale-[1.01] hover:bg-colorPrimaryBgHover">
-            {currentModel?.icon && (
-              <ProductIconRenderer className="w-5 h-5" iconType={currentModel.icon.value} />
+          <button
+            className="flex h-11 max-w-[360px] items-center gap-2.5 rounded-[12px] border border-white/60 bg-white/50 px-3 pr-3.5 text-gray-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-md transition-all duration-200 hover:border-white/80 hover:bg-white/70 hover:shadow-[0_8px_22px_rgba(37,56,88,0.06)] active:scale-[0.98]"
+            type="button"
+          >
+            {currentModel && (
+              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[8px] border border-white/60 bg-white/60 text-colorPrimary shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                <ProductIconRenderer className="h-4 w-4" iconType={currentModel.icon?.value} />
+              </span>
             )}
-            <span className="font-medium text-gray-900">{currentModel?.name || '选择模型'}</span>
+            <span className="truncate font-medium text-gray-900">
+              {currentModel?.name || t('modelSelector.selectModel')}
+            </span>
             <DownOutlined
               className={`text-xs text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
             />

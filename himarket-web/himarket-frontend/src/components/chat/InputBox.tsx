@@ -1,6 +1,7 @@
 import { SendOutlined, FileImageOutlined, FileOutlined, PlusOutlined } from '@ant-design/icons';
 import { Dropdown, message, Tooltip } from 'antd';
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import APIs, { type IProductDetail, type IAttachment } from '../../lib/apis';
 import { Global, Mcp } from '../icon';
@@ -30,7 +31,6 @@ export function InputBox(props: InputBoxProps) {
     addedMcps,
     enableMultiModal = false,
     isLoading = false,
-    isMcpExecuting = false,
     mcpEnabled = false,
     onMcpClick,
     onSendMessage,
@@ -39,6 +39,7 @@ export function InputBox(props: InputBoxProps) {
     showWebSearch,
     webSearchEnabled,
   } = props;
+  const { t } = useTranslation('chat');
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -55,9 +56,9 @@ export function InputBox(props: InputBoxProps) {
             label: (
               <Tooltip
                 placement="right"
-                title={<span className="text-black-normal">最大 5MB，最多 10 个文件 </span>}
+                title={<span className="text-black-normal">{t('input.imageUploadHint')}</span>}
               >
-                <span className="w-full inline-block">上传图片</span>
+                <span className="w-full inline-block">{t('input.uploadImage')}</span>
               </Tooltip>
             ),
           },
@@ -69,14 +70,9 @@ export function InputBox(props: InputBoxProps) {
       label: (
         <Tooltip
           placement="right"
-          title={
-            <div className="text-black-normal">
-              上传文件时支持以下格式：txt、md、html、doc、docx、pdf、xls、xlsx、ppt、pptx、csv。单次最多上传
-              10 个文件。表格文件大小不超过 2MB。普通文档不超过 5MB。
-            </div>
-          }
+          title={<div className="text-black-normal">{t('input.textUploadHint')}</div>}
         >
-          <span className="w-full inline-block">上传文本</span>
+          <span className="w-full inline-block">{t('input.uploadText')}</span>
         </Tooltip>
       ),
     },
@@ -98,7 +94,7 @@ export function InputBox(props: InputBoxProps) {
 
   const uploadFile = async (file: File) => {
     if (attachments.length >= 10) {
-      message.warning('最多支持上传 10 个文件');
+      message.warning(t('input.maxFiles'));
       return;
     }
 
@@ -106,7 +102,12 @@ export function InputBox(props: InputBoxProps) {
     const maxSize = isTableFile ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      message.error(`${isTableFile ? '表格' : '文件'}大小不能超过 ${isTableFile ? '2M' : '5M'}`);
+      message.error(
+        t('input.fileTooLarge', {
+          limit: isTableFile ? '2M' : '5M',
+          type: isTableFile ? t('input.tableFile') : t('input.file'),
+        }),
+      );
       return;
     }
 
@@ -122,7 +123,7 @@ export function InputBox(props: InputBoxProps) {
         }
         setAttachments((prev) => [...prev, attachment]);
       } else {
-        message.error(res.message || '上传失败');
+        message.error(res.message || t('input.uploadFailed'));
       }
     } catch (error: unknown) {
       console.error('Upload error:', error);
@@ -130,7 +131,7 @@ export function InputBox(props: InputBoxProps) {
         error && typeof error === 'object' && 'response' in error
           ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
-      message.error(errMsg || '上传出错');
+      message.error(errMsg || t('input.uploadError'));
     } finally {
       setIsUploading(false);
     }
@@ -193,19 +194,20 @@ export function InputBox(props: InputBoxProps) {
     }
   };
 
+  const canSend = Boolean(input.trim() || attachments.length > 0);
+
   return (
     <div
-      aria-label="拖放附件到此区域"
-      className={`relative p-1.5 rounded-[10px] flex flex-col justify-center transition-all duration-200 ${isDragging ? 'bg-white border-2 border-dashed border-colorPrimary shadow-lg scale-[1.01]' : ''}`}
+      aria-label={t('input.dropArea')}
+      className={`relative flex flex-col justify-center rounded-[16px] border bg-white/85 p-2 shadow-[0_12px_34px_rgba(37,56,88,0.06)] transition-all duration-200 focus-within:border-colorPrimary/25 focus-within:bg-white ${
+        isDragging
+          ? 'scale-[1.01] border-dashed border-colorPrimary ring-4 ring-colorPrimary/10'
+          : 'border-[#DDE5F0]'
+      }`}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       role="region"
-      style={{
-        background: isDragging
-          ? undefined
-          : 'linear-gradient(256deg, rgba(234, 228, 248, 1) 36%, rgba(215, 229, 243, 1) 100%)',
-      }}
     >
       {/* 附件预览 */}
       <AttachmentPreview
@@ -216,19 +218,18 @@ export function InputBox(props: InputBoxProps) {
       />
 
       <input className="hidden" onChange={handleFileChange} ref={fileInputRef} type="file" />
-      {isMcpExecuting && <div className="px-3 py-1 text-sm">MCP 工具执行中...</div>}
-      <div className="w-full h-full pb-14 p-4 bg-white/80 backdrop-blur-sm rounded-[10px]">
+      <div className="min-h-[80px] w-full rounded-[12px] p-3 pb-11">
         <textarea
-          className="w-full resize-none focus:outline-none bg-transparent"
+          className="min-h-[40px] w-full resize-none bg-transparent text-[15px] leading-6 text-gray-900 placeholder:text-gray-400 focus:outline-none"
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="输入您的问题..."
+          placeholder={t('input.placeholder')}
           rows={2}
           value={input}
         />
       </div>
       <div
-        className="absolute bottom-5 flex justify-between w-full px-6 left-0"
+        className="absolute bottom-3 left-0 flex w-full justify-between px-5"
         data-sign="tool-btns"
       >
         <div className="inline-flex gap-2">
@@ -237,9 +238,12 @@ export function InputBox(props: InputBoxProps) {
             placement="topLeft"
             trigger={['click']}
           >
-            <div className="flex h-full gap-2 items-center justify-center px-2 rounded-lg cursor-pointer transition-all ease-linear duration-400 hover:bg-black/5">
+            <button
+              className="flex h-9 w-9 items-center justify-center rounded-[10px] text-gray-500 transition-all duration-200 hover:bg-gray-100 hover:text-gray-800 active:scale-[0.98]"
+              type="button"
+            >
               <PlusOutlined className="text-base text-subTitle" />
-            </div>
+            </button>
           </Dropdown>
           {showWebSearch && (
             <ToolButton
@@ -249,7 +253,7 @@ export function InputBox(props: InputBoxProps) {
               <Global
                 className={`w-4 h-4 ${webSearchEnabled ? 'fill-colorPrimary' : 'fill-subTitle'}`}
               />
-              <span className="text-sm text-subTitle">联网</span>
+              <span className="text-sm text-subTitle">{t('input.webSearch')}</span>
             </ToolButton>
           )}
           <ToolButton enabled={mcpEnabled} onClick={onMcpClick}>
@@ -260,8 +264,8 @@ export function InputBox(props: InputBoxProps) {
           </ToolButton>
         </div>
         <SendButton
-          className={`w-9 h-9 ${
-            input.trim() && !isLoading
+          className={`h-9 w-9 ${
+            canSend && !isLoading
               ? 'bg-colorPrimary text-white hover:opacity-90'
               : isLoading
                 ? 'bg-colorPrimary text-white hover:opacity-90'
@@ -289,7 +293,7 @@ function ToolButton({
 }) {
   return (
     <button
-      className={`flex h-full gap-2 items-center justify-center px-2 rounded-lg cursor-pointer ${enabled ? 'bg-colorPrimaryBgHover' : ''}  transition-all ease-linear duration-400`}
+      className={`flex h-9 cursor-pointer items-center justify-center gap-2 rounded-[10px] px-3 text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:text-gray-900 active:scale-[0.98] ${enabled ? 'bg-colorPrimaryBgHover text-colorPrimary' : ''}`}
       onClick={onClick}
       type="button"
     >
