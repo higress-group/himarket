@@ -1,0 +1,42 @@
+{
+  "error": {
+    "dataLoadFailed": "Failed to load data",
+    "loadFailed": "Loading failed, please try again later"
+  },
+  "message": {
+    "copied": "Copied to clipboard",
+    "domainCopied": "Domain copied to clipboard",
+    "endpointCopied": "Endpoint copied to clipboard",
+    "copyFailed": "Copy failed. Please copy manually."
+  },
+  "empty": {
+    "overview": "No overview information",
+    "tools": "No tools"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "toolsWithCount": "Tools ({{count}})"
+  },
+  "tools": {
+    "inputParameters": "Input parameters",
+    "inputPlaceholder": "Enter {{name}}"
+  },
+  "connection": {
+    "infoTab": "Connection",
+    "configTab": "Config example",
+    "title": "Connection details",
+    "description": "Select a protocol and domain, then copy the matching MCP endpoint.",
+    "domain": "Domain",
+    "selectDomain": "Select domain",
+    "copyDomain": "Copy domain",
+    "noDomain": "No available domain",
+    "endpoint": "Endpoint",
+    "copyEndpoint": "Copy endpoint",
+    "noEndpoint": "No endpoint available",
+    "localEndpoint": "Local configuration does not require a public endpoint",
+    "protocol": "Protocol",
+    "noProtocol": "No available protocol",
+    "noConfig": "No config example available",
+    "copyConfig": "Copy config"
+  }
+}

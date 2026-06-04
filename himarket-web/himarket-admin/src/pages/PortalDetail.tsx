@@ -1,6 +1,4 @@
 import {
-  MoreOutlined,
-  LeftOutlined,
   EyeOutlined,
   ApiOutlined,
   TeamOutlined,
@@ -8,10 +6,11 @@ import {
   CloudOutlined,
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
-import { Button, Dropdown, Spin, Modal, message } from 'antd';
-import { useState, useEffect, useCallback } from 'react';
+import { Button, Spin, Modal, message } from 'antd';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { AdminDetailSidebar } from '@/components/common';
 import { PortalConsumers } from '@/components/portal/PortalConsumers';
 import { PortalDashboard } from '@/components/portal/PortalDashboard';
 import { PortalDevelopers } from '@/components/portal/PortalDevelopers';
@@ -21,70 +20,62 @@ import { PortalMenuSettings } from '@/components/portal/PortalMenuSettings';
 import { PortalOverview } from '@/components/portal/PortalOverview';
 import { PortalPublishedApis } from '@/components/portal/PortalPublishedApis';
 import { PortalSecurity } from '@/components/portal/PortalSecurity';
+import { useLocale } from '@/contexts/LocaleContext';
 import { portalApi } from '@/lib/api';
 import type { ApiResponse, Portal } from '@/types';
 
 import type { MenuProps } from 'antd';
 
-const menuItems = [
-  {
-    description: 'Portal概览',
-    icon: EyeOutlined,
-    key: 'overview',
-    label: 'Overview',
-  },
-  {
-    description: '已发布的API产品',
-    icon: ApiOutlined,
-    key: 'published-apis',
-    label: 'Products',
-  },
-  {
-    description: '开发者管理',
-    icon: TeamOutlined,
-    key: 'developers',
-    label: 'Developers',
-  },
-  {
-    description: '安全设置',
-    icon: SafetyOutlined,
-    key: 'security',
-    label: 'Security',
-  },
-  {
-    description: '域名管理',
-    icon: CloudOutlined,
-    key: 'domain',
-    label: 'Domain',
-  },
-  {
-    description: '菜单管理',
-    icon: MenuUnfoldOutlined,
-    key: 'menu',
-    label: 'Menu',
-  },
-  // {
-  //   key: "consumers",
-  //   label: "Consumers",
-  //   icon: UserOutlined,
-  //   description: "消费者管理"
-  // },
-  // {
-  //   key: "dashboard",
-  //   label: "Dashboard",
-  //   icon: DashboardOutlined,
-  //   description: "监控面板"
-  // }
-];
-
 export default function PortalDetail() {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const { portalId } = useParams<{ portalId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [portal, setPortal] = useState<Portal | null>(null);
   const [loading, setLoading] = useState(true); // 初始状态为 loading
   const [error, setError] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const menuItems = useMemo(
+    () => [
+      {
+        description: t('portal.detail.menu.overview.description'),
+        icon: EyeOutlined,
+        key: 'overview',
+        label: t('portal.detail.menu.overview.label'),
+      },
+      {
+        description: t('portal.detail.menu.products.description'),
+        icon: ApiOutlined,
+        key: 'published-apis',
+        label: t('portal.detail.menu.products.label'),
+      },
+      {
+        description: t('portal.detail.menu.developers.description'),
+        icon: TeamOutlined,
+        key: 'developers',
+        label: t('portal.detail.menu.developers.label'),
+      },
+      {
+        description: t('portal.detail.menu.security.description'),
+        icon: SafetyOutlined,
+        key: 'security',
+        label: t('portal.detail.menu.security.label'),
+      },
+      {
+        description: t('portal.detail.menu.domain.description'),
+        icon: CloudOutlined,
+        key: 'domain',
+        label: t('portal.detail.menu.domain.label'),
+      },
+      {
+        description: t('portal.detail.menu.menu.description'),
+        icon: MenuUnfoldOutlined,
+        key: 'menu',
+        label: t('portal.detail.menu.menu.label'),
+      },
+    ],
+    [t],
+  );
 
   // 从URL查询参数获取当前tab，默认为overview
   const currentTab = searchParams.get('tab') || 'overview';
@@ -97,15 +88,15 @@ export default function PortalDetail() {
       if (response && response.code === 'SUCCESS') {
         setPortal(response.data);
       } else {
-        setError(response?.message || '获取Portal信息失败');
+        setError(response?.message || t('portal.detail.loadFailed'));
       }
     } catch (err) {
-      console.error('获取Portal信息失败:', err);
-      setError('获取Portal信息失败');
+      console.error(t('portal.detail.loadFailed'), err);
+      setError(t('portal.detail.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [portalId]);
+  }, [portalId, t]);
 
   useEffect(() => {
     fetchPortalData();
@@ -164,14 +155,14 @@ export default function PortalDetail() {
     {
       danger: true,
       key: 'delete',
-      label: '删除',
+      label: t('common.delete'),
       onClick: () => {
         Modal.confirm({
-          content: '确定要删除该Portal吗？',
+          content: t('portal.detail.deleteConfirm'),
           onOk: () => {
             return handleDeletePortal();
           },
-          title: '删除Portal',
+          title: t('portal.detail.deleteTitle'),
         });
       },
     },
@@ -180,11 +171,11 @@ export default function PortalDetail() {
     return portalApi
       .deletePortal(portalId || '')
       .then(() => {
-        message.success('删除成功');
+        message.success(t('portal.detail.deleteSuccess'));
         navigate('/portals');
       })
       .catch((error) => {
-        message.error(error?.response?.data?.message || '删除失败，请稍后重试');
+        message.error(error?.response?.data?.message || t('portal.detail.deleteFailed'));
         throw error; // 重新抛出错误，让Modal保持loading状态
       });
   };
@@ -195,8 +186,8 @@ export default function PortalDetail() {
         <div className="text-center">
           {error && (
             <>
-              <p className=" mb-4">{error || 'Portal信息不存在'}</p>
-              <Button onClick={() => navigate('/portals')}>返回Portal列表</Button>
+              <p className=" mb-4">{error || t('portal.detail.infoMissing')}</p>
+              <Button onClick={() => navigate('/portals')}>{t('portal.detail.backToList')}</Button>
             </>
           )}
           {!error && <Spin fullscreen spinning={loading} />}
@@ -209,53 +200,16 @@ export default function PortalDetail() {
     <div className="flex h-full">
       <Spin fullscreen spinning={loading} />
       {/* Portal详情侧边栏 */}
-      <div className="w-64 border-r bg-white flex flex-col">
-        {/* 返回按钮 */}
-        <div className="pb-4 border-b">
-          <Button
-            icon={<LeftOutlined />}
-            // className="w-full justify-start text-gray-600 hover:text-gray-900"
-            onClick={handleBackToPortals}
-            type="text"
-          >
-            返回
-          </Button>
-        </div>
-
-        {/* Portal 信息 */}
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between">
-            <p className="font-medium text-sm mb-0">{portal.name}</p>
-            <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
-              <Button icon={<MoreOutlined />} size="small" type="text" />
-            </Dropdown>
-          </div>
-        </div>
-
-        {/* 导航菜单 */}
-        <nav className="flex-1 p-4 space-y-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
-                  currentTab === item.key
-                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                    : 'hover:bg-gray-50 text-gray-700'
-                }`}
-                key={item.key}
-                onClick={() => handleTabChange(item.key)}
-              >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                <div className="flex-1">
-                  <div className="font-medium">{item.label}</div>
-                  <div className="text-xs text-gray-500 mt-1">{item.description}</div>
-                </div>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+      <AdminDetailSidebar
+        activeKey={currentTab}
+        backLabel={t('common.back')}
+        items={menuItems}
+        menuItems={dropdownItems}
+        onBack={handleBackToPortals}
+        onItemClick={handleTabChange}
+        subtitle="Portal"
+        title={portal.name}
+      />
 
       {/* 主内容区域 */}
       <div className="flex-1 overflow-auto">{renderContent()}</div>

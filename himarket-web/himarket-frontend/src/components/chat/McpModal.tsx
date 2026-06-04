@@ -1,6 +1,7 @@
-import { CloseOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
-import { Modal, Switch, Input, Skeleton, type ModalProps, Button } from 'antd';
+import { CloseOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button, Input, Modal, Skeleton, Switch, type ModalProps } from 'antd';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import McpCard from './McpCard';
 
@@ -41,6 +42,7 @@ function McpModal(props: McpModal) {
     subscripts,
     ...modalProps
   } = props;
+  const { t } = useTranslation('chat');
   const [searchText, setSearchText] = useState('');
 
   const [active, setActive] = useState('all');
@@ -59,159 +61,171 @@ function McpModal(props: McpModal) {
     }
     return data;
   }, [data, active, added]);
-
   return (
     <Modal
       {...modalProps}
       closable={false}
       footer={null}
-      height={window.innerHeight * 0.8}
       keyboard
       maskClosable={false}
       onCancel={onClose}
-      width={window.innerWidth * 0.9}
+      width="min(1240px, calc(100vw - 64px))"
     >
-      <div className="flex p-2 gap-2 h-[70vh]">
-        <div className="flex-1 flex flex-col overflow-y-auto" data-sign-name="sidebar">
-          <div className="flex px-1 flex-col gap-3">
-            <div className="flex flex-col gap-5">
-              <div
-                className={`flex items-center bg-white rounded-lg border-[4px] border-colorPrimaryBgHover/50
-            transition-all duration-200 ease-in-out hover:bg-gray-50 hover:shadow-md hover:scale-[1.02] active:scale-95 text-nowrap overflow-hidden
-            w-full px-5 py-2 justify-between`}
-              >
-                <div className="flex w-full justify-between items-center gap-2">
-                  <span className="text-sm font-medium">MCP: 启用</span>
-                  <Switch checked={enabled} onChange={() => onEnabled(!enabled)} />
-                </div>
-              </div>
-              <button
-                className={`
-                  flex items-center  rounded-lg 
-                  transition-all duration-200 ease-in-out 
-                  hover:bg-colorPrimaryBgHover hover:shadow-md hover:scale-[1.02] 
-                  active:scale-95 text-nowrap overflow-hidden w-full px-5 py-2 justify-between
-                  ${active === 'added' ? 'bg-colorPrimaryBgHover shadow-md scale-[1.02]' : 'bg-white'}
-                `}
-                onClick={() => {
-                  setActive('added');
-                  onFilter('added');
-                }}
-              >
-                已添加 Server
-              </button>
-            </div>
-            <div className="border-t border-gray-200"></div>
-            <div className="flex flex-col gap-2">
-              {categories.map((item) => (
-                <button
-                  className={`
-                      flex items-center rounded-lg 
-                      transition-all duration-200 ease-in-out
-                       hover:bg-colorPrimaryBgHover hover:shadow-md 
-                       hover:scale-[1.02] active:scale-95 text-nowrap 
-                       overflow-hidden w-full px-5 py-2 justify-between 
-                       ${active === item.categoryId ? 'bg-colorPrimaryBgHover shadow-md scale-[1.02]' : 'bg-white'}
-                    `}
-                  key={item.categoryId}
-                  onClick={() => {
-                    setActive(item.categoryId);
-                    onFilter(item.categoryId);
-                  }}
-                >
-                  {item.name}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="flex h-[min(74vh,760px)] flex-col overflow-hidden">
+        <div className="flex items-start justify-between gap-4 px-1 pb-4">
+          <h2 className="text-lg font-semibold text-gray-950">{t('mcpModal.title')}</h2>
+          <button
+            aria-label={t('close', { ns: 'common' })}
+            className="flex h-9 w-9 items-center justify-center rounded-[10px] border-0 bg-transparent text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            onClick={onClose}
+            type="button"
+          >
+            <CloseOutlined />
+          </button>
         </div>
 
-        <div className="flex-[5] flex flex-col gap-4 overflow-hidden" data-sign-name="mcp-list">
-          <div className="flex flex-col gap-2">
-            <div className="flex w-full gap-4 justify-between">
-              <Input
-                allowClear
-                onChange={(e) => setSearchText(e.target.value)}
-                onKeyDown={(evt) => {
-                  if (evt.code === 'Enter') {
-                    onSearch(active, (evt.target as HTMLInputElement).value.trim());
-                  }
-                }}
-                placeholder="搜索 MCP Server..."
-                prefix={<SearchOutlined />}
-                size="large"
-                value={searchText}
-              />
-              <button
-                className="flex h-full items-center justify-center cursor-pointer"
-                onClick={onClose}
-                type="button"
-              >
-                <CloseOutlined />
-              </button>
+        <div className="flex min-h-0 flex-1 flex-col rounded-[20px] bg-[#F7F9FC] p-3">
+          <div className="mb-3 grid grid-cols-[240px_minmax(0,1fr)] gap-4">
+            <div className="flex h-12 items-center justify-between rounded-[16px] bg-white px-4 shadow-[0_8px_22px_rgba(35,52,82,0.05)]">
+              <span className="text-sm font-semibold text-gray-800">{t('mcpModal.enabled')}</span>
+              <Switch checked={enabled} onChange={() => onEnabled(!enabled)} />
             </div>
-            {active === 'added' && filteredData.length > 0 && (
-              <span>已添加 {added.length} / 10</span>
-            )}
-          </div>
-          {mcpLoading ? (
-            <div className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div
-                  className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-[#e5e5e5] h-[200px] flex flex-col gap-4"
-                  key={index}
-                >
-                  {/* 上部：Logo、名称和��态 */}
-                  <div className="flex gap-3 items-start">
-                    <Skeleton.Avatar active shape="square" size={56} />
-                    <div className="flex-1 flex flex-col gap-2">
-                      <Skeleton.Input active size="small" style={{ height: 20, width: '70%' }} />
-                      <Skeleton.Button active size="small" style={{ height: 24, width: 60 }} />
-                    </div>
-                  </div>
-
-                  {/* 中部：描述 */}
-                  <div className="flex-1">
-                    <Skeleton active paragraph={{ rows: 2 }} title={false} />
-                  </div>
-
-                  {/* 下部：按钮区域 */}
-                  <Skeleton.Button active block size="default" />
-                </div>
-              ))}
-            </div>
-          ) : filteredData.length === 0 ? (
-            <Empty
-              active={active}
-              onViewAll={() => {
-                setActive('all');
-                onFilter('all');
+            <Input
+              allowClear
+              className="h-12 rounded-[16px] border-transparent bg-white shadow-[0_8px_22px_rgba(35,52,82,0.05)]"
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(evt) => {
+                if (evt.code === 'Enter') {
+                  onSearch(active, (evt.target as HTMLInputElement).value.trim());
+                }
               }}
+              placeholder={t('mcpModal.searchPlaceholder')}
+              prefix={<SearchOutlined className="text-gray-400" />}
+              size="large"
+              value={searchText}
             />
-          ) : (
-            <div
-              className="grid grid-cols-3 gap-4 content-start overflow-y-auto p-1 flex-1"
-              data-sign-name="mcp-card-grid"
+          </div>
+
+          <div className="grid min-h-0 flex-1 grid-cols-[240px_minmax(0,1fr)] gap-4 overflow-hidden">
+            <aside className="flex min-h-0 flex-col overflow-hidden rounded-[16px] bg-white p-4 shadow-[0_12px_30px_rgba(35,52,82,0.055)]">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs font-medium text-gray-400">
+                    {t('mcpModal.addedCount', { count: added.length })}
+                  </div>
+                  {active === 'added' && added.length > 0 && (
+                    <button
+                      className="text-xs font-medium text-gray-400 transition-colors hover:text-colorPrimary"
+                      onClick={onRemoveAll}
+                      type="button"
+                    >
+                      {t('mcpModal.removeAll')}
+                    </button>
+                  )}
+                </div>
+                <button
+                  className={`
+                    mt-2 flex w-full items-center justify-between rounded-[14px] px-3.5 py-3 text-sm
+                    transition-all duration-200 ease-in-out active:scale-[0.98]
+                    ${active === 'added' ? 'bg-[#F0F3FF] text-colorPrimary' : 'bg-[#F8FAFC] text-gray-700 hover:bg-[#F3F6FA]'}
+                  `}
+                  onClick={() => {
+                    setActive('added');
+                    onFilter('added');
+                  }}
+                  type="button"
+                >
+                  <span className="font-semibold">{t('mcpModal.addedServers')}</span>
+                </button>
+              </div>
+
+              <div className="mt-5 flex min-h-0 flex-col gap-1 overflow-y-auto">
+                <div className="mb-1 px-1 text-xs font-medium text-gray-400">
+                  {t('mcpModal.scope')}
+                </div>
+                {categories.map((item) => (
+                  <button
+                    className={`
+                        flex w-full items-center justify-between overflow-hidden text-nowrap rounded-[14px] px-3.5 py-3 text-sm
+                        transition-all duration-200 ease-in-out active:scale-[0.98]
+                        ${active === item.categoryId ? 'bg-[#F0F3FF] text-colorPrimary' : 'bg-transparent text-gray-600 hover:bg-[#F8FAFC] hover:text-gray-900'}
+                      `}
+                    key={item.categoryId}
+                    onClick={() => {
+                      setActive(item.categoryId);
+                      onFilter(item.categoryId);
+                    }}
+                    type="button"
+                  >
+                    <span className="overflow-hidden text-ellipsis font-medium">{item.name}</span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <section
+              className="min-h-0 min-w-0 overflow-hidden rounded-[16px] bg-white p-5 shadow-[0_12px_30px_rgba(35,52,82,0.055)]"
+              data-sign-name="mcp-list"
             >
-              {filteredData.map((item) => (
-                <McpCard
-                  data={item}
-                  isAdded={addedIds.includes(item.productId)}
-                  isSubscribed={scbscriptsIds.includes(item.productId)}
-                  key={item.productId}
-                  onAdd={onAdd}
-                  onQuickSubscribe={onQuickSubscribe}
-                  onRemove={onRemove}
-                />
-              ))}
-            </div>
-          )}
-          {active === 'added' && filteredData.length > 0 && (
-            <Button block onClick={onRemoveAll} size="large">
-              <DeleteOutlined />
-              批量取消添加
-            </Button>
-          )}
+              <div className="h-full overflow-hidden">
+                {mcpLoading ? (
+                  <div className="grid h-full content-start gap-4 overflow-y-auto pr-1 lg:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <div
+                        className="flex h-[200px] flex-col gap-4 rounded-2xl border border-[#e5e5e5] bg-white/60 p-5"
+                        key={index}
+                      >
+                        <div className="flex items-start gap-3">
+                          <Skeleton.Avatar active shape="square" size={48} />
+                          <div className="flex flex-1 flex-col gap-2">
+                            <Skeleton.Input
+                              active
+                              size="small"
+                              style={{ height: 20, width: '70%' }}
+                            />
+                            <Skeleton.Button
+                              active
+                              size="small"
+                              style={{ height: 24, width: 60 }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                        </div>
+                        <Skeleton.Button active block size="default" />
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredData.length === 0 ? (
+                  <Empty
+                    active={active}
+                    onViewAll={() => {
+                      setActive('all');
+                      onFilter('all');
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="grid h-full content-start gap-4 overflow-y-auto pr-1 lg:grid-cols-2 xl:grid-cols-3"
+                    data-sign-name="mcp-card-grid"
+                  >
+                    {filteredData.map((item) => (
+                      <McpCard
+                        data={item}
+                        isAdded={addedIds.includes(item.productId)}
+                        isSubscribed={scbscriptsIds.includes(item.productId)}
+                        key={item.productId}
+                        onAdd={onAdd}
+                        onQuickSubscribe={onQuickSubscribe}
+                        onRemove={onRemove}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </Modal>
@@ -219,29 +233,26 @@ function McpModal(props: McpModal) {
 }
 
 function Empty({ active, onViewAll }: { active: string; onViewAll: () => void }) {
+  const { t } = useTranslation('chat');
+
   return (
-    <div className="grid grid-cols-3 grid-rows-3 gap-4 content-start overflow-y-auto p-1 flex-1 relative">
-      <div className="absolute z-20 top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] flex flex-col gap-4 justify-center">
-        <div className="">
-          <div className="text-center text-lg">暂无 MCP Server...</div>
-          {active === 'added' && <span>您可以从全部 MCP Server 中选择并添加您需要的 Server</span>}
+    <div className="flex h-full items-center justify-center">
+      <div className="flex max-w-[360px] flex-col items-center gap-4 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-[#E6ECF4] bg-white/70 text-gray-400">
+          <SearchOutlined />
         </div>
-        <div className="flex justify-center">
-          <Button onClick={onViewAll} type="primary">
-            预览全部 Server
+        <div>
+          <div className="text-base font-semibold text-gray-900">{t('mcpModal.noServers')}</div>
+          {active === 'added' && (
+            <p className="mt-2 text-sm leading-6 text-gray-500">{t('mcpModal.addedEmptyHint')}</p>
+          )}
+        </div>
+        {active === 'added' && (
+          <Button className="rounded-[12px]" onClick={onViewAll} type="primary">
+            {t('mcpModal.viewAll')}
           </Button>
-        </div>
+        )}
       </div>
-      <div
-        className="absolute w-full h-full z-10"
-        style={{ background: 'linear-gradient(326deg, #FFFFFF 18%, rgba(255, 255, 255, 0) 81%)' }}
-      ></div>
-      {Array.from({ length: 9 }).map((_, index) => (
-        <div
-          className="bg-[#F9FAFB] backdrop-blur-sm rounded-2xl p-5  flex flex-col gap-4"
-          key={index}
-        ></div>
-      ))}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { ChevronDown, ChevronUp, Terminal as TerminalIcon } from 'lucide-react';
 import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useTerminalWebSocket, type TerminalWsStatus } from '../../hooks/useTerminalWebSocket';
 import '@xterm/xterm/css/xterm.css';
@@ -30,6 +31,7 @@ export interface TerminalPanelHandle {
 
 export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>(
   function TerminalPanel({ collapsed, height, onToggleCollapse, runtime }, ref) {
+    const { t } = useTranslation('coding');
     const containerRef = useRef<HTMLDivElement>(null);
     const terminalRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
@@ -184,7 +186,7 @@ export const TerminalPanel = forwardRef<TerminalPanelHandle, TerminalPanelProps>
           onClick={toggleCollapse}
         >
           <TerminalIcon size={12} />
-          <span>终端</span>
+          <span>{t('terminalPanel.title')}</span>
           <StatusDot status={status} />
           <div className="flex-1" />
           {collapsed ? <ChevronUp size={12} /> : <ChevronDown size={12} />}

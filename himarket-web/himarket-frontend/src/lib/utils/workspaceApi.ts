@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import request from '../request';
 
 import type { FileNode } from '../../types/coding';
@@ -90,7 +91,7 @@ function parseWorkspaceError(error: unknown): WorkspaceApiError {
     const code = errObj.response?.data?.code ?? 'WORKSPACE_API_ERROR';
     const message =
       status === 413
-        ? '文件过大，无法预览'
+        ? i18n.t('error.fileTooLargePreview')
         : (errObj.response?.data?.error ?? errObj.message ?? 'Workspace API request failed');
     return { code, message, status };
   }

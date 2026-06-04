@@ -1,6 +1,7 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { Alert, Tabs } from 'antd';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { AuthConfig, SubscriptionManager } from '../components/consumer';
@@ -13,6 +14,7 @@ import '../styles/table.css';
 import type { ApiResponse } from '../types';
 
 function ConsumerDetailPage() {
+  const { t } = useTranslation('consumer');
   const { consumerId } = useParams();
   const navigate = useNavigate();
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
@@ -27,12 +29,11 @@ function ConsumerDetailPage() {
     try {
       const response = await APIs.getConsumerSubscriptions(consumerId);
       if (response?.code === 'SUCCESS' && response?.data) {
-        // 从分页数据中提取实际的订阅数组
         const subscriptionsData = response.data.content || [];
         setSubscriptions(subscriptionsData);
       }
     } catch (error) {
-      console.error('获取订阅列表失败:', error);
+      console.error('Failed to fetch subscriptions:', error);
     } finally {
       setSubscriptionsLoading(false);
     }
@@ -48,13 +49,13 @@ function ConsumerDetailPage() {
           setConsumer(response.data);
         }
       } catch (error) {
-        console.error('获取消费者详情失败:', error);
-        setError('加载失败，请稍后重试');
+        console.error('Failed to fetch consumer detail:', error);
+        setError(t('detail.loadFailedDescription'));
       }
     };
 
     fetchConsumerDetail();
-  }, [consumerId]);
+  }, [consumerId, t]);
 
   useEffect(() => {
     if (consumerId) {
@@ -65,7 +66,13 @@ function ConsumerDetailPage() {
   if (error) {
     return (
       <Layout>
-        <Alert className="my-8" description={error} message="加载失败" showIcon type="error" />
+        <Alert
+          className="my-8"
+          description={error}
+          message={t('detail.loadFailed')}
+          showIcon
+          type="error"
+        />
       </Layout>
     );
   }
@@ -75,32 +82,28 @@ function ConsumerDetailPage() {
       {consumer ? (
         <div className="w-full h-full ">
           <div className="min-h-[calc(100vh-96px)] pb-8 bg-white backdrop-blur-xl rounded-[10px] shadow-sm border border-white/40 overflow-hidden">
-            {/* 消费者头部 - 返回按钮 + 消费者名称 */}
             <div className="p-6">
               <div className="flex items-center gap-3">
                 <ArrowLeftOutlined className="text-sm" onClick={() => navigate('/consumers')} />
                 <h1 className="text-2xl font-semibold text-gray-900">{consumer.name}</h1>
               </div>
             </div>
-            {/* Tabs 区域 - glass-morphism 风格 */}
             <Tabs activeKey={activeTab} className="px-6" onChange={setActiveTab} size="large">
-              <Tabs.TabPane key="basic" tab="基本信息">
+              <Tabs.TabPane key="basic" tab={t('detail.basicInfo')}>
                 <div className="border border-[#e5e5e5] rounded-lg mt-2">
                   <AuthConfig consumerId={consumerId ?? ''} />
                 </div>
               </Tabs.TabPane>
 
-              <Tabs.TabPane key="authorization" tab="订阅列表">
+              <Tabs.TabPane key="authorization" tab={t('detail.subscriptions')}>
                 <SubscriptionManager
                   consumerId={consumerId ?? ''}
                   loading={subscriptionsLoading}
                   onRefresh={() => setRefreshIndex((v) => v + 1)}
                   onSubscriptionsChange={async (searchParams) => {
-                    // 重新获取订阅列表
                     if (consumerId) {
                       setSubscriptionsLoading(true);
                       try {
-                        // 构建查询参数
                         const params = new URLSearchParams();
                         if (searchParams?.productName) {
                           params.append('productName', searchParams.productName);
@@ -117,12 +120,11 @@ function ConsumerDetailPage() {
                           totalElements: number;
                         }> = await request.get(url);
                         if (response?.code === 'SUCCESS' && response?.data) {
-                          // 从分页数据中提取实际的订阅数组
                           const subscriptionsData = response.data.content || [];
                           setSubscriptions(subscriptionsData);
                         }
                       } catch (error) {
-                        console.error('获取订阅列表失败:', error);
+                        console.error('Failed to fetch subscriptions:', error);
                       } finally {
                         setSubscriptionsLoading(false);
                       }
@@ -136,7 +138,7 @@ function ConsumerDetailPage() {
         </div>
       ) : (
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">加载中...</div>
+          <div className="text-gray-500">{t('detail.loading')}</div>
         </div>
       )}
     </Layout>

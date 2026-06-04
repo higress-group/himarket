@@ -1,5 +1,6 @@
 import { Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useCodingState, useActiveCodingSession } from '../../context/CodingSessionContext';
 
@@ -10,6 +11,7 @@ interface SandboxStatusCardProps {
 const COLLAPSE_DELAY = 3000;
 
 export function SandboxStatusCard({ onRetry }: SandboxStatusCardProps) {
+  const { t } = useTranslation('coding');
   const state = useCodingState();
   const activeSession = useActiveCodingSession();
   const { sandboxStatus } = state;
@@ -52,7 +54,7 @@ export function SandboxStatusCard({ onRetry }: SandboxStatusCardProps) {
         onClick={() => setCollapsed(false)}
       >
         <CheckCircle2 className="text-green-400" size={12} />
-        <span>沙箱已就绪</span>
+        <span>{t('sandbox.readyShort')}</span>
         <ChevronRight size={12} />
       </button>
     );
@@ -64,7 +66,7 @@ export function SandboxStatusCard({ onRetry }: SandboxStatusCardProps) {
       <div className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-red-200 bg-red-50/80">
         <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-red-700">沙箱环境初始化失败</div>
+          <div className="text-sm font-medium text-red-700">{t('sandbox.initFailed')}</div>
           {message && <div className="text-xs text-red-600/80 mt-0.5 truncate">{message}</div>}
         </div>
         {onRetry && (
@@ -72,7 +74,7 @@ export function SandboxStatusCard({ onRetry }: SandboxStatusCardProps) {
             className="flex-shrink-0 px-3 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors"
             onClick={onRetry}
           >
-            重新连接
+            {t('sandbox.reconnect')}
           </button>
         )}
       </div>
@@ -87,7 +89,7 @@ export function SandboxStatusCard({ onRetry }: SandboxStatusCardProps) {
         onClick={() => setCollapsed(true)}
       >
         <CheckCircle2 className="text-green-500 flex-shrink-0" size={16} />
-        <span className="text-sm text-gray-600">沙箱环境已就绪</span>
+        <span className="text-sm text-gray-600">{t('sandbox.ready')}</span>
         <div className="flex-1" />
         <ChevronDown className="text-gray-400" size={14} />
       </button>
@@ -98,7 +100,7 @@ export function SandboxStatusCard({ onRetry }: SandboxStatusCardProps) {
   return (
     <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-blue-200 bg-blue-50/60">
       <Loader2 className="animate-spin text-blue-500 flex-shrink-0" size={16} />
-      <span className="text-sm text-gray-600">正在准备沙箱环境...</span>
+      <span className="text-sm text-gray-600">{t('sandbox.preparing')}</span>
     </div>
   );
 }

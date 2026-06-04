@@ -1,6 +1,7 @@
 import { message } from 'antd';
 import * as yaml from 'js-yaml';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import SwaggerUI from 'swagger-ui-react';
 import 'swagger-ui-react/swagger-ui.css';
 import './SwaggerUIWrapper.css';
@@ -10,15 +11,16 @@ interface SwaggerUIWrapperProps {
 }
 
 export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) => {
-  // 直接解析原始规范，不进行重新构建
+  const { t } = useTranslation('apiDetail');
+
+  // Parse the raw spec directly without rebuilding it.
   let swaggerSpec: Record<string, unknown>;
 
   try {
-    // 尝试解析YAML格式
+    // Try YAML first, then JSON.
     try {
       swaggerSpec = yaml.load(apiSpec) as Record<string, unknown>;
     } catch {
-      // 如果YAML解析失败，尝试JSON格式
       swaggerSpec = JSON.parse(apiSpec) as Record<string, unknown>;
     }
 
@@ -26,7 +28,7 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
       throw new Error('Invalid OpenAPI specification');
     }
 
-    // 为没有tags的操作添加默认标签，避免显示"default"
+    // Add a default tag to operations without tags to avoid showing "default".
     const paths = swaggerSpec.paths as Record<string, Record<string, unknown>>;
     Object.keys(paths).forEach((path) => {
       const pathItem = paths[path];
@@ -34,19 +36,19 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
         Object.keys(pathItem).forEach((method) => {
           const operation = pathItem[method];
           if (operation && typeof operation === 'object' && !('tags' in operation)) {
-            (operation as Record<string, unknown>).tags = ['接口列表'];
+            (operation as Record<string, unknown>).tags = [t('restDocs.endpointList')];
           }
         });
       }
     });
   } catch (error) {
-    console.error('OpenAPI规范解析失败:', error);
+    console.error('Failed to parse OpenAPI spec:', error);
     return (
       <div className="text-center text-gray-500 py-8 bg-gray-50 rounded-lg">
-        <p>无法解析OpenAPI规范</p>
-        <div className="text-sm text-gray-400 mt-2">请检查API配置格式是否正确</div>
+        <p>{t('restDocs.parseFailedTitle')}</p>
+        <div className="text-sm text-gray-400 mt-2">{t('restDocs.parseFailedHint')}</div>
         <div className="text-xs text-gray-400 mt-1">
-          错误详情: {error instanceof Error ? error.message : String(error)}
+          {t('restDocs.errorDetails')}: {error instanceof Error ? error.message : String(error)}
         </div>
       </div>
     );
@@ -64,7 +66,7 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
         filter={false}
         onComplete={() => {
           console.warn('Swagger UI loaded');
-          // 添加服务器复制功能 - 使用requestAnimationFrame优化性能
+          // Add server copy support and retry with requestAnimationFrame if needed.
           const addCopyButton = () => {
             const serversContainer = document.querySelector('.swagger-ui .servers');
             if (serversContainer && !serversContainer.querySelector('.copy-server-btn')) {
@@ -75,7 +77,7 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
                   <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
                 </svg>
               `;
-              copyBtn.title = '复制服务器地址';
+              copyBtn.title = t('restDocs.copyServerAddress');
               copyBtn.style.cssText = `
                 position: absolute;
                 right: 12px;
@@ -94,7 +96,6 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
                 justify-content: center;
               `;
 
-              // 添加hover效果
               copyBtn.addEventListener('mouseenter', () => {
                 copyBtn.style.background = '#f5f5f5';
                 copyBtn.style.color = '#1890ff';
@@ -111,24 +112,22 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
                   navigator.clipboard
                     .writeText(serverSelect.value)
                     .then(() => {
-                      message.success('服务器地址已复制到剪贴板', 1);
+                      message.success(t('messages.serverCopied'), 1);
                     })
                     .catch(() => {
-                      // 降级到传统复制方法
                       const textArea = document.createElement('textarea');
                       textArea.value = serverSelect.value;
                       document.body.appendChild(textArea);
                       textArea.select();
                       document.execCommand('copy');
                       document.body.removeChild(textArea);
-                      message.success('服务器地址已复制到剪贴板', 1);
+                      message.success(t('messages.serverCopied'), 1);
                     });
                 }
               });
 
               serversContainer.appendChild(copyBtn);
 
-              // 调整服务器选择框的padding
               const serverSelect = serversContainer.querySelector('select') as HTMLSelectElement;
               if (serverSelect) {
                 serverSelect.style.paddingRight = '50px';
@@ -136,7 +135,6 @@ export const SwaggerUIWrapper: React.FC<SwaggerUIWrapperProps> = ({ apiSpec }) =
             }
           };
 
-          // 立即尝试添加按钮，如果失败则在下一帧重试
           addCopyButton();
           if (!document.querySelector('.swagger-ui .servers .copy-server-btn')) {
             requestAnimationFrame(addCopyButton);

@@ -1,5 +1,6 @@
 import { Button } from 'antd';
 import { MessageSquare, Code2, Sparkles, Zap, Bot, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../hooks/useAuth';
@@ -10,51 +11,50 @@ interface WelcomeViewProps {
 
 const chatFeatures = [
   {
-    desc: '支持多种主流 AI 大模型，一站式智能问答体验',
+    descKey: 'chat.features.modelConversation.desc',
     icon: <Bot size={20} />,
-    title: 'AI 多模型对话',
+    titleKey: 'chat.features.modelConversation.title',
   },
   {
-    desc: '同时发送多模型对比回答，选择最优结果',
+    descKey: 'chat.features.modelCompare.desc',
     icon: <Sparkles size={20} />,
-    title: '多模型对比',
+    titleKey: 'chat.features.modelCompare.title',
   },
   {
-    desc: '集成 MCP 服务能力，AI 可调用外部工具增强回答',
+    descKey: 'chat.features.mcpIntegration.desc',
     icon: <Globe size={20} />,
-    title: 'MCP 工具集成',
+    titleKey: 'chat.features.mcpIntegration.title',
   },
 ];
 
 const codingFeatures = [
   {
-    desc: '通过自然语言描述需求，AI 自动生成代码方案',
+    descKey: 'coding.features.aiCoding.desc',
     icon: <Code2 size={20} />,
-    title: 'AI 辅助编程',
+    titleKey: 'coding.features.aiCoding.title',
   },
   {
-    desc: '代码在安全沙箱中实时运行，即时查看执行结果',
+    descKey: 'coding.features.sandbox.desc',
     icon: <Zap size={20} />,
-    title: '沙箱执行',
+    titleKey: 'coding.features.sandbox.title',
   },
   {
-    desc: '与 AI 持续对话迭代代码，逐步完善项目',
+    descKey: 'coding.features.interactive.desc',
     icon: <MessageSquare size={20} />,
-    title: '交互式对话',
+    titleKey: 'coding.features.interactive.title',
   },
 ];
 
 export function WelcomeView({ type }: WelcomeViewProps) {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation('welcome');
 
   const isChatType = type === 'chat';
   const title = isChatType ? 'HiChat' : 'HiCoding';
-  const subtitle = isChatType
-    ? '与 AI 模型智能对话，探索无限可能'
-    : 'AI 驱动的智能编程助手，让代码触手可及';
+  const subtitle = isChatType ? t('chat.subtitle') : t('coding.subtitle');
   const features = isChatType ? chatFeatures : codingFeatures;
-  const ctaText = isChatType ? '登录后开始对话' : '登录后开始编码';
+  const ctaText = isChatType ? t('chat.cta') : t('coding.cta');
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -71,8 +71,8 @@ export function WelcomeView({ type }: WelcomeViewProps) {
               key={i}
             >
               <div className="text-blue-500 mb-3">{f.icon}</div>
-              <div className="font-medium text-gray-800 mb-1">{f.title}</div>
-              <div className="text-gray-500 text-sm">{f.desc}</div>
+              <div className="font-medium text-gray-800 mb-1">{t(f.titleKey)}</div>
+              <div className="text-gray-500 text-sm">{t(f.descKey)}</div>
             </div>
           ))}
         </div>
@@ -82,7 +82,7 @@ export function WelcomeView({ type }: WelcomeViewProps) {
             {ctaText}
           </Button>
           <Button onClick={() => navigate('/register')} size="large">
-            注册新账号
+            {t('register')}
           </Button>
         </div>
       </div>

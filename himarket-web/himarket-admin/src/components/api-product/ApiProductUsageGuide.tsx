@@ -11,6 +11,7 @@ import MdEditor from 'react-markdown-editor-lite';
 import remarkGfm from 'remark-gfm';
 
 import 'react-markdown-editor-lite/lib/index.css';
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi } from '@/lib/api';
 import type { ApiProduct } from '@/types/api-product';
 
@@ -20,6 +21,7 @@ interface ApiProductUsageGuideProps {
 }
 
 export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUsageGuideProps) {
+  const { t } = useLocale();
   const [content, setContent] = useState(apiProduct.document || '');
   const [isEditing, setIsEditing] = useState(false);
   const [originalContent, setOriginalContent] = useState(apiProduct.document || '');
@@ -41,7 +43,7 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
         document: content,
       })
       .then(() => {
-        message.success('保存成功');
+        message.success(t('product.usage.saveSuccess'));
         setIsEditing(false);
         setOriginalContent(content);
         handleRefresh();
@@ -64,7 +66,7 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
     const file = event.target.files?.[0];
     if (file) {
       if (file.type !== 'text/markdown' && !file.name.endsWith('.md')) {
-        message.error('请选择 Markdown 文件 (.md)');
+        message.error(t('product.usage.markdownOnly'));
         return;
       }
 
@@ -73,7 +75,7 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
         const content = e.target?.result as string;
         setContent(content);
         setIsEditing(true);
-        message.success('文件导入成功');
+        message.success(t('product.usage.fileImported'));
       };
       reader.readAsText(file);
     }
@@ -90,27 +92,27 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-2">使用指南</h1>
-          <p className="text-gray-600">编辑和发布使用指南</p>
+          <h1 className="text-2xl font-bold mb-2">{t('product.usage.title')}</h1>
+          <p className="text-gray-600">{t('product.usage.description')}</p>
         </div>
         <Space>
           {isEditing ? (
             <>
               <Button icon={<UploadOutlined />} onClick={triggerFileInput}>
-                导入文件
+                {t('product.usage.importFile')}
               </Button>
-              <Button onClick={handleCancel}>取消</Button>
+              <Button onClick={handleCancel}>{t('common.cancel')}</Button>
               <Button icon={<SaveOutlined />} onClick={handleSave} type="primary">
-                保存
+                {t('action.save')}
               </Button>
             </>
           ) : (
             <>
               <Button icon={<UploadOutlined />} onClick={triggerFileInput}>
-                导入文件
+                {t('product.usage.importFile')}
               </Button>
               <Button icon={<EditOutlined />} onClick={handleEdit} type="primary">
-                编辑
+                {t('common.edit')}
               </Button>
             </>
           )}
@@ -132,16 +134,14 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
               htmlClass="custom-html-style"
               markdownClass="custom-markdown-style"
               onChange={handleEditorChange}
-              placeholder="请输入使用指南内容..."
+              placeholder={t('product.usage.placeholder')}
               renderHTML={(text) => (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
               )}
               style={{ height: '600px', width: '100%' }}
               value={content}
             />
-            <div className="mt-4 text-sm text-gray-500">
-              💡 支持Markdown格式：代码块、表格、链接、图片等语法
-            </div>
+            <div className="mt-4 text-sm text-gray-500">{t('product.usage.markdownTip')}</div>
           </>
         ) : (
           <div className="min-h-[400px]">
@@ -187,8 +187,8 @@ export function ApiProductUsageGuide({ apiProduct, handleRefresh }: ApiProductUs
               <div className="flex items-center justify-center h-[400px] text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
                 <div className="text-center">
                   <FileMarkdownOutlined className="text-4xl mb-4 text-gray-300" />
-                  <p className="text-lg">暂无使用指南</p>
-                  <p className="text-sm">点击编辑按钮开始撰写</p>
+                  <p className="text-lg">{t('product.usage.empty')}</p>
+                  <p className="text-sm">{t('product.usage.startWriting')}</p>
                 </div>
               </div>
             )}

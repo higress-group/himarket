@@ -1,4 +1,6 @@
 import {
+  CheckCircleFilled,
+  CodeOutlined,
   CopyOutlined,
   FileTextOutlined,
   InboxOutlined,
@@ -34,8 +36,10 @@ function ModelDetail() {
   const [modelConfig, setModelConfig] = useState<IModelConfig>();
   const [selectedModelDomainIndex, setSelectedModelDomainIndex] = useState<number>(0);
   const [hasSubscription, setHasSubscription] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState<'usage' | 'curl'>('usage');
   const headerRef = useRef<ProductHeaderHandle>(null);
   const { isLoggedIn } = useAuth();
+  const { t } = useTranslation('modelDetail');
   const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
 
@@ -55,7 +59,6 @@ function ModelDetail() {
         if (response.code === 'SUCCESS' && response.data) {
           setData(response.data);
 
-          // 处理Model配置
           if (response.data.type === ProductType.MODEL_API) {
             const modelProduct = response.data;
 
@@ -64,24 +67,22 @@ function ModelDetail() {
             }
           }
         } else {
-          setError(response.message || '数据加载失败');
+          setError(response.message || t('errors.dataLoadFailed'));
         }
       } catch (error) {
-        console.error('API请求失败:', error);
-        setError('加载失败，请稍后重试');
+        console.error('Failed to fetch model detail:', error);
+        setError(t('errors.loadFailed'));
       } finally {
         setLoading(false);
       }
     };
     fetchDetail();
-  }, [modelProductId]);
+  }, [modelProductId, t]);
 
-  // 当产品切换时重置域名选择索引
   useEffect(() => {
     setSelectedModelDomainIndex(0);
   }, [data?.productId]);
 
-  // 获取所有唯一域名
   const getAllUniqueDomains = () => {
     if (!modelConfig?.modelAPIConfig?.routes) return [];
 
@@ -102,7 +103,6 @@ function ModelDetail() {
 
   const allUniqueDomains = getAllUniqueDomains();
 
-  // 生成域名选择器选项
   const modelDomainOptions = allUniqueDomains.map((domain, index) => {
     const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
     return {
@@ -117,33 +117,31 @@ function ModelDetail() {
 
     try {
       await copyToClipboard(selectedModelDomain.label);
-      message.success('域名已复制到剪贴板', 1);
+      message.success(t('messages.domainCopied'), 1);
     } catch {
-      message.error('复制失败，请手动复制');
+      message.error(t('messages.copyFailed'));
     }
   };
 
-  // Helper functions for route display
   const getMatchTypePrefix = (type: string) => {
     switch (type) {
       case 'Exact':
-        return '等于';
+        return t('match.exact');
       case 'Prefix':
-        return '前缀是';
+        return t('match.prefix');
       case 'Regex':
-        return '正则是';
+        return t('match.regex');
       default:
-        return '等于';
+        return t('match.exact');
     }
   };
 
   const getRouteDisplayText = (route: IRoute, domainIndex: number = 0) => {
-    if (!route.match) return 'Unknown Route';
+    if (!route.match) return t('configuration.unknownRoute');
 
     const path = route.match.path?.value || '/';
     const pathType = route.match.path?.type;
 
-    // 拼接域名信息 - 使用选择的域名索引
     let domainInfo = '';
     if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
       const selectedDomain = allUniqueDomains[domainIndex];
@@ -156,7 +154,6 @@ function ModelDetail() {
         domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
       }
     } else if (route.domains && route.domains.length > 0) {
-      // 回退到路由的第一个域名
       const domain = route.domains[0];
       if (domain) {
         const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
@@ -164,18 +161,14 @@ function ModelDetail() {
       }
     }
 
-    // 构建基本路由信息（匹配符号直接加到path后面）
     let pathWithSuffix = path;
     if (pathType === 'Prefix') {
       pathWithSuffix = `${path}*`;
     } else if (pathType === 'Regex') {
       pathWithSuffix = `${path}~`;
     }
-    // 精确匹配不加任何符号
-
     let routeText = `${domainInfo}${pathWithSuffix}`;
 
-    // 添加描述信息
     if (route.description && route.description.trim()) {
       routeText += ` - ${route.description}`;
     }
@@ -191,25 +184,24 @@ function ModelDetail() {
     return methods.join(', ');
   };
 
-  // 获取适用场景中文翻译
   const getModelCategoryText = (category: string) => {
     switch (category) {
       case 'Text':
-        return '文本生成';
+        return t('modelCategory.text');
       case 'Image':
-        return '图片生成';
+        return t('modelCategory.image');
       case 'Video':
-        return '视频生成';
+        return t('modelCategory.video');
       case 'Audio':
-        return '语音合成';
+        return t('modelCategory.audio');
       case 'Embedding':
-        return '向量化（Embedding）';
+        return t('modelCategory.embedding');
       case 'Rerank':
-        return '文本排序（Rerank）';
+        return t('modelCategory.rerank');
       case 'Others':
-        return '其他';
+        return t('modelCategory.others');
       default:
-        return category || '未知';
+        return category || t('modelCategory.unknown');
     }
   };
 
@@ -243,14 +235,14 @@ function ModelDetail() {
     return `${baseUrl}${resolvedPath}`;
   };
 
-  // 生成curl命令示例
   const generateCurlExample = () => {
     const fullUrl = getPrimaryModelEndpointUrl();
     if (!fullUrl) return null;
 
     const modelName = data?.feature?.modelFeature?.model || '{{model_name}}';
 
-    return `curl --location '${fullUrl}' \\
+    return `curl -X POST \\
+  --location '${fullUrl}' \\
   --header 'Content-Type: application/json' \\
   --data '{
     "model": "${modelName}",
@@ -265,71 +257,73 @@ function ModelDetail() {
         },
         {
             "role": "user",
-            "content": "你是谁？"
+            "content": "Who are you?"
         }
     ]
 }'`;
   };
 
   const leftContent = data ? (
-    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6 pt-0">
+    <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
       <Tabs
+        className="[&_.ant-tabs-content-holder]:px-5 [&_.ant-tabs-content-holder]:pb-5 [&_.ant-tabs-nav]:mb-5 [&_.ant-tabs-nav]:px-5 [&_.ant-tabs-tab]:py-4"
         defaultActiveKey="overview"
         items={[
           {
             children: data?.document ? (
-              <div className="min-h-[400px] px-4">
+              <div className="min-h-[420px]">
                 <MarkdownRender content={data.document} />
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16">
+              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-16">
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                   <InboxOutlined className="text-base text-gray-400" />
                 </div>
-                <div className="text-sm text-gray-500">暂无概览信息</div>
+                <div className="text-sm text-gray-500">{t('overview.empty')}</div>
               </div>
             ),
             key: 'overview',
             label: (
               <span className="flex items-center gap-1.5 font-semibold">
                 <FileTextOutlined className="text-sm" />
-                概览
+                {t('tabs.overview')}
               </span>
             ),
           },
           {
             children: modelConfig?.modelAPIConfig ? (
               <div className="space-y-6">
-                {/* 基本信息 */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {modelConfig.modelAPIConfig.modelCategory && (
-                    <div className="bg-gray-50 rounded-[10px]">
-                      <div className="text-sm text-gray-500 mb-1">适用场景</div>
+                    <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
+                      <div className="text-sm text-gray-500 mb-1">
+                        {t('configuration.applicationScenario')}
+                      </div>
                       <div className="text-sm font-medium text-gray-900">
                         {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
                       </div>
                     </div>
                   )}
-                  <div className="bg-gray-50 rounded-[10px]">
-                    <div className="text-sm text-gray-500 mb-1">协议</div>
+                  <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
+                    <div className="text-sm text-gray-500 mb-1">{t('configuration.protocol')}</div>
                     <div className="text-sm font-medium text-gray-900">
                       {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
                     </div>
                   </div>
                 </div>
 
-                {/* 路由配置 */}
                 {modelConfig.modelAPIConfig.routes &&
                   modelConfig.modelAPIConfig.routes.length > 0 && (
                     <div>
-                      <div className="text-sm font-semibold text-gray-900 mb-4">路由配置</div>
+                      <div className="text-sm font-semibold text-gray-900 mb-4">
+                        {t('configuration.routeConfig')}
+                      </div>
 
-                      {/* 域名选择器 */}
                       {modelDomainOptions.length > 0 && (
                         <div className="mb-4">
-                          <div className="flex border border-gray-300 rounded-md overflow-hidden">
-                            <span className="flex-shrink-0 bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-300 flex items-center whitespace-nowrap">
-                              域名:
+                          <div className="flex overflow-hidden rounded-[10px] border border-[#DDE5F0] bg-white">
+                            <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-[#E8EDF5] bg-[#FBFCFE] px-3 py-2 text-xs font-medium text-gray-600">
+                              {t('configuration.domain')}:
                             </span>
                             <div className="flex-1">
                               <Select
@@ -337,10 +331,11 @@ function ModelDetail() {
                                 labelRender={() => (
                                   <div className="inline-flex max-w-full items-center gap-1.5">
                                     <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                                      {selectedModelDomain?.label || '选择域名'}
+                                      {selectedModelDomain?.label ||
+                                        t('configuration.selectDomain')}
                                     </span>
                                     <Button
-                                      aria-label="复制域名"
+                                      aria-label={t('configuration.copyDomain')}
                                       disabled={!selectedModelDomain?.label}
                                       icon={<CopyOutlined />}
                                       onClick={(event) => {
@@ -349,14 +344,14 @@ function ModelDetail() {
                                       }}
                                       onMouseDown={(event) => event.stopPropagation()}
                                       size="small"
-                                      title="复制域名"
+                                      title={t('configuration.copyDomain')}
                                       type="text"
                                     />
                                   </div>
                                 )}
                                 onChange={setSelectedModelDomainIndex}
                                 optionLabelProp="label"
-                                placeholder="选择域名"
+                                placeholder={t('configuration.selectDomain')}
                                 size="middle"
                                 value={selectedModelDomainIndex}
                                 variant="borderless"
@@ -378,8 +373,7 @@ function ModelDetail() {
                         </div>
                       )}
 
-                      {/* 路由列表 */}
-                      <div className="border border-gray-200 rounded-[10px] overflow-hidden">
+                      <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
                         <Collapse expandIconPosition="end" ghost>
                           {modelConfig.modelAPIConfig.routes.map((route, index) => (
                             <Panel
@@ -395,12 +389,12 @@ function ModelDetail() {
                                       {getRouteDisplayText(route, selectedModelDomainIndex)}
                                       {route.builtin && (
                                         <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
-                                          默认
+                                          {t('configuration.defaultRoute')}
                                         </span>
                                       )}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                      方法:{' '}
+                                      {t('configuration.method')}:{' '}
                                       <span className="font-medium text-gray-700">
                                         {getMethodsText(route)}
                                       </span>
@@ -428,9 +422,9 @@ function ModelDetail() {
                                             selectedDomain.protocol,
                                           );
                                           const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
-                                          copyToClipboard(fullUrl).then(() =>
-                                            message.success('链接已复制到剪贴板'),
-                                          );
+                                          copyToClipboard(fullUrl)
+                                            .then(() => message.success(t('messages.linkCopied')))
+                                            .catch(() => message.error(t('messages.copyFailed')));
                                         }
                                       } else if (route.domains && route.domains.length > 0) {
                                         const domain = route.domains[0];
@@ -446,9 +440,9 @@ function ModelDetail() {
                                             domain.protocol,
                                           );
                                           const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
-                                          copyToClipboard(fullUrl).then(() =>
-                                            message.success('链接已复制到剪贴板'),
-                                          );
+                                          copyToClipboard(fullUrl)
+                                            .then(() => message.success(t('messages.linkCopied')))
+                                            .catch(() => message.error(t('messages.copyFailed')));
                                         }
                                       }
                                     }}
@@ -460,27 +454,31 @@ function ModelDetail() {
                               key={index}
                             >
                               <div className="pl-4 space-y-4 pb-4">
-                                {/* 匹配规则 */}
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <div className="text-xs text-gray-500 mb-1">路径:</div>
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      {t('configuration.path')}:
+                                    </div>
                                     <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                       {getMatchTypePrefix(route.match?.path?.type)}{' '}
                                       {route.match?.path?.value}
                                     </div>
                                   </div>
                                   <div>
-                                    <div className="text-xs text-gray-500 mb-1">方法:</div>
+                                    <div className="text-xs text-gray-500 mb-1">
+                                      {t('configuration.method')}:
+                                    </div>
                                     <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
                                       {getMethodsText(route)}
                                     </div>
                                   </div>
                                 </div>
 
-                                {/* 请求头匹配 */}
                                 {route.match?.headers && route.match.headers.length > 0 && (
                                   <div>
-                                    <div className="text-xs text-gray-500 mb-2">请求头匹配:</div>
+                                    <div className="text-xs text-gray-500 mb-2">
+                                      {t('configuration.headerMatch')}:
+                                    </div>
                                     <div className="space-y-1">
                                       {route.match.headers.map((header, headerIndex: number) => (
                                         <div
@@ -495,10 +493,11 @@ function ModelDetail() {
                                   </div>
                                 )}
 
-                                {/* 查询参数匹配 */}
                                 {route.match?.queryParams && route.match.queryParams.length > 0 && (
                                   <div>
-                                    <div className="text-xs text-gray-500 mb-2">查询参数匹配:</div>
+                                    <div className="text-xs text-gray-500 mb-2">
+                                      {t('configuration.queryParamMatch')}:
+                                    </div>
                                     <div className="space-y-1">
                                       {route.match.queryParams.map((param, paramIndex: number) => (
                                         <div
@@ -525,14 +524,14 @@ function ModelDetail() {
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                   <InboxOutlined className="text-base text-gray-400" />
                 </div>
-                <div className="text-sm text-gray-500">暂无配置信息</div>
+                <div className="text-sm text-gray-500">{t('configuration.empty')}</div>
               </div>
             ),
             key: 'configuration',
             label: (
               <span className="flex items-center gap-1.5 font-semibold">
                 <SettingOutlined className="text-sm" />
-                {`配置${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`}
+                {`${t('tabs.configuration')}${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`}
               </span>
             ),
           },
@@ -542,129 +541,129 @@ function ModelDetail() {
     </div>
   ) : null;
 
+  const curlExample = generateCurlExample();
+  const chatFeatures = [
+    t('chat.features.multiTurn'),
+    t('chat.features.multimodal'),
+    t('chat.features.mcpIntegration'),
+    t('chat.features.modelComparison'),
+  ];
+
+  const usagePanel = (
+    <div>
+      <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-colorPrimaryBg text-colorPrimary">
+            <MessageOutlined className="text-base" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-gray-950">{t('chat.eyebrow')}</div>
+            <p className="mt-1 text-sm leading-6 text-gray-600">{t('chat.description')}</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-[#E8EDF5] pt-3">
+          {chatFeatures.map((feature) => (
+            <div
+              className="flex min-w-0 items-center gap-2 text-xs font-medium text-gray-600"
+              key={feature}
+            >
+              <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-colorPrimaryBg text-colorPrimary shadow-[0_0_0_3px_rgba(99,102,241,0.08)]">
+                <CheckCircleFilled className="text-[9px]" />
+              </span>
+              <span className="min-w-0 truncate">{feature}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Button
+        block
+        className="mt-4 !h-10 !rounded-[10px] !border-none !bg-colorPrimary !font-semibold shadow-[0_10px_22px_rgba(99,102,241,0.22)]"
+        onClick={() => {
+          if (!isLoggedIn) {
+            setLoginPromptOpen(true);
+            return;
+          }
+          if (hasSubscription) {
+            navigate('/chat', { state: { selectedProduct: data } });
+          } else {
+            message.warning(t('messages.subscribeFirst'));
+            headerRef.current?.showManageModal();
+          }
+        }}
+        size="large"
+        type="primary"
+      >
+        {!isLoggedIn
+          ? t('chat.loginCta')
+          : hasSubscription
+            ? t('chat.startCta')
+            : t('chat.subscribeCta')}
+      </Button>
+    </div>
+  );
+
+  const curlPanel = modelConfig?.modelAPIConfig ? (
+    curlExample ? (
+      <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827]">
+        <Button
+          aria-label={t('curl.copy')}
+          className="absolute right-2 top-2 z-10 text-gray-400 hover:text-white"
+          icon={<CopyOutlined />}
+          onClick={async () => {
+            copyToClipboard(curlExample).then(() => {
+              message.success(t('messages.curlCopied'));
+            });
+          }}
+          size="small"
+          title={t('curl.copy')}
+          type="text"
+        />
+        <pre className="max-h-[260px] overflow-auto whitespace-pre p-4 pr-12 font-mono text-[12px] leading-5 text-gray-100">
+          <code>{curlExample}</code>
+        </pre>
+      </div>
+    ) : (
+      <div className="rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-8 text-center text-sm text-gray-400">
+        {t('curl.noRoutes')}
+      </div>
+    )
+  ) : (
+    <div className="rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-10 text-center text-sm text-gray-400">
+      {t('curl.noConfig')}
+    </div>
+  );
+
   const rightContent = (
     <>
-      <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-500">Model Chat</span>
+      <section className="rounded-[14px] border border-[#DDE5F0] bg-white/90 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+        <div className="mb-3 flex rounded-lg bg-gray-100 p-1">
+          <button
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs transition-all ${
+              rightPanelTab === 'usage'
+                ? 'bg-white font-medium text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setRightPanelTab('usage')}
+            type="button"
+          >
+            <MessageOutlined className="text-[13px]" />
+            {t('chat.tab')}
+          </button>
+          <button
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs transition-all ${
+              rightPanelTab === 'curl'
+                ? 'bg-white font-medium text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setRightPanelTab('curl')}
+            type="button"
+          >
+            <CodeOutlined className="text-[13px]" />
+            {t('curl.title')}
+          </button>
         </div>
-        <Tabs
-          defaultActiveKey="chat"
-          items={[
-            {
-              children: (
-                <div className="space-y-4">
-                  {/* 现代极简风格卡片 */}
-                  <div className="rounded-[10px] border border-indigo-100/50 bg-indigo-50/50 p-5">
-                    {/* 图标 + 标题 */}
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 shadow-sm">
-                        <MessageOutlined className="text-sm text-white" />
-                      </div>
-                      <div>
-                        <div className="text-base font-semibold text-gray-900">实时对话</div>
-                        <div className="text-xs text-gray-400">Interactive Chat</div>
-                      </div>
-                    </div>
-                    {/* 描述文字 */}
-                    <p className="mb-4 text-sm leading-relaxed text-gray-600">
-                      在交互式环境中体验模型能力，让AI触手可及
-                    </p>
-                    {/* 特性标签 */}
-                    <div className="flex flex-wrap gap-2">
-                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-                        多轮对话
-                      </span>
-                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-                        多模态
-                      </span>
-                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-                        MCP集成
-                      </span>
-                      <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-                        多模型对比
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 核心操作按钮 */}
-                  <Button
-                    block
-                    className="rounded-lg border-none bg-gradient-to-r from-indigo-500 to-purple-500"
-                    icon={<MessageOutlined />}
-                    onClick={() => {
-                      if (!isLoggedIn) {
-                        setLoginPromptOpen(true);
-                        return;
-                      }
-                      if (hasSubscription) {
-                        navigate('/chat', { state: { selectedProduct: data } });
-                      } else {
-                        message.warning('请先订阅该产品后再进行对话测试');
-                        headerRef.current?.showManageModal();
-                      }
-                    }}
-                    size="large"
-                    type="primary"
-                  >
-                    {!isLoggedIn
-                      ? '登录后开始对话'
-                      : hasSubscription
-                        ? '开始对话测试'
-                        : '订阅并开始对话'}
-                  </Button>
-                </div>
-              ),
-              key: 'chat',
-              label: 'Chat',
-            },
-            {
-              children: modelConfig?.modelAPIConfig ? (
-                <div className="space-y-4">
-                  {generateCurlExample() ? (
-                    <>
-                      <div className="relative">
-                        <pre className="bg-gray-900 text-gray-100 p-4 rounded-[10px] text-xs overflow-x-auto whitespace-pre-wrap border border-gray-700">
-                          <code>{generateCurlExample()}</code>
-                        </pre>
-                        <Button
-                          className="absolute top-2 right-2 text-gray-400 hover:text-white"
-                          icon={<CopyOutlined />}
-                          onClick={async () => {
-                            const curlCommand = generateCurlExample();
-                            if (curlCommand) {
-                              copyToClipboard(curlCommand).then(() => {
-                                message.success('Curl命令已复制到剪贴板');
-                              });
-                            }
-                          }}
-                          size="small"
-                          type="text"
-                        />
-                      </div>
-                      {!data?.feature?.modelFeature?.model && (
-                        <div className="text-xs text-gray-500 bg-blue-50 px-3 py-2 rounded-lg">
-                          💡 将{' '}
-                          <code className="bg-white px-1.5 py-0.5 rounded text-blue-600">
-                            {'{{model_name}}'}
-                          </code>{' '}
-                          替换为实际的模型名称
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-gray-400 text-center py-8">当前配置中没有找到路由</div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-gray-400 text-center py-16">暂无 Model API 配置信息</div>
-              ),
-              key: 'curl',
-              label: 'cURL',
-            },
-          ]}
-        />
-      </div>
+        {rightPanelTab === 'usage' ? usagePanel : curlPanel}
+      </section>
       <LoginPrompt
         contextMessage={tLoginPrompt('contextSubscribeModel')}
         onClose={() => setLoginPromptOpen(false)}
@@ -675,7 +674,7 @@ function ModelDetail() {
 
   return (
     <ProductDetailLayout
-      error={error || (!data ? '未找到对应的模型' : undefined)}
+      error={error || (!data ? t('errors.notFound') : undefined)}
       headerProps={
         data
           ? {

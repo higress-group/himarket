@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 import type { JsonRpcId, PermissionRequest } from '../../types/coding-protocol';
 
 interface PermissionDialogProps {
@@ -6,20 +8,21 @@ interface PermissionDialogProps {
 }
 
 export function PermissionDialog({ onRespond, permission }: PermissionDialogProps) {
+  const { t } = useTranslation('coding');
   const { id, request } = permission;
   const toolCall = request.toolCall;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-[10px] bg-white shadow-xl p-6">
-        <div className="text-base font-semibold text-gray-800 mb-3">需要权限确认</div>
+        <div className="text-base font-semibold text-gray-800 mb-3">{t('permission.title')}</div>
         <div className="space-y-2 mb-5">
           {toolCall.title && (
             <div className="text-sm font-medium text-gray-700">{toolCall.title}</div>
           )}
           {toolCall.rawInput?.command !== undefined && toolCall.rawInput?.command !== null && (
             <div className="text-sm text-gray-500">
-              命令:{' '}
+              {t('permission.command')}:{' '}
               <code className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-xs font-mono">
                 {String(toolCall.rawInput.command)}
               </code>

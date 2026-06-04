@@ -206,7 +206,10 @@ export function generateEmptyChartOption(message: string = '暂无数据'): echa
  * @param data表格数据
  * @returns Ant Design Table的列定义
  */
-export function generateTableColumns(data: Record<string, unknown>[]): Array<{
+export function generateTableColumns(
+  data: Record<string, unknown>[],
+  titleMap: Record<string, string> = {},
+): Array<{
   title: string;
   dataIndex: string;
   key: string;
@@ -228,6 +231,6 @@ export function generateTableColumns(data: Record<string, unknown>[]): Array<{
       }
       return text as ReactNode;
     },
-    title: key,
+    title: titleMap[key] ?? key,
   }));
 }

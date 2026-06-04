@@ -1,5 +1,6 @@
 import { message as antdMessage } from 'antd';
 import { useReducer, useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { chatReducer, type ChatAction } from './useChatReducer';
 import APIs, {
@@ -111,6 +112,7 @@ async function executeSSERequest(
 // ============ Hook ============
 
 export function useChatSession() {
+  const { t } = useTranslation('chat');
   const [state, dispatch] = useReducer(chatReducer, []);
   const [generating, setGenerating] = useState(false);
   const [isMcpExecuting, setIsMcpExecuting] = useState(false);
@@ -159,14 +161,14 @@ export function useChatSession() {
             setSidebarRefreshTrigger((prev) => prev + 1);
           } else {
             setGenerating(false);
-            throw new Error('创建会话失败');
+            throw new Error(t('session.createFailed'));
           }
         }
 
         const conversationId = generateConversationId();
         const questionId = generateQuestionId();
 
-        if (!sessionId) throw new Error('会话ID不存在');
+        if (!sessionId) throw new Error(t('session.missingId'));
 
         const modelIds = state.length ? state.map((m) => m.id) : [selectedModel.productId];
         abortControllersRef.current = [];
@@ -220,12 +222,12 @@ export function useChatSession() {
         setGenerating(false);
         abortControllersRef.current = [];
       } catch (error) {
-        dispatch({ payload: { errorMsg: '网络错误，请重试' }, type: 'GLOBAL_ERROR' });
+        dispatch({ payload: { errorMsg: t('messages.networkError') }, type: 'GLOBAL_ERROR' });
         setGenerating(false);
         console.error('Failed to send message:', error);
       }
     },
-    [currentSessionId, state],
+    [currentSessionId, state, t],
   );
 
   // 重新生成答案
@@ -415,10 +417,10 @@ export function useChatSession() {
         }
       } catch (error) {
         console.error('Failed to load conversation:', error);
-        antdMessage.error('加载聊天记录失败');
+        antdMessage.error(t('session.loadHistoryFailed'));
       }
     },
-    [currentSessionId],
+    [currentSessionId, t],
   );
 
   // 切换活跃答案

@@ -1,8 +1,8 @@
 import { Form, Modal, Select, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, nacosApi } from '@/lib/api';
-import { getGatewayTypeLabel } from '@/lib/constant';
 import type {
   ApiProduct,
   LinkedService,
@@ -37,6 +37,7 @@ export function LinkApiModal({
   onOk,
   open,
 }: LinkApiModalProps) {
+  const { t } = useLocale();
   const [form] = Form.useForm();
   const [sourceType, setSourceType] = useState<'GATEWAY' | 'NACOS'>('GATEWAY');
   const [selectedGateway, setSelectedGateway] = useState<Gateway | null>(null);
@@ -130,6 +131,36 @@ export function LinkApiModal({
     },
     [selectedNacos, fetchByNacos],
   );
+
+  const getGatewayTypeDisplay = (gatewayType: string) => {
+    switch (gatewayType) {
+      case 'APIG_API':
+        return t('product.linkApi.apiGateway');
+      case 'APIG_AI':
+        return t('product.linkApi.apiGateway');
+      case 'HIGRESS':
+        return t('product.linkApi.higressGateway');
+      case 'ADP_AI_GATEWAY':
+        return t('product.linkApi.privateAiGateway');
+      case 'APSARA_GATEWAY':
+        return t('product.linkApi.apsaraGateway');
+      default:
+        return gatewayType;
+    }
+  };
+
+  const getApiSelectLabel = () => {
+    if (apiProduct.type === 'REST_API') {
+      return t('product.linkApi.selectRestApi');
+    }
+    if (apiProduct.type === 'AGENT_API') {
+      return t('product.linkApi.selectAgentApi');
+    }
+    if (apiProduct.type === 'MODEL_API') {
+      return t('product.linkApi.selectModelApi');
+    }
+    return t('product.linkApi.selectMcpServer');
+  };
 
   const handleModalOk = () => {
     form.validateFields().then(async (values) => {
@@ -229,11 +260,11 @@ export function LinkApiModal({
       apiProductApi
         .createApiProductRef(apiProduct.productId, newService)
         .then(async () => {
-          message.success('关联成功');
+          message.success(t('product.linkApi.linkSuccess'));
           onOk();
         })
         .catch(() => {
-          message.error('关联失败');
+          message.error(t('product.linkApi.linkFailed'));
         });
     });
   };
@@ -249,31 +280,34 @@ export function LinkApiModal({
 
   return (
     <Modal
-      cancelText="取消"
-      okText="关联"
+      cancelText={t('common.cancel')}
+      okText={t('product.linkApi.linkApi')}
       onCancel={handleModalCancel}
       onOk={handleModalOk}
       open={open}
       title={
         linkedService
           ? apiProduct.type === 'MCP_SERVER'
-            ? '重新关联MCP Server'
-            : '重新关联API'
+            ? t('product.linkApi.relinkMcp')
+            : t('product.linkApi.relinkApi')
           : apiProduct.type === 'MCP_SERVER'
-            ? '关联MCP Server'
-            : '关联新API'
+            ? t('product.linkApi.linkMcp')
+            : t('product.linkApi.linkNewApi')
       }
       width={600}
     >
       <Form form={form} layout="vertical">
         <Form.Item
           initialValue="GATEWAY"
-          label="来源类型"
+          label={t('product.linkApi.sourceType')}
           name="sourceType"
-          rules={[{ message: '请选择来源类型', required: true }]}
+          rules={[{ message: t('product.linkApi.selectSourceType'), required: true }]}
         >
-          <Select onChange={handleSourceTypeChange} placeholder="请选择来源类型">
-            <Select.Option value="GATEWAY">网关</Select.Option>
+          <Select
+            onChange={handleSourceTypeChange}
+            placeholder={t('product.linkApi.selectSourceType')}
+          >
+            <Select.Option value="GATEWAY">{t('product.linkApi.gateway')}</Select.Option>
             <Select.Option
               disabled={apiProduct.type === 'REST_API' || apiProduct.type === 'MODEL_API'}
               value="NACOS"
@@ -285,9 +319,9 @@ export function LinkApiModal({
 
         {sourceType === 'GATEWAY' && (
           <Form.Item
-            label="网关实例"
+            label={t('product.linkApi.gatewayInstance')}
             name="gatewayId"
-            rules={[{ message: '请选择网关', required: true }]}
+            rules={[{ message: t('product.linkApi.selectGateway'), required: true }]}
           >
             <Select
               filterOption={(input, option) =>
@@ -296,7 +330,7 @@ export function LinkApiModal({
               loading={gatewayLoading}
               onChange={handleGatewayChange}
               optionLabelProp="label"
-              placeholder="请选择网关实例"
+              placeholder={t('product.linkApi.selectGatewayInstance')}
               showSearch
             >
               {gateways
@@ -323,15 +357,7 @@ export function LinkApiModal({
                     <div>
                       <div className="font-medium">{gateway.gatewayName}</div>
                       <div className="text-sm text-gray-500">
-                        {gateway.gatewayId} -{' '}
-                        {getGatewayTypeLabel(
-                          gateway.gatewayType as
-                            | 'HIGRESS'
-                            | 'APIG_AI'
-                            | 'ADP_AI_GATEWAY'
-                            | 'APSARA_GATEWAY'
-                            | 'APIG_API',
-                        )}
+                        {gateway.gatewayId} - {getGatewayTypeDisplay(gateway.gatewayType)}
                       </div>
                     </div>
                   </Select.Option>
@@ -342,9 +368,9 @@ export function LinkApiModal({
 
         {sourceType === 'NACOS' && (
           <Form.Item
-            label="Nacos实例"
+            label={t('product.linkApi.nacosInstance')}
             name="nacosId"
-            rules={[{ message: '请选择Nacos实例', required: true }]}
+            rules={[{ message: t('product.linkApi.selectNacosInstance'), required: true }]}
           >
             <Select
               filterOption={(input, option) =>
@@ -353,7 +379,7 @@ export function LinkApiModal({
               loading={nacosLoading}
               onChange={handleNacosChange}
               optionLabelProp="label"
-              placeholder="请选择Nacos实例"
+              placeholder={t('product.linkApi.selectNacosInstance')}
               showSearch
             >
               {nacosInstances.map((nacos) => (
@@ -370,9 +396,9 @@ export function LinkApiModal({
 
         {sourceType === 'NACOS' && selectedNacos && (
           <Form.Item
-            label="命名空间"
+            label={t('product.linkApi.namespace')}
             name="namespaceId"
-            rules={[{ message: '请选择命名空间', required: true }]}
+            rules={[{ message: t('product.linkApi.selectNamespace'), required: true }]}
           >
             <Select
               filterOption={(input, option) =>
@@ -381,7 +407,7 @@ export function LinkApiModal({
               loading={apiLoading && nacosNamespaces.length === 0}
               onChange={handleNamespaceChange}
               optionLabelProp="label"
-              placeholder="请选择命名空间"
+              placeholder={t('product.linkApi.selectNamespace')}
               showSearch
             >
               {nacosNamespaces.map((ns: { namespaceId: string; namespaceName: string }) => (
@@ -398,26 +424,11 @@ export function LinkApiModal({
 
         {(selectedGateway || (selectedNacos && selectedNamespace)) && (
           <Form.Item
-            label={
-              apiProduct.type === 'REST_API'
-                ? '选择REST API'
-                : apiProduct.type === 'AGENT_API'
-                  ? '选择Agent API'
-                  : apiProduct.type === 'MODEL_API'
-                    ? '选择Model API'
-                    : '选择MCP Server'
-            }
+            label={getApiSelectLabel()}
             name="apiId"
             rules={[
               {
-                message:
-                  apiProduct.type === 'REST_API'
-                    ? '请选择REST API'
-                    : apiProduct.type === 'AGENT_API'
-                      ? '请选择Agent API'
-                      : apiProduct.type === 'MODEL_API'
-                        ? '请选择Model API'
-                        : '请选择MCP Server',
+                message: getApiSelectLabel(),
                 required: true,
               },
             ]}
@@ -428,15 +439,7 @@ export function LinkApiModal({
               }
               loading={apiLoading}
               optionLabelProp="label"
-              placeholder={
-                apiProduct.type === 'REST_API'
-                  ? '请选择REST API'
-                  : apiProduct.type === 'AGENT_API'
-                    ? '请选择Agent API'
-                    : apiProduct.type === 'MODEL_API'
-                      ? '请选择Model API'
-                      : '请选择MCP Server'
-              }
+              placeholder={getApiSelectLabel()}
               showSearch
             >
               {apiList.map((api: ApiListItem) => {

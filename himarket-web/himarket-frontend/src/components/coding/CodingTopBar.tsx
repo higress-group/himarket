@@ -1,5 +1,6 @@
 import { Select } from 'antd';
 import { FolderOpen, Folder } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { useCodingState, useActiveCodingSession } from '../../context/CodingSessionContext';
 
@@ -18,6 +19,7 @@ export function CodingTopBar({
   onToggleFileTree,
   status,
 }: CodingTopBarProps) {
+  const { t } = useTranslation('coding');
   const state = useCodingState();
   const quest = useActiveCodingSession();
 
@@ -69,7 +71,7 @@ export function CodingTopBar({
         className={`w-7 h-7 flex items-center justify-center rounded transition-colors ml-2
           ${fileTreeVisible ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
         onClick={onToggleFileTree}
-        title={fileTreeVisible ? '隐藏文件' : '显示文件'}
+        title={fileTreeVisible ? t('page.hideFiles') : t('page.showFiles')}
       >
         {fileTreeVisible ? <FolderOpen size={16} /> : <Folder size={16} />}
       </button>

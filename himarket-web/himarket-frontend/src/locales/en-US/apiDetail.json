@@ -1,0 +1,66 @@
+{
+  "errors": {
+    "loadFailed": "Failed to load. Please try again later."
+  },
+  "messages": {
+    "copied": "Copied to clipboard",
+    "copyFailed": "Copy failed. Please copy manually.",
+    "curlCopied": "cURL command copied to clipboard",
+    "endpointCopied": "Request URL copied to clipboard",
+    "serverCopied": "Server address copied to clipboard",
+    "specDownloaded": "OpenAPI {{format}} file downloaded",
+    "jsonConvertFailed": "Failed to convert to JSON",
+    "specDownloadFailed": "Failed to download the OpenAPI spec"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "openapiSpec": "OpenAPI spec"
+  },
+  "overview": {
+    "empty": "No overview information"
+  },
+  "openapi": {
+    "empty": "No OpenAPI spec"
+  },
+  "example": {
+    "title": "Request example",
+    "downloadYaml": "Download YAML",
+    "downloadJson": "Download JSON",
+    "copyCurl": "Copy cURL"
+  },
+  "usage": {
+    "tab": "API usage",
+    "title": "API call",
+    "description": "Select an endpoint, copy the request URL, and integrate the API quickly.",
+    "currentEndpoint": "Endpoint",
+    "baseUrl": "Base URL",
+    "noEndpoint": "No selectable endpoint",
+    "noBaseUrl": "No selectable Base URL",
+    "requestUrl": "Request URL",
+    "copyRequestUrl": "Copy request URL",
+    "openapi": "OpenAPI spec"
+  },
+  "restDocs": {
+    "noSchema": "No Schema",
+    "noExample": "No Example",
+    "copySchema": "Copy Schema",
+    "copyExample": "Copy Example",
+    "parseFailed": "Unable to parse the OpenAPI spec. Check the API configuration format.",
+    "parseFailedTitle": "Unable to parse the OpenAPI spec",
+    "parseFailedHint": "Check the API configuration format",
+    "errorDetails": "Error details",
+    "noEndpoints": "No endpoints are defined in the OpenAPI spec",
+    "selectServer": "Select Server",
+    "copyServerAddress": "Copy server address",
+    "noServers": "The OpenAPI document does not declare servers",
+    "endpointList": "Endpoints",
+    "endpointHint": "Select an endpoint to view details",
+    "searchPlaceholder": "Search path, description, or operationId",
+    "noDescription": "No description",
+    "noMatchedEndpoints": "No matching endpoints",
+    "noParameters": "No parameters",
+    "noRequestBody": "No request body",
+    "noResponses": "No response definitions",
+    "selectEndpoint": "Select an endpoint"
+  }
+}

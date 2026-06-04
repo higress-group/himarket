@@ -1,4 +1,6 @@
 import {
+  CheckCircleFilled,
+  CodeOutlined,
   CopyOutlined,
   FileTextOutlined,
   InboxOutlined,
@@ -7,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { Button, message, Tabs, Collapse, Select } from 'antd';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import MarkdownRender from '../components/MarkdownRender';
@@ -19,13 +22,17 @@ import type { IAgentConfig } from '../lib/apis/typing';
 
 const { Panel } = Collapse;
 
+type AgentRoute = NonNullable<IAgentConfig['agentAPIConfig']['routes']>[number];
+
 function AgentDetail() {
   const { agentProductId } = useParams();
+  const { t } = useTranslation('agentDetail');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState<IProductDetail>();
   const [agentConfig, setAgentConfig] = useState<IAgentConfig>();
   const [selectedAgentDomainIndex, setSelectedAgentDomainIndex] = useState<number>(0);
+  const [rightPanelTab, setRightPanelTab] = useState<'usage' | 'request'>('usage');
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -48,17 +55,17 @@ function AgentDetail() {
             }
           }
         } else {
-          setError(response.message || '数据加载失败');
+          setError(response.message || t('error.dataLoadFailed'));
         }
       } catch (error) {
-        console.error('API请求失败:', error);
-        setError('加载失败，请稍后重试');
+        console.error('Failed to request API:', error);
+        setError(t('error.loadFailed'));
       } finally {
         setLoading(false);
       }
     };
     fetchDetail();
-  }, [agentProductId]);
+  }, [agentProductId, t]);
 
   // 当产品切换时重置域名选择索引
   useEffect(() => {
@@ -101,9 +108,9 @@ function AgentDetail() {
 
     try {
       await copyToClipboard(selectedAgentDomain.label);
-      message.success('域名已复制到剪贴板', 1);
+      message.success(t('message.domainCopied'), 1);
     } catch {
-      message.error('复制失败，请手动复制');
+      message.error(t('message.copyFailed'));
     }
   };
 
@@ -111,27 +118,20 @@ function AgentDetail() {
   const getMatchTypePrefix = (matchType: string) => {
     switch (matchType) {
       case 'Exact':
-        return '等于';
+        return t('matchType.exact');
       case 'Prefix':
-        return '前缀是';
+        return t('matchType.prefix');
       case 'Regex':
-        return '正则是';
+        return t('matchType.regex');
       default:
-        return '等于';
+        return t('matchType.exact');
     }
   };
 
-  const getRouteDisplayText = (
-    route: NonNullable<IAgentConfig['agentAPIConfig']['routes']>[0],
-    domainIndex: number = 0,
-  ) => {
-    if (!route.match) return 'Unknown Route';
+  const getRouteEndpoint = (route?: AgentRoute, domainIndex: number = 0) => {
+    if (!route?.match) return '';
 
     const path = route.match.path?.value || '/';
-    const pathType = route.match.path?.type;
-
-    // 拼接域名信息 - 使用选择的域名索引
-    let domainInfo = '';
     if (allUniqueDomains.length > 0 && allUniqueDomains.length > domainIndex) {
       const selectedDomain = allUniqueDomains[domainIndex];
       if (selectedDomain) {
@@ -140,16 +140,25 @@ function AgentDetail() {
           selectedDomain.port,
           selectedDomain.protocol,
         );
-        domainInfo = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}`;
+        return `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
       }
     } else if (route.domains && route.domains.length > 0) {
-      // 回退到路由的第一个域名
       const domain = route.domains[0];
       if (domain) {
         const formattedDomain = formatDomainWithPort(domain.domain, domain.port, domain.protocol);
-        domainInfo = `${domain.protocol.toLowerCase()}://${formattedDomain}`;
+        return `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
       }
     }
+
+    return path;
+  };
+
+  const getRouteDisplayText = (route: AgentRoute, domainIndex: number = 0) => {
+    if (!route.match) return t('route.unknown');
+
+    const path = route.match.path?.value || '/';
+    const pathType = route.match.path?.type;
+    const routeEndpoint = getRouteEndpoint(route, domainIndex);
 
     // 构建基本路由信息（匹配符号直接加到path后面）
     let pathWithSuffix = path;
@@ -159,7 +168,12 @@ function AgentDetail() {
       pathWithSuffix = `${path}~`;
     }
 
-    let routeText = `${domainInfo}${pathWithSuffix}`;
+    let routeText = routeEndpoint;
+    if (pathWithSuffix !== path) {
+      routeText = routeEndpoint.endsWith(path)
+        ? `${routeEndpoint.slice(0, -path.length)}${pathWithSuffix}`
+        : `${routeEndpoint}${pathWithSuffix}`;
+    }
 
     // 添加描述信息
     if (route.description && route.description.trim()) {
@@ -169,36 +183,63 @@ function AgentDetail() {
     return routeText;
   };
 
-  const getMethodsText = (route: NonNullable<IAgentConfig['agentAPIConfig']['routes']>[0]) => {
+  const getMethodsText = (route: AgentRoute) => {
     if (!route.match?.methods || route.match.methods.length === 0) {
       return 'ANY';
     }
     return route.match.methods.join(', ');
   };
 
+  const agentProtocols = agentConfig?.agentAPIConfig?.agentProtocols ?? [];
+  const agentRoutes = agentConfig?.agentAPIConfig?.routes ?? [];
+  const agentCard = agentConfig?.agentAPIConfig?.agentCard;
+  const primaryAgentRoute = agentRoutes[0];
+  const primaryEndpoint =
+    getRouteEndpoint(primaryAgentRoute, selectedAgentDomainIndex) || agentCard?.url;
+
+  const generateRequestExample = () => {
+    if (!primaryEndpoint) {
+      return '';
+    }
+
+    const firstMethod = primaryAgentRoute?.match?.methods?.find((method) => {
+      const normalizedMethod = method.trim().toUpperCase();
+      return normalizedMethod && normalizedMethod !== 'ANY' && normalizedMethod !== '*';
+    });
+    const method = firstMethod?.toUpperCase() || 'POST';
+
+    return `curl -X ${method} \\
+  '${primaryEndpoint}' \\
+  --header 'Content-Type: application/json' \\
+  --data '{
+    "message": "Hello"
+  }'`;
+  };
+
   const leftContent = data ? (
-    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6 pt-0">
+    <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
       <Tabs
+        className="[&_.ant-tabs-content-holder]:px-5 [&_.ant-tabs-content-holder]:pb-5 [&_.ant-tabs-nav]:mb-5 [&_.ant-tabs-nav]:px-5 [&_.ant-tabs-tab]:py-4"
         defaultActiveKey="overview"
         items={[
           {
             children: data?.document ? (
-              <div className="min-h-[400px] px-4">
+              <div className="min-h-[420px]">
                 <MarkdownRender content={data.document} />
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16">
+              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-16">
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                   <InboxOutlined className="text-base text-gray-400" />
                 </div>
-                <div className="text-sm text-gray-500">暂无概览信息</div>
+                <div className="text-sm text-gray-500">{t('empty.overview')}</div>
               </div>
             ),
             key: 'overview',
             label: (
               <span className="flex items-center gap-1.5 font-semibold">
                 <FileTextOutlined className="text-sm" />
-                概览
+                {t('tabs.overview')}
               </span>
             ),
           },
@@ -206,83 +247,95 @@ function AgentDetail() {
             children: agentConfig?.agentAPIConfig ? (
               <div className="space-y-6">
                 {/* 基本信息 */}
-                <div className="grid grid-cols-2 gap-4">
-                  {agentConfig.agentAPIConfig.agentProtocols &&
-                    agentConfig.agentAPIConfig.agentProtocols.length > 0 && (
-                      <div className="rounded-[10px] bg-gray-50">
-                        <div className="mb-1 text-sm text-gray-500">协议</div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {agentConfig.agentAPIConfig.agentProtocols.join(', ')}
-                        </div>
-                      </div>
-                    )}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
+                    <div className="mb-1 text-sm text-gray-500">{t('field.protocol')}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {agentProtocols.length > 0
+                        ? agentProtocols.join(', ')
+                        : t('field.noProtocol')}
+                    </div>
+                  </div>
                 </div>
 
-                {/* A2A 协议：额外显示 AgentCard */}
-                {agentConfig.agentAPIConfig.agentProtocols?.includes('a2a') &&
-                  agentConfig.agentAPIConfig.agentCard && (
-                    <div className="p-6 bg-white border border-gray-200 rounded-[10px]">
-                      <h3 className="text-lg font-semibold mb-4 text-gray-900">Agent Card 信息</h3>
+                {agentProtocols.includes('a2a') && agentCard && (
+                  <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
+                    <div className="flex items-center justify-between border-b border-[#E8EDF5] px-4 py-3">
+                      <h3 className="text-sm font-semibold text-gray-950">
+                        {t('agentCard.title')}
+                      </h3>
+                      {agentCard.protocolVersion && (
+                        <span className="rounded-full bg-[#F3F6FC] px-2.5 py-1 font-mono text-xs font-medium text-gray-500">
+                          {agentCard.protocolVersion}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-4">
                       <div className="space-y-4">
-                        {/* 基本信息 */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-sm text-gray-500 mb-1">名称</div>
-                            <div className="font-medium text-gray-900">
-                              {agentConfig.agentAPIConfig.agentCard.name}
-                            </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className="rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3">
+                            <div className="mb-1 text-xs text-gray-500">{t('agentCard.name')}</div>
+                            <div className="font-medium text-gray-900">{agentCard.name}</div>
                           </div>
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-sm text-gray-500 mb-1">版本</div>
-                            <div className="font-medium text-gray-900">
-                              {agentConfig.agentAPIConfig.agentCard.version}
+                          <div className="rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3">
+                            <div className="mb-1 text-xs text-gray-500">
+                              {t('agentCard.version')}
                             </div>
+                            <div className="font-medium text-gray-900">{agentCard.version}</div>
                           </div>
                         </div>
 
-                        {agentConfig.agentAPIConfig.agentCard.protocolVersion && (
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-sm text-gray-500 mb-1">协议版本</div>
+                        {agentCard.protocolVersion && (
+                          <div className="rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3">
+                            <div className="mb-1 text-xs text-gray-500">
+                              {t('agentCard.protocolVersion')}
+                            </div>
                             <div className="font-mono text-sm text-gray-900">
-                              {agentConfig.agentAPIConfig.agentCard.protocolVersion}
+                              {agentCard.protocolVersion}
                             </div>
                           </div>
                         )}
 
-                        {agentConfig.agentAPIConfig.agentCard.description && (
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-sm text-gray-500 mb-1">描述</div>
-                            <div className="text-gray-900">
-                              {agentConfig.agentAPIConfig.agentCard.description}
+                        {agentCard.description && (
+                          <div className="rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3">
+                            <div className="mb-1 text-xs text-gray-500">
+                              {t('agentCard.description')}
+                            </div>
+                            <div className="text-sm leading-6 text-gray-700">
+                              {agentCard.description}
                             </div>
                           </div>
                         )}
 
-                        {agentConfig.agentAPIConfig.agentCard.url && (
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-sm text-gray-500 mb-1">URL</div>
-                            <div className="font-mono text-sm text-gray-900">
-                              {agentConfig.agentAPIConfig.agentCard.url}
+                        {agentCard.url && (
+                          <div className="rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3">
+                            <div className="mb-1 text-xs text-gray-500">URL</div>
+                            <div className="break-all font-mono text-sm text-gray-900">
+                              {agentCard.url}
                             </div>
                           </div>
                         )}
 
-                        {agentConfig.agentAPIConfig.agentCard.preferredTransport && (
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <div className="text-sm text-gray-500 mb-1">传输协议</div>
-                            <div className="text-gray-900">
-                              {agentConfig.agentAPIConfig.agentCard.preferredTransport}
+                        {agentCard.preferredTransport && (
+                          <div className="rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3">
+                            <div className="mb-1 text-xs text-gray-500">
+                              {t('agentCard.transport')}
+                            </div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {agentCard.preferredTransport}
                             </div>
                           </div>
                         )}
 
                         {/* Additional Interfaces */}
-                        {agentConfig.agentAPIConfig.agentCard.additionalInterfaces &&
-                          agentConfig.agentAPIConfig.agentCard.additionalInterfaces.length > 0 && (
+                        {agentCard.additionalInterfaces &&
+                          agentCard.additionalInterfaces.length > 0 && (
                             <div>
-                              <div className="text-sm text-gray-500 mb-2">附加接口</div>
+                              <div className="mb-2 text-sm font-medium text-gray-700">
+                                {t('agentCard.additionalInterfaces')}
+                              </div>
                               <div className="space-y-2">
-                                {agentConfig.agentAPIConfig.agentCard.additionalInterfaces.map(
+                                {agentCard.additionalInterfaces.map(
                                   (
                                     iface: {
                                       transport?: string;
@@ -292,15 +345,15 @@ function AgentDetail() {
                                     idx: number,
                                   ) => (
                                     <div
-                                      className="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                                      className="rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3"
                                       key={idx}
                                     >
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
-                                          {iface.transport || 'Unknown'}
+                                      <div className="mb-1 flex items-center gap-2">
+                                        <span className="rounded-full bg-colorPrimaryBg px-2 py-1 text-xs font-medium text-colorPrimary">
+                                          {iface.transport || t('agentCard.unknown')}
                                         </span>
                                       </div>
-                                      <div className="font-mono text-sm text-gray-700 break-all">
+                                      <div className="break-all font-mono text-sm text-gray-700">
                                         {iface.url}
                                       </div>
                                       {/* 显示其他附加字段 */}
@@ -326,79 +379,79 @@ function AgentDetail() {
                           )}
 
                         {/* Skills */}
-                        {agentConfig.agentAPIConfig.agentCard.skills &&
-                          agentConfig.agentAPIConfig.agentCard.skills.length > 0 && (
-                            <div>
-                              <div className="text-sm text-gray-500 mb-2">技能列表</div>
-                              <div className="space-y-2">
-                                {agentConfig.agentAPIConfig.agentCard.skills.map(
-                                  (
-                                    skill: {
-                                      id: string;
-                                      name: string;
-                                      description?: string;
-                                      tags?: string[];
-                                    },
-                                    idx: number,
-                                  ) => (
-                                    <div
-                                      className="border border-gray-200 rounded-lg p-3 bg-white"
-                                      key={idx}
-                                    >
-                                      <div className="font-medium text-gray-900">{skill.name}</div>
-                                      {skill.description && (
-                                        <div className="text-sm text-gray-600 mt-1">
-                                          {skill.description}
-                                        </div>
-                                      )}
-                                      {skill.tags && skill.tags.length > 0 && (
-                                        <div className="flex gap-2 mt-2 flex-wrap">
-                                          {skill.tags.map((tag: string, tagIdx: number) => (
-                                            <span
-                                              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
-                                              key={tagIdx}
-                                            >
-                                              {tag}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ),
-                                )}
-                              </div>
+                        {agentCard.skills && agentCard.skills.length > 0 && (
+                          <div>
+                            <div className="mb-2 text-sm font-medium text-gray-700">
+                              {t('agentCard.skills')}
                             </div>
-                          )}
+                            <div className="space-y-2">
+                              {agentCard.skills.map(
+                                (
+                                  skill: {
+                                    id: string;
+                                    name: string;
+                                    description?: string;
+                                    tags?: string[];
+                                  },
+                                  idx: number,
+                                ) => (
+                                  <div
+                                    className="rounded-[10px] border border-[#E8EDF5] bg-white p-3"
+                                    key={idx}
+                                  >
+                                    <div className="font-medium text-gray-900">{skill.name}</div>
+                                    {skill.description && (
+                                      <div className="mt-1 text-sm leading-6 text-gray-600">
+                                        {skill.description}
+                                      </div>
+                                    )}
+                                    {skill.tags && skill.tags.length > 0 && (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {skill.tags.map((tag: string, tagIdx: number) => (
+                                          <span
+                                            className="rounded-full bg-[#F3F6FC] px-2 py-1 text-xs font-medium text-gray-600"
+                                            key={tagIdx}
+                                          >
+                                            {tag}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Capabilities */}
-                        {agentConfig.agentAPIConfig.agentCard.capabilities && (
+                        {agentCard.capabilities && (
                           <div>
-                            <div className="text-sm text-gray-500 mb-2">能力</div>
-                            <pre className="bg-gray-50 p-3 rounded-lg text-sm overflow-auto text-gray-900">
-                              {JSON.stringify(
-                                agentConfig.agentAPIConfig.agentCard.capabilities,
-                                null,
-                                2,
-                              )}
+                            <div className="mb-2 text-sm font-medium text-gray-700">
+                              {t('agentCard.capabilities')}
+                            </div>
+                            <pre className="overflow-auto rounded-[10px] border border-[#E8EDF5] bg-[#FBFCFE] p-3 text-sm text-gray-900">
+                              {JSON.stringify(agentCard.capabilities, null, 2)}
                             </pre>
                           </div>
                         )}
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                {/* 路由配置（如果有）*/}
-                {agentConfig.agentAPIConfig.routes &&
-                  agentConfig.agentAPIConfig.routes.length > 0 && (
-                    <div>
-                      <div className="mb-4 text-sm font-semibold text-gray-900">路由配置</div>
+                {agentRoutes.length > 0 && (
+                  <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
+                    <div className="border-b border-[#E8EDF5] px-4 py-3 text-sm font-semibold text-gray-950">
+                      {t('route.title')}
+                    </div>
 
-                      {/* 域名选择器 */}
+                    <div className="p-4">
                       {agentDomainOptions.length > 0 && (
                         <div className="mb-4">
-                          <div className="flex overflow-hidden rounded-md border border-gray-300">
-                            <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                              域名:
+                          <div className="flex overflow-hidden rounded-[10px] border border-[#DDE5F0] bg-white">
+                            <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-[#E8EDF5] bg-[#FBFCFE] px-3 py-2 text-xs font-medium text-gray-600">
+                              {t('route.domain')}:
                             </span>
                             <div className="flex-1">
                               <Select
@@ -406,10 +459,10 @@ function AgentDetail() {
                                 labelRender={() => (
                                   <div className="inline-flex max-w-full items-center gap-1.5">
                                     <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                                      {selectedAgentDomain?.label || '选择域名'}
+                                      {selectedAgentDomain?.label || t('route.selectDomain')}
                                     </span>
                                     <Button
-                                      aria-label="复制域名"
+                                      aria-label={t('route.copyDomain')}
                                       disabled={!selectedAgentDomain?.label}
                                       icon={<CopyOutlined />}
                                       onClick={(event) => {
@@ -418,14 +471,14 @@ function AgentDetail() {
                                       }}
                                       onMouseDown={(event) => event.stopPropagation()}
                                       size="small"
-                                      title="复制域名"
+                                      title={t('route.copyDomain')}
                                       type="text"
                                     />
                                   </div>
                                 )}
                                 onChange={setSelectedAgentDomainIndex}
                                 optionLabelProp="label"
-                                placeholder="选择域名"
+                                placeholder={t('route.selectDomain')}
                                 size="middle"
                                 value={selectedAgentDomainIndex}
                                 variant="borderless"
@@ -447,14 +500,12 @@ function AgentDetail() {
                         </div>
                       )}
 
-                      <div className="overflow-hidden rounded-[10px] border border-gray-200">
+                      <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
                         <Collapse expandIconPosition="end" ghost>
-                          {agentConfig.agentAPIConfig.routes.map((route, index) => (
+                          {agentRoutes.map((route, index) => (
                             <Panel
                               className={
-                                index < (agentConfig.agentAPIConfig.routes?.length || 0) - 1
-                                  ? 'border-b border-gray-100'
-                                  : ''
+                                index < agentRoutes.length - 1 ? 'border-b border-[#EEF2F7]' : ''
                               }
                               header={
                                 <div className="flex items-center justify-between py-2">
@@ -462,13 +513,13 @@ function AgentDetail() {
                                     <div className="mb-1 font-mono text-sm font-medium text-blue-600">
                                       {getRouteDisplayText(route, selectedAgentDomainIndex)}
                                       {route.builtin && (
-                                        <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
-                                          默认
+                                        <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                          {t('route.default')}
                                         </span>
                                       )}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                      方法:{' '}
+                                      {t('route.method')}:{' '}
                                       <span className="font-medium text-gray-700">
                                         {getMethodsText(route)}
                                       </span>
@@ -486,15 +537,12 @@ function AgentDetail() {
                                         const selectedDomain =
                                           allUniqueDomains[selectedAgentDomainIndex];
                                         if (selectedDomain) {
-                                          const path = route.match?.path?.value || '/';
-                                          const formattedDomain = formatDomainWithPort(
-                                            selectedDomain.domain,
-                                            selectedDomain.port,
-                                            selectedDomain.protocol,
+                                          const fullUrl = getRouteEndpoint(
+                                            route,
+                                            selectedAgentDomainIndex,
                                           );
-                                          const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
                                           copyToClipboard(fullUrl).then(() => {
-                                            message.success(`链接已复制到剪贴板`);
+                                            message.success(t('message.linkCopied'));
                                           });
                                         }
                                       } else if (route.domains && route.domains.length > 0) {
@@ -508,7 +556,7 @@ function AgentDetail() {
                                           );
                                           const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
                                           copyToClipboard(fullUrl).then(() => {
-                                            message.success(`链接已复制到剪贴板`);
+                                            message.success(t('message.linkCopied'));
                                           });
                                         }
                                       }
@@ -524,14 +572,18 @@ function AgentDetail() {
                                 {/* 匹配规则 */}
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <div className="mb-1 text-xs text-gray-500">路径:</div>
+                                    <div className="mb-1 text-xs text-gray-500">
+                                      {t('route.path')}:
+                                    </div>
                                     <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
                                       {getMatchTypePrefix(route.match?.path?.type)}{' '}
                                       {route.match?.path?.value}
                                     </div>
                                   </div>
                                   <div>
-                                    <div className="mb-1 text-xs text-gray-500">方法:</div>
+                                    <div className="mb-1 text-xs text-gray-500">
+                                      {t('route.method')}:
+                                    </div>
                                     <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
                                       {route.match?.methods
                                         ? route.match.methods.join(', ')
@@ -543,7 +595,9 @@ function AgentDetail() {
                                 {/* 请求头匹配 */}
                                 {route.match?.headers && route.match.headers.length > 0 && (
                                   <div>
-                                    <div className="mb-2 text-xs text-gray-500">请求头匹配:</div>
+                                    <div className="mb-2 text-xs text-gray-500">
+                                      {t('route.headerMatch')}:
+                                    </div>
                                     <div className="space-y-1">
                                       {route.match.headers.map((header, headerIndex: number) => (
                                         <div
@@ -561,7 +615,9 @@ function AgentDetail() {
                                 {/* 查询参数匹配 */}
                                 {route.match?.queryParams && route.match.queryParams.length > 0 && (
                                   <div>
-                                    <div className="mb-2 text-xs text-gray-500">查询参数匹配:</div>
+                                    <div className="mb-2 text-xs text-gray-500">
+                                      {t('route.queryParamMatch')}:
+                                    </div>
                                     <div className="space-y-1">
                                       {route.match.queryParams.map((param, paramIndex: number) => (
                                         <div
@@ -581,21 +637,26 @@ function AgentDetail() {
                         </Collapse>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16">
+              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-16">
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                   <InboxOutlined className="text-base text-gray-400" />
                 </div>
-                <div className="text-sm text-gray-500">暂无配置信息</div>
+                <div className="text-sm text-gray-500">{t('empty.configuration')}</div>
               </div>
             ),
             key: 'configuration',
             label: (
               <span className="flex items-center gap-1.5 font-semibold">
                 <SettingOutlined className="text-sm" />
-                {`配置${agentConfig?.agentAPIConfig?.routes ? ` (${agentConfig.agentAPIConfig.routes.length})` : ''}`}
+                {agentRoutes.length > 0
+                  ? t('tabs.configurationWithCount', {
+                      count: agentRoutes.length,
+                    })
+                  : t('tabs.configuration')}
               </span>
             ),
           },
@@ -605,60 +666,113 @@ function AgentDetail() {
     </div>
   ) : null;
 
-  const rightContent = (
-    <div className="bg-white/60 backdrop-blur-sm rounded-[10px] border border-white/40 p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <span className="text-xs font-medium text-gray-500">Agent Chat</span>
-      </div>
+  const agentFeatureLabels = [
+    t('usage.features.planning'),
+    t('usage.features.execution'),
+    t('usage.features.toolCall'),
+    t('usage.features.workflow'),
+  ];
+  const requestExample = generateRequestExample();
 
-      {/* 功能介绍卡片 */}
-      <div className="mb-4 rounded-[10px] border border-indigo-100/50 bg-indigo-50/50 p-5">
-        {/* 图标 + 标题 */}
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 shadow-sm">
-            <RobotOutlined className="text-sm text-white" />
+  const usagePanel = (
+    <div>
+      <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-colorPrimaryBg text-colorPrimary">
+            <RobotOutlined className="text-base" />
           </div>
-          <div>
-            <div className="text-base font-semibold text-gray-900">智能体实验室</div>
-            <div className="text-xs text-gray-400">Agent Lab</div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-gray-950">{t('usage.title')}</div>
+            <p className="mt-1 text-sm leading-6 text-gray-600">{t('usage.description')}</p>
           </div>
         </div>
-        {/* 描述文字 */}
-        <p className="mb-4 text-sm leading-relaxed text-gray-600">
-          沉浸式体验AI Agent自主规划与执行能力
-        </p>
-        {/* 特性标签 */}
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-            任务规划
-          </span>
-          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-            自主执行
-          </span>
-          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-            工具调用
-          </span>
-          <span className="rounded-full bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600">
-            工作流
-          </span>
+
+        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-[#E8EDF5] pt-3">
+          {agentFeatureLabels.map((feature) => (
+            <div
+              className="flex min-w-0 items-center gap-2 text-xs font-medium text-gray-600"
+              key={feature}
+            >
+              <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-colorPrimaryBg text-colorPrimary shadow-[0_0_0_3px_rgba(99,102,241,0.08)]">
+                <CheckCircleFilled className="text-[9px]" />
+              </span>
+              <span className="min-w-0 truncate">{feature}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* 核心操作按钮 - 禁用状态 */}
       <Button
         block
-        className="cursor-not-allowed rounded-lg border-none bg-gray-500 text-gray-800"
+        className="mt-4 !h-10 !rounded-[10px] !border-none !bg-gray-100 !font-semibold !text-gray-500"
         disabled
         size="large"
       >
-        敬请期待
+        {t('usage.comingSoon')}
       </Button>
     </div>
   );
 
+  const requestPanel = requestExample ? (
+    <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827]">
+      <Button
+        aria-label={t('usage.copyRequestExample')}
+        className="absolute right-2 top-2 z-10 text-gray-400 hover:text-white"
+        icon={<CopyOutlined />}
+        onClick={() => {
+          copyToClipboard(requestExample).then(() => {
+            message.success(t('message.requestCopied'));
+          });
+        }}
+        size="small"
+        title={t('usage.copyRequestExample')}
+        type="text"
+      />
+      <pre className="max-h-[260px] overflow-auto whitespace-pre p-4 pr-12 font-mono text-[12px] leading-5 text-gray-100">
+        <code>{requestExample}</code>
+      </pre>
+    </div>
+  ) : (
+    <div className="rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-10 text-center text-sm text-gray-400">
+      {t('usage.noRequestExample')}
+    </div>
+  );
+
+  const rightContent = (
+    <section className="rounded-[14px] border border-[#DDE5F0] bg-white/90 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+      <div className="mb-3 flex rounded-lg bg-gray-100 p-1">
+        <button
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs transition-all ${
+            rightPanelTab === 'usage'
+              ? 'bg-white font-medium text-gray-800 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setRightPanelTab('usage')}
+          type="button"
+        >
+          <RobotOutlined className="text-[13px]" />
+          {t('usage.tab')}
+        </button>
+        <button
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs transition-all ${
+            rightPanelTab === 'request'
+              ? 'bg-white font-medium text-gray-800 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+          onClick={() => setRightPanelTab('request')}
+          type="button"
+        >
+          <CodeOutlined className="text-[13px]" />
+          {t('usage.requestTab')}
+        </button>
+      </div>
+      {rightPanelTab === 'usage' ? usagePanel : requestPanel}
+    </section>
+  );
+
   return (
     <ProductDetailLayout
-      error={error || (!data ? '未找到对应的Agent API' : undefined)}
+      error={error || (!data ? t('error.agentNotFound') : undefined)}
       headerProps={
         data
           ? {

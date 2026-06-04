@@ -1,7 +1,10 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Form, DatePicker, Select, Button, Card, Row, Col, Table, message } from 'antd';
 import * as echarts from 'echarts';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+
+import { AdminMetricCard, AdminPageHeader } from '@/components/common';
+import { useLocale } from '@/contexts/LocaleContext';
 
 import slsApi from '../lib/slsApi';
 import { McpScenarios } from '../types/sls';
@@ -13,10 +16,10 @@ import {
 } from '../utils/chartUtils';
 import {
   formatDatetimeLocal,
-  rangePresets,
   getTimeRangeLabel,
   formatNumber,
   DATETIME_FORMAT,
+  getPresetTimeRange,
 } from '../utils/dateTimeUtils';
 
 import type {
@@ -34,8 +37,53 @@ const { RangePicker } = DatePicker;
  */
 const McpMonitor: React.FC = () => {
   const [form] = Form.useForm();
+  const { t } = useLocale();
   const [loading, setLoading] = useState(false);
   const [timeRangeLabel, setTimeRangeLabel] = useState('');
+  const rangePickerPresets = useMemo(
+    () => [
+      { label: t('monitor.range.last1Minute'), value: getPresetTimeRange('1m') },
+      { label: t('monitor.range.last5Minutes'), value: getPresetTimeRange('5m') },
+      { label: t('monitor.range.last15Minutes'), value: getPresetTimeRange('15m') },
+      { label: t('monitor.range.last1Hour'), value: getPresetTimeRange('1h') },
+      { label: t('monitor.range.last4Hours'), value: getPresetTimeRange('4h') },
+      { label: t('monitor.range.last1Day'), value: getPresetTimeRange('1d') },
+      { label: t('monitor.range.today'), value: getPresetTimeRange('today') },
+      { label: t('monitor.range.yesterday'), value: getPresetTimeRange('yesterday') },
+      {
+        label: t('monitor.range.dayBeforeYesterday'),
+        value: getPresetTimeRange('dayBeforeYesterday'),
+      },
+      { label: t('monitor.range.last1Week'), value: getPresetTimeRange('1w') },
+      { label: t('monitor.range.thisWeek'), value: getPresetTimeRange('thisWeek') },
+      { label: t('monitor.range.lastWeek'), value: getPresetTimeRange('lastWeek') },
+      { label: t('monitor.range.last30Days'), value: getPresetTimeRange('30d') },
+      { label: t('monitor.range.thisMonth'), value: getPresetTimeRange('thisMonth') },
+      { label: t('monitor.range.lastMonth'), value: getPresetTimeRange('lastMonth') },
+      { label: t('monitor.range.thisQuarter'), value: getPresetTimeRange('thisQuarter') },
+      { label: t('monitor.range.thisYear'), value: getPresetTimeRange('thisYear') },
+    ],
+    [t],
+  );
+  const tableColumnTitles = useMemo(
+    () => ({
+      backend_status: t('monitor.mcp.backendStatus'),
+      cluster_id: t('monitor.common.instanceId'),
+      cnt: t('monitor.table.count'),
+      consumer: t('monitor.common.consumer'),
+      count: t('monitor.table.count'),
+      gateway_status: t('monitor.mcp.gatewayStatus'),
+      mcp_server: 'MCP Server',
+      mcp_tool_name: 'MCP Tool',
+      method: t('monitor.mcp.method'),
+      route_name: 'MCP Server',
+      service: t('monitor.common.service'),
+      status: t('monitor.common.status'),
+      total: t('monitor.table.total'),
+      upstream_cluster: t('monitor.common.service'),
+    }),
+    [t],
+  );
 
   // 过滤选项状态
   const [filterOptions, setFilterOptions] = useState({
@@ -94,7 +142,7 @@ const McpMonitor: React.FC = () => {
 
   // 初始化默认值
   useEffect(() => {
-    const [start, end] = rangePresets.find((p) => p.label === '最近1周')?.value || [];
+    const [start, end] = getPresetTimeRange('1w');
     form.setFieldsValue({
       interval: 15,
       timeRange: [start, end],
@@ -179,9 +227,9 @@ const McpMonitor: React.FC = () => {
           dataPoints.length > 0
             ? generateLineChartOption(dataPoints, {
                 isPercentage: true,
-                seriesName: '成功率',
+                seriesName: t('monitor.common.successRate'),
               })
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         successRateChartInstance.current.setOption(option, true);
       }
 
@@ -196,7 +244,7 @@ const McpMonitor: React.FC = () => {
         const option =
           dataPoints.length > 0
             ? generateLineChartOption(dataPoints, { seriesName: 'QPS' })
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         qpsChartInstance.current.setOption(option, true);
       }
 
@@ -212,7 +260,7 @@ const McpMonitor: React.FC = () => {
       const rtSeries = [
         {
           dataPoints: rtResponses[0]?.timeSeries?.dataPoints || [],
-          name: '平均RT',
+          name: t('monitor.mcp.avgRt'),
         },
         {
           dataPoints: rtResponses[1]?.timeSeries?.dataPoints || [],
@@ -236,7 +284,7 @@ const McpMonitor: React.FC = () => {
         const option =
           (rtSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(rtSeries)
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         rtChartInstance.current.setOption(option, true);
       }
     } catch (error) {
@@ -288,7 +336,7 @@ const McpMonitor: React.FC = () => {
       } = values;
 
       if (!timeRange || timeRange.length !== 2) {
-        message.warning('请选择时间范围');
+        message.warning(t('monitor.common.selectTimeRange'));
         return;
       }
 
@@ -322,8 +370,6 @@ const McpMonitor: React.FC = () => {
 
       // 查询成功后刷新过滤选项
       await loadFilterOptions(startTimeStr, endTimeStr, interval || 15);
-
-      message.success('查询成功');
     } catch (error) {
       console.error('查询失败:', error);
     } finally {
@@ -355,34 +401,37 @@ const McpMonitor: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">MCP监控</h1>
+    <div>
+      <AdminPageHeader
+        description={t('page.mcpMonitor.description')}
+        title={t('page.mcpMonitor.title')}
+      />
 
       {/* 查询表单 */}
-      <Card className="mb-6" title="过滤条件">
+      <Card className="mb-6 mt-6" title={t('monitor.common.filters')}>
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col flex="350px">
               <Form.Item
-                label="时间范围"
+                label={t('monitor.common.timeRange')}
                 name="timeRange"
-                rules={[{ message: '请选择时间范围', required: true }]}
+                rules={[{ message: t('monitor.common.selectTimeRange'), required: true }]}
               >
                 <RangePicker
                   format={DATETIME_FORMAT}
                   onChange={handleTimeRangeChange}
-                  presets={rangePresets}
+                  presets={rangePickerPresets}
                   showTime
                   style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col flex="180px">
-              <Form.Item label="查询粒度" name="interval">
+              <Form.Item label={t('monitor.common.queryInterval')} name="interval">
                 <Select style={{ width: '100%' }}>
-                  <Select.Option value={1}>1秒</Select.Option>
-                  <Select.Option value={15}>15秒</Select.Option>
-                  <Select.Option value={60}>60秒</Select.Option>
+                  <Select.Option value={1}>{t('monitor.interval.1s')}</Select.Option>
+                  <Select.Option value={15}>{t('monitor.interval.15s')}</Select.Option>
+                  <Select.Option value={60}>{t('monitor.interval.60s')}</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -390,40 +439,40 @@ const McpMonitor: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item label="实例ID" name="cluster_id">
+              <Form.Item label={t('monitor.common.instanceId')} name="cluster_id">
                 <Select
                   mode="tags"
                   options={filterOptions.clusterIds.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="消费者" name="consumer">
+              <Form.Item label={t('monitor.common.consumer')} name="consumer">
                 <Select
                   mode="tags"
                   options={filterOptions.consumers.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="服务" name="upstream_cluster">
+              <Form.Item label={t('monitor.common.service')} name="upstream_cluster">
                 <Select
                   mode="tags"
                   options={filterOptions.upstreamClusters.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
@@ -439,7 +488,7 @@ const McpMonitor: React.FC = () => {
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
@@ -452,7 +501,7 @@ const McpMonitor: React.FC = () => {
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
@@ -463,10 +512,10 @@ const McpMonitor: React.FC = () => {
             <Col span={24}>
               <Form.Item>
                 <Button loading={loading} onClick={handleQuery} type="primary">
-                  查询
+                  {t('monitor.common.query')}
                 </Button>
                 <Button onClick={handleReset} style={{ marginLeft: 8 }}>
-                  重置
+                  {t('monitor.common.reset')}
                 </Button>
               </Form.Item>
             </Col>
@@ -475,44 +524,20 @@ const McpMonitor: React.FC = () => {
       </Card>
 
       {/* KPI统计卡片 */}
-      <Row className="mb-6" gutter={16}>
-        <Col span={6}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">PV</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.pv}</div>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">UV</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.uv}</div>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">网关入流量</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.bytesReceived}</div>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">网关出流量</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.bytesSent}</div>
-          </Card>
-        </Col>
-      </Row>
+      <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+        <AdminMetricCard caption={timeRangeLabel} label="PV" value={kpiData.pv} />
+        <AdminMetricCard caption={timeRangeLabel} label="UV" value={kpiData.uv} />
+        <AdminMetricCard
+          caption={timeRangeLabel}
+          label={t('monitor.mcp.gatewayInboundTraffic')}
+          value={kpiData.bytesReceived}
+        />
+        <AdminMetricCard
+          caption={timeRangeLabel}
+          label={t('monitor.mcp.gatewayOutboundTraffic')}
+          value={kpiData.bytesSent}
+        />
+      </div>
 
       {/* 时序图表 */}
       <Row className="mb-6" gutter={16}>
@@ -521,7 +546,7 @@ const McpMonitor: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title={<span>请求成功率</span>}
+            title={<span>{t('monitor.common.successRate')}</span>}
           >
             <div ref={successRateChartRef} style={{ height: 300 }} />
           </Card>
@@ -544,7 +569,7 @@ const McpMonitor: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title={<span>请求RT/ms</span>}
+            title={<span>{t('monitor.mcp.requestRtMs')}</span>}
           >
             <div ref={rtChartRef} style={{ height: 300 }} />
           </Card>
@@ -558,10 +583,10 @@ const McpMonitor: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="Method分布"
+            title={t('monitor.mcp.methodDistribution')}
           >
             <Table
-              columns={generateTableColumns(tableData.methodDistribution)}
+              columns={generateTableColumns(tableData.methodDistribution, tableColumnTitles)}
               dataSource={tableData.methodDistribution}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -575,10 +600,10 @@ const McpMonitor: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="网关状态码分布"
+            title={t('monitor.mcp.gatewayStatusDistribution')}
           >
             <Table
-              columns={generateTableColumns(tableData.gatewayStatus)}
+              columns={generateTableColumns(tableData.gatewayStatus, tableColumnTitles)}
               dataSource={tableData.gatewayStatus}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -595,10 +620,10 @@ const McpMonitor: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="后端服务状态分布"
+            title={t('monitor.mcp.backendStatusDistribution')}
           >
             <Table
-              columns={generateTableColumns(tableData.backendStatus)}
+              columns={generateTableColumns(tableData.backendStatus, tableColumnTitles)}
               dataSource={tableData.backendStatus}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -612,10 +637,10 @@ const McpMonitor: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="请求分布"
+            title={t('monitor.mcp.requestDistribution')}
           >
             <Table
-              columns={generateTableColumns(tableData.requestDistribution)}
+              columns={generateTableColumns(tableData.requestDistribution, tableColumnTitles)}
               dataSource={tableData.requestDistribution}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}

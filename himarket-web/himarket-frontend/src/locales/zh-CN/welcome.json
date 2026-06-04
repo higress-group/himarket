@@ -1,0 +1,39 @@
+{
+  "chat": {
+    "subtitle": "与 AI 模型智能对话，探索无限可能",
+    "cta": "登录后开始对话",
+    "features": {
+      "modelConversation": {
+        "title": "AI 多模型对话",
+        "desc": "支持多种主流 AI 大模型，一站式智能问答体验"
+      },
+      "modelCompare": {
+        "title": "多模型对比",
+        "desc": "同时发送多模型对比回答，选择最优结果"
+      },
+      "mcpIntegration": {
+        "title": "MCP 工具集成",
+        "desc": "集成 MCP 服务能力，AI 可调用外部工具增强回答"
+      }
+    }
+  },
+  "coding": {
+    "subtitle": "AI 驱动的智能编程助手，让代码触手可及",
+    "cta": "登录后开始编码",
+    "features": {
+      "aiCoding": {
+        "title": "AI 辅助编程",
+        "desc": "通过自然语言描述需求，AI 自动生成代码方案"
+      },
+      "sandbox": {
+        "title": "沙箱执行",
+        "desc": "代码在安全沙箱中实时运行，即时查看执行结果"
+      },
+      "interactive": {
+        "title": "交互式对话",
+        "desc": "与 AI 持续对话迭代代码，逐步完善项目"
+      }
+    }
+  },
+  "register": "注册新账号"
+}

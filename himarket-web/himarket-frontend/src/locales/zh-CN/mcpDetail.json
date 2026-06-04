@@ -1,0 +1,42 @@
+{
+  "error": {
+    "dataLoadFailed": "数据加载失败",
+    "loadFailed": "加载失败，请稍后重试"
+  },
+  "message": {
+    "copied": "已复制到剪贴板",
+    "domainCopied": "域名已复制到剪贴板",
+    "endpointCopied": "连接点已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制"
+  },
+  "empty": {
+    "overview": "暂无概览信息",
+    "tools": "暂无工具"
+  },
+  "tabs": {
+    "overview": "概览",
+    "toolsWithCount": "工具 ({{count}})"
+  },
+  "tools": {
+    "inputParameters": "输入参数",
+    "inputPlaceholder": "请输入 {{name}}"
+  },
+  "connection": {
+    "infoTab": "连接信息",
+    "configTab": "配置示例",
+    "title": "连接信息",
+    "description": "选择连接协议和域名，复制对应的 MCP 连接点。",
+    "domain": "域名",
+    "selectDomain": "选择域名",
+    "copyDomain": "复制域名",
+    "noDomain": "暂无可用域名",
+    "endpoint": "连接点",
+    "copyEndpoint": "复制连接点",
+    "noEndpoint": "暂无连接点",
+    "localEndpoint": "本地配置无需访问域名",
+    "protocol": "连接协议",
+    "noProtocol": "暂无可用协议",
+    "noConfig": "暂无配置示例",
+    "copyConfig": "复制配置"
+  }
+}

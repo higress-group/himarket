@@ -44,6 +44,23 @@ These rules apply to both HiMarket frontend applications:
 - Keep developer portal UI clear, product-facing, and consistent with its existing navigation.
 - Do not add new visual systems or component libraries without a clear reason.
 
+## Copy and Internationalization
+
+- Treat user-facing UI text as internationalized by default. New or modified copy must support both
+  Simplified Chinese and English unless the text is user-generated, returned from an external
+  system, a brand/product name, or part of a code example.
+- Do not hardcode labels, placeholders, empty states, validation messages, button text, menu text,
+  notifications, or modal copy inside components when the app already has an i18n mechanism.
+- Add or update both `zh-CN` and `en-US` messages in the same change. Keep translation keys stable,
+  descriptive, and scoped to the feature or namespace already used by the app.
+- In Simplified Chinese copy, insert one half-width space between Chinese text and adjacent English
+  words, acronyms, product names, API names, or numbers when they appear in the same phrase:
+  `在 HiChat 中验证模型能力`, `cURL 示例`, `Model API 配置`, `6 到 32 个字符`.
+- Do not add extra spaces inside a brand or protocol name itself: `HiMarket`, `HiChat`, `OpenAPI`,
+  `OAuth2`, `REST API`.
+- Do not rewrite user input, backend-provided names, URLs, file names, or code snippets just to
+  enforce copy spacing.
+
 ## Verification
 
 - Run the relevant app checks after frontend changes:

@@ -29,7 +29,7 @@ export function LoginPrompt({ contextMessage, onClose, open, returnUrl }: LoginP
     <Modal
       centered
       className="[&_.ant-modal-close]:!right-4 [&_.ant-modal-close]:!top-4 [&_.ant-modal-content]:!rounded-2xl [&_.ant-modal-content]:!p-6"
-      destroyOnClose
+      destroyOnHidden
       footer={null}
       onCancel={onClose}
       open={open}

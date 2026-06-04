@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { DataTable } from '@/components/common/DataTable';
 import { SubscriptionListModal } from '@/components/subscription/SubscriptionListModal';
+import { useLocale } from '@/contexts/LocaleContext';
 import { portalApi } from '@/lib/api';
 import { copyToClipboard, formatDateTime } from '@/lib/utils';
 import type { Portal, Developer, Consumer } from '@/types';
@@ -21,13 +22,14 @@ interface PortalDevelopersProps {
 }
 
 export function PortalDevelopers({ portal }: PortalDevelopersProps) {
+  const { t } = useLocale();
   const [developers, setDevelopers] = useState<Developer[]>([]);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     showQuickJumper: true,
     showSizeChanger: true,
-    showTotal: (total: number, _range: [number, number]) => `共 ${total} 条`,
+    showTotal: (total: number, _range: [number, number]) => t('common.totalItems', { total }),
     total: 0,
   });
 
@@ -41,7 +43,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     pageSize: 10,
     showQuickJumper: true,
     showSizeChanger: true,
-    showTotal: (total: number, _range: [number, number]) => `共 ${total} 条`,
+    showTotal: (total: number, _range: [number, number]) => t('common.totalItems', { total }),
     total: 0,
   });
 
@@ -75,14 +77,14 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
       .updateDeveloperStatus(portal.portalId, developerId, status)
       .then(() => {
         if (status === 'PENDING') {
-          message.success('撤销成功');
+          message.success(t('portal.developers.revokeSuccess'));
         } else {
-          message.success('审批成功');
+          message.success(t('portal.developers.approveSuccess'));
         }
         fetchDevelopers();
       })
       .catch(() => {
-        message.error('审批失败');
+        message.error(t('portal.developers.approveFailed'));
       });
   };
 
@@ -96,23 +98,23 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
 
   const handleDeleteDeveloper = (developerId: string, username: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要删除开发者 "${username}" 吗？此操作不可恢复。`,
+      cancelText: t('common.cancel'),
+      content: t('portal.developers.deleteConfirm', { name: username }),
       icon: <ExclamationCircleOutlined />,
-      okText: '确认删除',
+      okText: t('common.confirmDelete'),
       okType: 'danger',
       onOk() {
         portalApi
           .deleteDeveloper(developerId)
           .then(() => {
-            message.success('删除成功');
+            message.success(t('common.deleteSuccess'));
             fetchDevelopers();
           })
           .catch(() => {
-            message.error('删除失败');
+            message.error(t('portal.developers.deleteFailed'));
           });
       },
-      title: '确认删除',
+      title: t('common.confirmDelete'),
     });
   };
 
@@ -191,12 +193,12 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
               {username}
             </button>
           </Tooltip>
-          <Tooltip title="点击复制">
+          <Tooltip title={t('common.copyToClipboard')}>
             <button
               className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
               onClick={() =>
                 copyToClipboard(record.developerId).then(() => {
-                  message.success('已复制到剪贴板');
+                  message.success(t('common.copiedToClipboard'));
                 })
               }
               type="button"
@@ -206,7 +208,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
           </Tooltip>
         </div>
       ),
-      title: '开发者名称/ID',
+      title: t('portal.developers.nameAndId'),
       width: 280,
     },
     {
@@ -217,17 +219,17 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
           {status === 'APPROVED' ? (
             <>
               <CheckCircleFilled className="text-green-500 mr-2" style={{ fontSize: '10px' }} />
-              <span className="text-xs text-gray-900">可用</span>
+              <span className="text-xs text-gray-900">{t('portal.developers.approved')}</span>
             </>
           ) : (
             <>
               <ClockCircleOutlined className="text-orange-500 mr-2" style={{ fontSize: '10px' }} />
-              <span className="text-xs text-gray-900">待审批</span>
+              <span className="text-xs text-gray-900">{t('portal.developers.pending')}</span>
             </>
           )}
         </div>
       ),
-      title: '状态',
+      title: t('common.status'),
       width: 120,
     },
 
@@ -235,7 +237,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
       dataIndex: 'createAt',
       key: 'createAt',
       render: (date: string) => formatDateTime(date),
-      title: '创建时间',
+      title: t('product.overview.createAt'),
       width: 160,
     },
 
@@ -250,7 +252,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
               onClick={() => handleUpdateDeveloperStatus(record.developerId, 'PENDING')}
               type="link"
             >
-              撤销
+              {t('portal.developers.revoke')}
             </Button>
           ) : (
             <Button
@@ -258,7 +260,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
               onClick={() => handleUpdateDeveloperStatus(record.developerId, 'APPROVED')}
               type="link"
             >
-              审批
+              {t('portal.developers.approve')}
             </Button>
           )}
           <Button
@@ -267,11 +269,11 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
             onClick={() => handleDeleteDeveloper(record.developerId, record.username)}
             type="link"
           >
-            删除
+            {t('common.delete')}
           </Button>
         </Space>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 180,
     },
   ];
@@ -284,12 +286,12 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
       render: (name: string, record: Consumer) => (
         <div>
           <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
-          <Tooltip title="点击复制">
+          <Tooltip title={t('common.copyToClipboard')}>
             <button
               className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
               onClick={() =>
                 copyToClipboard(record.consumerId).then(() => {
-                  message.success('已复制到剪贴板');
+                  message.success(t('common.copiedToClipboard'));
                 })
               }
               type="button"
@@ -299,21 +301,21 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
           </Tooltip>
         </div>
       ),
-      title: 'Consumer名称/ID',
+      title: t('portal.developers.consumerNameAndId'),
       width: 280,
     },
     {
       dataIndex: 'description',
       ellipsis: true,
       key: 'description',
-      title: '描述',
+      title: t('common.description'),
       width: 200,
     },
     {
       dataIndex: 'createAt',
       key: 'createAt',
       render: (date: string) => formatDateTime(date),
-      title: '创建时间',
+      title: t('product.overview.createAt'),
       width: 150,
     },
     {
@@ -325,10 +327,10 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
           onClick={() => handleViewSubscriptions(record)}
           type="text"
         >
-          管理订阅
+          {t('portal.developers.manageSubscriptions')}
         </Button>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 120,
     },
   ];
@@ -337,8 +339,8 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-2">开发者</h1>
-          <p className="text-gray-600">管理Portal的开发者用户</p>
+          <h1 className="text-2xl font-bold mb-2">{t('portal.developers.title')}</h1>
+          <p className="text-gray-600">{t('portal.developers.description')}</p>
         </div>
       </div>
 
@@ -360,7 +362,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
         footer={null}
         onCancel={() => setConsumerModalVisible(false)}
         open={consumerModalVisible}
-        title={`查看Consumer - ${currentDeveloper?.username || ''}`}
+        title={t('portal.developers.viewConsumer', { name: currentDeveloper?.username || '' })}
         width={1000}
       >
         <DataTable<Consumer>
@@ -381,7 +383,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
               }
             },
             onSearch: handleConsumerSearch,
-            placeholder: '搜索Consumer名称',
+            placeholder: t('portal.developers.searchConsumer'),
             value: consumerSearchName,
           }}
         />

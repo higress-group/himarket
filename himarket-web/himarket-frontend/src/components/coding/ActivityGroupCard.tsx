@@ -13,6 +13,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { AgentMessage } from './AgentMessage';
 import { ThoughtBlock } from './ThoughtBlock';
@@ -26,6 +27,7 @@ import type {
   ChatItemThought,
   ChatItemAgent,
 } from '../../types/coding-protocol';
+import type { TFunction } from 'i18next';
 
 // ===== Props =====
 
@@ -38,7 +40,7 @@ interface ActivityGroupCardProps {
 
 // ===== Summary Text =====
 
-function getSummaryText(group: ActivityGroup): string {
+function getSummaryText(group: ActivityGroup, t: TFunction<'coding'>): string {
   const { blocks, toolsSummary: s } = group;
   const parts: string[] = [];
 
@@ -64,22 +66,22 @@ function getSummaryText(group: ActivityGroup): string {
       const rest = editedFiles.length - 3;
       parts.push(rest > 0 ? `${shown} +${rest}` : shown);
     } else {
-      parts.push(`${s.edits}次编辑`);
+      parts.push(t('activity.editsCount', { count: s.edits }));
     }
   }
 
-  if (s.files > 0) parts.push(`${s.files}次阅读`);
-  if (s.searches > 0) parts.push(`${s.searches}次搜索`);
-  if (s.executes > 0) parts.push(`${s.executes}次执行`);
-  if (s.fetches > 0) parts.push(`${s.fetches}次抓取`);
-  if (s.thinks > 0) parts.push(`${s.thinks}次思考`);
-  if (s.skills > 0) parts.push(`${s.skills}个技能`);
-  if (s.mcpCalls > 0) parts.push(`${s.mcpCalls}次MCP调用`);
-  if (s.others > 0) parts.push(`${s.others}次其他操作`);
+  if (s.files > 0) parts.push(t('activity.readCount', { count: s.files }));
+  if (s.searches > 0) parts.push(t('activity.searchCount', { count: s.searches }));
+  if (s.executes > 0) parts.push(t('activity.executeCount', { count: s.executes }));
+  if (s.fetches > 0) parts.push(t('activity.fetchCount', { count: s.fetches }));
+  if (s.thinks > 0) parts.push(t('activity.thinkCount', { count: s.thinks }));
+  if (s.skills > 0) parts.push(t('activity.skillCount', { count: s.skills }));
+  if (s.mcpCalls > 0) parts.push(t('activity.mcpCallCount', { count: s.mcpCalls }));
+  if (s.others > 0) parts.push(t('activity.otherCount', { count: s.others }));
 
   if (parts.length === 0) {
     const toolCount = blocks.filter((b) => b.type === 'tool_call').length;
-    return `${toolCount} 个操作`;
+    return t('activity.operationsCount', { count: toolCount });
   }
   return parts.join(' · ');
 }
@@ -148,7 +150,7 @@ const MERGED_ICON_MAP: Record<string, typeof Eye> = {
   think: Brain,
 };
 
-function getMergedLabel(kind: string, items: ChatItemToolCall[]): string {
+function getMergedLabel(kind: string, items: ChatItemToolCall[], t: TFunction<'coding'>): string {
   const count = items.length;
   if (kind === 'read') {
     const names = items
@@ -163,14 +165,18 @@ function getMergedLabel(kind: string, items: ChatItemToolCall[]): string {
       .filter(Boolean);
     const shown = names.slice(0, 3).join(', ');
     const rest = names.length - 3;
-    return `已查看 ${count} 个文件${shown ? ': ' + shown : ''}${rest > 0 ? ` +${rest}` : ''}`;
+    return t('activity.viewedFiles', {
+      count,
+      extra: rest > 0 ? ` +${rest}` : '',
+      files: shown ? `: ${shown}` : '',
+    });
   }
-  if (kind === 'search') return `搜索了 ${count} 次`;
-  if (kind === 'think') return `思考了 ${count} 次`;
-  if (kind === 'fetch') return `抓取了 ${count} 次`;
-  if (kind === 'switch_mode') return `切换模式 ${count} 次`;
-  if (kind === 'edit') return `编辑了 ${count} 次`;
-  return `其他操作 ${count} 次`;
+  if (kind === 'search') return t('activity.searchedTimes', { count });
+  if (kind === 'think') return t('activity.thoughtTimes', { count });
+  if (kind === 'fetch') return t('activity.fetchedTimes', { count });
+  if (kind === 'switch_mode') return t('activity.switchedModeTimes', { count });
+  if (kind === 'edit') return t('activity.editedTimes', { count });
+  return t('activity.otherOperations', { count });
 }
 
 // ===== MergedRow Component =====
@@ -186,9 +192,10 @@ function MergedRow({
   selectedToolCallId: string | null;
   onSelectToolCall: (toolCallId: string) => void;
 }) {
+  const { t } = useTranslation('coding');
   const [expanded, setExpanded] = useState(false);
   const Icon = MERGED_ICON_MAP[kind] ?? CircleHelp;
-  const label = getMergedLabel(kind, items);
+  const label = getMergedLabel(kind, items, t);
   const allDone = items.every((tc) => tc.status === 'completed');
   const anyFailed = items.some((tc) => tc.status === 'failed');
 
@@ -233,13 +240,13 @@ function MergedRow({
 
 // ===== Title helpers =====
 
-function getTitle(group: ActivityGroup): string {
-  if (group.isExploring) return '执行中...';
-  if (group.isThinkingOnly) return '深度思考';
+function getTitle(group: ActivityGroup, t: TFunction<'coding'>): string {
+  if (group.isExploring) return t('activity.executing');
+  if (group.isThinkingOnly) return t('activity.deepThinking');
   if (group.isEditOnly && group.editFilePath) {
-    return `编辑 ${extractFileName(group.editFilePath)}`;
+    return t('activity.editingFile', { file: extractFileName(group.editFilePath) });
   }
-  return '已执行';
+  return t('activity.completed');
 }
 
 // ===== Main Component =====
@@ -250,6 +257,7 @@ export function ActivityGroupCard({
   onSelectToolCall,
   selectedToolCallId,
 }: ActivityGroupCardProps) {
+  const { t } = useTranslation('coding');
   // Separate blocks by role
   const { reasoningItems, toolCallItems, trailingThoughts } = useMemo(() => {
     const reasoning: ChatItem[] = [];
@@ -361,7 +369,7 @@ export function ActivityGroupCard({
       ? 'text-green-500'
       : 'text-blue-500';
 
-  const title = getTitle(group);
+  const title = getTitle(group, t);
 
   return (
     <div className="pl-1 transition-colors duration-200">
@@ -415,7 +423,7 @@ export function ActivityGroupCard({
               size={14}
             />
             <span className="text-gray-500 text-[13px] flex-1 text-left truncate">
-              {group.isExploring ? title : `${title} · ${getSummaryText(group)}`}
+              {group.isExploring ? title : `${title} · ${getSummaryText(group, t)}`}
             </span>
             {isExpanded ? (
               <ChevronDown className="text-gray-300 flex-shrink-0" size={14} />

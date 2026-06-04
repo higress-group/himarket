@@ -28,6 +28,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, nacosApi } from '@/lib/api';
 import { workerApi } from '@/lib/api';
 import 'github-markdown-css/github-markdown-light.css';
@@ -312,6 +313,7 @@ export function ApiProductWorkerPackage({
   onUploadSuccess,
 }: ApiProductWorkerPackageProps) {
   const productId = apiProduct.productId;
+  const { locale, t } = useLocale();
   const workerConfig = apiProduct.workerConfig;
   const hasNacos = !!workerConfig?.nacosId;
   const [fileTree, setFileTree] = useState<WorkerFileTreeNode[]>([]);
@@ -513,7 +515,7 @@ export function ApiProductWorkerPackage({
         namespace: values.namespace,
         sourceType: 'NACOS',
       });
-      message.success('Nacos 关联已更新');
+      message.success(t('product.package.nacosUpdated'));
       setNacosModalVisible(false);
       handleRefresh();
     } finally {
@@ -525,12 +527,13 @@ export function ApiProductWorkerPackage({
     setActionLoading('publish');
     try {
       await workerApi.publishVersion(productId, version);
-      message.success(`版本 ${version} 发布成功`);
+      message.success(t('product.package.workerPublishSuccess', { version }));
       setPreviewVersion(version);
       await Promise.all([fetchVersions(), fetchFileTree(version)]);
       onUploadSuccess?.();
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : '版本发布失败';
+      const errMsg =
+        error instanceof Error ? error.message : t('product.package.workerPublishFailed');
       message.error(errMsg);
     } finally {
       setActionLoading(null);
@@ -539,26 +542,27 @@ export function ApiProductWorkerPackage({
 
   const handleOfflineVersion = async (version: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要将版本 ${version} 下线吗？下线后该版本将无法被运行时查询。`,
+      cancelText: t('common.cancel'),
+      content: t('product.package.offlineConfirm', { version }),
       icon: <ExclamationCircleFilled />,
-      okText: '确认下线',
+      okText: t('product.package.offlineOk'),
       okType: 'danger',
       onOk: async () => {
         setActionLoading('offline');
         try {
           await workerApi.offlineVersion(productId, version);
-          message.success(`版本 ${version} 已下线`);
+          message.success(t('product.package.offlineSuccess', { version }));
           await fetchVersions();
           onUploadSuccess?.();
         } catch (error: unknown) {
-          const errMsg = error instanceof Error ? error.message : '下线失败';
+          const errMsg =
+            error instanceof Error ? error.message : t('product.package.offlineFailed');
           message.error(errMsg);
         } finally {
           setActionLoading(null);
         }
       },
-      title: '确认下线',
+      title: t('product.package.offlineTitle'),
     });
   };
 
@@ -566,10 +570,10 @@ export function ApiProductWorkerPackage({
     setActionLoading('setLatest');
     try {
       await workerApi.setLatestVersion(productId, version);
-      message.success(`版本 ${version} 已设为 latest`);
+      message.success(t('product.package.setLatestSuccess', { version }));
       await fetchVersions();
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : '设置 latest 失败';
+      const errMsg = error instanceof Error ? error.message : t('product.package.setLatestFailed');
       message.error(errMsg);
     } finally {
       setActionLoading(null);
@@ -578,16 +582,16 @@ export function ApiProductWorkerPackage({
 
   const handleDeleteDraft = async () => {
     Modal.confirm({
-      cancelText: '取消',
-      content: '删除草稿后不可恢复，已发布的版本不受影响。',
+      cancelText: t('common.cancel'),
+      content: t('product.package.deleteDraftConfirm'),
       icon: <ExclamationCircleFilled />,
-      okText: '确认删除',
+      okText: t('product.package.deleteDraftOk'),
       okType: 'danger',
       onOk: async () => {
         setActionLoading('deleteDraft');
         try {
           await workerApi.deleteDraft(productId);
-          message.success('草稿已删除');
+          message.success(t('product.package.deleteDraftSuccess'));
           const nextVersion = versions.find((v) => v.status === 'online')?.version;
           setPreviewVersion(nextVersion);
           await fetchVersions();
@@ -601,13 +605,14 @@ export function ApiProductWorkerPackage({
           }
           onUploadSuccess?.();
         } catch (error: unknown) {
-          const errMsg = error instanceof Error ? error.message : '删除草稿失败';
+          const errMsg =
+            error instanceof Error ? error.message : t('product.package.deleteDraftFailed');
           message.error(errMsg);
         } finally {
           setActionLoading(null);
         }
       },
-      title: '确认删除草稿',
+      title: t('product.package.deleteDraftTitle'),
     });
   };
 
@@ -638,7 +643,7 @@ export function ApiProductWorkerPackage({
       const fileToUpload =
         typeof file === 'string' ? new File([], file) : (file as unknown as File);
       const res = (await workerApi.uploadPackage(productId, fileToUpload)) as { data?: unknown };
-      message.success('上传成功');
+      message.success(t('product.package.uploadSuccess'));
       onSuccess?.(res);
       const versionsRes = (await workerApi.getVersions(productId)) as { data?: VersionItem[] };
       const versionItems: VersionItem[] = versionsRes.data || [];
@@ -649,7 +654,7 @@ export function ApiProductWorkerPackage({
       onUploadSuccess?.();
     } catch (error: unknown) {
       message.destroy();
-      const errMsg = error instanceof Error ? error.message : '上传失败';
+      const errMsg = error instanceof Error ? error.message : t('product.package.uploadFailed');
       message.error(errMsg);
       const errObj = error instanceof Error ? error : new Error(String(error));
       onError?.(errObj);
@@ -671,7 +676,7 @@ export function ApiProductWorkerPackage({
         <div className="flex items-center justify-center h-full text-gray-400">
           <div className="text-center">
             <FileFilled className="text-4xl mb-2 text-gray-300" />
-            <p>点击左侧文件查看内容</p>
+            <p>{t('product.package.previewEmpty')}</p>
           </div>
         </div>
       );
@@ -679,7 +684,7 @@ export function ApiProductWorkerPackage({
     if (selectedFile.encoding === 'base64')
       return (
         <div className="flex items-center justify-center h-full text-gray-400">
-          <p>二进制文件，不支持预览</p>
+          <p>{t('product.package.binaryPreviewUnsupported')}</p>
         </div>
       );
 
@@ -815,7 +820,7 @@ export function ApiProductWorkerPackage({
     <div className="p-6 space-y-4 h-full flex flex-col">
       <div>
         <h1 className="text-2xl font-bold mb-1">Worker Package</h1>
-        <p className="text-gray-600">上传并管理 Worker 包文件</p>
+        <p className="text-gray-600">{t('product.package.workerDescription')}</p>
       </div>
 
       {/* Card 1: Version Management */}
@@ -841,7 +846,9 @@ export function ApiProductWorkerPackage({
             style={{ background: '#6B5CE7', borderColor: '#6B5CE7' }}
             type="primary"
           >
-            {apiProduct.workerConfig?.nacosId ? '切换Nacos' : '关联Nacos'}
+            {apiProduct.workerConfig?.nacosId
+              ? t('product.package.switchNacos')
+              : t('product.package.linkNacos')}
           </Button>
         </div>
 
@@ -865,7 +872,7 @@ export function ApiProductWorkerPackage({
                   ),
                   value: item.version,
                 }))}
-                placeholder="版本"
+                placeholder={t('product.package.versionPlaceholder')}
                 value={previewVersion}
               />
               <Button
@@ -874,7 +881,7 @@ export function ApiProductWorkerPackage({
                 loading={actionLoading === 'setLatest'}
                 onClick={() => previewVersion && handleSetLatest(previewVersion)}
               >
-                设为 Latest
+                {t('product.package.setLatest')}
               </Button>
             </Space.Compact>
             {loadingVersions && <Spin size="small" />}
@@ -885,7 +892,7 @@ export function ApiProductWorkerPackage({
                 onClick={() => previewVersion && handlePublishVersion(previewVersion)}
                 type="primary"
               >
-                提交审核
+                {t('product.package.submitReview')}
               </Button>
             )}
             {(canDeleteDraft || isReviewing) && (
@@ -895,7 +902,7 @@ export function ApiProductWorkerPackage({
                 loading={actionLoading === 'deleteDraft'}
                 onClick={handleDeleteDraft}
               >
-                删除草稿
+                {t('product.package.deleteDraft')}
               </Button>
             )}
             {canOffline && (
@@ -904,7 +911,7 @@ export function ApiProductWorkerPackage({
                 loading={actionLoading === 'offline'}
                 onClick={() => previewVersion && handleOfflineVersion(previewVersion)}
               >
-                版本下线
+                {t('product.package.versionOffline')}
               </Button>
             )}
           </div>
@@ -928,8 +935,8 @@ export function ApiProductWorkerPackage({
               }
             >
               <div className="leading-snug text-left">
-                <div className="text-sm">上传 Worker 包</div>
-                <div className="text-xs text-gray-400">.zip, 最大 10MB</div>
+                <div className="text-sm">{t('product.package.uploadWorker')}</div>
+                <div className="text-xs text-gray-400">{t('product.package.uploadWorkerHint')}</div>
               </div>
             </Button>
           </Upload>
@@ -948,13 +955,14 @@ export function ApiProductWorkerPackage({
             }`}
           >
             {previewItem?.status === 'online'
-              ? '已上线'
+              ? t('product.package.statusOnline')
               : previewItem?.status === 'reviewing'
-                ? '审核中'
-                : '未发布'}
+                ? t('product.package.statusReviewing')
+                : t('product.package.statusUnpublished')}
           </Tag>
           <span className="text-gray-400">
-            下载 <strong className="text-gray-600">{totalDownloads}</strong>
+            {t('product.package.downloads')}{' '}
+            <strong className="text-gray-600">{totalDownloads}</strong>
           </span>
           {(() => {
             const pStatus = pipelineStatus?.status;
@@ -967,7 +975,7 @@ export function ApiProductWorkerPackage({
               return (
                 <span className="inline-flex items-center gap-1.5 text-xs text-blue-600">
                   <Spin size="small" />
-                  <span className="font-medium">审核中</span>
+                  <span className="font-medium">{t('product.package.statusReviewing')}</span>
                   {pipelineNodes && pipelineNodes.length > 0 && (
                     <span className="text-blue-400">
                       ({pipelineNodes.filter((n) => n.passed).length}/{pipelineNodes.length})
@@ -980,7 +988,7 @@ export function ApiProductWorkerPackage({
               return (
                 <span className="inline-flex items-center gap-1 text-xs text-green-600">
                   <CheckCircleFilled />
-                  <span className="font-medium">审核通过</span>
+                  <span className="font-medium">{t('product.package.reviewApproved')}</span>
                 </span>
               );
             }
@@ -988,7 +996,7 @@ export function ApiProductWorkerPackage({
               return (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-100 rounded-lg text-xs text-red-500 ml-6">
                   <CloseCircleFilled />
-                  <span className="font-medium">审核未通过</span>
+                  <span className="font-medium">{t('product.package.reviewRejected')}</span>
                   <Button
                     className="!p-0 !text-red-500 !text-xs"
                     onClick={() =>
@@ -1022,7 +1030,7 @@ export function ApiProductWorkerPackage({
                                         <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
                                           <span>⏱</span>
                                           <span>
-                                            {new Date(node.executedAt).toLocaleString('zh-CN')}
+                                            {new Date(node.executedAt).toLocaleString(locale)}
                                           </span>
                                         </div>
                                       )}
@@ -1033,14 +1041,14 @@ export function ApiProductWorkerPackage({
                           </div>
                         ),
                         icon: null,
-                        title: '审核未通过',
+                        title: t('product.package.reviewRejected'),
                         width: 600,
                       })
                     }
                     size="small"
                     type="link"
                   >
-                    详情
+                    {t('product.package.reviewDetail')}
                   </Button>
                 </span>
               );
@@ -1128,7 +1136,7 @@ export function ApiProductWorkerPackage({
               })()
             ) : (
               <div className="text-gray-400 text-sm text-center pt-8">
-                该版本未包含 AGENTS.md 文件
+                {t('product.package.workerMissingOverview')}
               </div>
             )}
           </div>
@@ -1144,7 +1152,7 @@ export function ApiProductWorkerPackage({
                 </div>
               ) : fileTree.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                  暂无文件
+                  {t('product.package.noFiles')}
                 </div>
               ) : (
                 <WorkerFileTree
@@ -1170,34 +1178,36 @@ export function ApiProductWorkerPackage({
 
       {/* Nacos Modal */}
       <Modal
-        cancelText="取消"
+        cancelText={t('common.cancel')}
         confirmLoading={nacosSaving}
-        okText="确认"
+        okText={t('common.confirm')}
         onCancel={() => setNacosModalVisible(false)}
         onOk={handleNacosSave}
         open={nacosModalVisible}
-        title="关联 Nacos 实例"
+        title={t('product.package.nacosTitle')}
       >
         <Form form={nacosForm} layout="vertical">
           <Form.Item
-            label="Nacos 实例"
+            label={t('product.package.nacosInstance')}
             name="nacosId"
-            rules={[{ message: '请选择 Nacos 实例', required: true }]}
+            rules={[{ message: t('product.package.nacosRequired'), required: true }]}
           >
             <Select
               loading={nacosLoading}
               onChange={handleNacosChange}
               options={nacosInstances.map((n) => ({
-                label: `${n.nacosName}${n.isDefault ? ' (默认)' : ''}`,
+                label: `${n.nacosName}${
+                  n.isDefault ? ` (${t('product.package.nacosDefault')})` : ''
+                }`,
                 value: n.nacosId,
               }))}
-              placeholder="选择 Nacos 实例"
+              placeholder={t('product.package.selectNacos')}
             />
           </Form.Item>
           <Form.Item
-            label="命名空间"
+            label={t('product.package.namespace')}
             name="namespace"
-            rules={[{ message: '请选择命名空间', required: true }]}
+            rules={[{ message: t('product.package.namespaceRequired'), required: true }]}
           >
             <Select
               loading={nsLoading}
@@ -1205,7 +1215,7 @@ export function ApiProductWorkerPackage({
                 label: ns.namespaceName || ns.namespaceId || 'public',
                 value: ns.namespaceId || '',
               }))}
-              placeholder="选择命名空间"
+              placeholder={t('product.package.selectNamespace')}
             />
           </Form.Item>
         </Form>

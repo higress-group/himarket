@@ -13,7 +13,7 @@ interface LayoutProps {
 
 export function Layout({ children, className = '', loading = false }: LayoutProps) {
   return (
-    <div className={`min-h-screen flex flex-col ${className}`}>
+    <div className={`flex min-h-screen flex-col overflow-x-hidden ${className}`}>
       <div
         className={`min-h-screen  fixed w-full h-full z-[1]`}
         style={{
@@ -32,7 +32,7 @@ export function Layout({ children, className = '', loading = false }: LayoutProp
       <Header />
       <div className="flex-1 min-h-0 relative z-10">
         <main className="h-full">
-          <div className="w-full mx-auto px-8 h-full">
+          <div className="mx-auto h-full w-full px-4 sm:px-6 lg:px-8">
             {loading ? (
               <div className="space-y-8 py-8">
                 {/* 页面标题骨架屏 */}

@@ -10,6 +10,7 @@ import {
 import { message as antdMessage, Spin, Dropdown, Modal } from 'antd';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import './SessionSidebar.css';
 import {
@@ -49,7 +50,7 @@ interface SessionItem {
   timestamp: Date;
 }
 
-function toSessionItems(sessions: ICodingSession[]): SessionItem[] {
+function toSessionItems(sessions: ICodingSession[], untitledSession: string): SessionItem[] {
   return sessions.map((s) => ({
     cliSessionId: s.cliSessionId,
     cwd: s.cwd,
@@ -58,7 +59,7 @@ function toSessionItems(sessions: ICodingSession[]): SessionItem[] {
     providerKey: s.providerKey || '',
     sessionId: s.sessionId,
     timestamp: new Date(s.updatedAt || s.createdAt),
-    title: s.title || '未命名会话',
+    title: s.title || untitledSession,
   }));
 }
 
@@ -93,6 +94,7 @@ export function SessionSidebar({
   onNewSession,
   refreshTrigger,
 }: SessionSidebarProps) {
+  const { t } = useTranslation('coding');
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   // Sync collapsed state when the page transitions (e.g. welcome → conversation)
@@ -126,14 +128,14 @@ export function SessionSidebar({
         : Array.isArray(data)
           ? data
           : [];
-      setSessions(toSessionItems(list));
+      setSessions(toSessionItems(list, t('sidebar.untitledSession')));
     } catch (err) {
       console.error('[SessionSidebar] Failed to fetch sessions:', err);
-      antdMessage.error('获取会话列表失败');
+      antdMessage.error(t('sidebar.fetchSessionsFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchSessions();
@@ -177,7 +179,7 @@ export function SessionSidebar({
     const trimmedName = editingName.trim();
 
     if (!trimmedName) {
-      antdMessage.error('会话名称不能为空');
+      antdMessage.error(t('sidebar.sessionNameRequired'));
       return;
     }
 
@@ -196,16 +198,16 @@ export function SessionSidebar({
             session.id === sessionId ? { ...session, title: trimmedName } : session,
           ),
         );
-        antdMessage.success('重命名成功');
+        antdMessage.success(t('sidebar.renameSuccess'));
         setEditingSessionId(null);
         setEditingName('');
         setOriginalName('');
       } else {
-        throw new Error('重命名失败');
+        throw new Error(t('sidebar.renameFailed'));
       }
     } catch (error) {
       console.error('Failed to rename session:', error);
-      antdMessage.error('重命名失败');
+      antdMessage.error(t('sidebar.renameFailed'));
     }
   };
 
@@ -230,15 +232,15 @@ export function SessionSidebar({
   // 删除会话
   const handleDeleteSession = (sessionId: string, sessionName: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要删除会话 "${sessionName}" 吗？此操作无法撤销。`,
-      okText: '删除',
+      cancelText: t('sidebar.cancel'),
+      content: t('sidebar.deleteConfirm', { name: sessionName }),
+      okText: t('sidebar.delete'),
       okType: 'danger',
       onOk: async () => {
         try {
           await deleteCodingSession(sessionId);
           setSessions((prev) => prev.filter((session) => session.id !== sessionId));
-          antdMessage.success('删除成功');
+          antdMessage.success(t('sidebar.deleteSuccess'));
 
           // 如果删除的是当前活跃会话，触发新建
           const deletedSession = sessions.find((s) => s.id === sessionId);
@@ -247,10 +249,10 @@ export function SessionSidebar({
           }
         } catch (error) {
           console.error('Failed to delete session:', error);
-          antdMessage.error('删除失败');
+          antdMessage.error(t('sidebar.deleteFailed'));
         }
       },
-      title: '确认删除',
+      title: t('sidebar.deleteTitle'),
     });
   };
 
@@ -260,7 +262,7 @@ export function SessionSidebar({
       {
         icon: <EditOutlined />,
         key: 'rename',
-        label: '重命名',
+        label: t('sidebar.rename'),
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleStartEdit(session.id, session.title);
@@ -270,7 +272,7 @@ export function SessionSidebar({
         danger: true,
         icon: <DeleteOutlined />,
         key: 'delete',
-        label: '删除',
+        label: t('sidebar.delete'),
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleDeleteSession(session.id, session.title);
@@ -370,7 +372,7 @@ export function SessionSidebar({
                           e.preventDefault();
                           e.stopPropagation();
                         }}
-                        title="保存"
+                        title={t('sidebar.save')}
                       >
                         <CheckOutlined className="text-sm" />
                       </button>
@@ -384,7 +386,7 @@ export function SessionSidebar({
                           e.preventDefault();
                           e.stopPropagation();
                         }}
-                        title="取消"
+                        title={t('sidebar.cancel')}
                       >
                         <CloseOutlined className="text-sm" />
                       </button>
@@ -425,7 +427,7 @@ export function SessionSidebar({
                             onClick={(e) => {
                               e.stopPropagation();
                             }}
-                            title="更多操作"
+                            title={t('sidebar.moreActions')}
                           >
                             <MoreOutlined className="text-base" />
                           </button>
@@ -457,7 +459,7 @@ export function SessionSidebar({
                      text-gray-400 hover:text-colorPrimary hover:bg-colorPrimaryHoverLight
                      transition-all duration-200"
           onClick={() => setCollapsed(false)}
-          title="展开侧栏"
+          title={t('sidebar.expandSidebar')}
         >
           <PanelLeftOpen size={16} />
         </button>
@@ -467,7 +469,7 @@ export function SessionSidebar({
                      text-gray-400 hover:text-colorPrimary hover:bg-colorPrimaryHoverLight
                      transition-all duration-200"
           onClick={onNewSession}
-          title="新会话"
+          title={t('sidebar.newSession')}
         >
           <PlusOutlined className="text-sm" />
         </button>
@@ -485,7 +487,7 @@ export function SessionSidebar({
                      text-gray-400 hover:text-colorPrimary hover:bg-colorPrimaryHoverLight
                      transition-all duration-200"
           onClick={() => setCollapsed(true)}
-          title="收起侧栏"
+          title={t('sidebar.collapseSidebar')}
         >
           <PanelLeftClose size={16} />
         </button>
@@ -499,7 +501,7 @@ export function SessionSidebar({
         >
           <div className="flex items-center gap-2">
             <PlusOutlined className="text-sm" />
-            <span className="text-sm font-medium">新会话</span>
+            <span className="text-sm font-medium">{t('sidebar.newSession')}</span>
           </div>
           <div className="flex items-center gap-1 text-xs text-gray-400">
             <kbd className="px-1 py-0.5 bg-gray-100 rounded text-[10px] font-sans">
@@ -523,12 +525,12 @@ export function SessionSidebar({
             <Spin />
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 text-sm">暂无历史会话</div>
+          <div className="text-center py-8 text-gray-400 text-sm">{t('sidebar.noHistory')}</div>
         ) : (
           <>
-            {renderSessionGroup('今天', today, 'today')}
-            {renderSessionGroup('近7天', last7Days, 'last7Days')}
-            {renderSessionGroup('近30天', last30Days, 'last30Days')}
+            {renderSessionGroup(t('sidebar.today'), today, 'today')}
+            {renderSessionGroup(t('sidebar.last7Days'), last7Days, 'last7Days')}
+            {renderSessionGroup(t('sidebar.last30Days'), last30Days, 'last30Days')}
           </>
         )}
       </div>
@@ -536,7 +538,7 @@ export function SessionSidebar({
       {/* 不支持会话恢复的提示 */}
       {!agentSupportsLoadSession && activeCliSessionId !== null && sessions.length > 0 && (
         <div className="px-3 py-1.5 text-[11px] text-gray-400 text-center">
-          当前 CLI 不支持会话恢复
+          {t('sidebar.restoreUnsupported')}
         </div>
       )}
     </div>

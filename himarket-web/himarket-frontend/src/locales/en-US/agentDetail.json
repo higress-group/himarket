@@ -1,0 +1,84 @@
+{
+  "error": {
+    "dataLoadFailed": "Failed to load data",
+    "loadFailed": "Loading failed, please try again later",
+    "agentNotFound": "Agent API not found"
+  },
+  "message": {
+    "domainCopied": "Domain copied to clipboard",
+    "copyFailed": "Copy failed. Please copy manually.",
+    "linkCopied": "Link copied to clipboard",
+    "requestCopied": "Request example copied to clipboard"
+  },
+  "matchType": {
+    "exact": "equals",
+    "prefix": "starts with",
+    "regex": "matches regex"
+  },
+  "empty": {
+    "overview": "No overview information",
+    "configuration": "No configuration information"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "configuration": "Configuration",
+    "configurationWithCount": "Configuration ({{count}})"
+  },
+  "field": {
+    "protocol": "Protocol",
+    "noProtocol": "No protocol configured"
+  },
+  "agentCard": {
+    "title": "Agent Card",
+    "name": "Name",
+    "version": "Version",
+    "protocolVersion": "Protocol version",
+    "description": "Description",
+    "transport": "Transport",
+    "additionalInterfaces": "Additional interfaces",
+    "skills": "Skills",
+    "capabilities": "Capabilities",
+    "unknown": "Unknown"
+  },
+  "route": {
+    "title": "API configuration",
+    "unknown": "Unknown route",
+    "domain": "Domain",
+    "selectDomain": "Select domain",
+    "copyDomain": "Copy domain",
+    "default": "Default",
+    "method": "Method",
+    "path": "Path",
+    "headerMatch": "Header matches",
+    "queryParamMatch": "Query parameter matches"
+  },
+  "usage": {
+    "tab": "Agent chat",
+    "requestTab": "Request example",
+    "title": "HiChat conversation",
+    "description": "Use this Agent in HiChat.",
+    "endpoint": "Endpoint",
+    "copyEndpoint": "Copy endpoint",
+    "noEndpoint": "No endpoint available",
+    "copyRequestExample": "Copy request example",
+    "noRequestExample": "No request example available",
+    "comingSoon": "Coming soon",
+    "features": {
+      "planning": "Task planning",
+      "execution": "Autonomous execution",
+      "toolCall": "Tool calls",
+      "workflow": "Workflows"
+    }
+  },
+  "lab": {
+    "title": "Agent Lab",
+    "description": "Explore how AI Agents plan, execute, and call tools autonomously",
+    "features": {
+      "planning": "Task planning",
+      "execution": "Autonomous execution",
+      "toolCall": "Tool calls",
+      "workflow": "Workflows"
+    },
+    "comingSoon": "Coming soon"
+  }
+}

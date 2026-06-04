@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { DataTable } from '@/components/common/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, portalApi } from '@/lib/api';
 import { ProductTypeMap, copyToClipboard } from '@/lib/utils';
 import type { Portal, ApiProduct, Publication } from '@/types';
@@ -13,6 +14,7 @@ interface PortalApiProductsProps {
 }
 
 export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
+  const { t } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
@@ -108,12 +110,12 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
               {record.productName}
             </button>
           </Tooltip>
-          <Tooltip title="点击复制">
+          <Tooltip title={t('common.copyToClipboard')}>
             <button
               className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
               onClick={() =>
                 copyToClipboard(record.productId).then(() => {
-                  message.success('已复制到剪贴板');
+                  message.success(t('common.copiedToClipboard'));
                 })
               }
               type="button"
@@ -123,20 +125,20 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
           </Tooltip>
         </div>
       ),
-      title: '产品名称/ID',
+      title: t('page.categoryDetail.nameAndId'),
       width: 280,
     },
     {
       dataIndex: 'productType',
       key: 'productType',
       render: (text: string) => ProductTypeMap[text] || text,
-      title: '类型',
+      title: t('common.type'),
       width: 120,
     },
     {
       dataIndex: 'description',
       key: 'description',
-      title: '描述',
+      title: t('common.description'),
       width: 400,
     },
     {
@@ -148,10 +150,10 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
           onClick={() => handleDelete(record.publicationId, record.productId, record.productName)}
           type="link"
         >
-          移除
+          {t('common.remove')}
         </Button>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 120,
     },
   ];
@@ -166,36 +168,36 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
           <div className="text-xs text-gray-500 truncate">{record.productId}</div>
         </div>
       ),
-      title: '名称',
+      title: t('common.name'),
       width: 280,
     },
     {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => ProductTypeMap[type] || type,
-      title: '类型',
+      title: t('common.type'),
       width: 120,
     },
     {
       dataIndex: 'description',
       key: 'description',
-      title: '描述',
+      title: t('common.description'),
       width: 300,
     },
   ];
 
   const handleDelete = (publicationId: string, productId: string, productName: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要从门户中移除API产品 "${productName}" 吗？此操作不可恢复。`,
+      cancelText: t('common.cancel'),
+      content: t('portal.products.removeConfirm', { name: productName }),
       icon: <ExclamationCircleOutlined />,
-      okText: '确认移除',
+      okText: t('common.confirmRemove'),
       okType: 'danger',
       onOk() {
         apiProductApi
           .cancelPublishToPortal(productId, publicationId)
           .then(() => {
-            message.success('移除成功');
+            message.success(t('common.removeSuccess'));
             fetchApiProducts();
             setIsModalVisible(false);
           })
@@ -203,13 +205,13 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
             // message.error('移除失败')
           });
       },
-      title: '确认移除',
+      title: t('common.confirmRemove'),
     });
   };
 
   const handlePublish = async () => {
     if (selectedApiIds.length === 0) {
-      message.warning('请至少选择一个API');
+      message.warning(t('portal.products.selectApi'));
       return;
     }
 
@@ -219,12 +221,12 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       for (const productId of selectedApiIds) {
         await apiProductApi.publishToPortal(productId, portal.portalId);
       }
-      message.success(`成功发布 ${selectedApiIds.length} 个API`);
+      message.success(t('portal.products.publishSuccess', { count: selectedApiIds.length }));
       setSelectedApiIds([]);
       fetchApiProducts();
       setIsModalVisible(false);
     } catch (_error) {
-      // message.error('发布失败')
+      message.error(t('portal.products.publishFailed'));
     } finally {
       setModalLoading(false);
     }
@@ -239,11 +241,11 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-2">API Product</h1>
-          <p className="text-gray-600">管理在此Portal中发布的API产品</p>
+          <h1 className="text-2xl font-bold mb-2">{t('portal.products.title')}</h1>
+          <p className="text-gray-600">{t('portal.products.description')}</p>
         </div>
         <Button onClick={() => setIsModalVisible(true)} type="primary">
-          发布API产品
+          {t('portal.products.publishApi')}
         </Button>
       </div>
 
@@ -253,7 +255,7 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
         loading={loading}
         locale={{
           emptyText: (
-            <Empty description="暂无已发布的API产品" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            <Empty description={t('portal.products.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ),
         }}
         pagination={{
@@ -266,16 +268,16 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
       />
 
       <Modal
-        cancelText="取消"
+        cancelText={t('common.cancel')}
         confirmLoading={modalLoading}
         okButtonProps={{
           disabled: selectedApiIds.length === 0,
         }}
-        okText="发布"
+        okText={t('portal.products.publish')}
         onCancel={handleModalCancel}
         onOk={handlePublish}
         open={isModalVisible}
-        title="发布API产品"
+        title={t('portal.products.publishApi')}
         width={800}
       >
         <Table

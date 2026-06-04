@@ -12,6 +12,7 @@ import {
 import { Card, Button, Modal, message, Space, Dropdown } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, apiDefinitionApi } from '@/lib/api';
 import type {
   ApiProduct,
@@ -46,6 +47,8 @@ export function ApiProductLinkApi({
   linkedService,
   onLinkedServiceUpdate,
 }: ApiProductLinkApiProps) {
+  const { t } = useLocale();
+
   // 自定义创建弹窗控制
   const [quickCreateVisible, setQuickCreateVisible] = useState(false);
   const [oasCreateVisible, setOasCreateVisible] = useState(false);
@@ -94,43 +97,46 @@ export function ApiProductLinkApi({
     if (!linkedService) return;
 
     Modal.confirm({
-      content: '确定要解除与当前API的关联吗？',
+      cancelText: t('common.cancel'),
+      content: t('product.linkApi.confirmDelete'),
       icon: <ExclamationCircleOutlined />,
+      okText: t('product.linkApi.removeLink'),
+      okType: 'danger',
       onOk() {
         return apiProductApi
           .deleteApiProductRef(apiProduct.productId)
           .then(() => {
-            message.success('解除关联成功');
+            message.success(t('product.linkApi.deleteSuccess'));
             onLinkedServiceUpdate(null);
             handleRefresh();
           })
           .catch(() => {
-            message.error('解除关联失败');
+            message.error(t('product.linkApi.deleteFailed'));
           });
       },
-      title: '确认解除关联',
+      title: t('product.linkApi.confirmDeleteTitle'),
     });
   };
 
   // 同步配置
   const handleSyncConfig = () => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要重新同步「${apiProduct.name}」的API配置吗？`,
-      okText: '确认同步',
+      cancelText: t('common.cancel'),
+      content: t('product.linkApi.syncConfirm', { name: apiProduct.name }),
+      okText: t('product.linkApi.syncOk'),
       onOk: async () => {
         setSyncLoading(true);
         try {
           await apiProductApi.reloadProductConfig(apiProduct.productId);
-          message.success('API配置同步成功');
+          message.success(t('product.linkApi.syncSuccess'));
           handleRefresh();
         } catch {
-          message.error('同步失败，请稍后重试');
+          message.error(t('product.linkApi.syncFailed'));
         } finally {
           setSyncLoading(false);
         }
       },
-      title: '确认同步配置',
+      title: t('product.linkApi.confirmSync'),
     });
   };
 
@@ -151,10 +157,10 @@ export function ApiProductLinkApi({
         linkedService.apigRefConfig &&
         'apiName' in linkedService.apigRefConfig
       ) {
-        apiName = linkedService.apigRefConfig.apiName || '未命名';
+        apiName = linkedService.apigRefConfig.apiName || t('common.unnamed');
         apiType = 'REST API';
-        sourceInfo = 'API网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        sourceInfo = t('product.linkApi.apiGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       }
     } else if (apiProduct.type === 'MCP_SERVER') {
       apiType = 'MCP Server';
@@ -163,47 +169,50 @@ export function ApiProductLinkApi({
         linkedService.apigRefConfig &&
         'mcpServerName' in linkedService.apigRefConfig
       ) {
-        apiName = linkedService.apigRefConfig.mcpServerName || '未命名';
-        sourceInfo = 'AI网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        apiName = linkedService.apigRefConfig.mcpServerName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.apiGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.higressRefConfig) {
-        apiName = linkedService.higressRefConfig.mcpServerName || '未命名';
-        sourceInfo = 'Higress网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        apiName = linkedService.higressRefConfig.mcpServerName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.higressGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.adpAIGatewayRefConfig) {
         if ('modelApiName' in linkedService.adpAIGatewayRefConfig) {
-          apiName = linkedService.adpAIGatewayRefConfig.modelApiName || '未命名';
-          sourceInfo = '专有云AI网关';
-          gatewayInfo = linkedService.gatewayId || '未知';
+          apiName = linkedService.adpAIGatewayRefConfig.modelApiName || t('common.unnamed');
+          sourceInfo = t('product.linkApi.privateAiGateway');
+          gatewayInfo = linkedService.gatewayId || t('common.unknown');
         } else {
-          apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || '未命名';
-          sourceInfo = '专有云AI网关';
-          gatewayInfo = linkedService.gatewayId || '未知';
+          apiName = linkedService.adpAIGatewayRefConfig.mcpServerName || t('common.unnamed');
+          sourceInfo = t('product.linkApi.privateAiGateway');
+          gatewayInfo = linkedService.gatewayId || t('common.unknown');
         }
       } else if (linkedService.sourceType === 'GATEWAY' && linkedService.apsaraGatewayRefConfig) {
         if ('mcpServerName' in linkedService.apsaraGatewayRefConfig) {
-          apiName = linkedService.apsaraGatewayRefConfig.mcpServerName || '未命名';
+          apiName = linkedService.apsaraGatewayRefConfig.mcpServerName || t('common.unnamed');
         } else {
-          apiName = linkedService.apsaraGatewayRefConfig.modelApiName || '未命名';
+          apiName = linkedService.apsaraGatewayRefConfig.modelApiName || t('common.unnamed');
         }
-        sourceInfo = '飞天企业版AI网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        sourceInfo = t('product.linkApi.apsaraGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       } else if (
         linkedService.sourceType === 'NACOS' &&
         linkedService.nacosRefConfig &&
         'mcpServerName' in linkedService.nacosRefConfig
       ) {
-        apiName = linkedService.nacosRefConfig.mcpServerName || '未命名';
-        sourceInfo = 'Nacos服务发现';
-        gatewayInfo = linkedService.nacosId || '未知';
+        apiName = linkedService.nacosRefConfig.mcpServerName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.nacosDiscovery');
+        gatewayInfo = linkedService.nacosId || t('common.unknown');
       } else if (linkedService.sourceType === 'API_DEFINITION') {
         apiName =
-          apiProduct.mcpConfig?.mcpServerName || apiDefinition?.name || apiProduct.name || '未命名';
-        sourceInfo = '自定义';
+          apiProduct.mcpConfig?.mcpServerName ||
+          apiDefinition?.name ||
+          apiProduct.name ||
+          t('common.unnamed');
+        sourceInfo = t('product.linkApi.custom');
         gatewayInfo = '-';
       } else if (linkedService.sourceType === 'CUSTOM') {
-        apiName = apiProduct.mcpConfig?.mcpServerName || apiProduct.name || '未命名';
-        sourceInfo = '自定义配置';
+        apiName = apiProduct.mcpConfig?.mcpServerName || apiProduct.name || t('common.unnamed');
+        sourceInfo = t('product.linkApi.customConfig');
         gatewayInfo = '-';
       }
     } else if (apiProduct.type === 'AGENT_API') {
@@ -213,17 +222,17 @@ export function ApiProductLinkApi({
         linkedService.apigRefConfig &&
         'agentApiName' in linkedService.apigRefConfig
       ) {
-        apiName = linkedService.apigRefConfig.agentApiName || '未命名';
-        sourceInfo = 'AI网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        apiName = linkedService.apigRefConfig.agentApiName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.apiGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       } else if (
         linkedService.sourceType === 'NACOS' &&
         linkedService.nacosRefConfig &&
         'agentName' in linkedService.nacosRefConfig
       ) {
-        apiName = linkedService.nacosRefConfig.agentName || '未命名';
+        apiName = linkedService.nacosRefConfig.agentName || t('common.unnamed');
         sourceInfo = 'Nacos Agent Registry';
-        gatewayInfo = linkedService.nacosId || '未知';
+        gatewayInfo = linkedService.nacosId || t('common.unknown');
       }
     } else if (apiProduct.type === 'MODEL_API') {
       apiType = 'Model API';
@@ -232,33 +241,33 @@ export function ApiProductLinkApi({
         linkedService.apigRefConfig &&
         'modelApiName' in linkedService.apigRefConfig
       ) {
-        apiName = linkedService.apigRefConfig.modelApiName || '未命名';
-        sourceInfo = 'AI网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        apiName = linkedService.apigRefConfig.modelApiName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.apiGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       } else if (
         linkedService.sourceType === 'GATEWAY' &&
         linkedService.higressRefConfig &&
         'modelRouteName' in linkedService.higressRefConfig
       ) {
-        apiName = linkedService.higressRefConfig.modelRouteName || '未命名';
-        sourceInfo = 'Higress网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        apiName = linkedService.higressRefConfig.modelRouteName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.higressGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       } else if (
         linkedService.sourceType === 'GATEWAY' &&
         linkedService.adpAIGatewayRefConfig &&
         'modelApiName' in linkedService.adpAIGatewayRefConfig
       ) {
-        apiName = linkedService.adpAIGatewayRefConfig.modelApiName || '未命名';
-        sourceInfo = '专有云AI网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        apiName = linkedService.adpAIGatewayRefConfig.modelApiName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.privateAiGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       } else if (
         linkedService.sourceType === 'GATEWAY' &&
         linkedService.apsaraGatewayRefConfig &&
         'modelApiName' in linkedService.apsaraGatewayRefConfig
       ) {
-        apiName = linkedService.apsaraGatewayRefConfig.modelApiName || '未命名';
-        sourceInfo = '飞天企业版AI网关';
-        gatewayInfo = linkedService.gatewayId || '未知';
+        apiName = linkedService.apsaraGatewayRefConfig.modelApiName || t('common.unnamed');
+        sourceInfo = t('product.linkApi.apsaraGateway');
+        gatewayInfo = linkedService.gatewayId || t('common.unknown');
       }
     }
 
@@ -273,7 +282,7 @@ export function ApiProductLinkApi({
       return (
         <Card className="mb-6">
           <div className="text-center py-8">
-            <div className="text-gray-500 mb-4">暂未关联任何API</div>
+            <div className="text-gray-500 mb-4">{t('product.linkApi.noLinkedApi')}</div>
             {isMcp ? (
               <Space size="middle">
                 <Button
@@ -281,7 +290,7 @@ export function ApiProductLinkApi({
                   onClick={() => setIsModalVisible(true)}
                   type="primary"
                 >
-                  关联API
+                  {t('product.linkApi.linkApi')}
                 </Button>
                 <Dropdown
                   menu={{
@@ -289,19 +298,19 @@ export function ApiProductLinkApi({
                       {
                         icon: <RocketOutlined />,
                         key: 'quick',
-                        label: '标准创建（推荐）',
+                        label: t('product.linkApi.standardCreate'),
                         onClick: () => setQuickCreateVisible(true),
                       },
                       {
                         icon: <ImportOutlined />,
                         key: 'json',
-                        label: '从JSON导入',
+                        label: t('product.linkApi.uploadFromJson'),
                         onClick: () => setJsonImportVisible(true),
                       },
                       {
                         icon: <FileTextOutlined />,
                         key: 'oas',
-                        label: 'HTTP转MCP',
+                        label: t('product.linkApi.httpToMcp'),
                         onClick: () => setOasCreateVisible(true),
                       },
                     ],
@@ -309,7 +318,7 @@ export function ApiProductLinkApi({
                   trigger={['click']}
                 >
                   <Button icon={<PlusOutlined />}>
-                    自定义 <DownOutlined />
+                    {t('product.linkApi.addCustom')} <DownOutlined />
                   </Button>
                 </Dropdown>
               </Space>
@@ -319,7 +328,7 @@ export function ApiProductLinkApi({
                 onClick={() => setIsModalVisible(true)}
                 type="primary"
               >
-                关联API
+                {t('product.linkApi.linkApi')}
               </Button>
             )}
           </div>
@@ -337,32 +346,34 @@ export function ApiProductLinkApi({
               loading={syncLoading}
               onClick={handleSyncConfig}
             >
-              同步配置
+              {t('product.linkApi.syncConfig')}
             </Button>
             <Button danger icon={<DeleteOutlined />} onClick={handleDelete} type="primary">
-              解除关联
+              {t('product.linkApi.removeLink')}
             </Button>
           </Space>
         }
-        title="关联详情"
+        title={t('product.linkApi.linkDetail')}
       >
         <div>
           <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-            <span className="text-xs text-gray-600">名称:</span>
+            <span className="text-xs text-gray-600">{t('common.name')}:</span>
             <span className="col-span-2 text-xs text-gray-900">
-              {serviceInfo.apiName || '未命名'}
+              {serviceInfo.apiName || t('common.unnamed')}
             </span>
-            <span className="text-xs text-gray-600">类型:</span>
+            <span className="text-xs text-gray-600">{t('common.type')}:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.apiType}</span>
           </div>
           <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-            <span className="text-xs text-gray-600">来源:</span>
+            <span className="text-xs text-gray-600">{t('product.linkApi.source')}:</span>
             <span className="col-span-2 text-xs text-gray-900">{serviceInfo.sourceInfo}</span>
             {linkedService?.sourceType !== 'CUSTOM' &&
               linkedService?.sourceType !== 'API_DEFINITION' && (
                 <>
                   <span className="text-xs text-gray-600">
-                    {linkedService?.sourceType === 'NACOS' ? 'Nacos ID:' : '网关ID:'}
+                    {linkedService?.sourceType === 'NACOS'
+                      ? 'Nacos ID:'
+                      : `${t('product.linkApi.gatewayId')}:`}
                   </span>
                   <span className="col-span-2 text-xs text-gray-700">
                     {serviceInfo.gatewayInfo}
@@ -389,8 +400,8 @@ export function ApiProductLinkApi({
   return (
     <div className="p-6 space-y-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">API关联</h1>
-        <p className="text-gray-600">管理Product关联的API</p>
+        <h1 className="text-2xl font-bold mb-2">{t('product.linkApi.title')}</h1>
+        <p className="text-gray-600">{t('product.linkApi.description')}</p>
       </div>
 
       {renderLinkInfo()}

@@ -121,10 +121,10 @@ describe('computeSteps', () => {
       supportsMcp: true,
       supportsSkill: true,
     });
-    expect(steps[0]).toMatchObject({ key: 'select-tool', title: '选择工具' });
-    expect(steps[1]).toMatchObject({ key: 'auth-config', title: '认证方案' });
-    expect(steps[2]).toMatchObject({ key: 'model-config', title: '模型配置' });
-    expect(steps[3]).toMatchObject({ key: 'extension-config', title: '扩展配置' });
+    expect(steps[0]).toMatchObject({ key: 'select-tool', title: 'Select tool' });
+    expect(steps[1]).toMatchObject({ key: 'auth-config', title: 'Authentication' });
+    expect(steps[2]).toMatchObject({ key: 'model-config', title: 'Model configuration' });
+    expect(steps[3]).toMatchObject({ key: 'extension-config', title: 'Extension configuration' });
   });
 });
 

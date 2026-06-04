@@ -927,7 +927,17 @@ function WorkerDetail() {
 - Organize translation files by namespace, one JSON per functional module
 - Default namespace is `common`
 - Create corresponding `zh-CN` and `en-US` files when adding new pages
+- Add or update both languages in the same change for any user-facing copy
+- Do not hardcode UI copy in components when the text can be placed in locale resources
 - Language selection persisted to `localStorage`
+
+### 10.3 Copy Spacing
+
+- In Chinese locale files, add one half-width space between Chinese text and adjacent English words,
+  acronyms, product names, API names, or numbers: `在 HiChat 中验证模型能力`, `cURL 示例`,
+  `Model API 配置`, `6 到 32 个字符`.
+- Keep brand and protocol names intact: `HiMarket`, `HiChat`, `OpenAPI`, `OAuth2`, `REST API`.
+- Do not normalize spacing in user-generated content, backend-provided names, URLs, or code samples.
 
 ---
 
@@ -1014,6 +1024,7 @@ Testing effort should match the user-facing risk and state complexity.
 **Minimum verification before PR:**
 
 - Run `npm run type-check` for the changed frontend app.
+- Run `npm run i18n:scan:fail` after touching user-facing copy.
 - Run `npm run lint` or `./scripts/code-check.sh frontend` before submitting developer-portal changes.
 - Manually verify critical UI flows when behavior changes cannot be covered by automated tests.
 
@@ -1024,4 +1035,5 @@ Testing effort should match the user-facing risk and state complexity.
 ./scripts/code-check.sh
 ```
 
-Covers: Prettier formatting + ESLint check/fix + TypeScript type checking. Must pass before PR submission.
+Covers: Prettier formatting + ESLint check/fix + i18n hardcoded copy scan + TypeScript type
+checking. Must pass before PR submission.

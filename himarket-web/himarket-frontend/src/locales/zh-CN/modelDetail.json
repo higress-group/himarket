@@ -1,0 +1,71 @@
+{
+  "errors": {
+    "dataLoadFailed": "数据加载失败",
+    "loadFailed": "加载失败，请稍后重试",
+    "notFound": "未找到对应的模型"
+  },
+  "messages": {
+    "domainCopied": "域名已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制",
+    "linkCopied": "链接已复制到剪贴板",
+    "curlCopied": "cURL 命令已复制到剪贴板",
+    "subscribeFirst": "请先订阅该产品后再开始对话"
+  },
+  "match": {
+    "exact": "等于",
+    "prefix": "前缀是",
+    "regex": "正则是"
+  },
+  "modelCategory": {
+    "text": "文本生成",
+    "image": "图片生成",
+    "video": "视频生成",
+    "audio": "语音合成",
+    "embedding": "向量化（Embedding）",
+    "rerank": "文本排序（Rerank）",
+    "others": "其他",
+    "unknown": "未知"
+  },
+  "tabs": {
+    "overview": "概览",
+    "configuration": "配置"
+  },
+  "overview": {
+    "empty": "暂无概览信息"
+  },
+  "configuration": {
+    "applicationScenario": "适用场景",
+    "protocol": "协议",
+    "routeConfig": "路由配置",
+    "domain": "域名",
+    "selectDomain": "选择域名",
+    "copyDomain": "复制域名",
+    "unknownRoute": "未知路由",
+    "defaultRoute": "默认",
+    "method": "方法",
+    "path": "路径",
+    "headerMatch": "请求头匹配",
+    "queryParamMatch": "查询参数匹配",
+    "empty": "暂无配置信息"
+  },
+  "chat": {
+    "tab": "模型对话",
+    "eyebrow": "HiChat 对话",
+    "description": "在 HiChat 中验证模型能力。",
+    "features": {
+      "multiTurn": "多轮上下文",
+      "multimodal": "多模态输入",
+      "mcpIntegration": "MCP 工具",
+      "modelComparison": "模型对比"
+    },
+    "loginCta": "登录后开始对话",
+    "startCta": "开始对话",
+    "subscribeCta": "订阅并开始对话"
+  },
+  "curl": {
+    "title": "请求示例",
+    "copy": "复制",
+    "noRoutes": "当前配置中没有找到路由",
+    "noConfig": "暂无 Model API 配置信息"
+  }
+}

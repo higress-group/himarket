@@ -1,5 +1,6 @@
 import { Zap, Terminal } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { Command } from '../../types/coding-protocol';
 
@@ -16,6 +17,7 @@ function categorize(cmd: Command): 'skill' | 'builtin' {
 }
 
 export function SlashMenu({ commands, filter, onSelect }: SlashMenuProps) {
+  const { t } = useTranslation('coding');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -72,13 +74,13 @@ export function SlashMenu({ commands, filter, onSelect }: SlashMenuProps) {
   let idx = 0;
 
   if (skills.length > 0) {
-    items.push({ icon: <Zap size={12} />, label: '技能', type: 'header' });
+    items.push({ icon: <Zap size={12} />, label: t('slash.skill'), type: 'header' });
     for (const cmd of skills) {
       items.push({ cmd, flatIndex: idx++, type: 'command' });
     }
   }
   if (builtins.length > 0) {
-    items.push({ icon: <Terminal size={12} />, label: '内置命令', type: 'header' });
+    items.push({ icon: <Terminal size={12} />, label: t('slash.builtinCommand'), type: 'header' });
     for (const cmd of builtins) {
       items.push({ cmd, flatIndex: idx++, type: 'command' });
     }
@@ -142,7 +144,7 @@ export function SlashMenu({ commands, filter, onSelect }: SlashMenuProps) {
                      bg-gray-50/95 backdrop-blur-md shadow-lg p-4 overflow-y-auto max-h-[320px]"
         >
           <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-            {categorize(activeCmd) === 'skill' ? '技能' : '内置命令'}
+            {categorize(activeCmd) === 'skill' ? t('slash.skill') : t('slash.builtinCommand')}
           </div>
           <div className="text-sm font-semibold text-gray-800 font-mono mb-2">
             /{activeCmd.name}
@@ -152,7 +154,9 @@ export function SlashMenu({ commands, filter, onSelect }: SlashMenuProps) {
           </p>
           {activeCmd.input?.hint && (
             <div className="mt-3 pt-3 border-t border-gray-200/80">
-              <div className="text-[11px] font-medium text-gray-400 mb-1">输入提示</div>
+              <div className="text-[11px] font-medium text-gray-400 mb-1">
+                {t('slash.inputHint')}
+              </div>
               <div className="text-xs text-gray-500">{activeCmd.input.hint}</div>
             </div>
           )}

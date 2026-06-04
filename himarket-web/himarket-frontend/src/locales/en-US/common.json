@@ -3,10 +3,69 @@
   "register": "Register",
   "confirm": "Confirm",
   "cancel": "Cancel",
+  "close": "Close",
+  "copied": "Copied",
+  "copyCode": "Copy code",
+  "back": "Back",
   "search": "Search",
   "loading": "Loading...",
+  "markdown": {
+    "generatedImage": "Generated image",
+    "download": "Download",
+    "viewOriginal": "View original"
+  },
+  "status": {
+    "product": {
+      "deprecated": "Deprecated",
+      "disabled": "Inactive",
+      "draft": "Draft",
+      "enabled": "Active",
+      "pending": "Pending publish",
+      "published": "Published",
+      "ready": "Ready"
+    },
+    "subscription": {
+      "approved": "Approved",
+      "pending": "Pending approval"
+    },
+    "category": {
+      "community": "Community",
+      "custom": "Custom",
+      "official": "Official"
+    },
+    "fromType": {
+      "database": "Database",
+      "directRoute": "Direct route",
+      "http": "HTTP to MCP",
+      "mcp": "MCP direct proxy",
+      "openApi": "OpenAPI to MCP"
+    },
+    "source": {
+      "adpAiGateway": "Dedicated cloud AI gateway",
+      "apigAi": "AI gateway",
+      "apigApi": "API gateway"
+    }
+  },
+  "errorTitle": "Error",
   "error": {
     "fetchFailed": "Failed to fetch data",
-    "networkError": "Network error"
+    "networkError": "Network error",
+    "authExpired": "You are not signed in or your session has expired. Please sign in again.",
+    "notFound": "The requested resource was not found",
+    "serverError": "Server error. Please try again later.",
+    "requestFailed": "Request failed",
+    "fileTooLargePreview": "File is too large to preview"
+  },
+  "authCallback": {
+    "missingParams": "Missing code or state parameter",
+    "loginSuccess": "Signed in successfully",
+    "loginFailed": "Sign-in failed. Please try again.",
+    "loginFailedWithReason": "Sign-in failed: {{reason}}",
+    "noAccessToken": "Access token was not returned",
+    "incompleteParams": "Callback parameters are incomplete. Please try again.",
+    "invalidCode": "Authorization code is invalid or expired",
+    "oidcConfigMissing": "OIDC configuration does not exist",
+    "processing": "Processing sign-in information...",
+    "loggingIn": "Signing in, please wait..."
   }
 }

@@ -1,7 +1,5 @@
 {
-  "pageLabel": "开发者账号",
   "title": "账号管理",
-  "subtitle": "管理你的开发者资料、登录安全和第三方身份绑定。",
   "manageConsumers": "管理消费者",
   "profileInfo": "个人资料",
   "profileInfoDescription": "查看当前开发者账号的基础信息。",
@@ -30,6 +28,7 @@
   "newPasswordPlaceholder": "6 到 32 个字符",
   "passwordMinLength": "密码至少6个字符",
   "passwordMaxLength": "密码不能超过32个字符",
+  "passwordRequirementMatch": "两次输入一致",
   "confirmPassword": "确认新密码",
   "confirmPasswordRequired": "请确认新密码",
   "confirmPasswordPlaceholder": "再次输入新密码",
@@ -38,7 +37,6 @@
   "cancelChangePassword": "取消",
   "thirdPartyAccounts": "第三方账号",
   "thirdPartyDescription": "绑定第三方账号后，可使用对应身份登录或识别账号来源。",
-  "thirdPartyComingSoon": "第三方账号绑定能力暂未开放，后续支持后会在这里展示可绑定的身份提供方。",
   "comingSoon": "敬请期待",
   "boundSummary": "已绑定 {{bound}} / {{total}}",
   "noProfile": "暂无个人信息",

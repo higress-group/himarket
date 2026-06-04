@@ -1,0 +1,39 @@
+{
+  "chat": {
+    "subtitle": "Chat with AI models and explore new possibilities",
+    "cta": "Sign in to start chatting",
+    "features": {
+      "modelConversation": {
+        "title": "AI multi-model chat",
+        "desc": "Use mainstream AI models in one conversational experience"
+      },
+      "modelCompare": {
+        "title": "Model comparison",
+        "desc": "Compare answers from multiple models and choose the best result"
+      },
+      "mcpIntegration": {
+        "title": "MCP tool integration",
+        "desc": "Connect MCP services so AI can call external tools"
+      }
+    }
+  },
+  "coding": {
+    "subtitle": "An AI coding assistant that turns ideas into working code",
+    "cta": "Sign in to start coding",
+    "features": {
+      "aiCoding": {
+        "title": "AI-assisted coding",
+        "desc": "Describe what you need in natural language and let AI draft the solution"
+      },
+      "sandbox": {
+        "title": "Sandbox execution",
+        "desc": "Run code safely in a sandbox and inspect results in real time"
+      },
+      "interactive": {
+        "title": "Interactive iteration",
+        "desc": "Refine your project through an ongoing conversation with AI"
+      }
+    }
+  },
+  "register": "Create an account"
+}

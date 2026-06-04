@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import { message as antdMessage, Spin, Dropdown, Modal } from 'antd';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import './Sidebar.css';
 import APIs, { type ISession } from '../../lib/apis';
@@ -65,6 +66,7 @@ export function Sidebar({
   refreshTrigger,
   selectedType = 'TEXT',
 }: SidebarProps) {
+  const { t } = useTranslation('chat');
   // const [selectedFeature, setSelectedFeature] = useState("language-model");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -90,20 +92,20 @@ export function Sidebar({
             id: session.sessionId,
             productIds: session.products || [],
             timestamp: new Date(session.updateAt || session.createAt),
-            title: session.name || '未命名会话',
+            title: session.name || t('sidebar.untitledSession'),
           }));
           setSessions(sessionList);
         }
       } catch (error) {
         console.error('Failed to fetch sessions:', error);
-        antdMessage.error('获取会话列表失败');
+        antdMessage.error(t('sidebar.fetchSessionsFailed'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchSessions();
-  }, [refreshTrigger]); // 当 refreshTrigger 改变时重新获取
+  }, [refreshTrigger, t]); // 当 refreshTrigger 改变时重新获取
 
   const { last30Days, last7Days, today } = categorizeSessionsByTime(sessions);
 
@@ -149,7 +151,7 @@ export function Sidebar({
     const trimmedName = editingName.trim();
 
     if (!trimmedName) {
-      antdMessage.error('会话名称不能为空');
+      antdMessage.error(t('sidebar.sessionNameRequired'));
       return;
     }
 
@@ -170,16 +172,16 @@ export function Sidebar({
             session.id === sessionId ? { ...session, title: trimmedName } : session,
           ),
         );
-        antdMessage.success('重命名成功');
+        antdMessage.success(t('sidebar.renameSuccess'));
         setEditingSessionId(null);
         setEditingName('');
         setOriginalName('');
       } else {
-        throw new Error('重命名失败');
+        throw new Error(t('sidebar.renameFailed'));
       }
     } catch (error) {
       console.error('Failed to rename session:', error);
-      antdMessage.error('重命名失败');
+      antdMessage.error(t('sidebar.renameFailed'));
     }
   };
 
@@ -204,9 +206,9 @@ export function Sidebar({
   // 删除会话
   const handleDeleteSession = (sessionId: string, sessionName: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要删除会话 "${sessionName}" 吗？此操作无法撤销。`,
-      okText: '删除',
+      cancelText: t('sidebar.cancel'),
+      content: t('sidebar.deleteConfirm', { name: sessionName }),
+      okText: t('sidebar.delete'),
       okType: 'danger',
       onOk: async () => {
         try {
@@ -214,21 +216,21 @@ export function Sidebar({
           if (response.code === 'SUCCESS') {
             // 从本地状态中移除
             setSessions((prev) => prev.filter((session) => session.id !== sessionId));
-            antdMessage.success('删除成功');
+            antdMessage.success(t('sidebar.deleteSuccess'));
 
             // 如果删除的是当前选中的会话，触发新会话
             if (currentSessionId === sessionId) {
               onNewChat();
             }
           } else {
-            throw new Error('删除失败');
+            throw new Error(t('sidebar.deleteFailed'));
           }
         } catch (error) {
           console.error('Failed to delete session:', error);
-          antdMessage.error('删除失败');
+          antdMessage.error(t('sidebar.deleteFailed'));
         }
       },
-      title: '确认删除',
+      title: t('sidebar.deleteTitle'),
     });
   };
 
@@ -238,7 +240,7 @@ export function Sidebar({
       {
         icon: <EditOutlined />,
         key: 'rename',
-        label: '重命名',
+        label: t('sidebar.rename'),
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleStartEdit(session.id, session.title);
@@ -248,7 +250,7 @@ export function Sidebar({
         danger: true,
         icon: <DeleteOutlined />,
         key: 'delete',
-        label: '删除',
+        label: t('sidebar.delete'),
         onClick: ({ domEvent }) => {
           domEvent.stopPropagation();
           handleDeleteSession(session.id, session.title);
@@ -342,7 +344,7 @@ export function Sidebar({
                         e.preventDefault(); // 防止触发 input 的 blur
                         e.stopPropagation();
                       }}
-                      title="保存"
+                      title={t('sidebar.save')}
                     >
                       <CheckOutlined className="text-sm" />
                     </button>
@@ -356,7 +358,7 @@ export function Sidebar({
                         e.preventDefault(); // 防止触发 input 的 blur
                         e.stopPropagation();
                       }}
-                      title="取消"
+                      title={t('sidebar.cancel')}
                     >
                       <CloseOutlined className="text-sm" />
                     </button>
@@ -389,7 +391,7 @@ export function Sidebar({
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
-                        title="更多操作"
+                        title={t('sidebar.moreActions')}
                       >
                         <MoreOutlined className="text-base" />
                       </button>
@@ -407,23 +409,23 @@ export function Sidebar({
   return (
     <div
       className={`
-        bg-white/50 backdrop-blur-xl rounded-lg flex flex-col ml-4
+        flex min-h-0 flex-col rounded-[16px] border border-white/70 bg-white/75
+        shadow-[0_18px_50px_rgba(37,56,88,0.08)] backdrop-blur-xl
         transition-all duration-300 ease-in-out chat-session--sidebar
-        ${isCollapsed ? 'w-16' : 'w-64'}
+        ${isCollapsed ? 'w-[72px]' : 'w-[260px]'}
       `}
     >
       {/* 新增话按钮 */}
       <div className="p-4">
         <button
           className={`
-            flex items-center bg-white rounded-lg
-            border-[4px] border-colorPrimaryBgHover/50
+            flex items-center rounded-[12px] border border-[#DDE5F0] bg-white/90
             transition-all duration-200 ease-in-out
-            hover:bg-gray-50 hover:shadow-md hover:scale-[1.02] active:scale-95 text-nowrap overflow-hidden
-            ${isCollapsed ? 'w-8 h-8 p-0 justify-center' : 'w-full px-3 py-2 justify-between'}
+            hover:border-colorPrimary/40 hover:shadow-sm active:scale-[0.98] text-nowrap overflow-hidden
+            ${isCollapsed ? 'h-10 w-10 justify-center p-0' : 'w-full justify-between px-3 py-2.5'}
           `}
           onClick={onNewChat}
-          title={isCollapsed ? '新会话' : ''}
+          title={isCollapsed ? t('sidebar.newChat') : ''}
         >
           {isCollapsed ? (
             <PlusOutlined className="transition-transform duration-200 hover:rotate-90" />
@@ -431,7 +433,7 @@ export function Sidebar({
             <>
               <div className="flex items-center gap-2">
                 <PlusOutlined className="transition-transform duration-200 text-sm" />
-                <span className="text-sm font-medium">新会话</span>
+                <span className="text-sm font-medium">{t('sidebar.newChat')}</span>
               </div>
               <div className="flex items-center gap-1 text-xs text-gray-400">
                 <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-sans">
@@ -453,12 +455,12 @@ export function Sidebar({
           className={`
             px-3 py-2 rounded-lg text-sm cursor-pointer
             transition-all duration-200 ease-in-out overflow-hidden text-nowrap
-            hover:scale-[1.02] hover:shadow-sm border-0 w-full text-left
+            border-0 w-full text-left hover:bg-white/80
             ${selectedType === 'TEXT' ? 'bg-colorPrimaryHoverLight text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}
             ${isCollapsed ? 'px-2 py-2 text-center' : 'px-3 py-2 text-sm'}
           `}
           onClick={() => onSelectType?.('TEXT')}
-          title={isCollapsed ? '语言模型' : ''}
+          title={isCollapsed ? t('sidebar.languageModel') : ''}
           type="button"
         >
           {isCollapsed ? (
@@ -466,7 +468,7 @@ export function Sidebar({
           ) : (
             <div className="flex items-center gap-2">
               <MessageSquareQuote className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
-              语言模型
+              {t('sidebar.languageModel')}
             </div>
           )}
         </button>
@@ -474,12 +476,12 @@ export function Sidebar({
           className={`
             px-3 py-2 rounded-lg text-sm overflow-hidden text-nowrap cursor-pointer
             transition-all duration-200 ease-in-out
-            hover:scale-[1.02] hover:shadow-sm border-0 w-full text-left
+            border-0 w-full text-left hover:bg-white/80
             ${selectedType === 'Image' ? 'bg-colorPrimaryHoverLight text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}
             ${isCollapsed ? 'px-2 py-2 text-center' : 'px-3 py-2 text-sm'}
           `}
           onClick={() => onSelectType?.('Image')}
-          title={isCollapsed ? '文生图' : ''}
+          title={isCollapsed ? t('sidebar.textToImage') : ''}
         >
           {isCollapsed ? (
             <Image className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
@@ -487,7 +489,7 @@ export function Sidebar({
             <div className="flex items-center gap-2 justify-between">
               <div className="flex items-center gap-2">
                 <Image className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
-                文生图
+                {t('sidebar.textToImage')}
               </div>
             </div>
           )}
@@ -496,10 +498,10 @@ export function Sidebar({
           className={`
             px-3 py-2 rounded-lg text-sm overflow-hidden text-nowrap
             transition-all duration-200 ease-in-out
-            hover:scale-[1.02] hover:shadow-sm  text-gray-900
+            text-gray-900 hover:bg-white/80
             ${isCollapsed ? 'px-2 py-2 text-center' : 'px-3 py-2 text-sm'}
           `}
-          title={isCollapsed ? '文生视频' : ''}
+          title={isCollapsed ? t('sidebar.textToVideo') : ''}
         >
           {isCollapsed ? (
             <FileVideo className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
@@ -507,9 +509,11 @@ export function Sidebar({
             <div className="flex items-center gap-2 justify-between">
               <div className="flex items-center gap-2">
                 <FileVideo className="fill-mainTitle text-base transition-transform duration-200 hover:scale-110" />
-                文生视频
+                {t('sidebar.textToVideo')}
               </div>
-              <div className="py-1 px-2 rounded-[10px] bg-[#F3F4F6] text-[#99A1AF]">敬请期待</div>
+              <div className="py-1 px-2 rounded-[10px] bg-[#F3F4F6] text-[#99A1AF]">
+                {t('sidebar.comingSoon')}
+              </div>
             </div>
           )}
         </div>
@@ -524,12 +528,12 @@ export function Sidebar({
               <Spin />
             </div>
           ) : sessions.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">暂无历史会话</div>
+            <div className="text-center py-8 text-gray-400 text-sm">{t('sidebar.noHistory')}</div>
           ) : (
             <>
-              {renderSessionGroup('今天', today, 'today')}
-              {renderSessionGroup('近7天', last7Days, 'last7Days')}
-              {renderSessionGroup('近30天', last30Days, 'last30Days')}
+              {renderSessionGroup(t('sidebar.today'), today, 'today')}
+              {renderSessionGroup(t('sidebar.last7Days'), last7Days, 'last7Days')}
+              {renderSessionGroup(t('sidebar.last30Days'), last30Days, 'last30Days')}
             </>
           )}
         </div>
@@ -551,18 +555,18 @@ export function Sidebar({
           className={`
             flex items-center gap-2 text-gray-600 rounded-lg
             transition-all duration-200 ease-in-out overflow-hidden text-nowrap
-            hover:bg-gray-100 hover:scale-[1.02] active:scale-95
-            ${isCollapsed ? 'w-8 h-8 p-0 justify-center mx-auto' : 'w-full px-4 py-2 justify-center'}
+            hover:bg-white/80 active:scale-[0.98]
+            ${isCollapsed ? 'mx-auto h-10 w-10 justify-center p-0' : 'w-full justify-center px-4 py-2'}
           `}
           onClick={() => setIsCollapsed(!isCollapsed)}
-          title={isCollapsed ? '展开' : '收起'}
+          title={isCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
         >
           {isCollapsed ? (
             <MenuUnfoldOutlined className="transition-transform duration-200 hover:translate-x-1" />
           ) : (
             <>
               <MenuFoldOutlined className="transition-transform duration-200 hover:-translate-x-1" />
-              <span className="text-sm">收起</span>
+              <span className="text-sm">{t('sidebar.collapse')}</span>
             </>
           )}
         </button>

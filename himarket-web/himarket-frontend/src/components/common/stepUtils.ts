@@ -35,22 +35,22 @@ export function computeSteps(capabilities: ProviderCapabilities | null | undefin
   return [
     {
       key: 'select-tool',
-      title: '选择工具',
+      title: 'Select tool',
       visible: true, // 始终可见
     },
     {
       key: 'auth-config',
-      title: '认证方案',
+      title: 'Authentication',
       visible: hasAuthOptions,
     },
     {
       key: 'model-config',
-      title: '模型配置',
+      title: 'Model configuration',
       visible: supportsCustomModel,
     },
     {
       key: 'extension-config',
-      title: '扩展配置',
+      title: 'Extension configuration',
       visible: supportsMcp || supportsSkill,
     },
   ];

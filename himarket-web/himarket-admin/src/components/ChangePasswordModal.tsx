@@ -6,6 +6,8 @@ import {
 } from '@ant-design/icons';
 import { Form, Input, Modal } from 'antd';
 
+import { useLocale } from '@/contexts/LocaleContext';
+
 interface ChangePasswordFormValues {
   confirmPassword: string;
   newPassword: string;
@@ -45,16 +47,17 @@ export function ChangePasswordModal({
   onSubmit,
   open,
 }: ChangePasswordModalProps) {
+  const { t } = useLocale();
   const [form] = Form.useForm<ChangePasswordFormValues>();
   const newPassword = Form.useWatch('newPassword', form);
   const confirmPassword = Form.useWatch('confirmPassword', form);
   const passwordRequirements: PasswordRequirement[] = [
     {
-      label: '6 到 32 个字符',
+      label: t('layout.passwordRequirementLength'),
       passed: !!newPassword && newPassword.length >= 6 && newPassword.length <= 32,
     },
     {
-      label: '两次输入一致',
+      label: t('layout.passwordRequirementMatch'),
       passed: !!confirmPassword && newPassword === confirmPassword,
     },
   ];
@@ -74,16 +77,16 @@ export function ChangePasswordModal({
 
   return (
     <Modal
-      cancelText="取消"
+      cancelText={t('common.cancel')}
       centered
       className="[&_.ant-modal-content]:!rounded-[10px] [&_.ant-modal-content]:!p-6 [&_.ant-modal-header]:!mb-2"
       confirmLoading={loading}
       destroyOnHidden
-      okText="保存"
+      okText={t('action.save')}
       onCancel={handleCancel}
       onOk={() => form.submit()}
       open={open}
-      title="修改密码"
+      title={t('layout.changePassword')}
       width={460}
     >
       <Form
@@ -94,11 +97,14 @@ export function ChangePasswordModal({
         requiredMark={false}
         size="large"
       >
-        <Form.Item name="oldPassword" rules={[{ message: '请输入当前密码', required: true }]}>
+        <Form.Item
+          name="oldPassword"
+          rules={[{ message: t('layout.currentPasswordRequired'), required: true }]}
+        >
           <Input.Password
             autoComplete="current-password"
             className="rounded-lg"
-            placeholder="当前密码"
+            placeholder={t('layout.currentPassword')}
             prefix={<LockOutlined className="text-gray-400" />}
           />
         </Form.Item>
@@ -106,15 +112,15 @@ export function ChangePasswordModal({
         <Form.Item
           name="newPassword"
           rules={[
-            { message: '请输入新密码', required: true },
-            { message: '密码至少6个字符', min: 6 },
-            { max: 32, message: '密码不能超过32个字符' },
+            { message: t('layout.newPasswordRequired'), required: true },
+            { message: t('layout.passwordMinLength'), min: 6 },
+            { max: 32, message: t('layout.passwordMaxLength') },
           ]}
         >
           <Input.Password
             autoComplete="new-password"
             className="rounded-lg"
-            placeholder="新密码"
+            placeholder={t('layout.newPassword')}
             prefix={<KeyOutlined className="text-gray-400" />}
           />
         </Form.Item>
@@ -123,13 +129,13 @@ export function ChangePasswordModal({
           dependencies={['newPassword']}
           name="confirmPassword"
           rules={[
-            { message: '请确认新密码', required: true },
+            { message: t('layout.confirmPasswordRequired'), required: true },
             ({ getFieldValue }) => ({
               validator(_, value: string | undefined) {
                 if (!value || getFieldValue('newPassword') === value) {
                   return Promise.resolve();
                 }
-                return Promise.reject(new Error('两次输入的密码不一致'));
+                return Promise.reject(new Error(t('layout.passwordMismatch')));
               },
             }),
           ]}
@@ -137,7 +143,7 @@ export function ChangePasswordModal({
           <Input.Password
             autoComplete="new-password"
             className="rounded-lg"
-            placeholder="确认密码"
+            placeholder={t('layout.confirmPassword')}
             prefix={<SafetyCertificateOutlined className="text-gray-400" />}
           />
         </Form.Item>
@@ -147,7 +153,7 @@ export function ChangePasswordModal({
             <PasswordRequirementItem key={item.label} label={item.label} passed={item.passed} />
           ))}
         </div>
-        <div className="text-right text-xs text-gray-400">修改成功后需重新登录</div>
+        <div className="text-right text-xs text-gray-400">{t('layout.passwordReloginTip')}</div>
       </Form>
     </Modal>
   );

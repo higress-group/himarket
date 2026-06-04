@@ -6,7 +6,7 @@
 # DESCRIPTION:
 #   This script performs code quality checks across HiMarket:
 #   - Backend: Maven Spotless (apply + check)
-#   - himarket-frontend: Prettier, ESLint --fix, type-check
+#   - himarket-frontend: Prettier, ESLint --fix, type-check, i18n hardcoded copy scan
 #   - himarket-admin: Prettier, ESLint --fix, type-check
 #
 # USAGE:
@@ -98,6 +98,9 @@ run_frontend_npm_steps() {
 
   run_step "${name}: Prettier Format" bash -c "cd \"${dir}\" && npm run format"
   run_step "${name}: ESLint Fix" bash -c "cd \"${dir}\" && npm run lint:fix"
+  if [ "${rel}" = "himarket-web/himarket-frontend" ]; then
+    run_step "${name}: i18n Hardcoded Copy Scan" bash -c "cd \"${dir}\" && npm run i18n:scan:fail"
+  fi
   run_step "${name}: Type Check" bash -c "cd \"${dir}\" && npm run type-check"
 }
 

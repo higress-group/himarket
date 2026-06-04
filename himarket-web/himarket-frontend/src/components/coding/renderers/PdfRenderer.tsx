@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PdfRendererProps {
   content: string;
 }
 
 export function PdfRenderer({ content }: PdfRendererProps) {
+  const { t } = useTranslation('coding');
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,19 +22,19 @@ export function PdfRenderer({ content }: PdfRendererProps) {
       setBlobUrl(URL.createObjectURL(blob));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'PDF 解码失败');
+      setError(e instanceof Error ? e.message : t('editor.pdfDecodeFailed'));
       setBlobUrl(null);
     }
 
     return () => {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [content, blobUrl]);
+  }, [content, blobUrl, t]);
 
   if (error || !blobUrl) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-gray-400">
-        PDF 预览失败：{error ?? '未知错误'}
+        {t('editor.pdfPreviewFailed', { error: error ?? t('editor.unknownError') })}
       </div>
     );
   }

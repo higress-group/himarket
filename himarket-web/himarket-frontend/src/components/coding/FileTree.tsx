@@ -18,6 +18,7 @@ import {
 } from '@ant-design/icons';
 import { Tooltip } from 'antd';
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import type { FileNode } from '../../types/coding';
 
@@ -124,6 +125,7 @@ function FileIcon({ name }: { name: string }) {
 }
 
 function TreeNode({ depth, node, onFileSelect, selectedPath }: TreeNodeProps) {
+  const { t } = useTranslation('coding');
   const [expanded, setExpanded] = useState(depth < 1);
   const isDir = node.type === 'directory';
   const isSelected = node.path === selectedPath;
@@ -184,7 +186,7 @@ function TreeNode({ depth, node, onFileSelect, selectedPath }: TreeNodeProps) {
               className="text-[11px] text-amber-500 px-2 py-1"
               style={{ paddingLeft: `${(depth + 1) * 16 + 4}px` }}
             >
-              ⚠ 文件过多，仅显示部分
+              {t('fileTree.tooManyFiles')}
             </div>
           )}
         </div>
@@ -194,10 +196,12 @@ function TreeNode({ depth, node, onFileSelect, selectedPath }: TreeNodeProps) {
 }
 
 export function FileTree({ onFileSelect, selectedPath, tree }: FileTreeProps) {
+  const { t } = useTranslation('coding');
+
   if (tree.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-xs text-gray-400 px-3">
-        暂无文件
+        {t('fileTree.noFiles')}
       </div>
     );
   }

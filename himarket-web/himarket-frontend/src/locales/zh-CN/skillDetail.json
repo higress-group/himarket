@@ -18,5 +18,22 @@
   "binaryNotSupported": "二进制文件，不支持预览",
   "renderPreview": "渲染预览",
   "sourceCode": "源代码",
-  "relatedSkills": "相关技能"
+  "relatedSkills": "相关技能",
+  "basicInfo": "基本信息",
+  "globalInstall": "全局安装",
+  "localDownload": "本地下载",
+  "author": "作者",
+  "repository": "仓库",
+  "noAuthorInfo": "暂无作者信息",
+  "viewRepository": "查看仓库",
+  "share": "分享",
+  "favorite": "收藏",
+  "downloadFailed": "下载失败",
+  "copyFailed": "复制失败",
+  "copiedToClipboard": "已复制到剪贴板",
+  "copySkillMd": "复制 SKILL.md 内容",
+  "downloadFullSkillDirectory": "下载包含 SKILL.md 和所有相关文件的完整技能目录",
+  "noContent": "暂无内容",
+  "renderedView": "渲染视图",
+  "sourceView": "源码视图"
 }

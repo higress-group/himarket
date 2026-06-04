@@ -1,6 +1,7 @@
 import { message } from 'antd';
 import { Code2, Eye, FolderOpen, Folder } from 'lucide-react';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import bgImage from '../assets/bg.png';
 import { ChatStream } from '../components/coding/ChatStream';
@@ -139,6 +140,7 @@ type RightTab = 'preview' | 'code';
 const READ_ONLY_KINDS = new Set(['read', 'search', 'think', 'fetch', 'switch_mode']);
 
 function CodingContent() {
+  const { t } = useTranslation('coding');
   // ===== 功能开关 =====
   const [terminalEnabled, setTerminalEnabled] = useState(true);
   useEffect(() => {
@@ -300,11 +302,15 @@ function CodingContent() {
         token: localStorage.getItem('access_token') || undefined,
       });
 
-      dispatch({ message: '正在连接沙箱环境...', status: 'creating', type: 'SANDBOX_STATUS' });
+      dispatch({
+        message: t('page.connectingSandbox'),
+        status: 'creating',
+        type: 'SANDBOX_STATUS',
+      });
 
       setCurrentWsUrl(url);
     },
-    [dispatch],
+    [dispatch, t],
   );
 
   // 模型配置由 ConfigInjectionPhase 注入，createSession 中会自动设置 CLI 模型
@@ -321,9 +327,9 @@ function CodingContent() {
 
     session.loadSession(cliSessionId, cwd, title, platformSessionId).catch((err) => {
       console.error('[Coding] Load pending session failed:', err);
-      message.warning('会话已过期，请选择其他会话或创建新会话');
+      message.warning(t('page.sessionExpired'));
     });
-  }, [isConnected, state.initialized, state.sandboxStatus, session]);
+  }, [isConnected, state.initialized, state.sandboxStatus, session, t]);
 
   // ===== 自动创建 Session =====
   const autoCreatedRef = useRef(false);
@@ -384,7 +390,7 @@ function CodingContent() {
       .catch((err) => {
         console.error('[Coding] Auto create session failed:', err);
         dispatch({
-          message: err?.message || '会话创建失败，请重新连接',
+          message: err?.message || t('page.sessionCreateFailed'),
           status: 'error',
           type: 'SANDBOX_STATUS',
         });
@@ -398,6 +404,7 @@ function CodingContent() {
     state.workspaceCwd,
     session,
     dispatch,
+    t,
   ]);
 
   // 会话就绪后自动发送暂存的首条消息
@@ -472,10 +479,10 @@ function CodingContent() {
       // 已连接且 provider 匹配 — 直接加载
       session.loadSession(cliSessionId, cwd, title, platformSessionId).catch((err) => {
         console.error('[Coding] Load session failed:', err);
-        message.warning('会话已过期，请选择其他会话或创建新会话');
+        message.warning(t('page.sessionExpired'));
       });
     },
-    [isConnected, config, handleConnect, session, dispatch],
+    [isConnected, config, handleConnect, session, dispatch, t],
   );
 
   // 新会话：断开连接，回到欢迎页
@@ -492,7 +499,7 @@ function CodingContent() {
   const handleWelcomeSend = useCallback(
     (text: string) => {
       if (!isComplete) {
-        message.warning('请先完成配置');
+        message.warning(t('page.completeConfigFirst'));
         return { queued: false as const };
       }
 
@@ -511,7 +518,7 @@ function CodingContent() {
       pendingPromptRef.current = text;
       return { queued: true as const };
     },
-    [isComplete, isConnected, activeSession, config, handleConnect, session],
+    [isComplete, isConnected, activeSession, config, handleConnect, session, t],
   );
 
   // ===== IDE 面板状态 =====
@@ -814,7 +821,7 @@ function CodingContent() {
                     <Code2 className="text-white" size={40} />
                   </div>
                   <h1 className="text-2xl font-medium text-gray-900 mb-2">
-                    欢迎使用{' '}
+                    {t('page.welcomePrefix')}{' '}
                     <span className="text-blue-500">
                       <TextType
                         cursorCharacter="_"
@@ -825,7 +832,7 @@ function CodingContent() {
                       />
                     </span>
                   </h1>
-                  <p className="text-sm text-gray-400">AI 驱动的编程助手，输入你的需求开始编程</p>
+                  <p className="text-sm text-gray-400">{t('page.welcomeDescription')}</p>
                 </div>
 
                 {/* 输入框 - 渐变边框包裹 */}
@@ -934,12 +941,14 @@ function CodingContent() {
                         style={{ width: fileTreePanel.size }}
                       >
                         <div className="flex items-center px-3 py-2 border-b border-gray-200/60 bg-white/30">
-                          <span className="text-xs font-medium text-gray-600">文件</span>
+                          <span className="text-xs font-medium text-gray-600">
+                            {t('page.files')}
+                          </span>
                         </div>
                         <div className="flex-1 overflow-hidden">
                           {treeLoading ? (
                             <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                              加载中...
+                              {t('page.loading')}
                             </div>
                           ) : (
                             <FileTree
@@ -965,14 +974,14 @@ function CodingContent() {
                         ${activeTab === 'code' ? 'text-blue-600 border-blue-500 bg-white/50' : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50/50'}`}
                         onClick={() => setActiveTab('code')}
                       >
-                        <Code2 size={14} /> 代码
+                        <Code2 size={14} /> {t('page.code')}
                       </button>
                       <button
                         className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5
                         ${activeTab === 'preview' ? 'text-blue-600 border-blue-500 bg-white/50' : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50/50'}`}
                         onClick={() => setActiveTab('preview')}
                       >
-                        <Eye size={14} /> 预览
+                        <Eye size={14} /> {t('page.preview')}
                       </button>
                       <div className="flex-1" />
                       {!isPreviewMode && (
@@ -980,7 +989,7 @@ function CodingContent() {
                           className={`w-7 h-7 flex items-center justify-center rounded transition-colors mr-2
                           ${fileTreeVisible ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
                           onClick={toggleFileTree}
-                          title={fileTreeVisible ? '隐藏文件' : '显示文件'}
+                          title={fileTreeVisible ? t('page.hideFiles') : t('page.showFiles')}
                         >
                           {fileTreeVisible ? <FolderOpen size={16} /> : <Folder size={16} />}
                         </button>

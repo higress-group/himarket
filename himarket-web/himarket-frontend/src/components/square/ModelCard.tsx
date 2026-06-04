@@ -1,63 +1,65 @@
+import { ArrowUpRight } from 'lucide-react';
+
 import { ProductIconRenderer } from '../icon/ProductIconRenderer';
 
 interface ModelCardProps {
   icon: string;
   name: string;
   description: string;
-  company?: string;
-  releaseDate: string;
+  updatedAt: string;
+  tags: string[];
   onClick?: () => void;
 }
 
-export function ModelCard({
-  company,
-  description,
-  icon,
-  name,
-  onClick,
-  releaseDate,
-}: ModelCardProps) {
+export function ModelCard({ description, icon, name, onClick, tags, updatedAt }: ModelCardProps) {
   return (
     <button
       className="
-        group bg-[linear-gradient(135deg,rgba(236,239,246,0.96)_0%,rgba(246,248,252,0.9)_50%,rgba(255,255,255,0.88)_100%)] backdrop-blur-sm rounded-[18px] p-5
-        border border-[#D6DEEA]/90
+        group rounded-xl border border-[#DDE4EF] bg-[linear-gradient(180deg,#FFFFFF_0%,#FBFCFF_100%)] p-4
         cursor-pointer
-        transition-all duration-300 ease-out
-        shadow-[0_14px_38px_rgba(74,85,120,0.065)]
-        hover:bg-[#F7F9FD]/92 hover:shadow-lg hover:shadow-indigo-100/35 hover:-translate-y-0.5 hover:border-[#C4CEE0]
+        transition-all duration-200 ease-out
+        shadow-[0_6px_20px_rgba(31,42,68,0.05)]
+        hover:-translate-y-0.5 hover:border-[#C6D1E3] hover:shadow-[0_14px_34px_rgba(31,42,68,0.09)]
         active:scale-[0.98] active:duration-150
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-colorPrimary/25 focus-visible:ring-offset-2
         relative
         overflow-hidden
-        min-h-[176px]
+        h-[176px]
         flex flex-col
         w-full text-left
       "
       onClick={onClick}
       type="button"
     >
-      {/* 上部：图标和名称 */}
-      <div className="flex items-center gap-4 mb-3">
-        <div className="w-12 h-12 rounded-[14px] border border-white/60 bg-white/70 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          <ProductIconRenderer className="w-full h-full object-cover" iconType={icon} />
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#EDF1F7] bg-[#F3F6FF]">
+            <ProductIconRenderer className="h-full w-full object-cover" iconType={icon} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-bold leading-tight text-gray-950 transition-colors">
+              {name}
+            </h3>
+            <p className="mt-1 truncate text-xs leading-snug text-gray-500">{updatedAt}</p>
+          </div>
         </div>
-        <h3 className="text-base font-semibold text-gray-900 truncate flex-1 transition-colors">
-          {name}
-        </h3>
-      </div>
-
-      {/* 中部：简介（固定两行） */}
-      <p className="max-h-12 text-sm mb-3 line-clamp-2 leading-relaxed flex-1 text-gray-500">
-        {description}
-      </p>
-
-      {/* 底部：公司和发布日期 */}
-      <div className="h-8 flex items-center justify-between text-xs">
-        {company ? <span className="truncate text-gray-500">{company}</span> : null}
-        <span className="flex-shrink-0 text-gray-400 tabular-nums tracking-tight">
-          {releaseDate}
+        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-all duration-200 group-hover:bg-[#F3F6FA] group-hover:text-gray-700 group-hover:opacity-100 group-focus-visible:bg-[#F3F6FA] group-focus-visible:text-gray-700 group-focus-visible:opacity-100">
+          <ArrowUpRight aria-hidden="true" size={15} strokeWidth={2} />
         </span>
       </div>
+
+      <div className="mb-3 flex min-h-6 flex-wrap items-center gap-2">
+        {tags.slice(0, 3).map((tag) => (
+          <span
+            className="inline-flex min-h-6 items-center rounded-[6px] border border-[#E4EAF3] bg-[#F8FAFD] px-2 text-xs font-semibold text-[#566176]"
+            key={tag}
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+
+      <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-gray-600">{description}</p>
     </button>
   );
 }

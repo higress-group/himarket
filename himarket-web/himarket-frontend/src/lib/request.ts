@@ -3,6 +3,7 @@ import axios from 'axios';
 import qs from 'qs';
 
 import { notifyAuthInvalidated } from '../hooks/useAuth';
+import i18n from '../i18n';
 
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 
@@ -39,15 +40,14 @@ const request: AxiosInstance = axios.create({
   },
   paramsSerializer: (params) => {
     return qs.stringify(params, {
-      arrayFormat: 'repeat', // 数组格式: ids=1&ids=2（而不是 ids[]=1）
-      encode: true, // 确保特殊字符被正确编码
-      skipNulls: true, // 跳过 null 和 undefined 值
+      arrayFormat: 'repeat',
+      encode: true,
+      skipNulls: true,
     });
   },
   timeout: 10000,
 });
 
-// 请求拦截器
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const accessToken = localStorage.getItem('access_token');
@@ -62,7 +62,6 @@ request.interceptors.request.use(
   },
 );
 
-// 响应拦截器
 request.interceptors.response.use(
   (response: AxiosResponse) => {
     return response.data;
@@ -73,14 +72,13 @@ request.interceptors.response.use(
     switch (status) {
       case 401:
         if (isPublicPage()) {
-          // 公开页面：如果有过期 token 则清除，并通知组件更新登录状态
           if (localStorage.getItem('access_token')) {
             localStorage.removeItem('access_token');
             notifyAuthInvalidated();
           }
           break;
         }
-        message.error('未登录或登录已过期，请重新登录');
+        message.error(i18n.t('error.authExpired'));
         localStorage.removeItem('access_token');
         if (window.location.pathname !== '/login') {
           const returnUrl = encodeURIComponent(
@@ -106,13 +104,13 @@ request.interceptors.response.use(
         }
         break;
       case 404:
-        message.error('请求的资源不存在');
+        message.error(i18n.t('error.notFound'));
         break;
       case 500:
-        message.error('服务器异常，请稍后再试');
+        message.error(i18n.t('error.serverError'));
         break;
       default:
-        message.error(error.response?.data?.message || '请求发生错误');
+        message.error(error.response?.data?.message || i18n.t('error.requestFailed'));
     }
     return Promise.reject(error);
   },

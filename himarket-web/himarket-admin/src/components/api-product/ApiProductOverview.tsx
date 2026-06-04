@@ -3,16 +3,14 @@ import {
   GlobalOutlined,
   TeamOutlined,
   EditOutlined,
-  CheckCircleFilled,
-  MinusCircleFilled,
   CopyOutlined,
-  ExclamationCircleFilled,
-  ClockCircleFilled,
 } from '@ant-design/icons';
-import { Card, Row, Col, Statistic, Button, message } from 'antd';
+import { Card, Button, message } from 'antd';
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { StatusIndicator } from '@/components/common';
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi } from '@/lib/api';
 import { getProductCategories } from '@/lib/productCategoryApi';
 import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils';
@@ -20,13 +18,106 @@ import type { ApiProduct } from '@/types/api-product';
 import type { LinkedService } from '@/types/api-product';
 import type { ProductCategory } from '@/types/product-category';
 
+import type { ReactNode } from 'react';
+
 interface ApiProductOverviewProps {
   apiProduct: ApiProduct;
   linkedService: LinkedService | null;
   onEdit: () => void;
 }
 
+function getProductTypeLabel(type: ApiProduct['type']) {
+  switch (type) {
+    case 'REST_API':
+      return 'REST API';
+    case 'AGENT_API':
+      return 'Agent API';
+    case 'MODEL_API':
+      return 'Model API';
+    case 'AGENT_SKILL':
+      return 'Agent Skill';
+    case 'WORKER':
+      return 'Worker';
+    default:
+      return 'MCP Server';
+  }
+}
+
+function renderProductStatus(status: ApiProduct['status'], t: ReturnType<typeof useLocale>['t']) {
+  if (status === 'PENDING') {
+    return <StatusIndicator tone="warning">{t('product.overview.statusPending')}</StatusIndicator>;
+  }
+  if (status === 'READY') {
+    return (
+      <StatusIndicator icon="clock" tone="info">
+        {t('product.overview.statusReady')}
+      </StatusIndicator>
+    );
+  }
+  return <StatusIndicator tone="success">{t('product.overview.statusPublished')}</StatusIndicator>;
+}
+
+function InfoItem({
+  children,
+  label,
+  wide,
+}: {
+  children: ReactNode;
+  label: string;
+  wide?: boolean;
+}) {
+  return (
+    <div className={wide ? 'md:col-span-2' : undefined}>
+      <dt className="text-xs font-medium text-gray-500">{label}</dt>
+      <dd className="mt-1 min-w-0 text-sm leading-6 text-gray-900">{children}</dd>
+    </div>
+  );
+}
+
+function MetricCard({
+  icon,
+  label,
+  onClick,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick?: () => void;
+  value: ReactNode;
+}) {
+  const content = (
+    <>
+      <div className="text-sm text-gray-500">{label}</div>
+      <div className="mt-3 flex items-end gap-2">
+        <span className="text-xl text-blue-500">{icon}</span>
+        <span className="min-w-0 truncate text-2xl font-semibold leading-none text-blue-600">
+          {value}
+        </span>
+      </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        className="rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all duration-150 hover:border-blue-200 hover:shadow-md"
+        onClick={onClick}
+        type="button"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition-all duration-150">
+      {content}
+    </div>
+  );
+}
+
 export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiProductOverviewProps) {
+  const { t } = useLocale();
   const [portalCount, setPortalCount] = useState(0);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
@@ -106,110 +197,70 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-2">概览</h1>
-        <p className="text-gray-600">API产品概览</p>
+        <h1 className="text-2xl font-bold mb-2">{t('product.overview.title')}</h1>
+        <p className="text-gray-600">{t('product.overview.description')}</p>
       </div>
 
       {/* 基本信息 */}
       <Card
+        className="rounded-lg border border-gray-200 shadow-sm"
         extra={
           <Button icon={<EditOutlined />} onClick={onEdit} type="primary">
-            编辑
+            {t('product.overview.edit')}
           </Button>
         }
-        title="基本信息"
+        title={t('product.overview.basicInfo')}
       >
-        <div>
-          <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-            <span className="text-xs text-gray-600">产品名称:</span>
-            <span className="col-span-2 text-xs text-gray-900">{apiProduct.name}</span>
-            <span className="text-xs text-gray-600">产品ID:</span>
-            <div className="col-span-2 flex items-center gap-2">
-              <span className="text-xs text-gray-700">{apiProduct.productId}</span>
+        <dl className="grid gap-x-8 gap-y-5 md:grid-cols-2">
+          <InfoItem label={t('product.overview.name')}>{apiProduct.name}</InfoItem>
+          <InfoItem label={t('product.overview.id')}>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-gray-700">{apiProduct.productId}</span>
               <CopyOutlined
                 className="text-gray-400 hover:text-blue-600 cursor-pointer transition-colors ml-1"
                 onClick={async () => {
                   try {
                     await copyToClipboard(apiProduct.productId);
-                    message.success('产品ID已复制');
+                    message.success(t('product.overview.copied'));
                   } catch {
-                    message.error('复制失败，请手动复制');
+                    message.error(t('common.copyFailed'));
                   }
                 }}
                 style={{ fontSize: '12px' }}
               />
             </div>
-          </div>
+          </InfoItem>
 
-          <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-            <span className="text-xs text-gray-600">类型:</span>
-            <span className="col-span-2 text-xs text-gray-900">
-              {apiProduct.type === 'REST_API'
-                ? 'REST API'
-                : apiProduct.type === 'AGENT_API'
-                  ? 'Agent API'
-                  : apiProduct.type === 'MODEL_API'
-                    ? 'Model API'
-                    : apiProduct.type === 'AGENT_SKILL'
-                      ? 'Agent Skill'
-                      : apiProduct.type === 'WORKER'
-                        ? 'Worker'
-                        : 'MCP Server'}
-            </span>
-            <span className="text-xs text-gray-600">状态:</span>
-            <div className="col-span-2 flex items-center">
-              {apiProduct.status === 'PENDING' ? (
-                <ExclamationCircleFilled
-                  className="text-yellow-500 mr-2"
-                  style={{ fontSize: '10px' }}
-                />
-              ) : apiProduct.status === 'READY' ? (
-                <ClockCircleFilled className="text-blue-500 mr-2" style={{ fontSize: '10px' }} />
-              ) : (
-                <CheckCircleFilled className="text-green-500 mr-2" style={{ fontSize: '10px' }} />
-              )}
-              <span className="text-xs text-gray-900">
-                {apiProduct.status === 'PENDING'
-                  ? '待配置'
-                  : apiProduct.status === 'READY'
-                    ? '待发布'
-                    : '已发布'}
-              </span>
-            </div>
-          </div>
+          <InfoItem label={t('product.overview.type')}>
+            {getProductTypeLabel(apiProduct.type)}
+          </InfoItem>
+          <InfoItem label={t('product.overview.status')}>
+            {renderProductStatus(apiProduct.status, t)}
+          </InfoItem>
 
           {apiProduct.type !== 'AGENT_SKILL' && apiProduct.type !== 'WORKER' ? (
-            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-              <span className="text-xs text-gray-600">自动审批订阅:</span>
-              <div className="col-span-2 flex items-center">
-                {apiProduct.autoApprove === true ? (
-                  <CheckCircleFilled className="text-green-500 mr-2" style={{ fontSize: '10px' }} />
-                ) : (
-                  <MinusCircleFilled className="text-gray-400 mr-2" style={{ fontSize: '10px' }} />
-                )}
-                <span className="text-xs text-gray-900">
-                  {apiProduct.autoApprove === true ? '已开启' : '已关闭'}
-                </span>
-              </div>
-              <span className="text-xs text-gray-600">创建时间:</span>
-              <span className="col-span-2 text-xs text-gray-700">
+            <>
+              <InfoItem label={t('product.overview.autoApproveSubscription')}>
+                <StatusIndicator tone={apiProduct.autoApprove === true ? 'success' : 'neutral'}>
+                  {apiProduct.autoApprove === true
+                    ? t('product.overview.enabled')
+                    : t('product.overview.disabled')}
+                </StatusIndicator>
+              </InfoItem>
+              <InfoItem label={t('product.overview.createAt')}>
                 {formatDateTime(apiProduct.createAt)}
-              </span>
-            </div>
+              </InfoItem>
+            </>
           ) : (
-            <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-              <span className="text-xs text-gray-600">创建时间:</span>
-              <span className="col-span-2 text-xs text-gray-700">
-                {formatDateTime(apiProduct.createAt)}
-              </span>
-            </div>
+            <InfoItem label={t('product.overview.createAt')}>
+              {formatDateTime(apiProduct.createAt)}
+            </InfoItem>
           )}
 
-          <div className="grid grid-cols-6 gap-8 items-center pt-2 pb-2">
-            <span className="text-xs text-gray-600">产品类别:</span>
-            <div className="col-span-2 text-xs text-gray-900">
+          <InfoItem label={t('product.overview.category')} wide={apiProduct.type !== 'MODEL_API'}>
+            <div className="flex flex-wrap gap-x-2 gap-y-1">
               {productCategories && productCategories.length > 0 ? (
-                <span>
+                <>
                   {productCategories.map((category, index) => (
                     <span key={category.categoryId}>
                       <span
@@ -231,106 +282,81 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                       )}
                     </span>
                   ))}
-                </span>
+                </>
               ) : (
                 <span className="text-gray-400">-</span>
               )}
             </div>
-            {/* Feature 配置 - 仅 MODEL_API 类型显示 */}
-            {apiProduct.type === 'MODEL_API' && (
-              <>
-                <span className="text-xs text-gray-600">模型参数:</span>
-                <div className="col-span-2 text-xs text-gray-700">
-                  {apiProduct.feature?.modelFeature ? (
-                    <span>
-                      {[
-                        apiProduct.feature.modelFeature.model,
-                        apiProduct.feature.modelFeature.maxTokens &&
-                          `${apiProduct.feature.modelFeature.maxTokens} tokens`,
-                        apiProduct.feature.modelFeature.temperature !== null &&
-                          apiProduct.feature.modelFeature.temperature !== undefined &&
-                          `temperature ${apiProduct.feature.modelFeature.temperature}`,
-                        apiProduct.feature.modelFeature.webSearch && '联网搜索',
-                        apiProduct.feature.modelFeature.enableThinking && '深度思考',
-                        apiProduct.feature.modelFeature.enableMultiModal && '多模态',
-                      ]
-                        .filter(Boolean)
-                        .map((param, index, array) => (
-                          <span key={index}>
-                            <span className="text-gray-900">{param}</span>
-                            {index < array.length - 1 && (
-                              <span className="text-gray-400 mx-2">|</span>
-                            )}
-                          </span>
-                        ))}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+          </InfoItem>
+
+          {apiProduct.type === 'MODEL_API' && (
+            <InfoItem label={t('product.overview.modelParams')}>
+              {apiProduct.feature?.modelFeature ? (
+                <span>
+                  {[
+                    apiProduct.feature.modelFeature.model,
+                    apiProduct.feature.modelFeature.maxTokens &&
+                      `${apiProduct.feature.modelFeature.maxTokens} tokens`,
+                    apiProduct.feature.modelFeature.temperature !== null &&
+                      apiProduct.feature.modelFeature.temperature !== undefined &&
+                      `temperature ${apiProduct.feature.modelFeature.temperature}`,
+                    apiProduct.feature.modelFeature.webSearch && t('product.overview.webSearch'),
+                    apiProduct.feature.modelFeature.enableThinking &&
+                      t('product.overview.thinking'),
+                    apiProduct.feature.modelFeature.enableMultiModal &&
+                      t('product.overview.multimodal'),
+                  ]
+                    .filter(Boolean)
+                    .map((param, index, array) => (
+                      <span key={index}>
+                        <span className="text-gray-900">{param}</span>
+                        {index < array.length - 1 && <span className="text-gray-400 mx-2">|</span>}
+                      </span>
+                    ))}
+                </span>
+              ) : (
+                <span className="text-gray-400">-</span>
+              )}
+            </InfoItem>
+          )}
 
           {apiProduct.description && (
-            <div className="grid grid-cols-6 gap-8 pt-2 pb-2">
-              <span className="text-xs text-gray-600">描述:</span>
-              <span className="col-span-5 text-xs text-gray-700 leading-relaxed">
-                {apiProduct.description}
-              </span>
-            </div>
+            <InfoItem label={t('product.overview.detail')} wide>
+              <span className="text-gray-700">{apiProduct.description}</span>
+            </InfoItem>
           )}
-        </div>
+        </dl>
       </Card>
 
       {/* 统计数据 - AGENT_SKILL 不展示 */}
       {apiProduct.type !== 'AGENT_SKILL' && (
-        <Row gutter={[16, 16]}>
-          <Col lg={8} sm={12} xs={24}>
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => {
-                navigate(`/api-products/${apiProduct.productId}?tab=portal`, {
-                  state: location.state,
-                });
-              }}
-            >
-              <Statistic
-                prefix={<GlobalOutlined className="text-blue-500" />}
-                title="发布的门户"
-                value={portalCount}
-                valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col lg={8} sm={12} xs={24}>
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => {
-                navigate(`/api-products/${apiProduct.productId}?tab=link-api`, {
-                  state: location.state,
-                });
-              }}
-            >
-              <Statistic
-                prefix={<ApiOutlined className="text-blue-500" />}
-                title="关联API"
-                value={getServiceName(linkedService) || '未关联'}
-                valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-          <Col lg={8} sm={12} xs={24}>
-            <Card className="hover:shadow-md transition-shadow">
-              <Statistic
-                prefix={<TeamOutlined className="text-blue-500" />}
-                title="订阅用户"
-                value={subscriberCount}
-                valueStyle={{ color: '#1677ff', fontSize: '24px' }}
-              />
-            </Card>
-          </Col>
-        </Row>
+        <div className="grid gap-4 md:grid-cols-3">
+          <MetricCard
+            icon={<GlobalOutlined />}
+            label={t('product.overview.publishedPortals')}
+            onClick={() => {
+              navigate(`/api-products/${apiProduct.productId}?tab=portal`, {
+                state: location.state,
+              });
+            }}
+            value={portalCount}
+          />
+          <MetricCard
+            icon={<ApiOutlined />}
+            label={t('product.overview.linkedApi')}
+            onClick={() => {
+              navigate(`/api-products/${apiProduct.productId}?tab=link-api`, {
+                state: location.state,
+              });
+            }}
+            value={getServiceName(linkedService) || t('product.overview.unlinked')}
+          />
+          <MetricCard
+            icon={<TeamOutlined />}
+            label={t('product.overview.subscribers')}
+            value={subscriberCount}
+          />
+        </div>
       )}
     </div>
   );

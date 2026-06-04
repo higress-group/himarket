@@ -16,6 +16,7 @@ function Chat() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
+  const { t } = useTranslation('chat');
   const { t: tLoginPrompt } = useTranslation('loginPrompt');
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<IProductDetail>();
@@ -75,7 +76,7 @@ function Chat() {
     attachments: IAttachment[] = [],
   ) => {
     if (!selectedModel) {
-      antdMessage.error('请先选择一个模型');
+      antdMessage.error(t('page.selectModelFirst'));
       return;
     }
     await sendMessage(content, mcps, enableWebSearch, modelMap, selectedModel, attachments);
@@ -115,18 +116,20 @@ function Chat() {
           />
         </>
       ) : (
-        <div className="flex h-[calc(100vh-96px)] bg-transparent">
-          <Sidebar
-            currentSessionId={currentSessionId}
-            onNewChat={handleNewChat}
-            onSelectSession={handleSelectSession}
-            onSelectType={(type) => {
-              setChatType(type);
-              handleNewChat();
-            }}
-            refreshTrigger={sidebarRefreshTrigger}
-            selectedType={chatType}
-          />
+        <div className="flex h-[calc(100dvh-76px)] min-h-0 gap-4 bg-transparent py-4">
+          <div className="hidden h-full lg:block">
+            <Sidebar
+              currentSessionId={currentSessionId}
+              onNewChat={handleNewChat}
+              onSelectSession={handleSelectSession}
+              onSelectType={(type) => {
+                setChatType(type);
+                handleNewChat();
+              }}
+              refreshTrigger={sidebarRefreshTrigger}
+              selectedType={chatType}
+            />
+          </div>
           <ChatArea
             addModels={handleAddModels}
             chatType={chatType}

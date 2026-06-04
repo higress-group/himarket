@@ -1,5 +1,7 @@
 import { Button, Modal } from 'antd';
 
+import { useLocale } from '@/contexts/LocaleContext';
+
 export interface ImportResultFailure {
   resourceName?: string;
   errorMessage?: string | null;
@@ -19,22 +21,22 @@ interface ImportResultModalProps {
   successCount: number;
 }
 
-function getFailureType(errorMessage?: string | null) {
+function getFailureTypeKey(errorMessage?: string | null) {
   const messageText = (errorMessage || '').toLowerCase();
   if (/already exists|duplicate|conflict|已存在|冲突/.test(messageText)) {
-    return '资源冲突';
+    return 'product.import.result.resourceConflict' as const;
   }
   if (/json|parse|protocol|connection|config|missing|配置|解析/.test(messageText)) {
-    return '配置异常';
+    return 'product.import.result.configError' as const;
   }
   if (/not found|不存在/.test(messageText)) {
-    return '资源不存在';
+    return 'product.import.result.resourceNotFound' as const;
   }
-  return '导入失败';
+  return 'product.import.result.failed' as const;
 }
 
-function getCleanErrorMessage(errorMessage?: string | null) {
-  return (errorMessage || '未知错误').replace(
+function getCleanErrorMessage(errorMessage: string | null | undefined, unknownError: string) {
+  return (errorMessage || unknownError).replace(
     /^(资源冲突|配置异常|资源不存在|导入失败)[:：]\s*/,
     '',
   );
@@ -47,13 +49,20 @@ export function ImportResultModal({
   selectedCount,
   successCount,
 }: ImportResultModalProps) {
+  const { t } = useLocale();
   const failureCount = failures.length;
-  const title = successCount > 0 ? `导入完成，${failureCount} 个资源未导入` : '导入失败';
+  const title =
+    successCount > 0
+      ? t('product.import.result.completedWithFailures', { count: failureCount })
+      : t('product.import.result.failed');
   const failureRows: ImportResultFailureRow[] = failures.map((failure, index) => {
-    const failureType = getFailureType(failure.errorMessage);
+    const failureType = t(getFailureTypeKey(failure.errorMessage));
     return {
       ...failure,
-      cleanErrorMessage: getCleanErrorMessage(failure.errorMessage),
+      cleanErrorMessage: getCleanErrorMessage(
+        failure.errorMessage,
+        t('product.import.result.unknownError'),
+      ),
       failureType,
       key: `${failure.resourceName || 'unknown'}-${index}`,
     };
@@ -64,7 +73,7 @@ export function ImportResultModal({
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose} type="primary">
-            关闭
+            {t('common.close')}
           </Button>
         </div>
       }
@@ -75,28 +84,38 @@ export function ImportResultModal({
     >
       <div className="space-y-4">
         <div className="text-sm leading-6 text-gray-700">
-          已选择 <span className="font-medium text-gray-900">{selectedCount}</span> 个资源，成功{' '}
-          <span className="font-medium text-green-700">{successCount}</span> 个，失败{' '}
-          <span className="font-medium text-red-700">{failureCount}</span> 个
+          {t('product.import.result.summaryPrefix')}{' '}
+          <span className="font-medium text-gray-900">{selectedCount}</span>{' '}
+          {t('product.import.result.summarySelectedSuffix')}{' '}
+          <span className="font-medium text-green-700">{successCount}</span>{' '}
+          {t('product.import.result.summarySuccessSuffix')}{' '}
+          <span className="font-medium text-red-700">{failureCount}</span>{' '}
+          {t('product.import.result.summaryFailureSuffix')}
         </div>
 
         {failureCount > 0 && (
           <div>
             <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="font-medium text-gray-800">失败项</span>
-              <span className="text-xs text-gray-500">{failureCount} 条</span>
+              <span className="font-medium text-gray-800">
+                {t('product.import.result.failureItems')}
+              </span>
+              <span className="text-xs text-gray-500">
+                {t('product.import.result.failureCount', { count: failureCount })}
+              </span>
             </div>
             <div className="max-h-72 overflow-auto rounded-lg border border-gray-200">
               <table className="w-full border-collapse text-left text-xs">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
                     <th className="w-[180px] border-b border-gray-100 px-3 py-2.5 font-medium">
-                      资源名称
+                      {t('product.import.resourceName')}
                     </th>
                     <th className="w-[116px] border-b border-gray-100 px-3 py-2.5 font-medium">
-                      原因
+                      {t('product.import.result.reason')}
                     </th>
-                    <th className="border-b border-gray-100 px-3 py-2.5 font-medium">详情</th>
+                    <th className="border-b border-gray-100 px-3 py-2.5 font-medium">
+                      {t('product.import.result.detail')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -104,7 +123,7 @@ export function ImportResultModal({
                     <tr className="border-b border-gray-100 last:border-b-0" key={failure.key}>
                       <td className="px-3 py-3 align-top">
                         <div className="font-medium text-gray-900">
-                          {failure.resourceName || '未知资源'}
+                          {failure.resourceName || t('product.import.result.unknownResource')}
                         </div>
                       </td>
                       <td className="px-3 py-3 align-top">

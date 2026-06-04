@@ -27,6 +27,7 @@ import {
 import { useState } from 'react';
 
 import { DataTable } from '@/components/common/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import type { ThirdPartyAuthConfig, AuthCodeConfig, OAuth2Config, OidcConfig } from '@/types';
 import { AuthenticationType, GrantType, PublicKeyFormat } from '@/types';
 
@@ -36,6 +37,7 @@ interface ThirdPartyAuthManagerProps {
 }
 
 export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManagerProps) {
+  const { t } = useLocale();
   const [form] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -114,21 +116,21 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
   // 删除配置
   const handleDelete = async (provider: string, name: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要删除第三方认证配置 "${name}" 吗？此操作不可恢复。`,
+      cancelText: t('common.cancel'),
+      content: t('portal.auth.deleteConfirm', { name }),
       icon: <ExclamationCircleOutlined />,
-      okText: '确认删除',
+      okText: t('common.confirmDelete'),
       okType: 'danger',
       async onOk() {
         try {
           const updatedConfigs = configs.filter((config) => config.provider !== provider);
           await onSave(updatedConfigs);
-          message.success('第三方认证配置删除成功');
+          message.success(t('portal.auth.deleteSuccess'));
         } catch (_error) {
-          message.error('删除第三方认证配置失败');
+          message.error(t('portal.auth.deleteFailed'));
         }
       },
-      title: '确认删除',
+      title: t('common.confirmDelete'),
     });
   };
 
@@ -261,10 +263,10 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
 
       await onSave(updatedConfigs);
 
-      message.success(editingConfig ? '第三方认证配置更新成功' : '第三方认证配置添加成功');
+      message.success(editingConfig ? t('portal.auth.updateSuccess') : t('portal.auth.addSuccess'));
       setModalVisible(false);
     } catch (_error) {
-      message.error('保存第三方认证配置失败');
+      message.error(t('portal.auth.saveFailed'));
     } finally {
       setLoading(false);
     }
@@ -285,19 +287,19 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
       dataIndex: 'provider',
       key: 'provider',
       render: (provider: string) => <span className="font-medium text-gray-700">{provider}</span>,
-      title: '提供商',
+      title: t('portal.auth.provider'),
       width: 120,
     },
     {
       dataIndex: 'name',
       key: 'name',
-      title: '名称',
+      title: t('portal.auth.name'),
       width: 150,
     },
     {
       key: 'grantType',
-      render: () => <span className="text-gray-600">授权码模式</span>,
-      title: '授权模式',
+      render: () => <span className="text-gray-600">{t('portal.auth.authCode')}</span>,
+      title: t('portal.auth.grantType'),
       width: 120,
     },
     {
@@ -310,10 +312,12 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
           ) : (
             <MinusCircleFilled className="text-gray-500 mr-2" style={{ fontSize: '12px' }} />
           )}
-          <span className="text-gray-700">{enabled ? '已启用' : '已停用'}</span>
+          <span className="text-gray-700">
+            {enabled ? t('portal.auth.enabled') : t('portal.auth.disabled')}
+          </span>
         </div>
       ),
-      title: '状态',
+      title: t('common.status'),
       width: 80,
     },
     {
@@ -321,7 +325,7 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
       render: (_: unknown, record: ThirdPartyAuthConfig) => (
         <Space>
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} type="link">
-            编辑
+            {t('common.edit')}
           </Button>
           <Button
             danger
@@ -329,11 +333,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
             onClick={() => handleDelete(record.provider, record.name)}
             type="link"
           >
-            删除
+            {t('common.delete')}
           </Button>
         </Space>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 150,
     },
   ];
@@ -344,13 +348,13 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
       dataIndex: 'provider',
       key: 'provider',
       render: (provider: string) => <span className="font-medium text-gray-700">{provider}</span>,
-      title: '提供商',
+      title: t('portal.auth.provider'),
       width: 120,
     },
     {
       dataIndex: 'name',
       key: 'name',
-      title: '名称',
+      title: t('portal.auth.name'),
       width: 150,
     },
     {
@@ -360,13 +364,15 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
           const oauth2Config = record as OAuth2Config & { type: AuthenticationType.OAUTH2 };
           return (
             <span className="text-gray-600">
-              {oauth2Config.grantType === GrantType.JWT_BEARER ? 'JWT断言' : '授权码模式'}
+              {oauth2Config.grantType === GrantType.JWT_BEARER
+                ? t('portal.auth.jwtBearer')
+                : t('portal.auth.authCode')}
             </span>
           );
         }
-        return <span className="text-gray-600">授权码模式</span>;
+        return <span className="text-gray-600">{t('portal.auth.authCode')}</span>;
       },
-      title: '授权模式',
+      title: t('portal.auth.grantType'),
       width: 120,
     },
     {
@@ -379,10 +385,12 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
           ) : (
             <MinusCircleFilled className="text-gray-500 mr-2" style={{ fontSize: '12px' }} />
           )}
-          <span className="text-gray-700">{enabled ? '已启用' : '已停用'}</span>
+          <span className="text-gray-700">
+            {enabled ? t('portal.auth.enabled') : t('portal.auth.disabled')}
+          </span>
         </div>
       ),
-      title: '状态',
+      title: t('common.status'),
       width: 80,
     },
     {
@@ -390,7 +398,7 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
       render: (_: unknown, record: ThirdPartyAuthConfig) => (
         <Space>
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} type="link">
-            编辑
+            {t('common.edit')}
           </Button>
           <Button
             danger
@@ -398,11 +406,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
             onClick={() => handleDelete(record.provider, record.name)}
             type="link"
           >
-            删除
+            {t('common.delete')}
           </Button>
         </Space>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 150,
     },
   ];
@@ -410,9 +418,13 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
   // 渲染OIDC配置表单
   const renderOidcForm = () => (
     <div className="space-y-6">
-      <Form.Item initialValue="AUTHORIZATION_CODE" label="授权模式" name="oidcGrantType">
+      <Form.Item
+        initialValue="AUTHORIZATION_CODE"
+        label={t('portal.auth.grantType')}
+        name="oidcGrantType"
+      >
         <Select disabled>
-          <Select.Option value="AUTHORIZATION_CODE">授权码模式</Select.Option>
+          <Select.Option value="AUTHORIZATION_CODE">{t('portal.auth.authCode')}</Select.Option>
         </Select>
       </Form.Item>
 
@@ -420,14 +432,14 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
         <Form.Item
           label="Client ID"
           name="clientId"
-          rules={[{ message: '请输入 Client ID', required: true }]}
+          rules={[{ message: t('portal.auth.clientIdRequired'), required: true }]}
         >
           <Input placeholder="Client ID" />
         </Form.Item>
         <Form.Item
           label="Client Secret"
           name="clientSecret"
-          rules={[{ message: '请输入 Client Secret', required: true }]}
+          rules={[{ message: t('portal.auth.clientSecretRequired'), required: true }]}
         >
           <Input.Password placeholder="Client Secret" />
         </Form.Item>
@@ -435,28 +447,28 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
 
       <div className="grid grid-cols-2 gap-4">
         <Form.Item
-          label="授权范围"
+          label={t('portal.auth.scopes')}
           name="scopes"
-          rules={[{ message: '请输入授权范围', required: true }]}
+          rules={[{ message: t('portal.auth.scopesRequired'), required: true }]}
         >
-          <Input placeholder="如: openid profile email" />
+          <Input placeholder={t('portal.auth.scopesPlaceholder')} />
         </Form.Item>
         <Form.Item
-          label="回调地址"
+          label={t('portal.auth.redirectUri')}
           name="redirectUri"
-          tooltip="可选，用于指定OIDC回调地址。格式：门户访问地址 + /oidc/callback。如不填写，系统将自动构建"
+          tooltip={t('portal.auth.redirectUriTooltip')}
         >
-          <Input placeholder="如: http://localhost:5173/oidc/callback" />
+          <Input placeholder={t('portal.auth.redirectUriPlaceholder')} />
         </Form.Item>
       </div>
 
       <Divider />
 
       {/* 配置模式选择 */}
-      <Form.Item initialValue="auto" label="端点配置" name="configMode">
+      <Form.Item initialValue="auto" label={t('portal.auth.endpointConfig')} name="configMode">
         <Radio.Group>
-          <Radio value="auto">自动发现</Radio>
-          <Radio value="manual">手动配置</Radio>
+          <Radio value="auto">{t('portal.auth.autoDiscovery')}</Radio>
+          <Radio value="manual">{t('portal.auth.manualConfig')}</Radio>
         </Radio.Group>
       </Form.Item>
 
@@ -475,11 +487,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                 label="Issuer"
                 name="issuer"
                 rules={[
-                  { message: '请输入Issuer地址', required: true },
-                  { message: '请输入有效的URL', type: 'url' },
+                  { message: t('portal.auth.issuerRequired'), required: true },
+                  { message: t('portal.auth.invalidUrl'), type: 'url' },
                 ]}
               >
-                <Input placeholder="如: https://accounts.google.com" />
+                <Input placeholder={t('portal.auth.issuerPlaceholder')} />
               </Form.Item>
             );
           } else {
@@ -488,30 +500,32 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <Form.Item
-                    label="授权端点"
+                    label={t('portal.auth.authorizationEndpoint')}
                     name="authorizationEndpoint"
-                    rules={[{ message: '请输入授权端点', required: true }]}
+                    rules={[
+                      { message: t('portal.auth.authorizationEndpointRequired'), required: true },
+                    ]}
                   >
-                    <Input placeholder="Authorization 授权端点" />
+                    <Input placeholder={t('portal.auth.authorizationEndpointPlaceholder')} />
                   </Form.Item>
                   <Form.Item
-                    label="令牌端点"
+                    label={t('portal.auth.tokenEndpoint')}
                     name="tokenEndpoint"
-                    rules={[{ message: '请输入令牌端点', required: true }]}
+                    rules={[{ message: t('portal.auth.tokenEndpointRequired'), required: true }]}
                   >
-                    <Input placeholder="Token 令牌端点" />
+                    <Input placeholder={t('portal.auth.tokenEndpointPlaceholder')} />
                   </Form.Item>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Form.Item
-                    label="用户信息端点"
+                    label={t('portal.auth.userInfoEndpoint')}
                     name="userInfoEndpoint"
-                    rules={[{ message: '请输入用户信息端点', required: true }]}
+                    rules={[{ message: t('portal.auth.userInfoEndpointRequired'), required: true }]}
                   >
-                    <Input placeholder="UserInfo 端点" />
+                    <Input placeholder={t('portal.auth.userInfoEndpointPlaceholder')} />
                   </Form.Item>
-                  <Form.Item label="公钥端点" name="jwkSetUri">
-                    <Input placeholder="可选" />
+                  <Form.Item label={t('portal.auth.jwkSetUri')} name="jwkSetUri">
+                    <Input placeholder={t('portal.auth.optional')} />
                   </Form.Item>
                 </div>
               </div>
@@ -541,14 +555,14 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
               children: (
                 <div className="space-y-4 pt-2 ml-3">
                   <div className="grid grid-cols-3 gap-4">
-                    <Form.Item label="开发者ID" name="userIdField">
-                      <Input placeholder="默认: sub" />
+                    <Form.Item label={t('portal.auth.developerId')} name="userIdField">
+                      <Input placeholder={t('portal.auth.defaultSub')} />
                     </Form.Item>
-                    <Form.Item label="开发者名称" name="userNameField">
-                      <Input placeholder="默认: name" />
+                    <Form.Item label={t('portal.auth.developerName')} name="userNameField">
+                      <Input placeholder={t('portal.auth.defaultName')} />
                     </Form.Item>
-                    <Form.Item label="邮箱" name="emailField">
-                      <Input placeholder="默认: email" />
+                    <Form.Item label={t('portal.auth.email')} name="emailField">
+                      <Input placeholder={t('portal.auth.defaultEmail')} />
                     </Form.Item>
                   </div>
 
@@ -564,9 +578,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                         </svg>
                       </div>
                       <div>
-                        <h4 className="text-blue-800 font-medium text-sm">配置说明</h4>
+                        <h4 className="text-blue-800 font-medium text-sm">
+                          {t('portal.auth.configHelp')}
+                        </h4>
                         <p className="text-blue-700 text-xs mt-1">
-                          身份映射用于从OIDC令牌中提取用户信息。如果不填写，系统将使用OIDC标准字段。
+                          {t('portal.auth.oidcIdentityHelp')}
                         </p>
                       </div>
                     </div>
@@ -589,8 +605,10 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                       fillRule="evenodd"
                     />
                   </svg>
-                  <span className="ml-2">高级配置</span>
-                  <span className="text-xs text-gray-400 ml-2">身份映射</span>
+                  <span className="ml-2">{t('portal.auth.advancedConfig')}</span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    {t('portal.auth.identityMapping')}
+                  </span>
                 </div>
               ),
             },
@@ -606,12 +624,12 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
     <div className="space-y-6">
       <Form.Item
         initialValue={GrantType.JWT_BEARER}
-        label="授权模式"
+        label={t('portal.auth.grantType')}
         name="oauth2GrantType"
         rules={[{ required: true }]}
       >
         <Select disabled>
-          <Select.Option value={GrantType.JWT_BEARER}>JWT断言</Select.Option>
+          <Select.Option value={GrantType.JWT_BEARER}>{t('portal.auth.jwtBearer')}</Select.Option>
         </Select>
       </Form.Item>
 
@@ -628,17 +646,30 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                           {...restField}
                           label="Key ID"
                           name={[name, 'kid']}
-                          rules={[{ message: '请输入Key ID', required: true }]}
+                          rules={[
+                            { message: t('portal.auth.publicKeyIdRequired'), required: true },
+                          ]}
                         >
-                          <Input placeholder="公钥标识符" size="small" />
+                          <Input
+                            placeholder={t('portal.auth.publicKeyIdPlaceholder')}
+                            size="small"
+                          />
                         </Form.Item>
                         <Form.Item
                           {...restField}
-                          label="签名算法"
+                          label={t('portal.auth.signatureAlgorithm')}
                           name={[name, 'algorithm']}
-                          rules={[{ message: '请选择签名算法', required: true }]}
+                          rules={[
+                            {
+                              message: t('portal.auth.signatureAlgorithmRequired'),
+                              required: true,
+                            },
+                          ]}
                         >
-                          <Select placeholder="选择签名算法" size="small">
+                          <Select
+                            placeholder={t('portal.auth.selectSignatureAlgorithm')}
+                            size="small"
+                          >
                             <Select.Option value="RS256">RS256</Select.Option>
                             <Select.Option value="RS384">RS384</Select.Option>
                             <Select.Option value="RS512">RS512</Select.Option>
@@ -649,11 +680,13 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                         </Form.Item>
                         <Form.Item
                           {...restField}
-                          label="公钥格式"
+                          label={t('portal.auth.publicKeyFormat')}
                           name={[name, 'format']}
-                          rules={[{ message: '请选择公钥格式', required: true }]}
+                          rules={[
+                            { message: t('portal.auth.publicKeyFormatRequired'), required: true },
+                          ]}
                         >
-                          <Select placeholder="选择公钥格式" size="small">
+                          <Select placeholder={t('portal.auth.selectPublicKeyFormat')} size="small">
                             <Select.Option value={PublicKeyFormat.PEM}>PEM</Select.Option>
                             <Select.Option value={PublicKeyFormat.JWK}>JWK</Select.Option>
                           </Select>
@@ -673,15 +706,20 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                           return (
                             <Form.Item
                               {...restField}
-                              label="公钥内容"
+                              label={t('portal.auth.publicKeyContent')}
                               name={[name, 'value']}
-                              rules={[{ message: '请输入公钥内容', required: true }]}
+                              rules={[
+                                {
+                                  message: t('portal.auth.publicKeyContentRequired'),
+                                  required: true,
+                                },
+                              ]}
                             >
                               <Input.TextArea
                                 placeholder={
                                   format === PublicKeyFormat.JWK
-                                    ? 'JWK格式公钥，例如:\n{\n  "kty": "RSA",\n  "kid": "key1",\n  "n": "...",\n  "e": "AQAB"\n}'
-                                    : 'PEM格式公钥，例如:\n-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----'
+                                    ? t('portal.auth.jwkPublicKeyPlaceholder')
+                                    : t('portal.auth.pemPublicKeyPlaceholder')
                                 }
                                 rows={6}
                                 style={{ fontFamily: 'monospace', fontSize: '12px' }}
@@ -703,14 +741,14 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                       size="small"
                       type="link"
                     >
-                      删除
+                      {t('common.delete')}
                     </Button>
                   ),
                   key: key,
                   label: (
                     <div className="flex items-center">
                       <KeyOutlined className="mr-2" />
-                      <span>公钥 {name + 1}</span>
+                      <span>{t('portal.auth.publicKeyNumber', { number: name + 1 })}</span>
                     </div>
                   ),
                 }))}
@@ -718,7 +756,7 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
               />
             )}
             <Button block icon={<PlusOutlined />} onClick={() => add()} size="small" type="dashed">
-              添加公钥
+              {t('portal.auth.addPublicKey')}
             </Button>
           </div>
         )}
@@ -745,14 +783,14 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
               children: (
                 <div className="space-y-4 pt-2 ml-3">
                   <div className="grid grid-cols-3 gap-4">
-                    <Form.Item label="开发者ID" name="userIdField">
-                      <Input placeholder="默认: userId" />
+                    <Form.Item label={t('portal.auth.developerId')} name="userIdField">
+                      <Input placeholder={t('portal.auth.defaultUserId')} />
                     </Form.Item>
-                    <Form.Item label="开发者名称" name="userNameField">
-                      <Input placeholder="默认: name" />
+                    <Form.Item label={t('portal.auth.developerName')} name="userNameField">
+                      <Input placeholder={t('portal.auth.defaultName')} />
                     </Form.Item>
-                    <Form.Item label="邮箱" name="emailField">
-                      <Input placeholder="默认: email" />
+                    <Form.Item label={t('portal.auth.email')} name="emailField">
+                      <Input placeholder={t('portal.auth.defaultEmail')} />
                     </Form.Item>
                   </div>
 
@@ -768,9 +806,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                         </svg>
                       </div>
                       <div>
-                        <h4 className="text-blue-800 font-medium text-sm">配置说明</h4>
+                        <h4 className="text-blue-800 font-medium text-sm">
+                          {t('portal.auth.configHelp')}
+                        </h4>
                         <p className="text-blue-700 text-xs mt-1">
-                          身份映射用于从JWT载荷中提取用户信息。如果不填写，系统将使用默认字段名。
+                          {t('portal.auth.jwtIdentityHelp')}
                         </p>
                       </div>
                     </div>
@@ -793,8 +833,10 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                       fillRule="evenodd"
                     />
                   </svg>
-                  <span className="ml-2">高级配置</span>
-                  <span className="text-xs text-gray-400 ml-2">身份映射</span>
+                  <span className="ml-2">{t('portal.auth.advancedConfig')}</span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    {t('portal.auth.identityMapping')}
+                  </span>
                 </div>
               ),
             },
@@ -813,11 +855,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-medium">第三方认证</h3>
-          <p className="text-sm text-gray-500">管理外部身份认证配置</p>
+          <h3 className="text-lg font-medium">{t('portal.auth.title')}</h3>
+          <p className="text-sm text-gray-500">{t('portal.auth.description')}</p>
         </div>
         <Button icon={<PlusOutlined />} onClick={handleAdd} type="primary">
-          添加配置
+          {t('portal.auth.add')}
         </Button>
       </div>
 
@@ -828,43 +870,45 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4">
-                  <h4 className="text-lg font-medium text-gray-900">OIDC配置</h4>
-                  <p className="text-sm text-gray-500 mt-1">
-                    支持OpenID Connect标准协议的身份提供商
-                  </p>
+                  <h4 className="text-lg font-medium text-gray-900">
+                    {t('portal.auth.oidcTitle')}
+                  </h4>
+                  <p className="text-sm text-gray-500 mt-1">{t('portal.auth.oidcDescription')}</p>
                 </div>
                 <DataTable<ThirdPartyAuthConfig>
                   columns={oidcColumns}
                   dataSource={oidcConfigs}
                   locale={{
-                    emptyText: '暂无OIDC配置',
+                    emptyText: t('portal.auth.noOidc'),
                   }}
                   rowKey="provider"
                 />
               </div>
             ),
             key: 'oidc',
-            label: 'OIDC配置',
+            label: t('portal.auth.oidcTitle'),
           },
           {
             children: (
               <div className="bg-white rounded-lg">
                 <div className="py-4">
-                  <h4 className="text-lg font-medium text-gray-900">OAuth2配置</h4>
-                  <p className="text-sm text-gray-500 mt-1">支持OAuth 2.0标准协议的身份提供商</p>
+                  <h4 className="text-lg font-medium text-gray-900">
+                    {t('portal.auth.oauth2Title')}
+                  </h4>
+                  <p className="text-sm text-gray-500 mt-1">{t('portal.auth.oauth2Description')}</p>
                 </div>
                 <DataTable<ThirdPartyAuthConfig>
                   columns={oauth2Columns}
                   dataSource={oauth2Configs}
                   locale={{
-                    emptyText: '暂无OAuth2配置',
+                    emptyText: t('portal.auth.noOAuth2'),
                   }}
                   rowKey="provider"
                 />
               </div>
             ),
             key: 'oauth2',
-            label: 'OAuth2配置',
+            label: t('portal.auth.oauth2Title'),
           },
         ]}
       />
@@ -874,7 +918,7 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
         footer={null}
         onCancel={handleCancel}
         open={modalVisible}
-        title={editingConfig ? '编辑第三方认证配置' : '添加第三方认证配置'}
+        title={editingConfig ? t('portal.auth.editTitle') : t('portal.auth.addTitle')}
         width={800}
       >
         <Steps
@@ -882,12 +926,12 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
           current={currentStep}
           items={[
             {
-              description: '选择认证协议类型',
-              title: '选择类型',
+              description: t('portal.auth.stepSelectTypeDescription'),
+              title: t('portal.auth.stepSelectTypeTitle'),
             },
             {
-              description: '填写认证参数',
-              title: '配置认证',
+              description: t('portal.auth.stepConfigureDescription'),
+              title: t('portal.auth.stepConfigureTitle'),
             },
           ]}
         />
@@ -897,21 +941,19 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
             // 第一步：选择类型
             <Card>
               <Form.Item
-                label="认证类型"
+                label={t('portal.auth.authType')}
                 name="type"
-                rules={[{ message: '请选择认证类型', required: true }]}
+                rules={[{ message: t('portal.auth.authTypeRequired'), required: true }]}
               >
-                <Select placeholder="请选择认证方式" size="large">
+                <Select placeholder={t('portal.auth.selectAuthType')} size="large">
                   <Select.Option value={AuthenticationType.OIDC}>
                     <div className="py-2">
-                      <div className="font-medium">
-                        OIDC（适用于支持OpenID Connect的身份提供商认证）
-                      </div>
+                      <div className="font-medium">{t('portal.auth.oidcOption')}</div>
                     </div>
                   </Select.Option>
                   <Select.Option value={AuthenticationType.OAUTH2}>
                     <div className="py-2">
-                      <div className="font-medium">OAuth2（适用于服务间集成）</div>
+                      <div className="font-medium">{t('portal.auth.oauth2Option')}</div>
                     </div>
                   </Select.Option>
                 </Select>
@@ -919,7 +961,7 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
 
               <div className="flex justify-end">
                 <Button onClick={handleNext} type="primary">
-                  下一步
+                  {t('common.next')}
                 </Button>
               </div>
             </Card>
@@ -928,10 +970,10 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
             <div>
               <div className="grid grid-cols-2 gap-4">
                 <Form.Item
-                  label="提供商标识"
+                  label={t('portal.auth.providerId')}
                   name="provider"
                   rules={[
-                    { message: '请输入提供商标识', required: true },
+                    { message: t('portal.auth.providerIdRequired'), required: true },
                     {
                       validator: (_, value) => {
                         if (!value) return Promise.resolve();
@@ -944,7 +986,7 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                         );
 
                         if (isDuplicate) {
-                          return Promise.reject(new Error('该提供商标识已存在，请使用不同的标识'));
+                          return Promise.reject(new Error(t('portal.auth.providerIdDuplicate')));
                         }
 
                         return Promise.resolve();
@@ -952,18 +994,25 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
                     },
                   ]}
                 >
-                  <Input disabled={editingConfig !== null} placeholder="如: google, company-sso" />
+                  <Input
+                    disabled={editingConfig !== null}
+                    placeholder={t('portal.auth.providerIdPlaceholder')}
+                  />
                 </Form.Item>
                 <Form.Item
-                  label="显示名称"
+                  label={t('portal.auth.displayName')}
                   name="name"
-                  rules={[{ message: '请输入显示名称', required: true }]}
+                  rules={[{ message: t('portal.auth.displayNameRequired'), required: true }]}
                 >
-                  <Input placeholder="如: Google登录、公司SSO" />
+                  <Input placeholder={t('portal.auth.displayNamePlaceholder')} />
                 </Form.Item>
               </div>
 
-              <Form.Item label="启用状态" name="enabled" valuePropName="checked">
+              <Form.Item
+                label={t('portal.auth.enabledStatus')}
+                name="enabled"
+                valuePropName="checked"
+              >
                 <Switch />
               </Form.Item>
 
@@ -973,11 +1022,11 @@ export function ThirdPartyAuthManager({ configs, onSave }: ThirdPartyAuthManager
               {selectedType === AuthenticationType.OIDC ? renderOidcForm() : renderOAuth2Form()}
 
               <div className="flex justify-between mt-6">
-                <Button onClick={handlePrevious}>上一步</Button>
+                <Button onClick={handlePrevious}>{t('common.previous')}</Button>
                 <Space>
-                  <Button onClick={handleCancel}>取消</Button>
+                  <Button onClick={handleCancel}>{t('common.cancel')}</Button>
                   <Button loading={loading} onClick={handleSave} type="primary">
-                    {editingConfig ? '更新' : '添加'}
+                    {editingConfig ? t('action.update') : t('common.add')}
                   </Button>
                 </Space>
               </div>

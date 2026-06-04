@@ -1,4 +1,6 @@
-import { DownloadOutlined, ExpandOutlined } from '@ant-design/icons';
+import { CheckOutlined, CopyOutlined, DownloadOutlined, ExpandOutlined } from '@ant-design/icons';
+import { type ReactNode, isValidElement, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
@@ -6,15 +8,76 @@ import 'highlight.js/styles/github.css';
 import 'github-markdown-css/github-markdown-light.css';
 import './MarkdownRender.css';
 
+import { copyToClipboard } from '../lib/utils';
+
 interface MarkdownRenderProps {
   content: string;
   imageStyle?: 'default' | 'card';
+  variant?: 'document' | 'chat';
 }
 
-const MarkdownRender = ({ content, imageStyle = 'default' }: MarkdownRenderProps) => {
+interface CodeBlockProps {
+  children: ReactNode;
+  copiedLabel: string;
+  copyLabel: string;
+}
+
+function getTextFromNode(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node);
+  }
+
+  if (Array.isArray(node)) {
+    return node.map(getTextFromNode).join('');
+  }
+
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return getTextFromNode(node.props.children);
+  }
+
+  return '';
+}
+
+function CodeBlock({ children, copiedLabel, copyLabel }: CodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const text = getTextFromNode(children).replace(/\n$/, '');
+
+    await copyToClipboard(text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
+
+  return (
+    <div className="himarket-code-block">
+      <button
+        aria-label={copied ? copiedLabel : copyLabel}
+        className="himarket-code-copy"
+        onClick={handleCopy}
+        title={copied ? copiedLabel : copyLabel}
+        type="button"
+      >
+        {copied ? <CheckOutlined /> : <CopyOutlined />}
+      </button>
+      <pre>{children}</pre>
+    </div>
+  );
+}
+
+const MarkdownRender = ({
+  content,
+  imageStyle = 'default',
+  variant = 'document',
+}: MarkdownRenderProps) => {
+  const { t } = useTranslation('common');
+  const generatedImageLabel = t('markdown.generatedImage');
+  const downloadLabel = t('markdown.download');
+  const viewOriginalLabel = t('markdown.viewOriginal');
+
   return (
     <div
-      className="markdown-body himarket-markdown-body"
+      className={`markdown-body himarket-markdown-body ${variant === 'chat' ? 'himarket-markdown-chat' : ''}`}
       style={{
         backgroundColor: 'transparent',
         color: '#24292e',
@@ -49,7 +112,7 @@ const MarkdownRender = ({ content, imageStyle = 'default' }: MarkdownRenderProps
                   imgWindow.document.write(`
                   <html>
                     <head>
-                      <title>查看原图</title>
+                      <title>${viewOriginalLabel}</title>
                       <style>
                         body {
                           margin: 0;
@@ -111,7 +174,7 @@ const MarkdownRender = ({ content, imageStyle = 'default' }: MarkdownRenderProps
                       <circle cx="8.5" cy="8.5" r="1.5" />
                       <polyline points="21 15 16 10 5 21" />
                     </svg>
-                    <span className="text-sm">{alt || '生成的图片'}</span>
+                    <span className="text-sm">{alt || generatedImageLabel}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -119,20 +182,25 @@ const MarkdownRender = ({ content, imageStyle = 'default' }: MarkdownRenderProps
                       onClick={handleDownload}
                     >
                       <DownloadOutlined className="text-xs" />
-                      <span>下载</span>
+                      <span>{downloadLabel}</span>
                     </button>
                     <button
                       className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-100"
                       onClick={handleViewOriginal}
                     >
                       <ExpandOutlined className="text-xs" />
-                      <span>查看原图</span>
+                      <span>{viewOriginalLabel}</span>
                     </button>
                   </div>
                 </div>
               </div>
             );
           },
+          pre: ({ children }) => (
+            <CodeBlock copiedLabel={t('copied')} copyLabel={t('copyCode')}>
+              {children}
+            </CodeBlock>
+          ),
         }}
         rehypePlugins={[rehypeHighlight]}
         remarkPlugins={[remarkGfm]}

@@ -1,6 +1,7 @@
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { InputBox } from './InputBox';
 import McpModal from './McpModal';
@@ -12,6 +13,7 @@ import useCategories from '../../hooks/useCategories';
 import useProducts from '../../hooks/useProducts';
 import APIs from '../../lib/apis';
 import { safeJSONParse } from '../../lib/utils';
+import { ProductIconRenderer } from '../icon/ProductIconRenderer';
 import TextType from '../TextType';
 
 import type {
@@ -74,6 +76,7 @@ export function ChatArea(props: ChatAreaProps) {
     onStop,
     selectedModel,
   } = props;
+  const { t } = useTranslation('chat');
 
   const isCompareMode = modelConversations.length > 1;
 
@@ -175,17 +178,20 @@ export function ChatArea(props: ChatAreaProps) {
     return modelConversations.map((model) => model.id);
   }, [modelConversations]);
 
-  const handleAddMcp = useCallback((product: IProductDetail) => {
-    setAddedMcps((v) => {
-      if (v.length === 10) {
-        message.error('最多添加 10 个 MCP 服务');
-        return v;
-      }
-      const res = [product, ...v];
-      addedMcpsRef.current = res;
-      return res;
-    });
-  }, []);
+  const handleAddMcp = useCallback(
+    (product: IProductDetail) => {
+      setAddedMcps((v) => {
+        if (v.length === 10) {
+          message.error(t('mcp.maxAdded'));
+          return v;
+        }
+        const res = [product, ...v];
+        addedMcpsRef.current = res;
+        return res;
+      });
+    },
+    [t],
+  );
 
   const handleRemoveMcp = useCallback((product: IProductDetail) => {
     setAddedMcps((v) => {
@@ -200,23 +206,26 @@ export function ChatArea(props: ChatAreaProps) {
     addedMcpsRef.current = [];
   }, []);
 
-  const handleQuickSubscribe = useCallback((product: IProductDetail) => {
-    if (!primaryConsumer.current) return;
-    APIs.subscribeProduct(primaryConsumer.current.consumerId, product.productId)
-      .then(({ data }) => {
-        if (data) {
-          message.success('订阅成功');
-          APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 }).then(({ data }) => {
-            setMcpSubscripts(data.content);
-          });
-        } else {
-          message.error('订阅失败');
-        }
-      })
-      .catch(() => {
-        message.error('订阅失败');
-      });
-  }, []);
+  const handleQuickSubscribe = useCallback(
+    (product: IProductDetail) => {
+      if (!primaryConsumer.current) return;
+      APIs.subscribeProduct(primaryConsumer.current.consumerId, product.productId)
+        .then(({ data }) => {
+          if (data) {
+            message.success(t('mcp.subscribeSuccess'));
+            APIs.getConsumerSubscriptions(data.consumerId, { size: 1000 }).then(({ data }) => {
+              setMcpSubscripts(data.content);
+            });
+          } else {
+            message.error(t('mcp.subscribeFailed'));
+          }
+        })
+        .catch(() => {
+          message.error(t('mcp.subscribeFailed'));
+        });
+    },
+    [t],
+  );
 
   const handleMcpEnable = (enable: boolean) => {
     localStorage.setItem('mcpEnabled', JSON.stringify(enable));
@@ -271,21 +280,25 @@ export function ChatArea(props: ChatAreaProps) {
   }, []);
 
   return (
-    <div className="h-full flex flex-col flex-1">
+    <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-[22px] bg-white/[0.34] shadow-[0_18px_50px_rgba(66,76,112,0.045)] backdrop-blur-md">
       <div
-        className={`overflow-hidden ${modelConversations.length === 0 ? '' : 'h-full'} grid grid-rows-[auto] ${modelConversations.length === 0 ? '' : modelConversations.length === 1 ? 'grid-cols-1 ' : modelConversations.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}
+        className={`${modelConversations.length === 0 ? 'overflow-visible' : 'grid min-h-0 flex-1 overflow-hidden'} ${modelConversations.length === 0 ? '' : modelConversations.length === 1 ? 'grid-cols-1' : modelConversations.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} ${isCompareMode ? 'gap-4 p-3' : ''}`}
       >
         {/* 主要内容区域 */}
         {modelConversations.map((model, index) => {
           const currentModel = subscribedModelList.find((m) => m.productId === model.id);
           return (
             <div
-              className={`h-full overflow-auto flex-1 flex flex-col ${index < modelConversations.length - 1 ? 'border-r border-gray-200' : ''}`}
+              className={
+                isCompareMode
+                  ? 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[#DDE5EF] bg-[#FBFCFF] shadow-[0_8px_22px_rgba(66,76,112,0.055)]'
+                  : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+              }
               key={model.id}
             >
               {!isCompareMode && (
-                <div className="">
-                  <div className="h-20 flex items-center gap-4 px-4 py-4">
+                <div>
+                  <div className="flex min-h-16 flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-5">
                     <ModelSelector
                       // loading={modelsLoading}
                       categories={categories}
@@ -295,15 +308,14 @@ export function ChatArea(props: ChatAreaProps) {
                       // categoriesLoading={categoriesLoading}
                     />
 
-                    {/* 分割线 */}
-                    <div className="h-6 w-px bg-gray-300"></div>
-
                     <button
-                      className=" flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-gray-600 bg-transparent hover:border-colorPrimary hover:text-colorPrimary transition-all duration-300 "
+                      className="flex h-11 flex-shrink-0 items-center gap-2.5 rounded-[12px] border border-white/60 bg-white/50 px-3.5 pr-4 text-gray-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-md transition-all duration-200 hover:border-white/80 hover:bg-white/70 hover:text-colorPrimary hover:shadow-[0_8px_22px_rgba(37,56,88,0.06)] active:scale-[0.98]"
                       onClick={handleToggleCompare}
                     >
-                      <PlusOutlined />
-                      <span className="text-sm font-medium">多模型对比</span>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-white/60 bg-white/60 text-colorPrimary shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                        <PlusOutlined className="text-sm" />
+                      </span>
+                      <span className="text-sm font-medium">{t('area.multiModelCompare')}</span>
                     </button>
                   </div>
                 </div>
@@ -321,23 +333,33 @@ export function ChatArea(props: ChatAreaProps) {
 
               {/* 模型名称标题（可切换） + 关闭按钮 + 添加按钮 */}
               {isCompareMode && (
-                <div className="px-4 py-3 flex items-center justify-between">
-                  <button className="flex items-center gap-1 text-sm font-semibold text-gray-900 hover:text-colorPrimary transition-colors">
-                    {currentModel?.name || '-'}
+                <div className="flex min-h-[58px] items-center justify-between gap-3 px-4 py-2.5">
+                  <button className="flex min-w-0 items-center gap-2.5 text-left transition-colors hover:text-colorPrimary">
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] border border-[#E5EBF3] bg-[#F8FAFC] text-colorPrimary">
+                      <ProductIconRenderer
+                        className="h-5 w-5"
+                        iconType={currentModel?.icon?.value}
+                      />
+                    </span>
+                    <span className="truncate text-sm font-semibold text-gray-900">
+                      {currentModel?.name || '-'}
+                    </span>
                   </button>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-shrink-0 items-center gap-1">
                     {index === 1 && modelConversations.length < 3 && (
                       <button
-                        className="text-gray-400 hover:text-colorPrimary transition-colors duration-200"
+                        className="flex h-8 w-8 items-center justify-center rounded-[10px] text-gray-400 transition-colors duration-200 hover:bg-white/75 hover:text-colorPrimary"
                         onClick={handleAddModel}
-                        title="添加对比模型"
+                        title={t('area.addCompareModel')}
+                        type="button"
                       >
                         <PlusOutlined className="text-xs" />
                       </button>
                     )}
                     <button
-                      className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                      className="flex h-8 w-8 items-center justify-center rounded-[10px] text-gray-400 transition-colors duration-200 hover:bg-white/75 hover:text-gray-700"
                       onClick={() => closeModel(model.id)}
+                      type="button"
                     >
                       <CloseOutlined className="text-xs" />
                     </button>
@@ -347,7 +369,7 @@ export function ChatArea(props: ChatAreaProps) {
 
               {/* 消息列表 */}
               <div
-                className="h-full overflow-auto"
+                className="min-h-0 flex-1 overflow-auto"
                 onScroll={handleScroll}
                 ref={(el) => {
                   if (el) scrollContainerRefs.current.set(model.id, el);
@@ -356,6 +378,7 @@ export function ChatArea(props: ChatAreaProps) {
                 <Messages
                   autoScrollEnabled={autoScrollEnabled}
                   conversations={model.conversations}
+                  modelIcon={currentModel?.icon?.value}
                   modelName={currentModel?.name}
                   onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
                   onRefresh={(con, quest, isLast) => {
@@ -371,14 +394,15 @@ export function ChatArea(props: ChatAreaProps) {
                       questionId: quest.id,
                     });
                   }}
+                  variant={isCompareMode ? 'compare' : 'default'}
                 />
               </div>
             </div>
           );
         })}
         {modelConversations.length === 0 && (
-          <div className="">
-            <div className="h-20 flex items-center gap-4 px-4 py-4">
+          <div>
+            <div className="flex min-h-16 flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-5">
               <ModelSelector
                 // loading={modelsLoading}
                 categories={categories}
@@ -388,15 +412,14 @@ export function ChatArea(props: ChatAreaProps) {
                 // categoriesLoading={categoriesLoading}
               />
 
-              {/* 分割线 */}
-              <div className="h-6 w-px bg-gray-300"></div>
-
               <button
-                className=" flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-gray-600 bg-transparent hover:border-colorPrimary hover:text-colorPrimary transition-all duration-300 "
+                className="flex h-11 flex-shrink-0 items-center gap-2.5 rounded-[12px] border border-white/60 bg-white/50 px-3.5 pr-4 text-gray-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-md transition-all duration-200 hover:border-white/80 hover:bg-white/70 hover:text-colorPrimary hover:shadow-[0_8px_22px_rgba(37,56,88,0.06)] active:scale-[0.98]"
                 onClick={handleToggleCompare}
               >
-                <PlusOutlined />
-                <span className="text-sm font-medium">多模型对比</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-white/60 bg-white/60 text-colorPrimary shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                  <PlusOutlined className="text-sm" />
+                </span>
+                <span className="text-sm font-medium">{t('area.multiModelCompare')}</span>
               </button>
             </div>
             {showModelSelector && (
@@ -413,12 +436,12 @@ export function ChatArea(props: ChatAreaProps) {
         )}
       </div>
       {modelConversations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-full px-4">
-          <div className="max-w-4xl w-full">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 pb-10">
+          <div className="w-full max-w-[920px]">
             {/* 欢迎标题 */}
-            <div className="text-center mb-12">
-              <h1 className="text-2xl font-medium text-gray-900 mb-2">
-                您好，欢迎来到{' '}
+            <div className="mb-9 text-center">
+              <h1 className="mb-2 text-[28px] font-semibold tracking-normal text-gray-950">
+                {t('area.emptyTitle')}{' '}
                 <span className="text-colorPrimary">
                   <TextType
                     cursorCharacter="_"
@@ -431,7 +454,7 @@ export function ChatArea(props: ChatAreaProps) {
             </div>
 
             {/* 输入框 */}
-            <div className="mb-8">
+            <div className="mb-7">
               <InputBox
                 addedMcps={addedMcps}
                 enableMultiModal={enableMultiModal}
@@ -460,8 +483,8 @@ export function ChatArea(props: ChatAreaProps) {
           </div>
         </div>
       ) : (
-        <div className="p-4 pb-0">
-          <div className="max-w-3xl mx-auto">
+        <div className="p-4 pt-3">
+          <div className="mx-auto max-w-[1040px]">
             <InputBox
               addedMcps={addedMcps}
               enableMultiModal={enableMultiModal}

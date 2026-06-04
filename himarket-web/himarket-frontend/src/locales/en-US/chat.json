@@ -1,0 +1,148 @@
+{
+  "page": {
+    "selectModelFirst": "Please select a model first"
+  },
+  "area": {
+    "multiModelCompare": "Compare models",
+    "addCompareModel": "Add model to compare",
+    "welcomePrefix": "Welcome to",
+    "emptyTitle": "Start with"
+  },
+  "input": {
+    "imageUploadHint": "Up to 5 MB, 10 files max",
+    "uploadImage": "Upload image",
+    "textUploadHint": "Supported formats: txt, md, html, doc, docx, pdf, xls, xlsx, ppt, pptx, csv. Up to 10 files per upload. Spreadsheet files must be under 2 MB, and documents under 5 MB.",
+    "uploadText": "Upload text",
+    "maxFiles": "You can upload up to 10 files",
+    "tableFile": "Spreadsheet",
+    "file": "File",
+    "fileTooLarge": "{{type}} size cannot exceed {{limit}}",
+    "uploadFailed": "Upload failed",
+    "uploadError": "Upload error",
+    "dropArea": "Drop attachments here",
+    "mcpExecuting": "MCP tool is running...",
+    "placeholder": "Ask a question...",
+    "webSearch": "Web"
+  },
+  "mcp": {
+    "maxAdded": "You can add up to 10 MCP services",
+    "subscribeSuccess": "Subscribed",
+    "subscribeFailed": "Subscription failed"
+  },
+  "mcpCard": {
+    "subscribed": "Subscribed",
+    "noSubscriptionRequired": "No subscription required",
+    "notSubscribed": "Not subscribed",
+    "toolsWithCount": "Tools ({{count}})",
+    "noTools": "No tools",
+    "noDescription": "No description",
+    "add": "Add",
+    "remove": "Remove",
+    "quickSubscribe": "Quick subscribe"
+  },
+  "mcpModal": {
+    "title": "Select MCP Server",
+    "description": "Choose MCP Servers for this chat. Filter by category or search by name.",
+    "enabled": "MCP: Enabled",
+    "scope": "Categories",
+    "availableServers": "Available servers",
+    "addedServers": "Added servers",
+    "searchPlaceholder": "Search MCP Server...",
+    "addedCount": "Added {{count}} / 10",
+    "serverCount": "{{count}} servers",
+    "removeAll": "Remove all",
+    "noServers": "No MCP Server...",
+    "addedEmptyHint": "Choose and add the servers you need from all MCP Servers",
+    "viewAll": "View all servers"
+  },
+  "toolCall": {
+    "executing": "Running tool...",
+    "completed": "Tool completed",
+    "waiting": "Waiting for tool response...",
+    "parameters": "Parameters",
+    "results": "Results"
+  },
+  "messages": {
+    "copied": "Copied to clipboard",
+    "networkError": "Network error. Please try again.",
+    "firstToken": "First token",
+    "totalTime": "Total time",
+    "inputTokens": "Input tokens",
+    "outputTokens": "Output tokens",
+    "copy": "Copy",
+    "regenerate": "Regenerate",
+    "previousVersion": "Previous version",
+    "nextVersion": "Next version"
+  },
+  "session": {
+    "createFailed": "Failed to create session",
+    "missingId": "Session ID is missing",
+    "loadHistoryFailed": "Failed to load chat history"
+  },
+  "modelSelector": {
+    "searchPlaceholder": "Search models...",
+    "loadingCategories": "Loading categories...",
+    "loading": "Loading...",
+    "noModels": "No models",
+    "noModelsHint": "Configure a model in Admin before using it in HiChat",
+    "selectModel": "Select model"
+  },
+  "multiModel": {
+    "cancel": "Cancel",
+    "startCompare": "Start comparison",
+    "title": "Select Models to Compare",
+    "baseModels": "Current comparison",
+    "selectedModels": "Selected models",
+    "currentModel": "Current model",
+    "selectOne": "Select 1 more model (selected {{current}}/1)",
+    "selectMore": "Select 1-{{max}} more models (selected {{current}}/{{max}})",
+    "selectMoreDefault": "Select 1-2 more models (selected {{current}}/2)",
+    "selectedCount": "Selected {{current}} / {{max}}",
+    "loadingModels": "Loading model list...",
+    "current": "Current",
+    "noDescription": "No description",
+    "noAvailableModels": "No available models"
+  },
+  "suggestions": {
+    "title": "Suggested questions",
+    "refresh": "Refresh suggestions",
+    "questions": {
+      "reactHooks": "How can I optimize component performance with React Hooks?",
+      "typescriptType": "What is the difference between interface and type in TypeScript?",
+      "tailwindBestPractices": "What are the best practices for Tailwind CSS?",
+      "viteEnv": "How do I configure environment variables in Vite?",
+      "reactRouter": "What changed in React Router v6?",
+      "customHook": "How do I build a custom React Hook?",
+      "antdTheme": "How can I customize an Ant Design theme?",
+      "bundleSize": "How can I reduce the bundle size of a React app?",
+      "stateReducer": "When should I use useState versus useReducer?"
+    }
+  },
+  "sidebar": {
+    "untitledSession": "Untitled chat",
+    "fetchSessionsFailed": "Failed to load sessions",
+    "sessionNameRequired": "Session name is required",
+    "renameSuccess": "Renamed",
+    "renameFailed": "Rename failed",
+    "deleteConfirm": "Delete session \"{{name}}\"? This action cannot be undone.",
+    "deleteSuccess": "Deleted",
+    "deleteFailed": "Delete failed",
+    "deleteTitle": "Confirm Delete",
+    "rename": "Rename",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "moreActions": "More actions",
+    "newChat": "New chat",
+    "languageModel": "Language model",
+    "textToImage": "Text to image",
+    "textToVideo": "Text to video",
+    "comingSoon": "Coming soon",
+    "noHistory": "No chat history",
+    "today": "Today",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "expand": "Expand",
+    "collapse": "Collapse"
+  }
+}

@@ -1,6 +1,7 @@
 import { Popover } from 'antd';
 import { Sparkles, Zap, Wrench, Server, Check, Loader2, ChevronDown } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import {
   getCliProviders,
@@ -39,6 +40,8 @@ function DropdownItem({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation('coding');
+
   return (
     <button
       className={`flex items-center gap-2.5 px-3 py-2 mx-1 rounded-lg transition-colors border-0 w-full text-left
@@ -69,7 +72,9 @@ function DropdownItem({
         {description && (
           <div className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">{description}</div>
         )}
-        {disabled && !description && <div className="text-[11px] text-gray-400">不可用</div>}
+        {disabled && !description && (
+          <div className="text-[11px] text-gray-400">{t('config.unavailable')}</div>
+        )}
       </div>
     </button>
   );
@@ -126,6 +131,7 @@ function PanelHeader({ title }: { title: string }) {
 }
 
 export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDropdownsProps) {
+  const { t } = useTranslation('coding');
   const [providers, setProviders] = useState<ICliProvider[]>([]);
   const [marketModels, setMarketModels] = useState<MarketModelInfo[]>([]);
   const [mcpServers, setMcpServers] = useState<MarketMcpInfo[]>([]);
@@ -269,7 +275,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
   const loadingPanel = (
     <div className="w-[260px] flex items-center justify-center gap-2 py-8 text-gray-400 text-sm">
       <Loader2 className="animate-spin" size={14} />
-      <span>加载中...</span>
+      <span>{t('config.loading')}</span>
     </div>
   );
 
@@ -287,7 +293,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
             modelLoading ? (
               loadingPanel
             ) : marketModels.length === 0 ? (
-              emptyPanel('暂无可用模型')
+              emptyPanel(t('config.noModels'))
             ) : (
               <div className="w-[260px] max-h-[300px] overflow-y-auto pb-1">
                 <PanelHeader title="Model" />
@@ -333,7 +339,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
           cliLoading ? (
             loadingPanel
           ) : sortedProviders.length === 0 ? (
-            emptyPanel('暂无可用 CLI')
+            emptyPanel(t('config.noCli'))
           ) : (
             <div className="w-[260px] max-h-[300px] overflow-y-auto pb-1">
               <PanelHeader title="CLI" />
@@ -378,7 +384,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
           skillLoading ? (
             loadingPanel
           ) : skills.length === 0 ? (
-            emptyPanel('暂无可用 Skill')
+            emptyPanel(t('config.noSkills'))
           ) : (
             <div className="w-[260px] max-h-[300px] overflow-y-auto pb-1">
               <PanelHeader title="Skill" />
@@ -431,7 +437,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
           mcpLoading ? (
             loadingPanel
           ) : mcpServers.length === 0 ? (
-            emptyPanel('暂无可用 MCP Server')
+            emptyPanel(t('config.noMcpServers'))
           ) : (
             <div className="w-[260px] max-h-[300px] overflow-y-auto pb-1">
               <PanelHeader title="MCP Server" />
@@ -488,6 +494,7 @@ interface ModelSelectorProps {
 }
 
 export function ModelSelector({ config, onConfigChange }: ModelSelectorProps) {
+  const { t } = useTranslation('coding');
   const [marketModels, setMarketModels] = useState<MarketModelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -519,7 +526,7 @@ export function ModelSelector({ config, onConfigChange }: ModelSelectorProps) {
   const loadingPanel = (
     <div className="w-[280px] flex items-center justify-center gap-2 py-8 text-gray-400 text-sm">
       <Loader2 className="animate-spin" size={14} />
-      <span>加载中...</span>
+      <span>{t('config.loading')}</span>
     </div>
   );
 
@@ -530,7 +537,9 @@ export function ModelSelector({ config, onConfigChange }: ModelSelectorProps) {
         loading ? (
           loadingPanel
         ) : marketModels.length === 0 ? (
-          <div className="w-[280px] text-center py-8 text-[13px] text-gray-400">暂无可用模型</div>
+          <div className="w-[280px] text-center py-8 text-[13px] text-gray-400">
+            {t('config.noModels')}
+          </div>
         ) : (
           <div className="w-[280px] max-h-[300px] overflow-y-auto pb-1">
             <PanelHeader title="Model" />
@@ -559,7 +568,9 @@ export function ModelSelector({ config, onConfigChange }: ModelSelectorProps) {
                    hover:bg-gray-50 transition-all"
       >
         <Sparkles className="text-indigo-400 flex-shrink-0" size={13} />
-        <span className="text-gray-700 font-medium">{config.modelName || '选择模型'}</span>
+        <span className="text-gray-700 font-medium">
+          {config.modelName || t('config.selectModel')}
+        </span>
         <ChevronDown className="text-gray-400 flex-shrink-0" size={12} />
       </button>
     </Popover>

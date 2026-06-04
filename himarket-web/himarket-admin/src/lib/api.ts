@@ -35,6 +35,27 @@ const api: AxiosInstance = axios.create({
   withCredentials: true, // 确保跨域请求时携带 cookie
 });
 
+function getReadableApiErrorMessage(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return '请求发生错误';
+  }
+
+  const data = error.response?.data as { message?: unknown } | undefined;
+  const rawMessage = typeof data?.message === 'string' ? data.message.trim() : '';
+
+  if (!rawMessage) {
+    return '请求发生错误';
+  }
+
+  const isInternalDetail =
+    rawMessage.includes('JDBC exception') ||
+    rawMessage.includes('Internal server error') ||
+    rawMessage.includes('org.springframework') ||
+    rawMessage.length > 120;
+
+  return isInternalDetail ? '服务暂时不可用，请稍后重试' : rawMessage;
+}
+
 // 请求拦截器
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -55,7 +76,10 @@ api.interceptors.response.use(
     return response.data;
   },
   (error) => {
-    message.error(error.response?.data?.message || '请求发生错误');
+    message.error({
+      content: getReadableApiErrorMessage(error),
+      key: 'api-error',
+    });
     if (error.response?.status === 403 || error.response?.status === 401) {
       removeToken();
       window.location.href = '/login';
@@ -75,6 +99,22 @@ export const authApi = {
     return api.get('/admins/need-init');
   },
 };
+
+export interface AdminSettingResult {
+  settingKey: string;
+  settingValue?: string;
+}
+
+// Admin settings APIs
+export const adminSettingApi = {
+  getSetting: (settingKey: string) => {
+    return api.get(`/admin-settings/${encodeURIComponent(settingKey)}`);
+  },
+  saveSetting: (settingKey: string, settingValue: string) => {
+    return api.put(`/admin-settings/${encodeURIComponent(settingKey)}`, { settingValue });
+  },
+};
+
 // Portal相关API
 export const portalApi = {
   // 审批consumer

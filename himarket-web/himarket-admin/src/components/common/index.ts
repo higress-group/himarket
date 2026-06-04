@@ -1,6 +1,11 @@
 export { AdvancedSearch } from './AdvancedSearch';
 export type { SearchParam } from './AdvancedSearch';
+export { AdminPageHeader } from './AdminPageHeader';
+export { AdminDetailSidebar } from './AdminDetailSidebar';
+export type { AdminDetailSidebarItem } from './AdminDetailSidebar';
+export { AdminMetricCard } from './AdminMetricCard';
 export { DataTable } from './DataTable';
 export type { DataTablePagination, DataTableProps, DataTableSearch } from './DataTable';
 export { SearchInput } from './SearchInput';
 export type { SearchInputProps } from './SearchInput';
+export { StatusIndicator } from './StatusIndicator';

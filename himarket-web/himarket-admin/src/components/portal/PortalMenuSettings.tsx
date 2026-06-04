@@ -10,6 +10,8 @@ import {
 import { Switch, message } from 'antd';
 
 import McpServerIcon from '@/components/icons/McpServerIcon';
+import { useLocale } from '@/contexts/LocaleContext';
+import type { TranslationKey } from '@/i18n';
 import { portalApi } from '@/lib/api';
 import type { Portal } from '@/types';
 
@@ -20,63 +22,65 @@ interface PortalMenuSettingsProps {
 
 interface MenuItemConfig {
   key: string;
-  label: string;
-  description: string;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
   icon: React.ReactNode;
 }
 
 const MENU_ITEMS: MenuItemConfig[] = [
   {
-    description: 'AI 对话',
+    descriptionKey: 'portal.menu.item.chat.description',
     icon: <MessageOutlined />,
     key: 'chat',
-    label: 'HiChat',
+    labelKey: 'portal.menu.item.chat.label',
   },
   {
-    description: '在线编程',
+    descriptionKey: 'portal.menu.item.coding.description',
     icon: <CodeOutlined />,
     key: 'coding',
-    label: 'HiCoding',
+    labelKey: 'portal.menu.item.coding.label',
   },
   {
-    description: 'AI Agent 市场',
+    descriptionKey: 'portal.menu.item.agents.description',
     icon: <RobotOutlined />,
     key: 'agents',
-    label: '智能体',
+    labelKey: 'portal.menu.item.agents.label',
   },
   {
-    description: 'MCP 服务器',
+    descriptionKey: 'portal.menu.item.mcp.description',
     icon: <McpServerIcon />,
     key: 'mcp',
-    label: 'MCP',
+    labelKey: 'portal.menu.item.mcp.label',
   },
   {
-    description: 'LLM 模型',
+    descriptionKey: 'portal.menu.item.models.description',
     icon: <BulbOutlined />,
     key: 'models',
-    label: '模型',
+    labelKey: 'portal.menu.item.models.label',
   },
   {
-    description: 'REST API 产品',
+    descriptionKey: 'portal.menu.item.apis.description',
     icon: <ApiOutlined />,
     key: 'apis',
-    label: 'API',
+    labelKey: 'portal.menu.item.apis.label',
   },
   {
-    description: 'Agent 技能',
+    descriptionKey: 'portal.menu.item.skills.description',
     icon: <ThunderboltOutlined />,
     key: 'skills',
-    label: 'Skills',
+    labelKey: 'portal.menu.item.skills.label',
   },
   {
-    description: 'Worker 模板',
+    descriptionKey: 'portal.menu.item.workers.description',
     icon: <UserOutlined />,
     key: 'workers',
-    label: 'Workers',
+    labelKey: 'portal.menu.item.workers.label',
   },
 ];
 
 export function PortalMenuSettings({ onRefresh, portal }: PortalMenuSettingsProps) {
+  const { t } = useLocale();
+
   const getMenuVisibility = (key: string): boolean => {
     return portal.portalUiConfig?.menuVisibility?.[key] ?? true;
   };
@@ -88,7 +92,7 @@ export function PortalMenuSettings({ onRefresh, portal }: PortalMenuSettingsProp
     // 至少保留一个菜单项可见
     const visibleCount = MENU_ITEMS.filter((item) => newVisibility[item.key] ?? true).length;
     if (visibleCount === 0) {
-      message.warning('至少保留一个菜单项为可见状态');
+      message.warning(t('portal.menu.keepOne'));
       return;
     }
 
@@ -103,22 +107,22 @@ export function PortalMenuSettings({ onRefresh, portal }: PortalMenuSettingsProp
           menuVisibility: newVisibility,
         },
       });
-      message.success('菜单配置保存成功');
+      message.success(t('portal.menu.saveSuccess'));
       onRefresh?.();
     } catch {
-      message.error('保存菜单配置失败');
+      message.error(t('portal.menu.saveFailed'));
     }
   };
 
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">菜单管理</h1>
-        <p className="text-gray-600">配置导航菜单</p>
+        <h1 className="text-2xl font-bold mb-2">{t('portal.menu.title')}</h1>
+        <p className="text-gray-600">{t('portal.menu.description')}</p>
       </div>
 
       <div className="mb-4">
-        <h3 className="text-sm font-medium text-gray-600 mb-4">导航菜单项</h3>
+        <h3 className="text-sm font-medium text-gray-600 mb-4">{t('portal.menu.itemsTitle')}</h3>
         <div className="grid grid-cols-4 gap-2">
           {MENU_ITEMS.map((item) => {
             const enabled = getMenuVisibility(item.key);
@@ -129,8 +133,10 @@ export function PortalMenuSettings({ onRefresh, portal }: PortalMenuSettingsProp
               >
                 <span className="text-base text-gray-600 flex-shrink-0">{item.icon}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-gray-900 text-sm truncate">{item.label}</div>
-                  <div className="text-xs text-gray-500 truncate">{item.description}</div>
+                  <div className="font-medium text-gray-900 text-sm truncate">
+                    {t(item.labelKey)}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">{t(item.descriptionKey)}</div>
                 </div>
                 <Switch
                   checked={enabled}
@@ -145,7 +151,8 @@ export function PortalMenuSettings({ onRefresh, portal }: PortalMenuSettingsProp
 
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
         <div className="text-sm text-gray-600">
-          <strong>提示：</strong>至少保留一个菜单项为可见状态
+          <strong>{t('portal.menu.tip')}</strong>
+          {t('portal.menu.keepOne')}
         </div>
       </div>
     </div>

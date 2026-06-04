@@ -1,0 +1,265 @@
+{
+  "page": {
+    "connectingSandbox": "Connecting to sandbox...",
+    "sessionExpired": "This session has expired. Choose another session or create a new one.",
+    "sessionCreateFailed": "Failed to create session. Please reconnect.",
+    "completeConfigFirst": "Complete the configuration first",
+    "welcomePrefix": "Welcome to",
+    "welcomeDescription": "AI-powered coding assistant. Describe what you need to start coding.",
+    "files": "Files",
+    "loading": "Loading...",
+    "code": "Code",
+    "preview": "Preview",
+    "hideFiles": "Hide files",
+    "showFiles": "Show files"
+  },
+  "sidebar": {
+    "untitledSession": "Untitled session",
+    "fetchSessionsFailed": "Failed to load sessions",
+    "sessionNameRequired": "Session name is required",
+    "renameSuccess": "Renamed",
+    "renameFailed": "Rename failed",
+    "deleteConfirm": "Delete session \"{{name}}\"? This action cannot be undone.",
+    "deleteSuccess": "Deleted",
+    "deleteFailed": "Delete failed",
+    "deleteTitle": "Confirm Delete",
+    "rename": "Rename",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "moreActions": "More actions",
+    "newSession": "New session",
+    "noHistory": "No session history",
+    "today": "Today",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "restoreUnsupported": "The current CLI does not support session restore"
+  },
+  "input": {
+    "dropArea": "Drop files here",
+    "uploading": "Uploading...",
+    "queueCount": "{{count}} queued message(s)",
+    "attachmentOnly": "[Attachment only]",
+    "removeQueuedMessage": "Remove queued message",
+    "remove": "Remove",
+    "connecting": "Connecting...",
+    "placeholder": "Type a message... (Enter to send)",
+    "addAttachment": "Add attachment",
+    "sendToQueue": "Send to queue",
+    "stop": "Stop",
+    "send": "Send"
+  },
+  "config": {
+    "title": "HiCoding Configuration",
+    "model": "Model",
+    "cliTool": "CLI tool",
+    "loading": "Loading...",
+    "fetchCliFailed": "Failed to load CLI tools",
+    "selectModel": "Select model",
+    "noModels": "No available models",
+    "noCli": "No available CLI",
+    "noSkills": "No available skills",
+    "noMcpServers": "No available MCP Servers",
+    "retry": "Retry",
+    "unavailable": "Unavailable",
+    "startUsing": "Start",
+    "applyConfig": "Apply configuration"
+  },
+  "chatStream": {
+    "terminalUnavailable": "Terminal output is unavailable",
+    "taskStopped": "Task stopped",
+    "taskFailed": "Task failed",
+    "taskCompleted": "Task completed",
+    "notificationFailed": "Task failed. Return to view details.",
+    "notificationCompleted": "Task completed.",
+    "restoringHistory": "Restoring session history...",
+    "startHint": "Type a message below to start",
+    "toastView": "{{status}}, click to view",
+    "scrollToBottom": "Scroll to bottom"
+  },
+  "activity": {
+    "editsCount": "{{count}} edit(s)",
+    "readCount": "{{count}} read(s)",
+    "searchCount": "{{count}} search(es)",
+    "executeCount": "{{count}} execution(s)",
+    "fetchCount": "{{count}} fetch(es)",
+    "thinkCount": "{{count}} thought step(s)",
+    "skillCount": "{{count}} skill(s)",
+    "mcpCallCount": "{{count}} MCP call(s)",
+    "otherCount": "{{count}} other action(s)",
+    "operationsCount": "{{count}} operation(s)",
+    "viewedFiles": "Viewed {{count}} file(s){{files}}{{extra}}",
+    "searchedTimes": "Searched {{count}} time(s)",
+    "thoughtTimes": "Thought {{count}} time(s)",
+    "fetchedTimes": "Fetched {{count}} time(s)",
+    "switchedModeTimes": "Switched mode {{count}} time(s)",
+    "editedTimes": "Edited {{count}} time(s)",
+    "otherOperations": "{{count}} other operation(s)",
+    "executing": "Running...",
+    "deepThinking": "Deep thinking",
+    "editingFile": "Editing {{file}}",
+    "completed": "Completed"
+  },
+  "connection": {
+    "reconnecting": "Connection lost. Reconnecting... (attempt {{count}})",
+    "disconnected": "Connection lost",
+    "reconnect": "Reconnect",
+    "recovered": "Reconnected"
+  },
+  "sandbox": {
+    "readyShort": "Sandbox ready",
+    "initFailed": "Sandbox initialization failed",
+    "reconnect": "Reconnect",
+    "ready": "Sandbox is ready",
+    "preparing": "Preparing sandbox..."
+  },
+  "editor": {
+    "pdfLoadFailed": "Failed to load PDF",
+    "pdfDecodeFailed": "Failed to decode PDF",
+    "loadingPdf": "Loading PDF...",
+    "pdfPreviewFailed": "PDF preview failed: {{error}}",
+    "unknownError": "Unknown error",
+    "fileType": "{{type}} file",
+    "downloadFile": "Download file",
+    "refreshFile": "Refresh file",
+    "copied": "Copied",
+    "copyCode": "Copy code",
+    "disableWrap": "Disable line wrap",
+    "enableWrap": "Enable line wrap",
+    "copiedToClipboard": "Copied to clipboard",
+    "copyFailed": "Copy failed",
+    "selectFileHint": "Select a file from the file tree"
+  },
+  "toolCall": {
+    "skillFailed": "Skill failed",
+    "skillRunning": "Skill running...",
+    "skillCompleted": "Skill completed",
+    "viewed": "Viewed {{name}}",
+    "mcpFailed": "MCP call failed",
+    "mcpRunning": "MCP call running...",
+    "mcpCompleted": "MCP call completed",
+    "search": "Search",
+    "think": "Think",
+    "fetch": "Fetch",
+    "switchMode": "Switch mode",
+    "operation": "Operation"
+  },
+  "preview": {
+    "noArtifactSelected": "No artifact selected",
+    "window": "Preview",
+    "waiting": "Waiting for Agent to generate a previewable artifact...",
+    "hint": "Ask the Agent to generate HTML, images, PDFs, or other files to preview them here",
+    "selectArtifact": "Select artifact"
+  },
+  "artifact": {
+    "loadPreviewFailed": "Failed to load preview",
+    "loadingPreview": "Loading preview...",
+    "previewFailed": "Preview failed",
+    "retry": "Retry"
+  },
+  "slash": {
+    "skill": "Skill",
+    "builtinCommand": "Built-in command",
+    "inputHint": "Input hint"
+  },
+  "fileMention": {
+    "loading": "Loading files...",
+    "noMatchedFiles": "No matching files",
+    "noWorkspaceFiles": "No files in workspace"
+  },
+  "fileTree": {
+    "tooManyFiles": "Too many files, showing partial results",
+    "noFiles": "No files"
+  },
+  "inlineArtifact": {
+    "preview": "Preview"
+  },
+  "permission": {
+    "title": "Permission Required",
+    "command": "Command"
+  },
+  "terminalView": {
+    "unavailable": "Terminal output is unavailable",
+    "hint": "The frontend currently shows only text content reported in tool_call. Real-time terminal/output streaming has not been integrated yet."
+  },
+  "thought": {
+    "thinking": "Thinking...",
+    "deepThinking": "Deep thinking"
+  },
+  "errorMessage": {
+    "title": "Error {{code}}"
+  },
+  "terminalPanel": {
+    "title": "Terminal"
+  },
+  "toolPanel": {
+    "collapsePanel": "Collapse panel"
+  },
+  "cliProvider": {
+    "unavailableSuffix": " (Unavailable)",
+    "switchAgent": "Switch CLI Agent"
+  },
+  "cli": {
+    "fetchProvidersFailed": "Failed to load CLI tools",
+    "loadingProviders": "Loading CLI tools...",
+    "noProviders": "No available CLI tools",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "unavailable": "Unavailable",
+    "noMatches": "No matches",
+    "stepProgress": "Step {{current}} / {{total}}",
+    "previous": "Previous",
+    "next": "Next",
+    "connect": "Connect",
+    "steps": {
+      "select-tool": "Select tool",
+      "auth-config": "Authentication",
+      "model-config": "Model configuration",
+      "extension-config": "Extensions"
+    },
+    "auth": {
+      "label": "Authentication",
+      "default": "Default",
+      "tokenPlaceholder": "Enter the token for {{name}}"
+    },
+    "tool": {
+      "label": "CLI tool"
+    },
+    "model": {
+      "market": "Marketplace model",
+      "custom": "Custom model",
+      "default": "Default model"
+    }
+  },
+  "customModel": {
+    "baseUrl": "Model endpoint URL",
+    "baseUrlRequired": "Enter the model endpoint URL",
+    "baseUrlInvalid": "Enter a valid URL starting with http:// or https://",
+    "apiKeyRequired": "Enter the API Key",
+    "modelId": "Model ID",
+    "modelIdRequired": "Enter the model ID",
+    "modelName": "Model display name",
+    "modelNamePlaceholder": "Leave empty to use the model ID",
+    "protocolType": "Protocol type"
+  },
+  "marketModel": {
+    "loginRequired": "Sign in to use marketplace models",
+    "fetchFailed": "Failed to load marketplace models",
+    "empty": "No subscribed models. Subscribe to a model in the marketplace first.",
+    "label": "Marketplace model",
+    "placeholder": "Select model"
+  },
+  "marketMcp": {
+    "loginRequired": "Sign in to use marketplace MCP Servers",
+    "fetchFailed": "Failed to load marketplace MCP Servers",
+    "empty": "No subscribed MCP Servers. Subscribe in the marketplace first.",
+    "searchPlaceholder": "Search MCP Server..."
+  },
+  "marketSkill": {
+    "fetchFailed": "Failed to load marketplace Skills",
+    "empty": "No published Skills",
+    "searchPlaceholder": "Search Skill..."
+  }
+}

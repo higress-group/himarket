@@ -9,16 +9,19 @@ export function LanguageSwitcher() {
     i18n.changeLanguage(next);
   };
 
-  // 显示要切换到的目标语言：当前中文时显示 EN，当前英文时显示 中文
-  const label = i18n.language === 'zh-CN' ? 'EN' : '中文';
+  const label = i18n.language === 'zh-CN' ? 'ZH' : 'EN';
 
   return (
     <button
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-white/60 hover:text-gray-900 hover:shadow-sm transition-all duration-300 cursor-pointer"
+      aria-label="Switch language"
+      className="group inline-flex h-8 items-center gap-1.5 rounded-full border border-white/45 bg-white/35 px-2.5 pr-3 text-sm font-medium text-gray-500 shadow-[0_4px_14px_rgba(15,23,42,0.035)] backdrop-blur-md transition-all duration-300 hover:border-white/65 hover:bg-white/55 hover:text-gray-800 hover:shadow-[0_8px_20px_rgba(15,23,42,0.055)] active:scale-[0.98]"
       onClick={toggle}
+      type="button"
     >
-      <GlobalOutlined className="text-base" />
-      <span>{label}</span>
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-900/[0.025] text-gray-500 transition-colors duration-300 group-hover:text-gray-700">
+        <GlobalOutlined className="text-[13px]" />
+      </span>
+      <span className="font-mono text-[12px] leading-none tracking-normal">{label}</span>
     </button>
   );
 }

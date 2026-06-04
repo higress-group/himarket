@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import APIs from '../lib/apis';
 
 import type { ICategory } from '../lib/apis';
 
 function useCategories(params: { type: string; addAll?: boolean }) {
+  const { t } = useTranslation('square');
   const [data, setData] = useState<ICategory[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +21,7 @@ function useCategories(params: { type: string; addAll?: boolean }) {
                 categoryId: 'all',
                 createAt: '',
                 description: '',
-                name: '全部',
+                name: t('allCategory'),
                 updatedAt: '',
               },
               ...res.data.content,
@@ -28,7 +30,7 @@ function useCategories(params: { type: string; addAll?: boolean }) {
         }
       })
       .finally(() => setLoading(false));
-  }, [params.type, params.addAll]);
+  }, [params.type, params.addAll, t]);
 
   useEffect(() => {
     get();

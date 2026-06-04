@@ -1,7 +1,10 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { Form, DatePicker, Select, Button, Card, Row, Col, Table, message } from 'antd';
 import * as echarts from 'echarts';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+
+import { AdminMetricCard, AdminPageHeader } from '@/components/common';
+import { useLocale } from '@/contexts/LocaleContext';
 
 import slsApi from '../lib/slsApi';
 import { ModelScenarios } from '../types/sls';
@@ -13,10 +16,10 @@ import {
 } from '../utils/chartUtils';
 import {
   formatDatetimeLocal,
-  rangePresets,
   getTimeRangeLabel,
   formatNumber,
   DATETIME_FORMAT,
+  getPresetTimeRange,
 } from '../utils/dateTimeUtils';
 
 import type { SlsQueryRequest, QueryInterval, ScenarioQueryResponse } from '../types/sls';
@@ -29,8 +32,57 @@ const { RangePicker } = DatePicker;
  */
 const ModelDashboard: React.FC = () => {
   const [form] = Form.useForm();
+  const { t } = useLocale();
   const [loading, setLoading] = useState(false);
   const [timeRangeLabel, setTimeRangeLabel] = useState('');
+  const rangePickerPresets = useMemo(
+    () => [
+      { label: t('monitor.range.last1Minute'), value: getPresetTimeRange('1m') },
+      { label: t('monitor.range.last5Minutes'), value: getPresetTimeRange('5m') },
+      { label: t('monitor.range.last15Minutes'), value: getPresetTimeRange('15m') },
+      { label: t('monitor.range.last1Hour'), value: getPresetTimeRange('1h') },
+      { label: t('monitor.range.last4Hours'), value: getPresetTimeRange('4h') },
+      { label: t('monitor.range.last1Day'), value: getPresetTimeRange('1d') },
+      { label: t('monitor.range.today'), value: getPresetTimeRange('today') },
+      { label: t('monitor.range.yesterday'), value: getPresetTimeRange('yesterday') },
+      {
+        label: t('monitor.range.dayBeforeYesterday'),
+        value: getPresetTimeRange('dayBeforeYesterday'),
+      },
+      { label: t('monitor.range.last1Week'), value: getPresetTimeRange('1w') },
+      { label: t('monitor.range.thisWeek'), value: getPresetTimeRange('thisWeek') },
+      { label: t('monitor.range.lastWeek'), value: getPresetTimeRange('lastWeek') },
+      { label: t('monitor.range.last30Days'), value: getPresetTimeRange('30d') },
+      { label: t('monitor.range.thisMonth'), value: getPresetTimeRange('thisMonth') },
+      { label: t('monitor.range.lastMonth'), value: getPresetTimeRange('lastMonth') },
+      { label: t('monitor.range.thisQuarter'), value: getPresetTimeRange('thisQuarter') },
+      { label: t('monitor.range.thisYear'), value: getPresetTimeRange('thisYear') },
+    ],
+    [t],
+  );
+  const tableColumnTitles = useMemo(
+    () => ({
+      api: 'API',
+      cnt: t('monitor.table.count'),
+      consumer: t('monitor.common.consumer'),
+      error_code: t('monitor.table.errorCode'),
+      error_message: t('monitor.table.errorMessage'),
+      input_token: t('monitor.model.inputToken'),
+      label: t('monitor.table.label'),
+      model: t('monitor.common.model'),
+      output_token: t('monitor.model.outputToken'),
+      pv: 'PV',
+      risk_label: t('monitor.table.riskType'),
+      route: t('monitor.common.route'),
+      route_name: t('monitor.common.route'),
+      service: t('monitor.common.service'),
+      token: t('monitor.model.totalToken'),
+      total: t('monitor.table.total'),
+      upstream_cluster: t('monitor.common.service'),
+      uv: 'UV',
+    }),
+    [t],
+  );
 
   // 过滤选项状态
   const [filterOptions, setFilterOptions] = useState({
@@ -115,7 +167,7 @@ const ModelDashboard: React.FC = () => {
 
   // 初始化默认值
   useEffect(() => {
-    const [start, end] = rangePresets.find((p) => p.label === '最近1周')?.value || [];
+    const [start, end] = getPresetTimeRange('1w');
     form.setFieldsValue({
       interval: 15,
       timeRange: [start, end],
@@ -204,15 +256,15 @@ const ModelDashboard: React.FC = () => {
       const qpsSeries = [
         {
           dataPoints: qpsResponses[0]?.timeSeries?.dataPoints || [],
-          name: '流式QPS',
+          name: t('monitor.model.streamingQps'),
         },
         {
           dataPoints: qpsResponses[1]?.timeSeries?.dataPoints || [],
-          name: '请求QPS',
+          name: t('monitor.model.requestQps'),
         },
         {
           dataPoints: qpsResponses[2]?.timeSeries?.dataPoints || [],
-          name: '总QPS',
+          name: t('monitor.model.totalQps'),
         },
       ];
 
@@ -220,7 +272,7 @@ const ModelDashboard: React.FC = () => {
         const option =
           (qpsSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(qpsSeries)
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         qpsChartInstance.current.setOption(option, true);
       }
 
@@ -236,9 +288,9 @@ const ModelDashboard: React.FC = () => {
           dataPoints.length > 0
             ? generateLineChartOption(dataPoints, {
                 isPercentage: true,
-                seriesName: '成功率',
+                seriesName: t('monitor.common.successRate'),
               })
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         successRateChartInstance.current.setOption(option, true);
       }
 
@@ -252,15 +304,15 @@ const ModelDashboard: React.FC = () => {
       const tokenSeries = [
         {
           dataPoints: tokenPerSecResponses[0]?.timeSeries?.dataPoints || [],
-          name: '输入token/s',
+          name: t('monitor.model.inputTokenPerSecond'),
         },
         {
           dataPoints: tokenPerSecResponses[1]?.timeSeries?.dataPoints || [],
-          name: '输出token/s',
+          name: t('monitor.model.outputTokenPerSecond'),
         },
         {
           dataPoints: tokenPerSecResponses[2]?.timeSeries?.dataPoints || [],
-          name: '总token/s',
+          name: t('monitor.model.totalTokenPerSecond'),
         },
       ];
 
@@ -268,7 +320,7 @@ const ModelDashboard: React.FC = () => {
         const option =
           (tokenSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(tokenSeries)
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         tokenPerSecChartInstance.current.setOption(option, true);
       }
 
@@ -283,19 +335,19 @@ const ModelDashboard: React.FC = () => {
       const rtSeries = [
         {
           dataPoints: rtResponses[0]?.timeSeries?.dataPoints || [],
-          name: '整体RT',
+          name: t('monitor.model.overallRt'),
         },
         {
           dataPoints: rtResponses[1]?.timeSeries?.dataPoints || [],
-          name: '流式RT',
+          name: t('monitor.model.streamingRt'),
         },
         {
           dataPoints: rtResponses[2]?.timeSeries?.dataPoints || [],
-          name: '非流式RT',
+          name: t('monitor.model.nonStreamingRt'),
         },
         {
           dataPoints: rtResponses[3]?.timeSeries?.dataPoints || [],
-          name: '首包RT',
+          name: t('monitor.model.firstTokenRt'),
         },
       ];
 
@@ -303,7 +355,7 @@ const ModelDashboard: React.FC = () => {
         const option =
           (rtSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(rtSeries)
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         rtChartInstance.current.setOption(option, true);
       }
 
@@ -317,8 +369,10 @@ const ModelDashboard: React.FC = () => {
         const dataPoints = ratelimitedResponse.timeSeries?.dataPoints || [];
         const option =
           dataPoints.length > 0
-            ? generateLineChartOption(dataPoints, { seriesName: '限流请求数' })
-            : generateEmptyChartOption();
+            ? generateLineChartOption(dataPoints, {
+                seriesName: t('monitor.model.rateLimitedRequests'),
+              })
+            : generateEmptyChartOption(t('monitor.common.noData'));
         ratelimitedChartInstance.current.setOption(option, true);
       }
 
@@ -332,15 +386,15 @@ const ModelDashboard: React.FC = () => {
       const cacheSeries = [
         {
           dataPoints: cacheResponses[0]?.timeSeries?.dataPoints || [],
-          name: '命中',
+          name: t('monitor.model.cacheHit'),
         },
         {
           dataPoints: cacheResponses[1]?.timeSeries?.dataPoints || [],
-          name: '未命中',
+          name: t('monitor.model.cacheMiss'),
         },
         {
           dataPoints: cacheResponses[2]?.timeSeries?.dataPoints || [],
-          name: '跳过',
+          name: t('monitor.model.cacheSkipped'),
         },
       ];
 
@@ -348,7 +402,7 @@ const ModelDashboard: React.FC = () => {
         const option =
           (cacheSeries[0]?.dataPoints.length ?? 0) > 0
             ? generateMultiLineChartOption(cacheSeries)
-            : generateEmptyChartOption();
+            : generateEmptyChartOption(t('monitor.common.noData'));
         cacheChartInstance.current.setOption(option, true);
       }
     } catch (error) {
@@ -398,7 +452,7 @@ const ModelDashboard: React.FC = () => {
       const { api, cluster_id, consumer, interval, model, route, service, timeRange } = values;
 
       if (!timeRange || timeRange.length !== 2) {
-        message.warning('请选择时间范围');
+        message.warning(t('monitor.common.selectTimeRange'));
         return;
       }
 
@@ -433,8 +487,6 @@ const ModelDashboard: React.FC = () => {
 
       // 查询成功后刷新过滤选项
       await loadFilterOptions(startTimeStr, endTimeStr, interval || 15);
-
-      message.success('查询成功');
     } catch (error) {
       console.error('查询失败:', error);
     } finally {
@@ -474,34 +526,37 @@ const ModelDashboard: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">模型监控</h1>
+    <div>
+      <AdminPageHeader
+        description={t('page.modelMonitor.description')}
+        title={t('page.modelMonitor.title')}
+      />
 
       {/* 查询表单 */}
-      <Card className="mb-6" title="过滤条件">
+      <Card className="mb-6 mt-6" title={t('monitor.common.filters')}>
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col flex="350px">
               <Form.Item
-                label="时间范围"
+                label={t('monitor.common.timeRange')}
                 name="timeRange"
-                rules={[{ message: '请选择时间范围', required: true }]}
+                rules={[{ message: t('monitor.common.selectTimeRange'), required: true }]}
               >
                 <RangePicker
                   format={DATETIME_FORMAT}
                   onChange={handleTimeRangeChange}
-                  presets={rangePresets}
+                  presets={rangePickerPresets}
                   showTime
                   style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col flex="180px">
-              <Form.Item label="查询粒度" name="interval">
+              <Form.Item label={t('monitor.common.queryInterval')} name="interval">
                 <Select style={{ width: '100%' }}>
-                  <Select.Option value={1}>1秒</Select.Option>
-                  <Select.Option value={15}>15秒</Select.Option>
-                  <Select.Option value={60}>60秒</Select.Option>
+                  <Select.Option value={1}>{t('monitor.interval.1s')}</Select.Option>
+                  <Select.Option value={15}>{t('monitor.interval.15s')}</Select.Option>
+                  <Select.Option value={60}>{t('monitor.interval.60s')}</Select.Option>
                 </Select>
               </Form.Item>
             </Col>
@@ -509,14 +564,14 @@ const ModelDashboard: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item label="实例ID" name="cluster_id">
+              <Form.Item label={t('monitor.common.instanceId')} name="cluster_id">
                 <Select
                   mode="tags"
                   options={filterOptions.clusterIds.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
@@ -529,20 +584,20 @@ const ModelDashboard: React.FC = () => {
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="模型" name="model">
+              <Form.Item label={t('monitor.common.model')} name="model">
                 <Select
                   mode="tags"
                   options={filterOptions.models.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
@@ -551,40 +606,40 @@ const ModelDashboard: React.FC = () => {
 
           <Row gutter={16}>
             <Col span={8}>
-              <Form.Item label="消费者" name="consumer">
+              <Form.Item label={t('monitor.common.consumer')} name="consumer">
                 <Select
                   mode="tags"
                   options={filterOptions.consumers.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="路由" name="route">
+              <Form.Item label={t('monitor.common.route')} name="route">
                 <Select
                   mode="tags"
                   options={filterOptions.routes.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="服务" name="service">
+              <Form.Item label={t('monitor.common.service')} name="service">
                 <Select
                   mode="tags"
                   options={filterOptions.services.map((v) => ({
                     label: v,
                     value: v,
                   }))}
-                  placeholder="请选择"
+                  placeholder={t('monitor.common.selectPlaceholder')}
                   style={{ width: '100%' }}
                 />
               </Form.Item>
@@ -595,10 +650,10 @@ const ModelDashboard: React.FC = () => {
             <Col span={24}>
               <Form.Item>
                 <Button loading={loading} onClick={handleQuery} type="primary">
-                  查询
+                  {t('monitor.common.query')}
                 </Button>
                 <Button onClick={handleReset} style={{ marginLeft: 8 }}>
-                  重置
+                  {t('monitor.common.reset')}
                 </Button>
               </Form.Item>
             </Col>
@@ -607,62 +662,30 @@ const ModelDashboard: React.FC = () => {
       </Card>
 
       {/* KPI统计卡片 */}
-      <Row className="mb-6" gutter={16}>
-        <Col span={4}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">PV</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.pv}</div>
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">UV</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.uv}</div>
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">Fallback请求数</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.fallbackCount}</div>
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">输入Token数</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.inputToken}</div>
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">输出Token数</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.outputToken}</div>
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card>
-            <div className="flex justify-between items-center mb-2">
-              <div className="text-sm text-gray-500">Token总数</div>
-              {timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>}
-            </div>
-            <div className="text-center text-2xl font-medium">{kpiData.totalToken}</div>
-          </Card>
-        </Col>
-      </Row>
+      <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
+        <AdminMetricCard caption={timeRangeLabel} label="PV" value={kpiData.pv} />
+        <AdminMetricCard caption={timeRangeLabel} label="UV" value={kpiData.uv} />
+        <AdminMetricCard
+          caption={timeRangeLabel}
+          label={t('monitor.model.fallbackRequests')}
+          value={kpiData.fallbackCount}
+        />
+        <AdminMetricCard
+          caption={timeRangeLabel}
+          label={t('monitor.model.inputToken')}
+          value={kpiData.inputToken}
+        />
+        <AdminMetricCard
+          caption={timeRangeLabel}
+          label={t('monitor.model.outputToken')}
+          value={kpiData.outputToken}
+        />
+        <AdminMetricCard
+          caption={timeRangeLabel}
+          label={t('monitor.model.totalToken')}
+          value={kpiData.totalToken}
+        />
+      </div>
 
       {/* 时序图表 */}
       <Row className="mb-6" gutter={16}>
@@ -681,7 +704,7 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title={<span>请求成功率</span>}
+            title={<span>{t('monitor.common.successRate')}</span>}
           >
             <div ref={successRateChartRef} style={{ height: 300 }} />
           </Card>
@@ -694,7 +717,7 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title={<span>token消耗数/s</span>}
+            title={<span>{t('monitor.model.tokenUsagePerSecond')}</span>}
           >
             <div ref={tokenPerSecChartRef} style={{ height: 300 }} />
           </Card>
@@ -704,7 +727,7 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title={<span>请求平均RT/ms</span>}
+            title={<span>{t('monitor.model.averageRtMs')}</span>}
           >
             <div ref={rtChartRef} style={{ height: 300 }} />
           </Card>
@@ -717,7 +740,7 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title={<span>限流请求数/s</span>}
+            title={<span>{t('monitor.model.rateLimitedRequestsPerSecond')}</span>}
           >
             <div ref={ratelimitedChartRef} style={{ height: 300 }} />
           </Card>
@@ -727,7 +750,7 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title={<span>缓存命中情况/s</span>}
+            title={<span>{t('monitor.model.cacheStatusPerSecond')}</span>}
           >
             <div ref={cacheChartRef} style={{ height: 300 }} />
           </Card>
@@ -742,10 +765,10 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="模型token使用统计"
+            title={t('monitor.model.modelTokenStats')}
           >
             <Table
-              columns={generateTableColumns(tableData.modelToken)}
+              columns={generateTableColumns(tableData.modelToken, tableColumnTitles)}
               dataSource={tableData.modelToken}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -759,10 +782,10 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="消费者token使用统计"
+            title={t('monitor.model.consumerTokenStats')}
           >
             <Table
-              columns={generateTableColumns(tableData.consumerToken)}
+              columns={generateTableColumns(tableData.consumerToken, tableColumnTitles)}
               dataSource={tableData.consumerToken}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -780,10 +803,10 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="服务token使用统计"
+            title={t('monitor.model.serviceTokenStats')}
           >
             <Table
-              columns={generateTableColumns(tableData.serviceToken)}
+              columns={generateTableColumns(tableData.serviceToken, tableColumnTitles)}
               dataSource={tableData.serviceToken}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -797,10 +820,10 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="错误请求统计"
+            title={t('monitor.model.errorRequestStats')}
           >
             <Table
-              columns={generateTableColumns(tableData.errorRequests)}
+              columns={generateTableColumns(tableData.errorRequests, tableColumnTitles)}
               dataSource={tableData.errorRequests}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -818,10 +841,10 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="限流消费者统计"
+            title={t('monitor.model.rateLimitedConsumerStats')}
           >
             <Table
-              columns={generateTableColumns(tableData.ratelimitedConsumer)}
+              columns={generateTableColumns(tableData.ratelimitedConsumer, tableColumnTitles)}
               dataSource={tableData.ratelimitedConsumer}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -835,10 +858,10 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="风险类型统计"
+            title={t('monitor.model.riskTypeStats')}
           >
             <Table
-              columns={generateTableColumns(tableData.riskLabel)}
+              columns={generateTableColumns(tableData.riskLabel, tableColumnTitles)}
               dataSource={tableData.riskLabel}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}
@@ -852,10 +875,10 @@ const ModelDashboard: React.FC = () => {
             extra={
               timeRangeLabel && <span className="text-xs text-gray-400">{timeRangeLabel}</span>
             }
-            title="风险消费者统计"
+            title={t('monitor.model.riskConsumerStats')}
           >
             <Table
-              columns={generateTableColumns(tableData.riskConsumer)}
+              columns={generateTableColumns(tableData.riskConsumer, tableColumnTitles)}
               dataSource={tableData.riskConsumer}
               pagination={false}
               rowKey={(_, index) => index?.toString() || '0'}

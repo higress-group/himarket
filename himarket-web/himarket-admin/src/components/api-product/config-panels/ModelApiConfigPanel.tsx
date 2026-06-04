@@ -2,6 +2,7 @@ import { CopyOutlined } from '@ant-design/icons';
 import { Button, Card, Collapse, Select } from 'antd';
 import { message } from 'antd';
 
+import { useLocale } from '@/contexts/LocaleContext';
 import { copyToClipboard, formatDomainWithPort } from '@/lib/utils';
 import type { ApiProductModelConfig } from '@/types/api-product';
 
@@ -16,6 +17,7 @@ export function ModelApiConfigPanel({
   onDomainChange,
   selectedDomainIndex,
 }: ModelApiConfigPanelProps) {
+  const { t } = useLocale();
   const modelAPIConfig = modelConfig.modelAPIConfig;
   const routes = modelAPIConfig.routes || [];
   const protocols = modelAPIConfig.aiProtocols || [];
@@ -49,22 +51,22 @@ export function ModelApiConfigPanel({
 
     try {
       await copyToClipboard(selectedModelDomain.label);
-      message.success('域名已复制到剪贴板');
+      message.success(t('common.domainCopied'));
     } catch {
-      message.error('复制失败');
+      message.error(t('common.copyLinkFailed'));
     }
   };
 
   const getMatchTypePrefix = (matchType: string) => {
     switch (matchType) {
       case 'Exact':
-        return '等于';
+        return t('product.config.matchEquals');
       case 'Prefix':
-        return '前缀是';
+        return t('product.config.matchPrefix');
       case 'Regex':
-        return '正则是';
+        return t('product.config.matchRegex');
       default:
-        return '等于';
+        return t('product.config.matchEquals');
     }
   };
 
@@ -151,47 +153,47 @@ export function ModelApiConfigPanel({
   const getModelCategoryText = (category: string) => {
     switch (category) {
       case 'Text':
-        return '文本生成';
+        return t('product.config.category.text');
       case 'Image':
-        return '图片生成';
+        return t('product.config.category.image');
       case 'Video':
-        return '视频生成';
+        return t('product.config.category.video');
       case 'Audio':
-        return '语音合成';
+        return t('product.config.category.audio');
       case 'Embedding':
-        return '向量化（Embedding）';
+        return t('product.config.category.embedding');
       case 'Rerank':
-        return '文本排序（Rerank）';
+        return t('product.config.category.rerank');
       case 'Others':
-        return '其他';
+        return t('product.config.category.others');
       default:
-        return category || '未知';
+        return category || t('product.config.category.unknown');
     }
   };
 
   return (
-    <Card title="配置详情">
+    <Card title={t('product.linkApi.configDetail')}>
       <div className="space-y-4">
         {modelAPIConfig.modelCategory && (
           <div className="text-sm">
-            <span className="text-gray-700">适用场景: </span>
+            <span className="text-gray-700">{t('product.config.modelCategory')}: </span>
             <span className="font-medium">
               {getModelCategoryText(modelAPIConfig.modelCategory)}
             </span>
           </div>
         )}
         <div className="text-sm">
-          <span className="text-gray-700">协议: </span>
+          <span className="text-gray-700">{t('product.config.protocol')}: </span>
           <span className="font-medium">{protocols.join(', ')}</span>
         </div>
         {routes.length > 0 && (
           <div>
-            <div className="text-sm text-gray-600 mb-3">路由配置:</div>
+            <div className="text-sm text-gray-600 mb-3">{t('product.config.routeConfig')}:</div>
             {modelDomainOptions.length > 0 && (
               <div className="mb-2">
                 <div className="flex items-stretch border border-gray-200 rounded-md overflow-hidden">
                   <div className="bg-gray-50 px-3 py-2 text-xs text-gray-600 border-r border-gray-200 flex items-center whitespace-nowrap">
-                    域名
+                    {t('common.domain')}
                   </div>
                   <div className="flex-1">
                     <Select
@@ -200,10 +202,10 @@ export function ModelApiConfigPanel({
                       labelRender={() => (
                         <div className="inline-flex max-w-full items-center gap-1.5">
                           <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                            {selectedModelDomain?.label || '选择域名'}
+                            {selectedModelDomain?.label || t('common.selectDomain')}
                           </span>
                           <Button
-                            aria-label="复制域名"
+                            aria-label={t('product.config.copyDomain')}
                             disabled={!selectedModelDomain?.label}
                             icon={<CopyOutlined />}
                             onClick={(event) => {
@@ -212,14 +214,14 @@ export function ModelApiConfigPanel({
                             }}
                             onMouseDown={(event) => event.stopPropagation()}
                             size="small"
-                            title="复制域名"
+                            title={t('product.config.copyDomain')}
                             type="text"
                           />
                         </div>
                       )}
                       onChange={onDomainChange}
                       optionLabelProp="label"
-                      placeholder="选择域名"
+                      placeholder={t('common.selectDomain')}
                       size="middle"
                       style={{
                         fontSize: '12px',
@@ -248,12 +250,12 @@ export function ModelApiConfigPanel({
                             {getRouteDisplayText(route, selectedDomainIndex)}
                             {route.builtin && (
                               <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
-                                默认
+                                {t('product.config.builtin')}
                               </span>
                             )}
                           </div>
                           <div className="text-xs text-gray-500">
-                            方法:{' '}
+                            {t('product.config.method')}:{' '}
                             <span className="font-medium text-gray-700">
                               {getMethodsText(route)}
                             </span>
@@ -266,9 +268,9 @@ export function ModelApiConfigPanel({
                             if (fullUrl) {
                               try {
                                 await copyToClipboard(fullUrl);
-                                message.success('链接已复制到剪贴板');
+                                message.success(t('product.config.copyUrlSuccess'));
                               } catch (_error) {
-                                message.error('复制失败');
+                                message.error(t('common.copyLinkFailed'));
                               }
                             }
                           }}
@@ -287,19 +289,21 @@ export function ModelApiConfigPanel({
                     <div className="pl-4 space-y-3">
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <div className="text-xs text-gray-500">路径:</div>
+                          <div className="text-xs text-gray-500">{t('product.config.path')}:</div>
                           <div className="font-mono">
                             {getMatchTypePrefix(route.match?.path?.type)} {route.match?.path?.value}
                           </div>
                         </div>
                         <div>
-                          <div className="text-xs text-gray-500">方法:</div>
+                          <div className="text-xs text-gray-500">{t('product.config.method')}:</div>
                           <div>{route.match?.methods ? route.match.methods.join(', ') : 'ANY'}</div>
                         </div>
                       </div>
                       {route.match?.headers && route.match.headers.length > 0 && (
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">请求头匹配:</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            {t('product.config.headerMatch')}:
+                          </div>
                           <div className="space-y-1">
                             {route.match.headers.map(
                               (
@@ -317,7 +321,9 @@ export function ModelApiConfigPanel({
                       )}
                       {route.match?.queryParams && route.match.queryParams.length > 0 && (
                         <div>
-                          <div className="text-xs text-gray-500 mb-1">查询参数匹配:</div>
+                          <div className="text-xs text-gray-500 mb-1">
+                            {t('product.config.queryMatch')}:
+                          </div>
                           <div className="space-y-1">
                             {route.match.queryParams.map(
                               (

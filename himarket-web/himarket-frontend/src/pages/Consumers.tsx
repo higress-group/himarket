@@ -17,6 +17,7 @@ import {
 } from 'antd';
 import { message, Modal } from 'antd';
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { Layout } from '../components/Layout';
@@ -27,6 +28,7 @@ import { formatDateTime } from '../lib/utils';
 const { Title } = Typography;
 
 function ConsumersPage() {
+  const { t } = useTranslation(['consumer', 'common']);
   const [searchParams] = useSearchParams();
   const productId = searchParams.get('productId');
 
@@ -35,12 +37,12 @@ function ConsumersPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [searchInput, setSearchInput] = useState(''); // 输入框的值
-  const [searchName, setSearchName] = useState(''); // 实际搜索的值
+  const [searchInput, setSearchInput] = useState('');
+  const [searchName, setSearchName] = useState('');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addForm, setAddForm] = useState({ description: '', name: '' });
-  const [_refreshIndex, setRefreshIndex] = useState(0);
+  const [refreshIndex, setRefreshIndex] = useState(0);
   const [primaryConsumer, setPrimaryConsumer] = useState<IGetPrimaryConsumerResp>();
 
   const [consumersForSelect, setConsumersForSelect] = useState<IConsumer[]>([]);
@@ -59,7 +61,7 @@ function ConsumersPage() {
         setConsumers(res.data?.content || []);
         setTotal(res.data?.totalElements || 0);
       } catch {
-        // message.error("获取消费者列表失败");
+        // message.error('Failed to fetch consumers');
       } finally {
         setLoading(false);
       }
@@ -87,9 +89,9 @@ function ConsumersPage() {
         }
       }
     } catch {
-      // message.error("获取消费者列表失败");
+      // message.error('Failed to fetch consumers');
     }
-  }; // 不依赖 searchName
+  };
 
   const getPrimaryConsumer = () => {
     APIs.getPrimaryConsumer().then(({ data }) => {
@@ -99,18 +101,15 @@ function ConsumersPage() {
     });
   };
 
-  // 初始加载和分页变化时调用
   useEffect(() => {
     fetchConsumers(searchName);
-  }, [page, pageSize, fetchConsumers, searchName]); // 包含fetchConsumers以确保初始加载
+  }, [page, pageSize, fetchConsumers, refreshIndex, searchName]);
 
-  // 处理搜索
   const handleSearch = useCallback(
     async (searchValue?: string) => {
       const actualSearchValue = searchValue !== undefined ? searchValue : searchInput;
       setSearchName(actualSearchValue);
       setPage(1);
-      // 直接调用API，不依赖状态变化
       await fetchConsumers(actualSearchValue, 1);
     },
     [searchInput, fetchConsumers],
@@ -121,30 +120,30 @@ function ConsumersPage() {
       onOk: async () => {
         try {
           await deleteConsumer(record.consumerId);
-          message.success('删除成功');
-          await fetchConsumers(searchName); // 使用当前搜索条件重新加载
+          message.success(t('deleteSuccess'));
+          await fetchConsumers(searchName);
         } catch {
-          // message.error("删除失败");
+          // message.error('Delete failed');
         }
       },
-      title: `确定要删除消费者「${record.name}」吗？`,
+      title: t('deleteConfirm', { name: record.name }),
     });
   };
 
   const handleAdd = async () => {
     if (!addForm.name.trim()) {
-      message.warning('请输入消费者名称');
+      message.warning(t('nameRequired'));
       return;
     }
     setAddLoading(true);
     try {
       await createConsumer({ description: addForm.description, name: addForm.name });
-      message.success('新增成功');
+      message.success(t('addSuccess'));
       setAddModalOpen(false);
       setAddForm({ description: '', name: '' });
-      await fetchConsumers(searchName); // 使用当前搜索条件重新加载
+      await fetchConsumers(searchName);
     } catch {
-      // message.error('新增失败');
+      // message.error('Add failed');
     } finally {
       setAddLoading(false);
     }
@@ -154,13 +153,13 @@ function ConsumersPage() {
     APIs.putPrimaryConsumer(selectedPrimaryConsumer)
       .then(({ code }) => {
         if (code === 'SUCCESS') {
-          message.success('修改成功！');
+          message.success(t('updateSuccess'));
           setShowModifyPrimaryConsumerModal(false);
           getPrimaryConsumer();
         }
       })
       .catch(() => {
-        message.error('修改失败，请重试');
+        message.error(t('updateFailed'));
       });
   };
 
@@ -180,27 +179,27 @@ function ConsumersPage() {
               }}
               type="button"
             >
-              <span> 默认消费者 </span>
+              <span>{t('defaultConsumer')}</span>
               <EditOutlined />
             </button>
           )}
         </div>
       ),
-      title: '消费者',
+      title: t('columns.consumer'),
       width: '20%',
     },
     {
       dataIndex: 'createAt',
       key: 'createAt',
       render: (date: string) => (date ? formatDateTime(date) : '-'),
-      title: '创建时间',
+      title: t('columns.createdAt'),
       width: '20%',
     },
     {
       dataIndex: 'description',
       key: 'description',
       render: (description: string) => description || '-',
-      title: '描述',
+      title: t('columns.description'),
       width: '30%',
     },
     {
@@ -208,7 +207,7 @@ function ConsumersPage() {
       render: (_: unknown, record: IConsumer) => (
         <Space>
           <Link to={`/consumers/${record.consumerId}`}>
-            <Button className="rounded-lg text-colorPrimary">查看详情</Button>
+            <Button className="rounded-lg text-colorPrimary">{t('viewDetails')}</Button>
           </Link>
           <Button
             className="rounded-lg"
@@ -224,7 +223,7 @@ function ConsumersPage() {
           ></Button>
         </Space>
       ),
-      title: '操作',
+      title: t('columns.action'),
     },
   ];
 
@@ -235,14 +234,12 @@ function ConsumersPage() {
   return (
     <Layout>
       <div className="w-full ">
-        {/* 主内容区域 - glass-morphism 风格 */}
         <div className="min-h-[calc(100vh-96px)] bg-white backdrop-blur-xl rounded-2xl shadow-xs border border-white/40 p-6">
           <div className="mb-5">
             <Title className="text-gray-900" level={2}>
-              {productId ? '产品订阅管理' : '消费者管理'}
+              {productId ? t('productSubscriptionsTitle') : t('listTitle')}
             </Title>
           </div>
-          {/* 搜索和新增按钮 */}
           <div className="mb-4 flex justify-between items-center">
             <div className="flex gap-2 items-center">
               {!productId && (
@@ -252,7 +249,7 @@ function ConsumersPage() {
                   onClick={() => setAddModalOpen(true)}
                   type="primary"
                 >
-                  新增消费者
+                  {t('addConsumer')}
                 </Button>
               )}
               <Input
@@ -260,7 +257,7 @@ function ConsumersPage() {
                 className="w-80 rounded-lg"
                 onChange={(e) => setSearchInput(e.target.value)}
                 onPressEnter={() => handleSearch()}
-                placeholder="搜索消费者..."
+                placeholder={t('searchPlaceholder')}
                 prefix={<SearchOutlined className="text-gray-400" />}
                 style={{
                   backdropFilter: 'blur(10px)',
@@ -278,7 +275,6 @@ function ConsumersPage() {
             </div>
           </div>
 
-          {/* 表格 */}
           <div className="overflow-hidden rounded-lg border border-[#e5e5e5]">
             <Table
               columns={columns}
@@ -299,32 +295,31 @@ function ConsumersPage() {
                 pageSize,
                 showQuickJumper: true,
                 showSizeChanger: true,
-                showTotal: (total) => `共 ${total} 条`,
+                showTotal: (total) => t('total', { total }),
                 total,
               }}
             />
           </div>
         </div>
 
-        {/* 新增消费者模态框 */}
         <Modal
-          cancelText="取消"
+          cancelText={t('common:cancel')}
           confirmLoading={addLoading}
-          okText="提交"
+          okText={t('modal.submit')}
           onCancel={() => {
             setAddModalOpen(false);
             setAddForm({ description: '', name: '' });
           }}
           onOk={handleAdd}
           open={addModalOpen}
-          title="新增消费者"
+          title={t('modal.addTitle')}
         >
           <div className="mb-4">
             <Input
               disabled={addLoading}
               maxLength={50}
               onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="消费者名称"
+              placeholder={t('modal.namePlaceholder')}
               value={addForm.name}
             />
           </div>
@@ -333,7 +328,7 @@ function ConsumersPage() {
               disabled={addLoading}
               maxLength={64}
               onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="描述（可选），长度限制64"
+              placeholder={t('modal.descriptionPlaceholder')}
               rows={3}
               value={addForm.description}
             />
@@ -344,11 +339,10 @@ function ConsumersPage() {
         footer={null}
         onCancel={() => setShowModifyPrimaryConsumerModal(false)}
         open={showModifyPrimaryConsumerModal}
-        // title="修改默认消费者"
         width={400}
       >
         <div className="flex w-full justify-center flex-col gap-4 pt-2">
-          <div className="font-bold text-lg">切换默认消费者</div>
+          <div className="font-bold text-lg">{t('primaryConsumer.title')}</div>
           <div>
             <Select
               defaultValue={primaryConsumer?.consumerId}
@@ -363,9 +357,11 @@ function ConsumersPage() {
           </div>
           <div className="flex gap-2 justify-end">
             <Button onClick={handleConfirmModifyPrimaryConsumer} type="primary">
-              确认
+              {t('common:confirm')}
             </Button>
-            <Button onClick={() => setShowModifyPrimaryConsumerModal(false)}>取消</Button>
+            <Button onClick={() => setShowModifyPrimaryConsumerModal(false)}>
+              {t('common:cancel')}
+            </Button>
           </div>
         </div>
       </Modal>

@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, Eye, FileCode, Terminal } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export type InlineBlockType = 'artifact' | 'terminal';
 
@@ -34,6 +35,7 @@ export function InlineArtifact({
   title,
   type,
 }: InlineArtifactProps) {
+  const { t } = useTranslation('coding');
   const hasContent = children !== null && children !== undefined;
   const [expanded, setExpanded] = useState(hasContent ? defaultExpanded : false);
   const config = TYPE_CONFIG[type];
@@ -58,10 +60,10 @@ export function InlineArtifact({
               e.stopPropagation();
               onPreviewClick();
             }}
-            title="预览"
+            title={t('inlineArtifact.preview')}
           >
             <Eye size={12} />
-            预览
+            {t('inlineArtifact.preview')}
           </button>
         )}
       </button>

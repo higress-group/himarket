@@ -1,5 +1,6 @@
 import { Form, Input, Select } from 'antd';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // ============ 类型定义 ============
 
@@ -32,6 +33,7 @@ const URL_PATTERN = /^https?:\/\/.+/;
 
 export function CustomModelForm({ enabled, onChange }: CustomModelFormProps) {
   const [form] = Form.useForm<CustomModelFormData>();
+  const { t } = useTranslation('coding');
 
   // enabled 变为 false 时重置表单
   useEffect(() => {
@@ -72,12 +74,12 @@ export function CustomModelForm({ enabled, onChange }: CustomModelFormProps) {
         size="small"
       >
         <Form.Item
-          label="模型接入点 URL"
+          label={t('customModel.baseUrl')}
           name="baseUrl"
           rules={[
-            { message: '请输入模型接入点 URL', required: true },
+            { message: t('customModel.baseUrlRequired'), required: true },
             {
-              message: '请输入合法的 URL（以 http:// 或 https:// 开头）',
+              message: t('customModel.baseUrlInvalid'),
               pattern: URL_PATTERN,
             },
           ]}
@@ -88,24 +90,24 @@ export function CustomModelForm({ enabled, onChange }: CustomModelFormProps) {
         <Form.Item
           label="API Key"
           name="apiKey"
-          rules={[{ message: '请输入 API Key', required: true }]}
+          rules={[{ message: t('customModel.apiKeyRequired'), required: true }]}
         >
           <Input.Password placeholder="sk-..." />
         </Form.Item>
 
         <Form.Item
-          label="模型 ID"
+          label={t('customModel.modelId')}
           name="modelId"
-          rules={[{ message: '请输入模型 ID', required: true }]}
+          rules={[{ message: t('customModel.modelIdRequired'), required: true }]}
         >
           <Input placeholder="gpt-4o" />
         </Form.Item>
 
-        <Form.Item label="模型显示名称" name="modelName">
-          <Input placeholder="留空则使用模型 ID" />
+        <Form.Item label={t('customModel.modelName')} name="modelName">
+          <Input placeholder={t('customModel.modelNamePlaceholder')} />
         </Form.Item>
 
-        <Form.Item label="协议类型" name="protocolType">
+        <Form.Item label={t('customModel.protocolType')} name="protocolType">
           <Select options={PROTOCOL_OPTIONS} />
         </Form.Item>
       </Form>

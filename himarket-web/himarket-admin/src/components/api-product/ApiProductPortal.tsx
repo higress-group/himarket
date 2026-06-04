@@ -11,6 +11,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { DataTable } from '@/components/common/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, portalApi } from '@/lib/api';
 import { copyToClipboard } from '@/lib/utils';
 import type { ApiProduct, Publication } from '@/types/api-product';
@@ -26,6 +27,7 @@ interface Portal {
 }
 
 export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
+  const { t } = useLocale();
   const [publishedPortals, setPublishedPortals] = useState<Publication[]>([]);
   const [allPortals, setAllPortals] = useState<Portal[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -139,12 +141,12 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
               {record.portalName}
             </button>
           </Tooltip>
-          <Tooltip title="点击复制">
+          <Tooltip title={t('common.copyToClipboard')}>
             <button
               className="text-xs text-gray-400 mt-0.5 truncate max-w-[200px] cursor-pointer hover:text-blue-500 bg-transparent border-none p-0 block text-left"
               onClick={() =>
                 copyToClipboard(record.portalId).then(() => {
-                  message.success('已复制到剪贴板');
+                  message.success(t('common.copiedToClipboard'));
                 })
               }
               type="button"
@@ -154,7 +156,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
           </Tooltip>
         </div>
       ),
-      title: '门户名称/ID',
+      title: t('product.portal.nameAndId'),
       width: 400,
     },
     {
@@ -164,17 +166,17 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
           {record.autoApproveSubscriptions ? (
             <>
               <CheckCircleFilled className="text-green-500 mr-1" style={{ fontSize: '10px' }} />
-              <span className="text-xs text-gray-900">已开启</span>
+              <span className="text-xs text-gray-900">{t('product.overview.enabled')}</span>
             </>
           ) : (
             <>
               <MinusCircleFilled className="text-gray-400 mr-1" style={{ fontSize: '10px' }} />
-              <span className="text-xs text-gray-900">已关闭</span>
+              <span className="text-xs text-gray-900">{t('product.overview.disabled')}</span>
             </>
           )}
         </div>
       ),
-      title: '订阅自动审批',
+      title: t('product.overview.autoApproveSubscription'),
       width: 160,
     },
     {
@@ -186,10 +188,10 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
           onClick={() => handleDelete(record.publicationId, record.portalName)}
           type="link"
         >
-          移除
+          {t('common.remove')}
         </Button>
       ),
-      title: '操作',
+      title: t('common.operation'),
       width: 120,
     },
   ];
@@ -203,7 +205,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
           <div className="text-xs text-gray-500">{record.portalId}</div>
         </div>
       ),
-      title: '门户信息',
+      title: t('product.portal.portalInfo'),
     },
     {
       key: 'autoApprove',
@@ -212,17 +214,17 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
           {record.autoApproveSubscription ? (
             <>
               <CheckCircleFilled className="text-green-500 mr-1" style={{ fontSize: '10px' }} />
-              <span className="text-xs text-gray-900">已开启</span>
+              <span className="text-xs text-gray-900">{t('product.overview.enabled')}</span>
             </>
           ) : (
             <>
               <MinusCircleFilled className="text-gray-400 mr-1" style={{ fontSize: '10px' }} />
-              <span className="text-xs text-gray-900">已关闭</span>
+              <span className="text-xs text-gray-900">{t('product.overview.disabled')}</span>
             </>
           )}
         </div>
       ),
-      title: '订阅自动审批',
+      title: t('product.overview.autoApproveSubscription'),
       width: 140,
     },
   ];
@@ -233,16 +235,16 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
 
   const handleDelete = (publicationId: string, portalName: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要从API产品中移除门户 "${portalName}" 吗？此操作不可恢复。`,
+      cancelText: t('common.cancel'),
+      content: t('product.portal.removeConfirm', { name: portalName }),
       icon: <ExclamationCircleOutlined />,
-      okText: '确认移除',
+      okText: t('common.confirmRemove'),
       okType: 'danger',
       onOk() {
         apiProductApi
           .cancelPublishToPortal(apiProduct.productId, publicationId)
           .then(() => {
-            message.success('移除成功');
+            message.success(t('common.removeSuccess'));
             fetchPublishedPortals();
           })
           .catch((error) => {
@@ -250,13 +252,13 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
             // message.error('移除失败')
           });
       },
-      title: '确认移除',
+      title: t('common.confirmRemove'),
     });
   };
 
   const handleModalOk = async () => {
     if (selectedPortalIds.length === 0) {
-      message.warning('请至少选择一个门户');
+      message.warning(t('product.portal.selectPortal'));
       return;
     }
 
@@ -266,14 +268,14 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       for (const portalId of selectedPortalIds) {
         await apiProductApi.publishToPortal(apiProduct.productId, portalId);
       }
-      message.success(`成功发布到 ${selectedPortalIds.length} 个门户`);
+      message.success(t('product.portal.publishSuccess', { count: selectedPortalIds.length }));
       setSelectedPortalIds([]);
       setIsModalVisible(false);
       // 重新获取已发布的门户列表
       fetchPublishedPortals();
     } catch (error) {
       console.error('发布失败:', error);
-      // message.error('发布失败')
+      message.error(t('product.portal.publishFailed'));
     } finally {
       setModalLoading(false);
     }
@@ -288,17 +290,17 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-2">发布门户</h1>
-          <p className="text-gray-600">管理API产品发布的门户</p>
+          <h1 className="text-2xl font-bold mb-2">{t('product.portal.title')}</h1>
+          <p className="text-gray-600">{t('product.portal.description')}</p>
         </div>
         <Button icon={<PlusOutlined />} onClick={handleAdd} type="primary">
-          发布到门户
+          {t('product.portal.publishToPortal')}
         </Button>
       </div>
 
       {publishedPortals.length === 0 && !loading ? (
         <div className="text-center py-8 text-gray-500">
-          <p>暂未发布到任何门户</p>
+          <p>{t('product.portal.empty')}</p>
         </div>
       ) : (
         <DataTable<Publication>
@@ -316,14 +318,14 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
       )}
 
       <Modal
-        cancelText="取消"
+        cancelText={t('common.cancel')}
         confirmLoading={modalLoading}
         destroyOnClose
-        okText="发布"
+        okText={t('product.portal.publish')}
         onCancel={handleModalCancel}
         onOk={handleModalOk}
         open={isModalVisible}
-        title="发布到门户"
+        title={t('product.portal.publishToPortal')}
         width={700}
       >
         <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -341,7 +343,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
                   <div className="text-gray-400 mb-2">
                     <GlobalOutlined style={{ fontSize: '24px' }} />
                   </div>
-                  <div className="text-gray-500 text-sm">暂无可发布的门户</div>
+                  <div className="text-gray-500 text-sm">{t('product.portal.emptyAvailable')}</div>
                 </div>
               ),
             }}

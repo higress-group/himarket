@@ -3,6 +3,7 @@ import { Button, Modal, Form, Input, message, Space } from 'antd';
 import { useState } from 'react';
 
 import { DataTable } from '@/components/common/DataTable';
+import { useLocale } from '@/contexts/LocaleContext';
 import { portalApi } from '@/lib/api';
 import type { Portal, PortalDomainConfig } from '@/types';
 
@@ -12,6 +13,7 @@ interface PortalDomainProps {
 }
 
 export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
+  const { t } = useLocale();
   const [domainModalVisible, setDomainModalVisible] = useState(false);
   const [domainForm] = Form.useForm();
   const [domainLoading, setDomainLoading] = useState(false);
@@ -30,12 +32,12 @@ export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
         type: 'CUSTOM',
       });
 
-      message.success('域名绑定成功');
+      message.success(t('portal.domain.bindSuccess'));
       setDomainModalVisible(false);
       domainForm.resetFields();
       onRefresh?.();
     } catch (_error) {
-      message.error('绑定域名失败');
+      message.error(t('portal.domain.bindFailed'));
     } finally {
       setDomainLoading(false);
     }
@@ -48,21 +50,21 @@ export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
 
   const handleDeleteDomain = async (domain: string) => {
     Modal.confirm({
-      cancelText: '取消',
-      content: `确定要解绑域名 "${domain}" 吗？此操作不可恢复。`,
+      cancelText: t('common.cancel'),
+      content: t('portal.domain.unbindConfirm', { domain }),
       icon: <ExclamationCircleOutlined />,
-      okText: '确认解绑',
+      okText: t('portal.domain.unbindTitle'),
       okType: 'danger',
       async onOk() {
         try {
           await portalApi.unbindDomain(portal.portalId, domain);
-          message.success('域名解绑成功');
+          message.success(t('portal.domain.unbindSuccess'));
           onRefresh?.();
         } catch (_error) {
-          message.error('解绑域名失败');
+          message.error(t('portal.domain.unbindFailed'));
         }
       },
-      title: '确认解绑',
+      title: t('portal.domain.unbindTitle'),
     });
   };
 
@@ -72,13 +74,14 @@ export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
     {
       dataIndex: 'domain',
       key: 'domain',
-      title: '域名',
+      title: t('common.domain'),
     },
     {
       dataIndex: 'type',
       key: 'type',
-      render: (type: string) => (type === 'CUSTOM' ? '自定义' : '系统域名'),
-      title: '类型',
+      render: (type: string) =>
+        type === 'CUSTOM' ? t('portal.domain.custom') : t('portal.domain.system'),
+      title: t('common.type'),
     },
     {
       key: 'action',
@@ -93,7 +96,7 @@ export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
         ) : (
           <span className="text-gray-400">-</span>
         ),
-      title: '操作',
+      title: t('common.operation'),
     },
   ];
 
@@ -101,12 +104,12 @@ export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold mb-2">域名列表</h1>
-          <p className="text-gray-600">管理Portal的域名配置</p>
+          <h1 className="text-2xl font-bold mb-2">{t('portal.domain.title')}</h1>
+          <p className="text-gray-600">{t('portal.domain.description')}</p>
         </div>
         <Space>
           <Button icon={<PlusOutlined />} onClick={handleAddDomain} type="primary">
-            绑定域名
+            {t('portal.domain.bind')}
           </Button>
         </Space>
       </div>
@@ -115,27 +118,28 @@ export function PortalDomain({ onRefresh, portal }: PortalDomainProps) {
         columns={domainColumns}
         dataSource={domains}
         locale={{
-          emptyText: '暂无绑定域名',
+          emptyText: t('portal.domain.empty'),
         }}
         rowKey="domain"
       />
 
       {/* 域名绑定模态框 */}
       <Modal
+        cancelText={t('common.cancel')}
         confirmLoading={domainLoading}
         destroyOnClose
         onCancel={handleDomainModalCancel}
         onOk={handleDomainModalOk}
         open={domainModalVisible}
-        title="绑定域名"
+        title={t('portal.domain.bind')}
       >
         <Form form={domainForm} layout="vertical">
           <Form.Item
-            label="域名"
+            label={t('common.domain')}
             name="domain"
-            rules={[{ message: '请输入要绑定的域名', required: true }]}
+            rules={[{ message: t('portal.domain.required'), required: true }]}
           >
-            <Input placeholder="例如：example.com" />
+            <Input placeholder={t('portal.domain.inputPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

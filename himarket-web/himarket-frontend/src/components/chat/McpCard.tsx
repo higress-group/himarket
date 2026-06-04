@@ -1,5 +1,6 @@
 import { Button, Popover, Skeleton, Divider } from 'antd';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import APIs, { type IProductDetail, type IMcpTool } from '../../lib/apis';
 import { getIconString } from '../../lib/iconUtils';
@@ -27,6 +28,7 @@ function McpCard(props: McpCardProps) {
     onRemove,
     onShowMore,
   } = props;
+  const { t } = useTranslation('chat');
 
   const [toolsLoading, setToolsLoading] = useState(false);
   const [tools, setTools] = useState<IMcpTool[]>([]);
@@ -102,7 +104,11 @@ function McpCard(props: McpCardProps) {
                     : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                {isSubscribed ? '已订阅' : data.subscribable === false ? '无需订阅' : '未订阅'}
+                {isSubscribed
+                  ? t('mcpCard.subscribed')
+                  : data.subscribable === false
+                    ? t('mcpCard.noSubscriptionRequired')
+                    : t('mcpCard.notSubscribed')}
               </span>
             </div>
           </div>
@@ -123,11 +129,13 @@ function McpCard(props: McpCardProps) {
                 ) : (
                   <div>
                     {/* 顶部标题 */}
-                    <div className="font-medium text-base mb-3">工具({tools.length})</div>
+                    <div className="font-medium text-base mb-3">
+                      {t('mcpCard.toolsWithCount', { count: tools.length })}
+                    </div>
 
                     {/* 工具列表 */}
                     {tools.length === 0 ? (
-                      <div className="text-sm text-gray-400">暂无工具</div>
+                      <div className="text-sm text-gray-400">{t('mcpCard.noTools')}</div>
                     ) : (
                       <div className="space-y-3">
                         {tools.map((tool, index) => (
@@ -135,7 +143,7 @@ function McpCard(props: McpCardProps) {
                             <div className="space-y-1">
                               <div className="font-medium text-sm text-gray-900">{tool.name}</div>
                               <div className="text-xs text-gray-500 leading-relaxed">
-                                {tool.description || '暂无描述'}
+                                {tool.description || t('mcpCard.noDescription')}
                               </div>
                             </div>
                             {index < tools.length - 1 && <Divider style={{ margin: '12px 0' }} />}
@@ -171,7 +179,7 @@ function McpCard(props: McpCardProps) {
       {/* 中部：描述 */}
       <div className="flex-1 overflow-hidden">
         <p className="text-sm text-colorTextSecondaryCustom line-clamp-2">
-          {data.description || '暂无描述'}
+          {data.description || t('mcpCard.noDescription')}
         </p>
       </div>
 
@@ -179,12 +187,12 @@ function McpCard(props: McpCardProps) {
       <div className="flex gap-2">
         {isSubscribed || data.subscribable === false ? (
           <Button block onClick={handleAdd} type={isAdded ? 'default' : 'primary'}>
-            {isAdded ? '取消添加' : '添加'}
+            {isAdded ? t('mcpCard.remove') : t('mcpCard.add')}
           </Button>
         ) : (
           <div className="flex gap-2 justify-between w-full">
             <Button className="flex-1" onClick={handleQuickSubscribe}>
-              快速订阅
+              {t('mcpCard.quickSubscribe')}
             </Button>
           </div>
         )}

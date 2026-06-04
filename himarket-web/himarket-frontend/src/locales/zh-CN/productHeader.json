@@ -1,0 +1,45 @@
+{
+  "loading": "加载中...",
+  "updatedAt": "{{date}} 更新",
+  "message": {
+    "subscriptionDetailsFailed": "获取订阅详情失败，请重试",
+    "selectConsumer": "请选择消费者",
+    "applySuccess": "申请提交成功",
+    "applyFailed": "申请提交失败，请重试",
+    "unsubscribeSuccess": "取消订阅成功",
+    "unsubscribeFailed": "取消订阅失败，请重试"
+  },
+  "subscribe": {
+    "loginRequired": "登录后订阅",
+    "subscribed": "已订阅",
+    "notSubscribed": "未订阅",
+    "manage": "管理订阅",
+    "openAccess": "无需订阅，开放访问",
+    "action": "订阅"
+  },
+  "modal": {
+    "title": "订阅管理",
+    "searchConsumer": "搜索消费者名称",
+    "selectConsumer": "选择消费者",
+    "noConsumers": "暂无消费者数据",
+    "consumerPlaceholder": "搜索或选择消费者",
+    "cancel": "取消",
+    "confirm": "确认"
+  },
+  "table": {
+    "consumer": "消费者",
+    "statusTitle": "状态",
+    "action": "操作",
+    "status": {
+      "approved": "已通过",
+      "pending": "审核中",
+      "rejected": "已拒绝"
+    },
+    "unsubscribeConfirm": "确定要取消订阅吗？",
+    "noMatchedRecords": "未找到匹配的订阅记录",
+    "noRecords": "暂无订阅记录"
+  },
+  "pagination": {
+    "total": "共 {{total}} 条"
+  }
+}
