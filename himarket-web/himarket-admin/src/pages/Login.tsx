@@ -1,11 +1,11 @@
 import { Form, Input, Button, Alert } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { authApi } from '@/lib/api';
+import api, { authApi } from '@/lib/api';
+import { notifyAdminAuthChanged } from '@/lib/utils';
 
 import { AdminBrandMark } from '../components/AdminBrand';
-import api from '../lib/api';
 
 const inputClassName = 'h-[42px] rounded-lg text-sm';
 const buttonClassName = 'h-[42px] w-full rounded-lg text-sm font-medium active:scale-[0.985]';
@@ -15,10 +15,17 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isRegister, setIsRegister] = useState<boolean | null>(null); // null 表示正在加载
+  const needInitCheckedRef = useRef(false);
   const navigate = useNavigate();
 
   // 页面加载时检查权限
   useEffect(() => {
+    if (needInitCheckedRef.current) {
+      return;
+    }
+
+    needInitCheckedRef.current = true;
+
     const checkAuth = async () => {
       try {
         const response = await authApi.getNeedInit(); // 替换为你的权限接口
@@ -43,6 +50,7 @@ const Login: React.FC = () => {
       const accessToken = response.data.access_token;
       localStorage.setItem('access_token', accessToken);
       localStorage.setItem('userInfo', JSON.stringify(response.data));
+      notifyAdminAuthChanged();
       navigate('/portals');
     } catch {
       setError('账号或密码错误');

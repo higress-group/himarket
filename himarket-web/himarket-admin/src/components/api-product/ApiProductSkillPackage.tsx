@@ -391,22 +391,37 @@ export function ApiProductSkillPackage({
   const [nacosSaving, setNacosSaving] = useState(false);
   const [nacosForm] = Form.useForm();
   const [currentNacosName, setCurrentNacosName] = useState<string>('');
+  const lastNacosNameFetchKeyRef = useRef('');
 
   // Fetch nacos name
   useEffect(() => {
-    if (apiProduct.skillConfig?.nacosId) {
-      nacosApi
-        .getNacos({ page: 1, size: 1000 })
-        .then((res: unknown) => {
-          const resObj = res as {
-            data?: { content?: Array<{ nacosId?: string; nacosName?: string }> };
-          };
-          const list = resObj.data?.content || [];
-          const found = list.find((n) => n.nacosId === apiProduct.skillConfig?.nacosId);
-          setCurrentNacosName(found?.nacosName || apiProduct.skillConfig?.nacosId || '');
-        })
-        .catch(() => {});
+    const nacosId = apiProduct.skillConfig?.nacosId;
+    if (!nacosId) {
+      lastNacosNameFetchKeyRef.current = '';
+      setCurrentNacosName('');
+      return;
     }
+
+    if (lastNacosNameFetchKeyRef.current === nacosId) {
+      return;
+    }
+    lastNacosNameFetchKeyRef.current = nacosId;
+
+    nacosApi
+      .getNacos({ page: 1, size: 1000 })
+      .then((res: unknown) => {
+        if (lastNacosNameFetchKeyRef.current !== nacosId) {
+          return;
+        }
+
+        const resObj = res as {
+          data?: { content?: Array<{ nacosId?: string; nacosName?: string }> };
+        };
+        const list = resObj.data?.content || [];
+        const found = list.find((n) => n.nacosId === nacosId);
+        setCurrentNacosName(found?.nacosName || nacosId);
+      })
+      .catch(() => {});
   }, [apiProduct.skillConfig?.nacosId]);
 
   const fetchNacosInstances = async () => {
@@ -537,9 +552,14 @@ export function ApiProductSkillPackage({
 
   // Init sequence ref to cancel stale version fetches (separate from fetchSeqRef)
   const initSeqRef = useRef(0);
+  const lastInitialLoadProductIdRef = useRef('');
 
   // Initial load: versions → file tree, cancel stale runs on remount
   useEffect(() => {
+    if (lastInitialLoadProductIdRef.current === productId) {
+      return;
+    }
+    lastInitialLoadProductIdRef.current = productId;
     const seq = ++initSeqRef.current;
     const init = async () => {
       setLoadingVersions(true);
@@ -703,17 +723,6 @@ export function ApiProductSkillPackage({
       title: t('product.package.forcePublishTitle'),
     });
   };
-
-  useEffect(() => {
-    // Initial file tree load with no version (will be superseded by fetchVersions if versions exist)
-    fetchFileTree(undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
-
-  useEffect(() => {
-    fetchVersions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
 
   // Auto-poll version list when any version is in reviewing state
   const hasReviewing = versions.some((item) => item.status === 'reviewing');

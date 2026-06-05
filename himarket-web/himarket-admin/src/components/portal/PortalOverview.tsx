@@ -6,7 +6,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { Button, Card, message } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { StatusIndicator } from '@/components/common';
@@ -70,9 +70,13 @@ export function PortalOverview({ onEdit, portal }: PortalOverviewProps) {
   const { t } = useLocale();
   const [apiCount, setApiCount] = useState(0);
   const [developerCount, setDeveloperCount] = useState(0);
+  const lastAutoFetchPortalIdRef = useRef('');
 
   useEffect(() => {
     if (!portal.portalId) return;
+    if (lastAutoFetchPortalIdRef.current === portal.portalId) return;
+
+    lastAutoFetchPortalIdRef.current = portal.portalId;
 
     portalApi
       .getDeveloperList(portal.portalId, {

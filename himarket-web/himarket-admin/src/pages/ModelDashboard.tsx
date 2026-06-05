@@ -132,6 +132,7 @@ const ModelDashboard: React.FC = () => {
   const rtChartInstance = useRef<echarts.ECharts | null>(null);
   const ratelimitedChartInstance = useRef<echarts.ECharts | null>(null);
   const cacheChartInstance = useRef<echarts.ECharts | null>(null);
+  const initialQueryStartedRef = useRef(false);
 
   // 初始化ECharts实例
   useEffect(() => {
@@ -167,6 +168,10 @@ const ModelDashboard: React.FC = () => {
 
   // 初始化默认值
   useEffect(() => {
+    if (initialQueryStartedRef.current) {
+      return;
+    }
+    initialQueryStartedRef.current = true;
     const [start, end] = getPresetTimeRange('1w');
     form.setFieldsValue({
       interval: 15,

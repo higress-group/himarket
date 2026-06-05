@@ -9,6 +9,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Token 相关函数
+export const ADMIN_AUTH_CHANGED_EVENT = 'himarket.admin.auth-changed';
+
+export const notifyAdminAuthChanged = (): void => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(ADMIN_AUTH_CHANGED_EVENT));
+  }
+};
+
 export const getToken = (): string | null => {
   return localStorage.getItem('access_token');
 };

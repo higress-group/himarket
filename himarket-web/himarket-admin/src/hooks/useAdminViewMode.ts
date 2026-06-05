@@ -13,6 +13,29 @@ function isViewMode(value?: string): value is ViewMode {
   return value === 'TABLE' || value === 'CARD';
 }
 
+const viewModeRequests = new Map<string, Promise<ViewMode | null>>();
+
+function loadViewMode(settingKey: string) {
+  const cachedRequest = viewModeRequests.get(settingKey);
+  if (cachedRequest) {
+    return cachedRequest;
+  }
+
+  const request = adminSettingApi
+    .getSetting(settingKey)
+    .then((res: AdminSettingResponse) => {
+      const settingValue = res.data?.settingValue;
+      return isViewMode(settingValue) ? settingValue : null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      viewModeRequests.delete(settingKey);
+    });
+
+  viewModeRequests.set(settingKey, request);
+  return request;
+}
+
 export function useAdminViewMode(settingKey: string) {
   const [viewMode, setViewModeState] = useState<ViewMode>('TABLE');
   const [loading, setLoading] = useState(true);
@@ -21,16 +44,11 @@ export function useAdminViewMode(settingKey: string) {
     let cancelled = false;
     setLoading(true);
 
-    adminSettingApi
-      .getSetting(settingKey)
-      .then((res: AdminSettingResponse) => {
-        const settingValue = res.data?.settingValue;
-        if (!cancelled && isViewMode(settingValue)) {
-          setViewModeState(settingValue);
+    loadViewMode(settingKey)
+      .then((nextViewMode) => {
+        if (!cancelled && nextViewMode) {
+          setViewModeState(nextViewMode);
         }
-      })
-      .catch(() => {
-        // Keep the default view mode when the setting cannot be loaded.
       })
       .finally(() => {
         if (!cancelled) {

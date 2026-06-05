@@ -67,6 +67,7 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importSource, setImportSource] = useState<StandardImportSource | null>(null);
   const [mcpImportOpen, setMcpImportOpen] = useState(false);
+  const lastDefaultNacosFetchKeyRef = useRef('');
 
   const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
   const showImportMenu = productType !== 'AGENT_SKILL' && productType !== 'WORKER';
@@ -79,16 +80,25 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
 
   // Fetch default Nacos instance for import feature
   useEffect(() => {
-    if (showNacosImport) {
-      nacosApi
-        .getDefaultNacos()
-        .then((res: unknown) => {
-          setDefaultNacos((res as { data: NacosInstance | null }).data ?? null);
-        })
-        .catch(() => {
-          setDefaultNacos(null);
-        });
+    if (!showNacosImport) {
+      lastDefaultNacosFetchKeyRef.current = '';
+      setDefaultNacos(null);
+      return;
     }
+
+    if (lastDefaultNacosFetchKeyRef.current === productType) {
+      return;
+    }
+    lastDefaultNacosFetchKeyRef.current = productType;
+
+    nacosApi
+      .getDefaultNacos()
+      .then((res: unknown) => {
+        setDefaultNacos((res as { data: NacosInstance | null }).data ?? null);
+      })
+      .catch(() => {
+        setDefaultNacos(null);
+      });
   }, [productType, showNacosImport]);
 
   const handleImportFromNacos = async () => {

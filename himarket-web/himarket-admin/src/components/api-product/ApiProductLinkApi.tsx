@@ -10,7 +10,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { Card, Button, Modal, message, Space, Dropdown } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi, apiDefinitionApi } from '@/lib/api';
@@ -64,25 +64,42 @@ export function ApiProductLinkApi({
 
   // 同步配置加载状态
   const [syncLoading, setSyncLoading] = useState(false);
+  const lastApiDefinitionIdRef = useRef('');
 
   const parsedTools = useParsedMcpTools(apiProduct);
   const connConfig = useMcpConnectionConfig(apiProduct, linkedService, selectedDomainIndex);
 
   // 加载 ApiDefinition 详情（当 sourceType 为 API_DEFINITION 时）
   useEffect(() => {
-    if (linkedService?.sourceType === 'API_DEFINITION' && linkedService.apiDefinitionId) {
-      apiDefinitionApi
-        .getApiDefinition(linkedService.apiDefinitionId)
-        .then((res: unknown) => {
-          const data = (res as { data?: ApiDefinition }).data;
-          if (data) setApiDefinition(data);
-        })
-        .catch(() => {
-          setApiDefinition(null);
-        });
-    } else {
+    if (linkedService?.sourceType !== 'API_DEFINITION' || !linkedService.apiDefinitionId) {
+      lastApiDefinitionIdRef.current = '';
       setApiDefinition(null);
+      return;
     }
+
+    if (lastApiDefinitionIdRef.current === linkedService.apiDefinitionId) {
+      return;
+    }
+    const apiDefinitionId = linkedService.apiDefinitionId;
+    lastApiDefinitionIdRef.current = apiDefinitionId;
+
+    apiDefinitionApi
+      .getApiDefinition(apiDefinitionId)
+      .then((res: unknown) => {
+        if (lastApiDefinitionIdRef.current !== apiDefinitionId) {
+          return;
+        }
+
+        const data = (res as { data?: ApiDefinition }).data;
+        if (data) setApiDefinition(data);
+      })
+      .catch(() => {
+        if (lastApiDefinitionIdRef.current !== apiDefinitionId) {
+          return;
+        }
+
+        setApiDefinition(null);
+      });
   }, [linkedService?.sourceType, linkedService?.apiDefinitionId]);
 
   // 产品切换重置域名索引

@@ -1,6 +1,6 @@
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Button, message, Modal, Tooltip } from 'antd';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { AdminPageHeader } from '@/components/common';
 import { DataTable } from '@/components/common/DataTable';
@@ -31,6 +31,7 @@ export default function Consoles() {
     pageSize: 10,
     total: 0,
   });
+  const lastAutoFetchKeyRef = useRef('');
 
   const fetchGatewaysByType = useCallback(async (gatewayType: GatewayType, page = 1, size = 10) => {
     setLoading(true);
@@ -50,6 +51,11 @@ export default function Consoles() {
   }, []);
 
   useEffect(() => {
+    const key = `${activeTab}-1-10`;
+    if (lastAutoFetchKeyRef.current === key) {
+      return;
+    }
+    lastAutoFetchKeyRef.current = key;
     fetchGatewaysByType(activeTab, 1, 10);
   }, [fetchGatewaysByType, activeTab]);
 

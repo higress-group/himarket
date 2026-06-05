@@ -18,7 +18,7 @@ import {
   Checkbox,
   Pagination,
 } from 'antd';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { DataTable } from '@/components/common/DataTable';
@@ -183,6 +183,7 @@ export default function ProductCategoryDetail() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const lastAutoFetchKeyRef = useRef('');
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
   const { viewMode } = useAdminViewMode(API_PRODUCTS_VIEW_MODE_SETTING_KEY);
 
@@ -241,10 +242,17 @@ export default function ProductCategoryDetail() {
   );
 
   useEffect(() => {
-    if (categoryId) {
-      fetchCategoryDetail();
-      fetchCategoryProducts();
+    if (!categoryId) {
+      return;
     }
+
+    const key = `${categoryId}-1-10`;
+    if (lastAutoFetchKeyRef.current === key) {
+      return;
+    }
+    lastAutoFetchKeyRef.current = key;
+    fetchCategoryDetail();
+    fetchCategoryProducts();
   }, [categoryId, fetchCategoryDetail, fetchCategoryProducts]);
 
   // 渲染类别图标

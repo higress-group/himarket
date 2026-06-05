@@ -329,6 +329,8 @@ export function ApiProductWorkerPackage({
   );
   const [treeWidth, setTreeWidth] = useState(240);
   const isDragging = useRef(false);
+  const lastAutoFileTreeKeyRef = useRef('');
+  const lastAutoVersionsProductIdRef = useRef('');
   const [activeTab, setActiveTab] = useState<'overview' | 'file'>('overview');
   const [overviewContent, setOverviewContent] = useState<string | null>(null);
   const [loadingOverview, setLoadingOverview] = useState(false);
@@ -352,6 +354,7 @@ export function ApiProductWorkerPackage({
   };
 
   const fetchFileTree = async (version?: string) => {
+    lastAutoFileTreeKeyRef.current = `${productId}-${version ?? ''}`;
     setLoadingTree(true);
     try {
       const res = (await workerApi.getFiles(productId, version)) as { data?: WorkerFileTreeNode[] };
@@ -456,21 +459,36 @@ export function ApiProductWorkerPackage({
   const [nacosSaving, setNacosSaving] = useState(false);
   const [nacosForm] = Form.useForm();
   const [currentNacosName, setCurrentNacosName] = useState<string>('');
+  const lastNacosNameFetchKeyRef = useRef('');
 
   // Fetch nacos name
   useEffect(() => {
-    if (apiProduct.workerConfig?.nacosId) {
-      nacosApi
-        .getNacos({ page: 1, size: 1000 })
-        .then((res) => {
-          const list =
-            (res as { data?: { content?: Array<{ nacosId: string; nacosName: string }> } }).data
-              ?.content || [];
-          const found = list.find((n) => n.nacosId === apiProduct.workerConfig?.nacosId);
-          setCurrentNacosName(found?.nacosName || apiProduct.workerConfig?.nacosId || '');
-        })
-        .catch(() => {});
+    const nacosId = apiProduct.workerConfig?.nacosId;
+    if (!nacosId) {
+      lastNacosNameFetchKeyRef.current = '';
+      setCurrentNacosName('');
+      return;
     }
+
+    if (lastNacosNameFetchKeyRef.current === nacosId) {
+      return;
+    }
+    lastNacosNameFetchKeyRef.current = nacosId;
+
+    nacosApi
+      .getNacos({ page: 1, size: 1000 })
+      .then((res) => {
+        if (lastNacosNameFetchKeyRef.current !== nacosId) {
+          return;
+        }
+
+        const list =
+          (res as { data?: { content?: Array<{ nacosId: string; nacosName: string }> } }).data
+            ?.content || [];
+        const found = list.find((n) => n.nacosId === nacosId);
+        setCurrentNacosName(found?.nacosName || nacosId);
+      })
+      .catch(() => {});
   }, [apiProduct.workerConfig?.nacosId]);
 
   const fetchNacosInstances = async () => {
@@ -617,11 +635,20 @@ export function ApiProductWorkerPackage({
   };
 
   useEffect(() => {
+    const key = `${productId}-${previewVersion ?? ''}`;
+    if (lastAutoFileTreeKeyRef.current === key) {
+      return;
+    }
+    lastAutoFileTreeKeyRef.current = key;
     fetchFileTree(previewVersion);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, previewVersion]);
 
   useEffect(() => {
+    if (lastAutoVersionsProductIdRef.current === productId) {
+      return;
+    }
+    lastAutoVersionsProductIdRef.current = productId;
     fetchVersions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);

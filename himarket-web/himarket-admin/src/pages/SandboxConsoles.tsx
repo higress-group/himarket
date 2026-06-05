@@ -11,7 +11,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import { Button, message, Modal, Tabs, Form, Input, Steps, Space, Tooltip } from 'antd';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { AdminPageHeader } from '@/components/common';
 import { DataTable } from '@/components/common/DataTable';
@@ -55,6 +55,7 @@ export default function SandboxConsoles() {
   const [importStep, setImportStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
+  const lastAutoFetchKeyRef = useRef('');
 
   const isAgentRuntime = activeTab === 'AGENT_RUNTIME';
 
@@ -79,6 +80,11 @@ export default function SandboxConsoles() {
   }, []);
 
   useEffect(() => {
+    const key = `${activeTab}-1-10`;
+    if (lastAutoFetchKeyRef.current === key) {
+      return;
+    }
+    lastAutoFetchKeyRef.current = key;
     fetchList(activeTab);
   }, [fetchList, activeTab]);
 

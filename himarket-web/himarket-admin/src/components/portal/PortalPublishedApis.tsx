@@ -1,6 +1,6 @@
 import { DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { Modal, Button, message, Empty, Tooltip, Table } from 'antd';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { DataTable } from '@/components/common/DataTable';
@@ -29,9 +29,16 @@ export function PortalPublishedApis({ portal }: PortalApiProductsProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const lastAutoFetchKeyRef = useRef('');
 
   useEffect(() => {
     if (portal.portalId) {
+      const key = `${portal.portalId}-${currentPage}-${pageSize}`;
+      if (lastAutoFetchKeyRef.current === key) {
+        return;
+      }
+
+      lastAutoFetchKeyRef.current = key;
       fetchApiProducts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

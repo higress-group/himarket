@@ -1,6 +1,6 @@
 import { ReloadOutlined, DashboardOutlined } from '@ant-design/icons';
 import { Card, Spin, Button, Space } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { portalApi } from '@/lib/api';
 import type { Portal } from '@/types';
@@ -14,6 +14,7 @@ export const PortalDashboard: React.FC<PortalDashboardProps> = ({ portal }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fallback, setFallback] = useState(false);
+  const lastAutoFetchPortalIdRef = useRef('');
 
   const fetchDashboardUrl = async () => {
     if (!portal.portalId) return;
@@ -37,6 +38,11 @@ export const PortalDashboard: React.FC<PortalDashboardProps> = ({ portal }) => {
   };
 
   useEffect(() => {
+    if (!portal.portalId || lastAutoFetchPortalIdRef.current === portal.portalId) {
+      return;
+    }
+
+    lastAutoFetchPortalIdRef.current = portal.portalId;
     fetchDashboardUrl();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portal.portalId]);

@@ -22,6 +22,67 @@ interface SubscriptionListModalProps {
   onCancel: () => void;
 }
 
+type ConsumerSubscriptionsResponse = Awaited<ReturnType<typeof portalApi.getConsumerSubscriptions>>;
+
+interface SubscriptionRefreshResult {
+  allRes: ConsumerSubscriptionsResponse;
+  approvedRes: ConsumerSubscriptionsResponse;
+  pendingRes: ConsumerSubscriptionsResponse;
+}
+
+interface SubscriptionRefreshParams {
+  consumerId: string;
+  page: number;
+  productName?: string;
+  size: number;
+}
+
+const subscriptionRefreshRequests = new Map<string, Promise<SubscriptionRefreshResult>>();
+
+function getSubscriptionRefreshKey({
+  consumerId,
+  page,
+  productName,
+  size,
+}: SubscriptionRefreshParams) {
+  return JSON.stringify([consumerId, page, size, productName || '']);
+}
+
+function loadSubscriptionRefresh(params: SubscriptionRefreshParams) {
+  const key = getSubscriptionRefreshKey(params);
+  const cachedRequest = subscriptionRefreshRequests.get(key);
+  if (cachedRequest) {
+    return cachedRequest;
+  }
+
+  const baseParams = { page: params.page, size: params.size };
+  const searchParams = params.productName ? { productName: params.productName } : {};
+  const request = Promise.all([
+    portalApi.getConsumerSubscriptions(params.consumerId, { ...baseParams, ...searchParams }),
+    portalApi.getConsumerSubscriptions(params.consumerId, {
+      ...baseParams,
+      status: 'PENDING',
+      ...searchParams,
+    }),
+    portalApi.getConsumerSubscriptions(params.consumerId, {
+      ...baseParams,
+      status: 'APPROVED',
+      ...searchParams,
+    }),
+  ])
+    .then(([allRes, pendingRes, approvedRes]) => ({
+      allRes,
+      approvedRes,
+      pendingRes,
+    }))
+    .finally(() => {
+      subscriptionRefreshRequests.delete(key);
+    });
+
+  subscriptionRefreshRequests.set(key, request);
+  return request;
+}
+
 export function SubscriptionListModal({
   consumerId,
   consumerName,
@@ -100,22 +161,13 @@ export function SubscriptionListModal({
   const refreshAll = () => {
     skipFetchRef.current = true;
     setLoading(true);
-    const baseParams = { page: 1, size: 10 };
-    const searchParams = productNameSearch ? { productName: productNameSearch } : {};
-    Promise.all([
-      portalApi.getConsumerSubscriptions(consumerId, { ...baseParams, ...searchParams }),
-      portalApi.getConsumerSubscriptions(consumerId, {
-        ...baseParams,
-        status: 'PENDING',
-        ...searchParams,
-      }),
-      portalApi.getConsumerSubscriptions(consumerId, {
-        ...baseParams,
-        status: 'APPROVED',
-        ...searchParams,
-      }),
-    ])
-      .then(([allRes, pendingRes, approvedRes]) => {
+    loadSubscriptionRefresh({
+      consumerId,
+      page: 1,
+      productName: productNameSearch,
+      size: pagination.pageSize,
+    })
+      .then(({ allRes, approvedRes, pendingRes }) => {
         setStats({
           all: allRes.data?.totalElements || 0,
           approved: approvedRes.data?.totalElements || 0,

@@ -7,7 +7,7 @@ import {
   MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { Button, Spin, Modal, message } from 'antd';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { AdminDetailSidebar } from '@/components/common';
@@ -35,6 +35,7 @@ export default function PortalDetail() {
   const [loading, setLoading] = useState(true); // 初始状态为 loading
   const [error, setError] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const lastAutoFetchPortalIdRef = useRef('');
   const menuItems = useMemo(
     () => [
       {
@@ -99,8 +100,13 @@ export default function PortalDetail() {
   }, [portalId, t]);
 
   useEffect(() => {
+    if (!portalId || lastAutoFetchPortalIdRef.current === portalId) {
+      return;
+    }
+
+    lastAutoFetchPortalIdRef.current = portalId;
     fetchPortalData();
-  }, [fetchPortalData]);
+  }, [fetchPortalData, portalId]);
 
   const handleBackToPortals = () => {
     navigate('/portals');
