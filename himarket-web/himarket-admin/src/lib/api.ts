@@ -56,6 +56,31 @@ function getReadableApiErrorMessage(error: unknown) {
   return isInternalDetail ? '服务暂时不可用，请稍后重试' : rawMessage;
 }
 
+const AUTH_ENDPOINTS = ['/admins/init', '/admins/need-init', '/admins/login'] as const;
+
+function isAuthEndpointRequest(url: string | undefined) {
+  if (!url) {
+    return false;
+  }
+
+  const requestPath = url.split('?')[0] || '';
+  return AUTH_ENDPOINTS.some((path) => requestPath.endsWith(path));
+}
+
+function shouldRedirectToLogin(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  const status = error.response?.status;
+  const isUnauthorized = status === 403 || status === 401;
+  if (!isUnauthorized) {
+    return false;
+  }
+
+  return window.location.pathname !== '/login' && !isAuthEndpointRequest(error.config?.url);
+}
+
 // 请求拦截器
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -76,11 +101,17 @@ api.interceptors.response.use(
     return response.data;
   },
   (error) => {
-    message.error({
-      content: getReadableApiErrorMessage(error),
-      key: 'api-error',
-    });
-    if (error.response?.status === 403 || error.response?.status === 401) {
+    const shouldHandleLocally =
+      axios.isAxiosError(error) && isAuthEndpointRequest(error.config?.url);
+
+    if (!shouldHandleLocally) {
+      message.error({
+        content: getReadableApiErrorMessage(error),
+        key: 'api-error',
+      });
+    }
+
+    if (shouldRedirectToLogin(error)) {
       removeToken();
       window.location.href = '/login';
     }
