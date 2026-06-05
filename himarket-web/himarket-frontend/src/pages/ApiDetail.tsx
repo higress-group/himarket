@@ -180,7 +180,7 @@ function ApiDetailPage() {
         items={[
           {
             children: apiData.document ? (
-              <div className="min-h-[420px]">
+              <div className="scrollbar-thin-soft max-h-[720px] min-h-[420px] overflow-y-auto pr-2">
                 <MarkdownRender content={apiData.document} />
               </div>
             ) : (

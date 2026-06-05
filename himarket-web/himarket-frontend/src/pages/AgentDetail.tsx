@@ -224,7 +224,7 @@ function AgentDetail() {
         items={[
           {
             children: data?.document ? (
-              <div className="min-h-[420px]">
+              <div className="scrollbar-thin-soft max-h-[720px] min-h-[420px] overflow-y-auto pr-2">
                 <MarkdownRender content={data.document} />
               </div>
             ) : (
