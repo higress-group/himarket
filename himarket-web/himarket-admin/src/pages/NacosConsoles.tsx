@@ -1,7 +1,7 @@
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Button, Modal, Form, Input, message, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { AdminPageHeader } from '@/components/common';
 import { DataTable } from '@/components/common/DataTable';
@@ -47,6 +47,7 @@ export default function NacosConsoles() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const lastAutoFetchKeyRef = useRef('');
 
   const fetchNacosInstances = useCallback(async () => {
     setLoading(true);
@@ -65,8 +66,13 @@ export default function NacosConsoles() {
   }, [currentPage, pageSize]);
 
   useEffect(() => {
+    const key = `${currentPage}-${pageSize}`;
+    if (lastAutoFetchKeyRef.current === key) {
+      return;
+    }
+    lastAutoFetchKeyRef.current = key;
     fetchNacosInstances();
-  }, [fetchNacosInstances]);
+  }, [fetchNacosInstances, currentPage, pageSize]);
 
   const handlePageChange = (page: number, size?: number) => {
     setCurrentPage(page);

@@ -12,7 +12,7 @@ import {
   Skeleton,
   Empty,
 } from 'antd';
-import { useState, useCallback, memo, useEffect } from 'react';
+import { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { AdminPageHeader, StatusIndicator } from '@/components/common';
@@ -210,6 +210,7 @@ export default function Portals() {
     pageSize: 12,
     total: 0,
   });
+  const lastAutoFetchKeyRef = useRef('');
 
   const fetchPortals = useCallback(
     (page = 1, size = 12) => {
@@ -247,6 +248,12 @@ export default function Portals() {
   );
 
   useEffect(() => {
+    const key = '1-12';
+    if (lastAutoFetchKeyRef.current === key) {
+      return;
+    }
+
+    lastAutoFetchKeyRef.current = key;
     setError(null);
     fetchPortals(1, 12);
   }, [fetchPortals]);

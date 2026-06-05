@@ -18,6 +18,7 @@ import {
   type TranslationKey,
 } from '@/i18n';
 import { adminSettingApi, type AdminSettingResult } from '@/lib/api';
+import { ADMIN_AUTH_CHANGED_EVENT, isAuthenticated } from '@/lib/utils';
 
 interface LocaleContextValue {
   locale: Locale;
@@ -30,6 +31,7 @@ interface AdminSettingResponse {
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
+let remoteLocaleRequest: Promise<Locale | null> | null = null;
 
 function getStoredLocale(): Locale {
   if (typeof window === 'undefined') {
@@ -40,33 +42,64 @@ function getStoredLocale(): Locale {
   return isLocale(storedLocale) ? storedLocale : DEFAULT_LOCALE;
 }
 
+function loadRemoteLocale() {
+  if (remoteLocaleRequest) {
+    return remoteLocaleRequest;
+  }
+
+  remoteLocaleRequest = adminSettingApi
+    .getSetting(ADMIN_LOCALE_SETTING_KEY)
+    .then((res: AdminSettingResponse) => {
+      const nextLocale = res.data?.settingValue;
+      return isLocale(nextLocale) ? nextLocale : null;
+    })
+    .catch(() => null)
+    .finally(() => {
+      remoteLocaleRequest = null;
+    });
+
+  return remoteLocaleRequest;
+}
+
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(getStoredLocale);
 
   useEffect(() => {
     let cancelled = false;
 
-    adminSettingApi
-      .getSetting(ADMIN_LOCALE_SETTING_KEY)
-      .then((res: AdminSettingResponse) => {
-        const nextLocale = res.data?.settingValue;
-        if (!cancelled && isLocale(nextLocale)) {
+    const syncRemoteLocale = () => {
+      if (!isAuthenticated()) {
+        return;
+      }
+
+      loadRemoteLocale().then((nextLocale) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (nextLocale) {
           setLocaleState(nextLocale);
           window.localStorage.setItem(ADMIN_LOCALE_STORAGE_KEY, nextLocale);
         }
-      })
-      .catch(() => {
-        // Keep the local/default locale when the cross-device setting cannot be loaded.
       });
+    };
+
+    syncRemoteLocale();
+    window.addEventListener(ADMIN_AUTH_CHANGED_EVENT, syncRemoteLocale);
 
     return () => {
       cancelled = true;
+      window.removeEventListener(ADMIN_AUTH_CHANGED_EVENT, syncRemoteLocale);
     };
   }, []);
 
   const setLocale = useCallback((nextLocale: Locale) => {
     setLocaleState(nextLocale);
     window.localStorage.setItem(ADMIN_LOCALE_STORAGE_KEY, nextLocale);
+    if (!isAuthenticated()) {
+      return;
+    }
+
     adminSettingApi.saveSetting(ADMIN_LOCALE_SETTING_KEY, nextLocale).catch(() => {
       // The global interceptor reports the error; the local preference still applies immediately.
     });

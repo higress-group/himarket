@@ -128,7 +128,9 @@ public class AIGWOperator extends APIGOperator {
 
         String path = resp.getMcpServerPath();
         String exposedUriPath = resp.getExposedUriPath();
-        if (StrUtil.isNotBlank(exposedUriPath)) {
+        boolean protocolCompatible =
+                StrUtil.equalsIgnoreCase(resp.getCreateFromType(), "ApiGatewayProxyMcpHosting");
+        if (!protocolCompatible && StrUtil.isNotBlank(exposedUriPath)) {
             path += exposedUriPath;
         }
         serverConfig.setPath(path);
@@ -153,9 +155,12 @@ public class AIGWOperator extends APIGOperator {
                         .collect(Collectors.toList()));
         mcpConfig.setMcpServerConfig(serverConfig);
 
-        mcpConfig.setProtocol(McpProtocolType.fromString(resp.getProtocol()));
+        mcpConfig.setProtocol(
+                protocolCompatible
+                        ? McpProtocolType.DUAL_HTTP
+                        : McpProtocolType.fromString(resp.getProtocol()));
         mcpConfig.setFromType(
-                StrUtil.equalsIgnoreCase(resp.getProtocol(), "HTTP")
+                !protocolCompatible && StrUtil.equalsIgnoreCase(resp.getProtocol(), "HTTP")
                         ? McpFromType.HTTP_TO_MCP
                         : McpFromType.NATIVE_MCP);
 

@@ -119,6 +119,7 @@ const McpMonitor: React.FC = () => {
   const successRateChartInstance = useRef<echarts.ECharts | null>(null);
   const qpsChartInstance = useRef<echarts.ECharts | null>(null);
   const rtChartInstance = useRef<echarts.ECharts | null>(null);
+  const initialQueryStartedRef = useRef(false);
 
   // 初始化ECharts实例
   useEffect(() => {
@@ -142,6 +143,10 @@ const McpMonitor: React.FC = () => {
 
   // 初始化默认值
   useEffect(() => {
+    if (initialQueryStartedRef.current) {
+      return;
+    }
+    initialQueryStartedRef.current = true;
     const [start, end] = getPresetTimeRange('1w');
     form.setFieldsValue({
       interval: 15,

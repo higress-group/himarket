@@ -8,7 +8,7 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { Button, Space, message, Modal, Tooltip } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DataTable } from '@/components/common/DataTable';
 import { SubscriptionListModal } from '@/components/subscription/SubscriptionListModal';
@@ -50,6 +50,7 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
   // 订阅列表相关状态
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false);
   const [currentConsumer, setCurrentConsumer] = useState<Consumer | null>(null);
+  const lastAutoFetchKeyRef = useRef('');
 
   const { current: page, pageSize } = pagination;
 
@@ -69,8 +70,14 @@ export function PortalDevelopers({ portal }: PortalDevelopersProps) {
   }, [page, pageSize, portal.portalId]);
 
   useEffect(() => {
+    const key = `${portal.portalId}-${page}-${pageSize}`;
+    if (lastAutoFetchKeyRef.current === key) {
+      return;
+    }
+
+    lastAutoFetchKeyRef.current = key;
     fetchDevelopers();
-  }, [fetchDevelopers]);
+  }, [fetchDevelopers, page, pageSize, portal.portalId]);
 
   const handleUpdateDeveloperStatus = (developerId: string, status: string) => {
     portalApi
