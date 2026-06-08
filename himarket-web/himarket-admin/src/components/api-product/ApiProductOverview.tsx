@@ -14,8 +14,7 @@ import { useLocale } from '@/contexts/LocaleContext';
 import { apiProductApi } from '@/lib/api';
 import { getProductCategories } from '@/lib/productCategoryApi';
 import { getServiceName, formatDateTime, copyToClipboard } from '@/lib/utils';
-import type { ApiProduct } from '@/types/api-product';
-import type { LinkedService } from '@/types/api-product';
+import type { ApiProduct, LinkedService } from '@/types/api-product';
 import type { ProductCategory } from '@/types/product-category';
 
 import type { ReactNode } from 'react';
@@ -55,6 +54,19 @@ function renderProductStatus(status: ApiProduct['status'], t: ReturnType<typeof 
     );
   }
   return <StatusIndicator tone="success">{t('product.overview.statusPublished')}</StatusIndicator>;
+}
+
+function getLinkedServiceOverviewName(apiProduct: ApiProduct, linkedService: LinkedService | null) {
+  const serviceName = getServiceName(linkedService);
+  if (serviceName) {
+    return serviceName;
+  }
+
+  if (linkedService?.sourceType === 'API_DEFINITION' || linkedService?.sourceType === 'CUSTOM') {
+    return apiProduct.mcpConfig?.mcpServerName || apiProduct.name;
+  }
+
+  return null;
 }
 
 function InfoItem({
@@ -349,7 +361,10 @@ export function ApiProductOverview({ apiProduct, linkedService, onEdit }: ApiPro
                 state: location.state,
               });
             }}
-            value={getServiceName(linkedService) || t('product.overview.unlinked')}
+            value={
+              getLinkedServiceOverviewName(apiProduct, linkedService) ||
+              t('product.overview.unlinked')
+            }
           />
           <MetricCard
             icon={<TeamOutlined />}
