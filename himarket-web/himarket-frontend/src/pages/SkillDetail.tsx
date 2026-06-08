@@ -31,6 +31,7 @@ import {
   getSkillCliInfo,
 } from '../lib/apis/cliProvider';
 import { getIconString } from '../lib/iconUtils';
+import { buildNacosCliCommand } from '../lib/nacosCliCommand';
 import { parseSkillMd } from '../lib/skillMdUtils';
 import { copyToClipboard } from '../lib/utils';
 
@@ -780,18 +781,17 @@ function SkillDetail() {
                     <button
                       className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
                       onClick={() => {
-                        const quotedName = cliInfo.resourceName.includes(' ')
-                          ? `"${cliInfo.resourceName}"`
-                          : cliInfo.resourceName;
-                        const quotedDir = outputDir.includes(' ') ? `"${outputDir}"` : outputDir;
-                        const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
-                        const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
                         const selectedVersionInfo = versions.find(
                           (v) => v.version === selectedVersion,
                         );
                         const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
-                        const cmd = `npx @nacos-group/cli${hostArg} skill-get ${quotedName} -o ${quotedDir}${versionArg}`;
+                        const cmd = buildNacosCliCommand({
+                          command: 'skill-get',
+                          outputDir,
+                          resourceName: cliInfo.resourceName,
+                          server: cliInfo,
+                          version: isLatest ? undefined : selectedVersion,
+                        });
                         copyToClipboard(cmd).then(() => {
                           setCopied(true);
                           setTimeout(() => setCopied(false), 2000);
@@ -805,14 +805,17 @@ function SkillDetail() {
                       style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
                     >
                       {(() => {
-                        const isDefaultHost = cliInfo.nacosHost === 'market.hiclaw.io';
-                        const hostArg = isDefaultHost ? '' : ` --host ${cliInfo.nacosHost}`;
                         const selectedVersionInfo = versions.find(
                           (v) => v.version === selectedVersion,
                         );
                         const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionArg = isLatest ? '' : ` --version ${selectedVersion}`;
-                        return `npx @nacos-group/cli${hostArg} skill-get ${cliInfo.resourceName.includes(' ') ? `"${cliInfo.resourceName}"` : cliInfo.resourceName} -o ${outputDir.includes(' ') ? `"${outputDir}"` : outputDir}${versionArg}`;
+                        return buildNacosCliCommand({
+                          command: 'skill-get',
+                          outputDir,
+                          resourceName: cliInfo.resourceName,
+                          server: cliInfo,
+                          version: isLatest ? undefined : selectedVersion,
+                        });
                       })()}
                     </code>
                   </div>
