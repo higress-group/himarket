@@ -24,13 +24,18 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpTool;
 import com.alibaba.nacos.api.ai.model.mcp.McpToolSpecification;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * Converter that produces {@link OpenAPIToolsConfig} from Nacos or MCP SDK types.
@@ -88,6 +93,56 @@ public final class OpenAPIToolsConfigConverter {
                         .filter(Objects::nonNull)
                         .collect(Collectors.toList()));
         return config;
+    }
+
+    /**
+     * Convert raw gateway tools config to JSON.
+     *
+     * @param raw raw tools config in JSON or YAML
+     * @return JSON config, or null when the input cannot be parsed
+     */
+    public static String convertRawConfigToJson(String raw) {
+        OpenAPIToolsConfig config = convertFromRawConfig(raw);
+        return config == null ? null : JsonUtil.toJson(config);
+    }
+
+    /**
+     * Convert raw gateway tools config.
+     *
+     * @param raw raw tools config in JSON or YAML
+     * @return tools config, or null when the input cannot be parsed
+     */
+    public static OpenAPIToolsConfig convertFromRawConfig(String raw) {
+        if (StrUtil.isBlank(raw)) {
+            return null;
+        }
+
+        String trimmed = raw.trim();
+        if (trimmed.startsWith("{")) {
+            Map<String, Object> parsed = JsonUtil.parse(trimmed, new TypeReference<>() {});
+            parsed.putIfAbsent("format", "OPEN_API");
+            return JsonUtil.convert(parsed, OpenAPIToolsConfig.class);
+        }
+
+        try {
+            Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+            Object parsed = yaml.load(raw);
+            if (parsed instanceof Map<?, ?> rawMap) {
+                Map<String, Object> config = new LinkedHashMap<>();
+                rawMap.forEach(
+                        (key, value) -> {
+                            if (key != null) {
+                                config.put(String.valueOf(key), value);
+                            }
+                        });
+                config.putIfAbsent("format", "OPEN_API");
+                return JsonUtil.convert(config, OpenAPIToolsConfig.class);
+            }
+            return parsed == null ? null : JsonUtil.convert(parsed, OpenAPIToolsConfig.class);
+        } catch (Exception e) {
+            log.warn("Failed to parse MCP tools config; tools will be omitted: {}", e.getMessage());
+            return null;
+        }
     }
 
     private static OpenAPIToolsConfig.OpenAPITool convertNacosTool(McpTool mcpTool) {

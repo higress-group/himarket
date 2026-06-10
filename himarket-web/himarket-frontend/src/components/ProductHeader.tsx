@@ -62,11 +62,13 @@ interface ProductHeaderProps {
 
 type UnwrapPromise<T> = T extends Promise<infer U> ? U : T;
 
+const hasIconValue = (icon?: IProductIcon): icon is IProductIcon => Boolean(icon?.value?.trim());
+
 // 处理产品图标的函数
 const getIconUrl = (icon?: IProductIcon, defaultIcon?: string): string => {
   const fallback = defaultIcon || '/logo.svg';
 
-  if (!icon) {
+  if (!hasIconValue(icon)) {
     return fallback;
   }
 
@@ -334,7 +336,7 @@ export const ProductHeader = forwardRef<ProductHeaderHandle, ProductHeaderProps>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex min-w-0 items-start gap-4">
-                {(!icon || imageLoadFailed) &&
+                {(!hasIconValue(icon) || imageLoadFailed) &&
                 (productType === 'REST_API' ||
                   productType === 'AGENT_API' ||
                   productType === 'MODEL_API') ? (

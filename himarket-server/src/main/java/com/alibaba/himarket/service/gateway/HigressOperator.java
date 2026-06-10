@@ -52,6 +52,7 @@ import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
@@ -216,7 +217,9 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         m.setMcpServerConfig(c);
 
         // tools
-        m.setTools(higressMCPConfig.getRawConfigurations());
+        m.setTools(
+                OpenAPIToolsConfigConverter.convertRawConfigToJson(
+                        higressMCPConfig.getRawConfigurations()));
 
         m.setFromType(
                 "open_api".equalsIgnoreCase(higressMCPConfig.getType())
