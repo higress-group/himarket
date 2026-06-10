@@ -41,7 +41,7 @@
     "unknown": "Unknown"
   },
   "route": {
-    "title": "API configuration",
+    "title": "Route configuration",
     "unknown": "Unknown route",
     "domain": "Domain",
     "selectDomain": "Select domain",

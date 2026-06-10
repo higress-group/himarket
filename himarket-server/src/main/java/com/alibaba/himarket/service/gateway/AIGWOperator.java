@@ -42,6 +42,7 @@ import com.alibaba.himarket.service.gateway.client.APIGClient;
 import com.alibaba.himarket.support.consumer.APIGAuthConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.*;
+import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
@@ -171,7 +172,8 @@ public class AIGWOperator extends APIGOperator {
         // tools
         String tools = resp.getMcpServerConfig();
         if (StrUtil.isNotBlank(tools)) {
-            mcpConfig.setTools(Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools);
+            String decodedTools = Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools;
+            mcpConfig.setTools(OpenAPIToolsConfigConverter.convertRawConfigToJson(decodedTools));
         }
 
         return JsonUtil.toJson(mcpConfig);

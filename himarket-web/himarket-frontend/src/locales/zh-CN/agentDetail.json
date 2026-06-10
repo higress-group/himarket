@@ -41,7 +41,7 @@
     "unknown": "未知"
   },
   "route": {
-    "title": "API 配置",
+    "title": "路由配置",
     "unknown": "未知路由",
     "domain": "域名",
     "selectDomain": "选择域名",

@@ -441,201 +441,192 @@ function AgentDetail() {
                 )}
 
                 {agentRoutes.length > 0 && (
-                  <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
-                    <div className="border-b border-[#E8EDF5] px-4 py-3 text-sm font-semibold text-gray-950">
+                  <div>
+                    <div className="mb-4 text-sm font-semibold text-gray-900">
                       {t('route.title')}
                     </div>
 
-                    <div className="p-4">
-                      {agentDomainOptions.length > 0 && (
-                        <div className="mb-4">
-                          <div className="flex overflow-hidden rounded-[10px] border border-[#DDE5F0] bg-white">
-                            <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-[#E8EDF5] bg-[#FBFCFE] px-3 py-2 text-xs font-medium text-gray-600">
-                              {t('route.domain')}:
-                            </span>
-                            <div className="flex-1">
-                              <Select
-                                className="w-full"
-                                labelRender={() => (
-                                  <div className="inline-flex max-w-full items-center gap-1.5">
-                                    <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                                      {selectedAgentDomain?.label || t('route.selectDomain')}
-                                    </span>
-                                    <Button
-                                      aria-label={t('route.copyDomain')}
-                                      disabled={!selectedAgentDomain?.label}
-                                      icon={<CopyOutlined />}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        handleCopySelectedAgentDomain();
-                                      }}
-                                      onMouseDown={(event) => event.stopPropagation()}
-                                      size="small"
-                                      title={t('route.copyDomain')}
-                                      type="text"
-                                    />
-                                  </div>
-                                )}
-                                onChange={setSelectedAgentDomainIndex}
-                                optionLabelProp="label"
-                                placeholder={t('route.selectDomain')}
-                                size="middle"
-                                value={selectedAgentDomainIndex}
-                                variant="borderless"
-                              >
-                                {agentDomainOptions.map((option) => (
-                                  <Select.Option
-                                    key={option.value}
-                                    label={option.label}
-                                    value={option.value}
-                                  >
-                                    <span className="font-mono text-sm text-gray-900">
-                                      {option.label}
-                                    </span>
-                                  </Select.Option>
-                                ))}
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
-                        <Collapse expandIconPosition="end" ghost>
-                          {agentRoutes.map((route, index) => (
-                            <Panel
-                              className={
-                                index < agentRoutes.length - 1 ? 'border-b border-[#EEF2F7]' : ''
-                              }
-                              header={
-                                <div className="flex items-center justify-between py-2">
-                                  <div className="flex-1">
-                                    <div className="mb-1 font-mono text-sm font-medium text-blue-600">
-                                      {getRouteDisplayText(route, selectedAgentDomainIndex)}
-                                      {route.builtin && (
-                                        <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                                          {t('route.default')}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {t('route.method')}:{' '}
-                                      <span className="font-medium text-gray-700">
-                                        {getMethodsText(route)}
-                                      </span>
-                                    </div>
-                                  </div>
+                    {agentDomainOptions.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex overflow-hidden rounded-[10px] border border-[#DDE5F0] bg-white">
+                          <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-[#E8EDF5] bg-[#FBFCFE] px-3 py-2 text-xs font-medium text-gray-600">
+                            {t('route.domain')}:
+                          </span>
+                          <div className="flex-1">
+                            <Select
+                              className="w-full"
+                              labelRender={() => (
+                                <div className="inline-flex max-w-full items-center gap-1.5">
+                                  <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                                    {selectedAgentDomain?.label || t('route.selectDomain')}
+                                  </span>
                                   <Button
-                                    className="ml-2"
+                                    aria-label={t('route.copyDomain')}
+                                    disabled={!selectedAgentDomain?.label}
                                     icon={<CopyOutlined />}
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      if (
-                                        allUniqueDomains.length > 0 &&
-                                        allUniqueDomains.length > selectedAgentDomainIndex
-                                      ) {
-                                        const selectedDomain =
-                                          allUniqueDomains[selectedAgentDomainIndex];
-                                        if (selectedDomain) {
-                                          const fullUrl = getRouteEndpoint(
-                                            route,
-                                            selectedAgentDomainIndex,
-                                          );
-                                          copyToClipboard(fullUrl).then(() => {
-                                            message.success(t('message.linkCopied'));
-                                          });
-                                        }
-                                      } else if (route.domains && route.domains.length > 0) {
-                                        const domain = route.domains[0];
-                                        if (domain) {
-                                          const path = route.match?.path?.value || '/';
-                                          const formattedDomain = formatDomainWithPort(
-                                            domain.domain,
-                                            domain.port,
-                                            domain.protocol,
-                                          );
-                                          const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
-                                          copyToClipboard(fullUrl).then(() => {
-                                            message.success(t('message.linkCopied'));
-                                          });
-                                        }
-                                      }
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleCopySelectedAgentDomain();
                                     }}
+                                    onMouseDown={(event) => event.stopPropagation()}
                                     size="small"
+                                    title={t('route.copyDomain')}
                                     type="text"
                                   />
                                 </div>
-                              }
-                              key={index}
+                              )}
+                              onChange={setSelectedAgentDomainIndex}
+                              optionLabelProp="label"
+                              placeholder={t('route.selectDomain')}
+                              size="middle"
+                              value={selectedAgentDomainIndex}
+                              variant="borderless"
                             >
-                              <div className="space-y-4 pb-4 pl-4">
-                                {/* 匹配规则 */}
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <div className="mb-1 text-xs text-gray-500">
-                                      {t('route.path')}:
-                                    </div>
-                                    <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
-                                      {getMatchTypePrefix(route.match?.path?.type)}{' '}
-                                      {route.match?.path?.value}
-                                    </div>
+                              {agentDomainOptions.map((option) => (
+                                <Select.Option
+                                  key={option.value}
+                                  label={option.label}
+                                  value={option.value}
+                                >
+                                  <span className="font-mono text-xs text-gray-900">
+                                    {option.label}
+                                  </span>
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
+                      <Collapse expandIconPosition="end" ghost>
+                        {agentRoutes.map((route, index) => (
+                          <Panel
+                            className={
+                              index < agentRoutes.length - 1 ? 'border-b border-gray-100' : ''
+                            }
+                            header={
+                              <div className="flex items-center justify-between py-2">
+                                <div className="flex-1">
+                                  <div className="mb-1 font-mono text-sm font-medium text-blue-600">
+                                    {getRouteDisplayText(route, selectedAgentDomainIndex)}
+                                    {route.builtin && (
+                                      <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                                        {t('route.default')}
+                                      </span>
+                                    )}
                                   </div>
-                                  <div>
-                                    <div className="mb-1 text-xs text-gray-500">
-                                      {t('route.method')}:
-                                    </div>
-                                    <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
-                                      {route.match?.methods
-                                        ? route.match.methods.join(', ')
-                                        : 'ANY'}
-                                    </div>
+                                  <div className="text-xs text-gray-500">
+                                    {t('route.method')}:{' '}
+                                    <span className="font-medium text-gray-700">
+                                      {getMethodsText(route)}
+                                    </span>
                                   </div>
                                 </div>
-
-                                {/* 请求头匹配 */}
-                                {route.match?.headers && route.match.headers.length > 0 && (
-                                  <div>
-                                    <div className="mb-2 text-xs text-gray-500">
-                                      {t('route.headerMatch')}:
-                                    </div>
-                                    <div className="space-y-1">
-                                      {route.match.headers.map((header, headerIndex: number) => (
-                                        <div
-                                          className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm"
-                                          key={headerIndex}
-                                        >
-                                          {header.name} {getMatchTypePrefix(header.type)}{' '}
-                                          {header.value}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* 查询参数匹配 */}
-                                {route.match?.queryParams && route.match.queryParams.length > 0 && (
-                                  <div>
-                                    <div className="mb-2 text-xs text-gray-500">
-                                      {t('route.queryParamMatch')}:
-                                    </div>
-                                    <div className="space-y-1">
-                                      {route.match.queryParams.map((param, paramIndex: number) => (
-                                        <div
-                                          className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm"
-                                          key={paramIndex}
-                                        >
-                                          {param.name} {getMatchTypePrefix(param.type)}{' '}
-                                          {param.value}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                <Button
+                                  icon={<CopyOutlined />}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (
+                                      allUniqueDomains.length > 0 &&
+                                      allUniqueDomains.length > selectedAgentDomainIndex
+                                    ) {
+                                      const selectedDomain =
+                                        allUniqueDomains[selectedAgentDomainIndex];
+                                      if (selectedDomain) {
+                                        const fullUrl = getRouteEndpoint(
+                                          route,
+                                          selectedAgentDomainIndex,
+                                        );
+                                        copyToClipboard(fullUrl).then(() => {
+                                          message.success(t('message.linkCopied'));
+                                        });
+                                      }
+                                    } else if (route.domains && route.domains.length > 0) {
+                                      const domain = route.domains[0];
+                                      if (domain) {
+                                        const path = route.match?.path?.value || '/';
+                                        const formattedDomain = formatDomainWithPort(
+                                          domain.domain,
+                                          domain.port,
+                                          domain.protocol,
+                                        );
+                                        const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+                                        copyToClipboard(fullUrl).then(() => {
+                                          message.success(t('message.linkCopied'));
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  size="small"
+                                  type="text"
+                                />
                               </div>
-                            </Panel>
-                          ))}
-                        </Collapse>
-                      </div>
+                            }
+                            key={index}
+                          >
+                            <div className="space-y-4 pb-4 pl-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <div className="mb-1 text-xs text-gray-500">
+                                    {t('route.path')}:
+                                  </div>
+                                  <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
+                                    {getMatchTypePrefix(route.match?.path?.type)}{' '}
+                                    {route.match?.path?.value}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="mb-1 text-xs text-gray-500">
+                                    {t('route.method')}:
+                                  </div>
+                                  <div className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm">
+                                    {getMethodsText(route)}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {route.match?.headers && route.match.headers.length > 0 && (
+                                <div>
+                                  <div className="mb-2 text-xs text-gray-500">
+                                    {t('route.headerMatch')}:
+                                  </div>
+                                  <div className="space-y-1">
+                                    {route.match.headers.map((header, headerIndex: number) => (
+                                      <div
+                                        className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm"
+                                        key={headerIndex}
+                                      >
+                                        {header.name} {getMatchTypePrefix(header.type)}{' '}
+                                        {header.value}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                                <div>
+                                  <div className="mb-2 text-xs text-gray-500">
+                                    {t('route.queryParamMatch')}:
+                                  </div>
+                                  <div className="space-y-1">
+                                    {route.match.queryParams.map((param, paramIndex: number) => (
+                                      <div
+                                        className="rounded-lg bg-gray-50 px-3 py-2 font-mono text-sm"
+                                        key={paramIndex}
+                                      >
+                                        {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </Panel>
+                        ))}
+                      </Collapse>
                     </div>
                   </div>
                 )}
