@@ -1,19 +1,21 @@
 package com.alibaba.himarket.dto.params.product;
 
+import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.enums.SourceType;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
 public class UpdateProductSourceParam {
 
-    @NotNull(message = "Source type cannot be null")
     private SourceType sourceType;
 
-    @NotBlank(message = "NacosId cannot be blank")
+    private SkillRegistryType registryType;
+
     private String nacosId;
 
-    @NotBlank(message = "Namespace cannot be blank")
+    @JsonProperty("airegistryId")
+    private String aiRegistryId;
+
     private String namespace;
 }

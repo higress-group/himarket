@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 
 import { ImportResultModal, type ImportResultFailure } from '@/components/common/ImportResultModal';
 import { useLocale } from '@/contexts/LocaleContext';
-import { apiProductApi, gatewayApi, nacosApi } from '@/lib/api';
-import type { Gateway } from '@/types/gateway';
+import { airegistryApi, apiProductApi, gatewayApi, nacosApi } from '@/lib/api';
+import type { AiRegistryInstance, Gateway } from '@/types/gateway';
 
 import type { TableColumnsType } from 'antd';
 
@@ -13,7 +13,7 @@ interface ImportProductsModalProps {
   visible: boolean;
   onCancel: () => void;
   onSuccess: () => void;
-  productType: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API';
+  productType: 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL';
   importSource?: ImportSource;
 }
 
@@ -31,6 +31,7 @@ interface ServiceItem {
   // Nacos fields
   mcpServerName?: string;
   agentName?: string;
+  skillName?: string;
   namespaceId?: string;
 }
 
@@ -50,8 +51,8 @@ interface ImportResultState {
   failures: ImportResultFailure[];
 }
 
-type ImportSource = 'GATEWAY' | 'NACOS';
-type SourceType = 'API_GATEWAY' | 'HIGRESS' | 'AI_GATEWAY' | 'NACOS';
+type ImportSource = 'GATEWAY' | 'NACOS' | 'AIREGISTRY';
+type SourceType = 'API_GATEWAY' | 'HIGRESS' | 'AI_GATEWAY' | 'NACOS' | 'AIREGISTRY';
 
 const PRODUCT_TYPE_LABELS: Record<string, string> = {
   AGENT_API: 'Agent API',
@@ -80,6 +81,7 @@ export default function ImportProductsModal({
   const [nacosInstances, setNacosInstances] = useState<
     Array<{ nacosId: string; nacosName: string }>
   >([]);
+  const [aiRegistryInstances, setAiRegistryInstances] = useState<AiRegistryInstance[]>([]);
   const [namespaces, setNamespaces] = useState<unknown[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedServiceKeys, setSelectedServiceKeys] = useState<string[]>([]);
@@ -91,6 +93,7 @@ export default function ImportProductsModal({
   const pageSize = 500;
   const sourceTypeLabels: Record<SourceType, string> = {
     AI_GATEWAY: t('product.import.source.aiGateway'),
+    AIREGISTRY: t('product.import.source.airegistry'),
     API_GATEWAY: t('product.import.source.apiGateway'),
     HIGRESS: t('product.import.source.higress'),
     NACOS: t('product.import.source.nacos'),
@@ -106,7 +109,10 @@ export default function ImportProductsModal({
     (productType === 'MODEL_API' || productType === 'MCP_SERVER' || productType === 'AGENT_API');
 
   const supportsNacos =
-    importSource !== 'GATEWAY' && (productType === 'MCP_SERVER' || productType === 'AGENT_API');
+    importSource !== 'GATEWAY' &&
+    (productType === 'MCP_SERVER' || productType === 'AGENT_API' || productType === 'AGENT_SKILL');
+
+  const supportsAiRegistry = importSource !== 'GATEWAY' && productType === 'AGENT_SKILL';
 
   const gatewaySourceTypes: SourceType[] = [
     ...(supportsApiGateway ? (['API_GATEWAY'] as const) : []),
@@ -119,7 +125,13 @@ export default function ImportProductsModal({
       ? gatewaySourceTypes
       : importSource === 'NACOS'
         ? ['NACOS']
-        : [...gatewaySourceTypes, ...(supportsNacos ? (['NACOS'] as const) : [])];
+        : importSource === 'AIREGISTRY'
+          ? ['AIREGISTRY']
+          : [
+              ...gatewaySourceTypes,
+              ...(supportsNacos ? (['NACOS'] as const) : []),
+              ...(supportsAiRegistry ? (['AIREGISTRY'] as const) : []),
+            ];
 
   const showSourceTypeSelector =
     !importSource || (importSource === 'GATEWAY' && gatewaySourceTypes.length > 1);
@@ -131,7 +143,9 @@ export default function ImportProductsModal({
       ? t('product.import.gatewaySourceTitle', { type: productTypeLabel })
       : importSource === 'NACOS'
         ? t('product.import.nacosSourceTitle', { type: productTypeLabel })
-        : t('product.import.title', { type: productTypeLabel });
+        : importSource === 'AIREGISTRY'
+          ? t('product.import.airegistrySourceTitle', { type: productTypeLabel })
+          : t('product.import.title', { type: productTypeLabel });
 
   const getDefaultSourceType = () => sourceTypeOptions[0] ?? 'API_GATEWAY';
 
@@ -208,6 +222,21 @@ export default function ImportProductsModal({
     }
   };
 
+  const fetchAiRegistryInstances = async () => {
+    try {
+      const res = await airegistryApi.list({ page: 1, size: 100 });
+      setAiRegistryInstances(res.data?.content || []);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      message.error(
+        t('product.import.fetchAiRegistryFailed', {
+          message: err.response?.data?.message || err.message || t('common.unknown'),
+        }),
+      );
+      setAiRegistryInstances([]);
+    }
+  };
+
   const fetchNamespaces = async (nacosId: string) => {
     try {
       const res = await nacosApi.getNamespaces(nacosId, { page: 1, size: 100 });
@@ -219,6 +248,7 @@ export default function ImportProductsModal({
       });
       if (publicNs) {
         form.setFieldValue('namespaceId', 'public');
+        fetchServices({ nacosId, namespaceId: 'public' });
       }
     } catch (_error) {
       message.error(t('product.import.fetchNamespacesFailed'));
@@ -226,8 +256,15 @@ export default function ImportProductsModal({
     }
   };
 
-  const fetchServices = async () => {
-    const values = form.getFieldsValue();
+  const fetchServices = async (
+    overrides: Partial<{
+      airegistryId: string;
+      gatewayId: string;
+      nacosId: string;
+      namespaceId: string;
+    }> = {},
+  ) => {
+    const values = { ...form.getFieldsValue(), ...overrides };
 
     if (isGatewaySource && !values.gatewayId) {
       message.warning(t('product.import.selectGatewayFirst'));
@@ -236,6 +273,11 @@ export default function ImportProductsModal({
 
     if (sourceType === 'NACOS' && (!values.nacosId || !values.namespaceId)) {
       message.warning(t('product.import.selectNacosNamespaceFirst'));
+      return;
+    }
+
+    if (sourceType === 'AIREGISTRY' && (!values.airegistryId || !values.namespaceId)) {
+      message.warning(t('product.import.selectAiRegistryNamespaceFirst'));
       return;
     }
 
@@ -329,7 +371,7 @@ export default function ImportProductsModal({
             message.error(t('product.import.unsupportedGatewayImport'));
             setServices([]);
         }
-      } else {
+      } else if (sourceType === 'NACOS') {
         if (productType === 'MCP_SERVER') {
           res = await nacosApi.getNacosMcpServers(values.nacosId, {
             namespaceId: values.namespaceId,
@@ -370,6 +412,46 @@ export default function ImportProductsModal({
             });
             setServices(items);
           }
+        } else if (productType === 'AGENT_SKILL') {
+          res = await nacosApi.getNacosSkills(values.nacosId, {
+            namespaceId: values.namespaceId,
+            page: 1,
+            size: pageSize,
+          });
+          {
+            const responseData = res as { data?: { content?: unknown[] } };
+            const items = (responseData.data?.content || []).map((item: unknown) => {
+              const it = item as Record<string, string>;
+              return {
+                description: it.description,
+                key: it.name || '',
+                name: it.name || '',
+                namespaceId: values.namespaceId,
+                skillName: it.name,
+              };
+            });
+            setServices(items);
+          }
+        }
+      } else if (sourceType === 'AIREGISTRY' && productType === 'AGENT_SKILL') {
+        res = await airegistryApi.getSkills(values.airegistryId, {
+          namespaceId: values.namespaceId,
+          page: 1,
+          size: pageSize,
+        });
+        {
+          const responseData = res as { data?: { content?: unknown[] } };
+          const items = (responseData.data?.content || []).map((item: unknown) => {
+            const it = item as Record<string, string>;
+            return {
+              description: it.description,
+              key: it.name || '',
+              name: it.name || '',
+              namespaceId: values.namespaceId,
+              skillName: it.name,
+            };
+          });
+          setServices(items);
         }
       }
     } catch (error: unknown) {
@@ -387,8 +469,11 @@ export default function ImportProductsModal({
       if (importSource !== 'NACOS') {
         fetchGateways();
       }
-      if (importSource !== 'GATEWAY') {
+      if (!importSource || importSource === 'NACOS') {
         fetchNacosInstances();
+      }
+      if (importSource !== 'GATEWAY' && supportsAiRegistry) {
+        fetchAiRegistryInstances();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -396,12 +481,25 @@ export default function ImportProductsModal({
 
   const handleSourceTypeChange = (value: SourceType) => {
     setSourceType(value);
-    form.resetFields(['gatewayId', 'nacosId', 'namespaceId']);
+    form.resetFields(['gatewayId', 'nacosId', 'airegistryId', 'namespaceId']);
     setServices([]);
     setSelectedServiceKeys([]);
     setNamespaces([]);
     setSearchText('');
     setCurrentPage(1);
+  };
+
+  const handleAiRegistryChange = (airegistryId: string) => {
+    const instance = aiRegistryInstances.find((item) => item.airegistryId === airegistryId);
+    const namespaceId = instance?.namespaceId;
+    form.setFieldValue('namespaceId', namespaceId);
+    setServices([]);
+    setSelectedServiceKeys([]);
+    setSearchText('');
+    setCurrentPage(1);
+    if (namespaceId) {
+      fetchServices({ airegistryId, namespaceId });
+    }
   };
 
   const handleNacosChange = (nacosId: string) => {
@@ -422,6 +520,7 @@ export default function ImportProductsModal({
     service.modelRouteName ||
     service.mcpServerName ||
     service.agentName ||
+    service.skillName ||
     service.name;
 
   const handleImport = async () => {
@@ -437,7 +536,8 @@ export default function ImportProductsModal({
       const selectedServices = services.filter((s) => selectedServiceKeys.includes(s.key));
 
       setLoading(true);
-      const requestSource: ImportSource = sourceType === 'NACOS' ? 'NACOS' : 'GATEWAY';
+      const requestSource: ImportSource =
+        sourceType === 'NACOS' ? 'NACOS' : sourceType === 'AIREGISTRY' ? 'AIREGISTRY' : 'GATEWAY';
       const res = await apiProductApi.importProducts({
         items: selectedServices.map((service) => ({
           description: service.description,
@@ -449,7 +549,9 @@ export default function ImportProductsModal({
         sourceConfig:
           requestSource === 'NACOS'
             ? { instanceId: values.nacosId, namespace: values.namespaceId }
-            : { instanceId: values.gatewayId },
+            : requestSource === 'AIREGISTRY'
+              ? { instanceId: values.airegistryId, namespace: values.namespaceId }
+              : { instanceId: values.gatewayId },
       });
 
       const result = (res as { data?: ImportResult }).data ?? (res as ImportResult);
@@ -538,7 +640,7 @@ export default function ImportProductsModal({
               rules={[{ message: t('product.import.selectGateway'), required: true }]}
             >
               <Select
-                onChange={fetchServices}
+                onChange={(gatewayId) => fetchServices({ gatewayId })}
                 optionFilterProp="children"
                 placeholder={t('product.import.selectGateway')}
                 showSearch
@@ -559,7 +661,7 @@ export default function ImportProductsModal({
               rules={[{ message: t('product.import.selectHigressGateway'), required: true }]}
             >
               <Select
-                onChange={fetchServices}
+                onChange={(gatewayId) => fetchServices({ gatewayId })}
                 optionFilterProp="children"
                 placeholder={t('product.import.selectHigressGateway')}
                 showSearch
@@ -580,7 +682,7 @@ export default function ImportProductsModal({
               rules={[{ message: t('product.import.selectAiGateway'), required: true }]}
             >
               <Select
-                onChange={fetchServices}
+                onChange={(gatewayId) => fetchServices({ gatewayId })}
                 optionFilterProp="children"
                 placeholder={t('product.import.selectAiGateway')}
                 showSearch
@@ -626,7 +728,7 @@ export default function ImportProductsModal({
                 rules={[{ message: t('product.import.selectNamespace'), required: true }]}
               >
                 <Select
-                  onChange={fetchServices}
+                  onChange={(namespaceId) => fetchServices({ namespaceId })}
                   optionFilterProp="children"
                   placeholder={t('product.import.selectNamespace')}
                   showSearch
@@ -643,6 +745,45 @@ export default function ImportProductsModal({
               </Form.Item>
             </>
           )}
+
+          {sourceType === 'AIREGISTRY' && (
+            <>
+              <Form.Item
+                label={t('product.import.selectAiRegistry')}
+                name="airegistryId"
+                rules={[{ message: t('product.import.selectAiRegistry'), required: true }]}
+              >
+                <Select
+                  notFoundContent={t('product.import.noAiRegistry')}
+                  onChange={handleAiRegistryChange}
+                  optionFilterProp="children"
+                  placeholder={
+                    aiRegistryInstances.length === 0
+                      ? t('product.import.noAiRegistryCreateFirst')
+                      : t('product.import.selectAiRegistry')
+                  }
+                  showSearch
+                >
+                  {aiRegistryInstances.map((item) => (
+                    <Select.Option key={item.airegistryId} value={item.airegistryId}>
+                      {item.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                label={t('product.import.namespaceId')}
+                name="namespaceId"
+                rules={[{ message: t('product.import.namespaceIdRequired'), required: true }]}
+              >
+                <Input
+                  onBlur={() => fetchServices()}
+                  placeholder={t('product.import.namespaceIdPlaceholder')}
+                />
+              </Form.Item>
+            </>
+          )}
         </Form>
 
         <div className="mt-4">
@@ -656,7 +797,7 @@ export default function ImportProductsModal({
                 style={{ width: 160 }}
                 value={searchText}
               />
-              <Button icon={<ReloadOutlined />} onClick={fetchServices} size="small" />
+              <Button icon={<ReloadOutlined />} onClick={() => fetchServices()} size="small" />
             </Space>
             <div className="flex items-center gap-2">
               <Button onClick={handleSelectAll} size="small">

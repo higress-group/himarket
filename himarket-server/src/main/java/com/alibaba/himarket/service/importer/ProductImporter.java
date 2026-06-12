@@ -32,6 +32,7 @@ import com.alibaba.himarket.dto.result.product.ImportProductsResult;
 import com.alibaba.himarket.dto.result.product.ProductImportResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
+import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.ApiDefinitionService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.ProductService;
@@ -47,6 +48,7 @@ import com.alibaba.himarket.support.enums.McpFromType;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.support.enums.ProductType;
+import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.*;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -66,6 +68,8 @@ public class ProductImporter {
     private final GatewayService gatewayService;
 
     private final ApiDefinitionService apiDefinitionService;
+
+    private final AiRegistryService aiRegistryService;
 
     private final VendorAdapterRegistry vendorAdapterRegistry;
 
@@ -90,6 +94,7 @@ public class ProductImporter {
                 switch (param.getSource()) {
                     case GATEWAY -> importFromGateway(productType, sourceConfig, item);
                     case NACOS -> importFromNacos(productType, sourceConfig, item);
+                    case AIREGISTRY -> importFromAiRegistry(productType, sourceConfig, item);
                     case EXTERNAL -> importFromExternal(productType, sourceConfig, item);
                 }
                 result.setSuccessCount(result.getSuccessCount() + 1);
@@ -255,6 +260,21 @@ public class ProductImporter {
             ProductType productType,
             ProductImportSourceConfigParam sourceConfig,
             ProductImportItemParam item) {
+        if (productType == ProductType.AGENT_SKILL) {
+            NacosImportConfigParam nacosSourceConfig = (NacosImportConfigParam) sourceConfig;
+            productService.createProduct(
+                    buildSkillProductParam(
+                            productType,
+                            item,
+                            SkillConfig.builder()
+                                    .registryType(SkillRegistryType.NACOS)
+                                    .nacosId(nacosSourceConfig.getInstanceId())
+                                    .namespace(nacosSourceConfig.getNamespace())
+                                    .skillName(item.getResourceName())
+                                    .build()));
+            return;
+        }
+
         CreateProductParam createProductParam = buildCreateProductParam(productType, item);
         ProductResult product = productService.createProduct(createProductParam);
         try {
@@ -301,6 +321,30 @@ public class ProductImporter {
                             ErrorCode.INVALID_REQUEST, "Unsupported product type for Nacos import");
         }
         return nacosRefConfig;
+    }
+
+    private void importFromAiRegistry(
+            ProductType productType,
+            ProductImportSourceConfigParam sourceConfig,
+            ProductImportItemParam item) {
+        if (productType != ProductType.AGENT_SKILL) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "AIRegistry import only supports Agent Skill products");
+        }
+
+        AiRegistryImportConfigParam aiRegistryConfig = (AiRegistryImportConfigParam) sourceConfig;
+        aiRegistryService.getAiRegistryInstance(aiRegistryConfig.getInstanceId());
+        productService.createProduct(
+                buildSkillProductParam(
+                        productType,
+                        item,
+                        SkillConfig.builder()
+                                .registryType(SkillRegistryType.AIREGISTRY)
+                                .aiRegistryId(aiRegistryConfig.getInstanceId())
+                                .namespace(aiRegistryConfig.getNamespace())
+                                .skillName(item.getResourceName())
+                                .build()));
     }
 
     /**
@@ -429,6 +473,17 @@ public class ProductImporter {
                 .description(item.getDescription())
                 .type(productType)
                 .autoApprove(true)
+                .build();
+    }
+
+    private CreateProductParam buildSkillProductParam(
+            ProductType productType, ProductImportItemParam item, SkillConfig skillConfig) {
+        return CreateProductParam.builder()
+                .name(item.getResourceName())
+                .description(item.getDescription())
+                .type(productType)
+                .autoApprove(true)
+                .feature(ProductFeature.builder().skillConfig(skillConfig).build())
                 .build();
     }
 }

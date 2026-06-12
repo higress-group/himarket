@@ -106,6 +106,25 @@ export interface UpdateNacosRequest {
   [key: string]: unknown;
 }
 
+export interface GetAiRegistryParams {
+  page?: number;
+  size?: number;
+  [key: string]: unknown;
+}
+
+export interface CreateAiRegistryRequest {
+  accessKeyId: string;
+  accessKeySecret: string;
+  name: string;
+  namespaceId: string;
+  regionId: string;
+  [key: string]: unknown;
+}
+
+export interface UpdateAiRegistryRequest {
+  [key: string]: unknown;
+}
+
 export interface GetNacosMcpServersParams {
   page?: number;
   size?: number;

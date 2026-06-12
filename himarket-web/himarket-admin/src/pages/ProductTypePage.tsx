@@ -15,9 +15,10 @@ import type { NacosInstance } from '@/types/gateway';
 import type { MenuProps } from 'antd';
 
 type ProductType = 'MODEL_API' | 'MCP_SERVER' | 'AGENT_SKILL' | 'WORKER' | 'AGENT_API' | 'REST_API';
-type StandardImportSource = 'GATEWAY' | 'NACOS';
+type StandardImportSource = 'GATEWAY' | 'NACOS' | 'AIREGISTRY';
 type ImportMenuItems = NonNullable<MenuProps['items']>;
 type ImportMenuLabels = {
+  fromAiRegistry: string;
   fromGateway: string;
   fromNacos: string;
   fromThirdPartyMarket: string;
@@ -50,6 +51,11 @@ function getImportMenuItems(productType: ProductType, labels: ImportMenuLabels):
         { key: 'GATEWAY', label: labels.fromGateway },
         { key: 'NACOS', label: labels.fromNacos },
       ];
+    case 'AGENT_SKILL':
+      return [
+        { key: 'NACOS', label: labels.fromNacos },
+        { key: 'AIREGISTRY', label: labels.fromAiRegistry },
+      ];
     case 'MODEL_API':
     case 'REST_API':
       return [{ key: 'GATEWAY', label: labels.fromGateway }];
@@ -69,10 +75,11 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
   const [mcpImportOpen, setMcpImportOpen] = useState(false);
   const lastDefaultNacosFetchKeyRef = useRef('');
 
-  const showNacosImport = productType === 'AGENT_SKILL' || productType === 'WORKER';
-  const showImportMenu = productType !== 'AGENT_SKILL' && productType !== 'WORKER';
+  const showNacosImport = productType === 'WORKER';
+  const showImportMenu = productType !== 'WORKER';
   const isMcpServer = productType === 'MCP_SERVER';
   const importMenuItems = getImportMenuItems(productType, {
+    fromAiRegistry: t('product.import.fromAiRegistry'),
     fromGateway: t('product.import.fromGateway'),
     fromNacos: t('product.import.fromNacos'),
     fromThirdPartyMarket: t('product.import.fromThirdPartyMarket'),
@@ -239,7 +246,9 @@ const ProductTypePage: React.FC<ProductTypePageProps> = ({ productType }) => {
           setImportSource(null);
           tableRef.current?.refresh();
         }}
-        productType={productType as 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API'}
+        productType={
+          productType as 'REST_API' | 'MCP_SERVER' | 'AGENT_API' | 'MODEL_API' | 'AGENT_SKILL'
+        }
         visible={importModalVisible}
       />
     </div>

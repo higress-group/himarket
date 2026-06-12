@@ -59,4 +59,34 @@ class ImportProductsParamTest {
                 assertInstanceOf(ExternalImportConfigParam.class, param.getSourceConfig());
         assertEquals("MODELSCOPE", sourceConfig.getProvider());
     }
+
+    @Test
+    void shouldDeserializeAiRegistrySourceConfigByImportSource() throws Exception {
+        String json =
+                """
+                {
+                  "items": [
+                    {
+                      "description": "Code review skill",
+                      "resourceName": "code-review"
+                    }
+                  ],
+                  "productType": "AGENT_SKILL",
+                  "source": "AIREGISTRY",
+                  "sourceConfig": {
+                    "instanceId": "airegistry-xxx",
+                    "namespace": "default"
+                  }
+                }
+                """;
+
+        ImportProductsParam param = objectMapper.readValue(json, ImportProductsParam.class);
+
+        assertEquals(ProductImportSource.AIREGISTRY, param.getSource());
+        assertEquals(ProductType.AGENT_SKILL, param.getProductType());
+        AiRegistryImportConfigParam sourceConfig =
+                assertInstanceOf(AiRegistryImportConfigParam.class, param.getSourceConfig());
+        assertEquals("airegistry-xxx", sourceConfig.getInstanceId());
+        assertEquals("default", sourceConfig.getNamespace());
+    }
 }

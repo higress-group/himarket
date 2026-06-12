@@ -128,6 +128,12 @@ const Layout: React.FC = () => {
           name: t('nav.nacosInstances'),
         },
         {
+          href: '/consoles/airegistry',
+          icon: GlobalOutlined,
+          key: 'airegistry-instances',
+          name: t('nav.airegistryInstances'),
+        },
+        {
           href: '/consoles/sandbox',
           icon: CodeSandboxOutlined,
           key: 'sandbox-instances',

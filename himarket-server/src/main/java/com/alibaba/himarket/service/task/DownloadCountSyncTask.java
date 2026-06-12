@@ -3,8 +3,10 @@ package com.alibaba.himarket.service.task;
 import cn.hutool.core.collection.CollUtil;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
+import com.alibaba.himarket.service.AiRegistrySkillService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.support.enums.ProductType;
+import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.himarket.support.product.WorkerConfig;
 import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecSummary;
@@ -33,6 +35,7 @@ public class DownloadCountSyncTask {
 
     private final ProductRepository productRepository;
     private final NacosService nacosService;
+    private final AiRegistrySkillService aiRegistrySkillService;
 
     @Scheduled(fixedRate = 300_000)
     public void syncDownloadCounts() {
@@ -45,33 +48,63 @@ public class DownloadCountSyncTask {
     }
 
     private void syncSkillDownloadCounts() {
-        List<Product> products =
-                productRepository.findAllByType(ProductType.AGENT_SKILL).stream()
+        List<Product> skillProducts = productRepository.findAllByType(ProductType.AGENT_SKILL);
+        List<Product> nacosProducts =
+                skillProducts.stream()
                         .filter(
                                 p ->
                                         p.getFeature() != null
                                                 && p.getFeature().getSkillConfig() != null
-                                                && p.getFeature().getSkillConfig().getNacosId()
-                                                        != null)
+                                                && isNacosSkillConfig(
+                                                        p.getFeature().getSkillConfig()))
                         .toList();
 
-        if (products.isEmpty()) {
-            return;
+        if (!nacosProducts.isEmpty()) {
+            nacosProducts.stream()
+                    .collect(
+                            Collectors.groupingBy(
+                                    p -> {
+                                        SkillConfig c = p.getFeature().getSkillConfig();
+                                        return c.getNacosId() + ":" + c.getNamespace();
+                                    }))
+                    .forEach(
+                            (key, group) -> {
+                                Product first = group.get(0);
+                                SkillConfig config = first.getFeature().getSkillConfig();
+                                syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
+                            });
         }
 
-        products.stream()
+        skillProducts.stream()
+                .filter(
+                        p ->
+                                p.getFeature() != null
+                                        && p.getFeature().getSkillConfig() != null
+                                        && isAiRegistrySkillConfig(p.getFeature().getSkillConfig()))
                 .collect(
                         Collectors.groupingBy(
                                 p -> {
                                     SkillConfig c = p.getFeature().getSkillConfig();
-                                    return c.getNacosId() + ":" + c.getNamespace();
+                                    return c.getAiRegistryId() + ":" + c.getNamespace();
                                 }))
                 .forEach(
                         (key, group) -> {
                             Product first = group.get(0);
                             SkillConfig config = first.getFeature().getSkillConfig();
-                            syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
+                            syncAiRegistrySkillGroup(
+                                    config.getAiRegistryId(), config.getNamespace(), group);
                         });
+    }
+
+    private boolean isNacosSkillConfig(SkillConfig config) {
+        SkillRegistryType registryType = config.getRegistryType();
+        return (registryType == null || registryType == SkillRegistryType.NACOS)
+                && config.getNacosId() != null;
+    }
+
+    private boolean isAiRegistrySkillConfig(SkillConfig config) {
+        return config.getRegistryType() == SkillRegistryType.AIREGISTRY
+                && config.getAiRegistryId() != null;
     }
 
     private void syncWorkerDownloadCounts() {
@@ -153,6 +186,42 @@ public class DownloadCountSyncTask {
             log.warn(
                     "Failed to sync download counts for skill products from Nacos {}: {}",
                     nacosId,
+                    e.getMessage());
+        }
+    }
+
+    private void syncAiRegistrySkillGroup(
+            String aiRegistryId, String namespace, List<Product> products) {
+        try {
+            Map<String, Long> downloadCountMap =
+                    aiRegistrySkillService.listSkillDownloadCounts(aiRegistryId, namespace);
+            if (downloadCountMap.isEmpty()) {
+                return;
+            }
+            for (Product product : products) {
+                try {
+                    SkillConfig config = product.getFeature().getSkillConfig();
+                    Long count = downloadCountMap.get(config.getSkillName());
+
+                    if (count != null && !Objects.equals(config.getDownloadCount(), count)) {
+                        config.setDownloadCount(count);
+                        productRepository.save(product);
+                        log.info(
+                                "Synced download count for AIRegistry skill product {}: {}",
+                                product.getProductId(),
+                                count);
+                    }
+                } catch (Exception e) {
+                    log.warn(
+                            "Failed to sync download count for AIRegistry skill product {}",
+                            product.getProductId(),
+                            e);
+                }
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to sync download counts for skill products from AIRegistry {}: {}",
+                    aiRegistryId,
                     e.getMessage());
         }
     }

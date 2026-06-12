@@ -34,6 +34,7 @@ import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.product.*;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
+import com.alibaba.himarket.dto.result.airegistry.AiRegistryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
@@ -45,6 +46,7 @@ import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.*;
+import com.alibaba.himarket.dto.result.setting.AdminSettingResult;
 import com.alibaba.himarket.entity.*;
 import com.alibaba.himarket.repository.*;
 import com.alibaba.himarket.service.*;
@@ -52,6 +54,7 @@ import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
+import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
 import com.alibaba.himarket.support.product.*;
@@ -108,6 +111,10 @@ public class ProductServiceImpl implements ProductService {
 
     private final SkillService skillService;
 
+    private final AdminSettingService adminSettingService;
+
+    private final AiRegistryService aiRegistryService;
+
     /**
      * Cache to prevent duplicate sync within interval (5 minutes default)
      */
@@ -149,17 +156,42 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
+        ProductFeature feature =
+                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+        if (productType == ProductType.AGENT_SKILL && feature.getSkillConfig() != null) {
+            product.setFeature(feature);
+            return;
+        }
+        if (productType == ProductType.WORKER && feature.getWorkerConfig() != null) {
+            product.setFeature(feature);
+            return;
+        }
+
+        if (productType == ProductType.AGENT_SKILL
+                && defaultSkillRegistryType() == SkillRegistryType.AIREGISTRY) {
+            AiRegistryResult aiRegistry = aiRegistryService.getDefaultAiRegistryInstance();
+            if (aiRegistry == null) {
+                return;
+            }
+            feature.setSkillConfig(
+                    SkillConfig.builder()
+                            .registryType(SkillRegistryType.AIREGISTRY)
+                            .aiRegistryId(aiRegistry.getAiRegistryId())
+                            .namespace(aiRegistry.getNamespaceId())
+                            .build());
+            product.setFeature(feature);
+            return;
+        }
+
         NacosResult nacos = nacosService.getDefaultNacosInstance();
         if (nacos == null) {
             return;
         }
 
-        ProductFeature feature =
-                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
-
         if (productType == ProductType.AGENT_SKILL) {
             feature.setSkillConfig(
                     SkillConfig.builder()
+                            .registryType(SkillRegistryType.NACOS)
                             .nacosId(nacos.getNacosId())
                             .namespace(nacos.getDefaultNamespace())
                             .build());
@@ -172,6 +204,19 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product.setFeature(feature);
+    }
+
+    private SkillRegistryType defaultSkillRegistryType() {
+        AdminSettingResult setting = adminSettingService.getSetting("defaultSkillRegistryType");
+        String value = setting == null ? null : setting.getSettingValue();
+        if (StrUtil.isBlank(value)) {
+            return SkillRegistryType.NACOS;
+        }
+        try {
+            return SkillRegistryType.valueOf(value.trim());
+        } catch (IllegalArgumentException e) {
+            return SkillRegistryType.NACOS;
+        }
     }
 
     @Override
@@ -294,8 +339,8 @@ public class ProductServiceImpl implements ProductService {
 
         Product product = findProduct(productId);
 
-        // Validate Nacos online version for AGENT_SKILL and WORKER types
-        validateNacosOnlineVersion(product);
+        // Validate online version for AGENT_SKILL and WORKER types.
+        validateOnlineVersion(product);
 
         product.setStatus(ProductStatus.PUBLISHED);
 
@@ -383,8 +428,8 @@ public class ProductServiceImpl implements ProductService {
         // Unpublish from all portals first
         publicationRepository.deleteByProductId(productId);
 
-        // Cascade delete Nacos versions for WORKER/AGENT_SKILL products
-        cleanupNacosResources(product);
+        // Cascade delete remote resources for WORKER/AGENT_SKILL products.
+        cleanupRemoteResources(product);
 
         // Clear product category relationships
         clearProductCategoryRelations(productId);
@@ -410,7 +455,7 @@ public class ProductServiceImpl implements ProductService {
                 .ifPresent(apiDefinitionRepository::delete);
     }
 
-    private void cleanupNacosResources(Product product) {
+    private void cleanupRemoteResources(Product product) {
         try {
             switch (product.getType()) {
                 case WORKER -> workerService.deleteAgentSpec(product.getProductId());
@@ -419,26 +464,24 @@ public class ProductServiceImpl implements ProductService {
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to cleanup Nacos resources for product {}, continuing with deletion",
+                    "Failed to cleanup remote resources for product {}, continuing with deletion",
                     product.getProductId(),
                     e);
         }
     }
 
-    private void validateNacosOnlineVersion(Product product) {
+    private void validateOnlineVersion(Product product) {
         if (product.getType() == ProductType.AGENT_SKILL) {
             List<VersionResult> versions = skillService.listVersions(product.getProductId());
             if (versions.stream().noneMatch(v -> "online".equals(v.getStatus()))) {
                 throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST,
-                        "Cannot publish: no online version found in Nacos");
+                        ErrorCode.INVALID_REQUEST, "Cannot publish: no online version found");
             }
         } else if (product.getType() == ProductType.WORKER) {
             List<VersionResult> versions = workerService.listVersions(product.getProductId());
             if (versions.stream().noneMatch(v -> "online".equals(v.getStatus()))) {
                 throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST,
-                        "Cannot publish: no online version found in Nacos");
+                        ErrorCode.INVALID_REQUEST, "Cannot publish: no online version found");
             }
         }
     }
@@ -665,9 +708,39 @@ public class ProductServiceImpl implements ProductService {
                 && product.getType() != ProductType.WORKER) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Product type is not supported");
         }
-        if (!param.getSourceType().isNacos()) {
+
+        SkillRegistryType registryType = resolveSkillRegistryType(param);
+        if (registryType == SkillRegistryType.AIREGISTRY) {
+            if (product.getType() != ProductType.AGENT_SKILL) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "AIRegistry only supports Agent Skill products");
+            }
+            if (StrUtil.isBlank(param.getAiRegistryId()) || StrUtil.isBlank(param.getNamespace())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER, "AIRegistry ID and namespace are required");
+            }
+            aiRegistryService.getAiRegistryInstance(param.getAiRegistryId());
+            ProductFeature feature =
+                    Optional.ofNullable(product.getFeature())
+                            .orElse(ProductFeature.builder().build());
+            feature.setSkillConfig(
+                    SkillConfig.builder()
+                            .registryType(SkillRegistryType.AIREGISTRY)
+                            .aiRegistryId(param.getAiRegistryId())
+                            .namespace(param.getNamespace())
+                            .build());
+            product.setFeature(feature);
+            productRepository.save(product);
+            return;
+        }
+
+        if (registryType != SkillRegistryType.NACOS) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Only Nacos source is supported");
+                    ErrorCode.INVALID_REQUEST, "Only Nacos or AIRegistry source is supported");
+        }
+        if (StrUtil.isBlank(param.getNacosId()) || StrUtil.isBlank(param.getNamespace())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "Nacos ID and namespace are required");
         }
 
         nacosService.getNacosInstance(param.getNacosId());
@@ -691,6 +764,16 @@ public class ProductServiceImpl implements ProductService {
 
         product.setFeature(feature);
         productRepository.save(product);
+    }
+
+    private SkillRegistryType resolveSkillRegistryType(UpdateProductSourceParam param) {
+        if (param.getRegistryType() != null) {
+            return param.getRegistryType();
+        }
+        if (param.getSourceType() != null && param.getSourceType().isNacos()) {
+            return SkillRegistryType.NACOS;
+        }
+        throw new BusinessException(ErrorCode.INVALID_PARAMETER, "Skill registry type is required");
     }
 
     private void syncConfig(Product product, ProductRef productRef) {

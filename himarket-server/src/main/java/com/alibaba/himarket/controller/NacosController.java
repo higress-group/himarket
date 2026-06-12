@@ -29,6 +29,7 @@ import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
+import com.alibaba.himarket.dto.result.nacos.NacosSkillResult;
 import com.alibaba.himarket.service.NacosService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -146,5 +147,21 @@ public class NacosController {
             throws Exception {
 
         return nacosService.fetchAgents(nacosId, namespaceId, pageable);
+    }
+
+    @Operation(
+            summary = "List Skills from Nacos",
+            description =
+                    "List Skills registered in a Nacos instance, optionally filtered by namespace")
+    @GetMapping("/{nacosId}/skills")
+    public PageResult<NacosSkillResult> fetchSkills(
+            @Parameter(description = "Nacos instance ID", required = true) @PathVariable
+                    String nacosId,
+            @Parameter(description = "Namespace ID, optional and defaults to public")
+                    @RequestParam(value = "namespaceId", required = false)
+                    String namespaceId,
+            Pageable pageable)
+            throws Exception {
+        return nacosService.fetchSkills(nacosId, namespaceId, pageable);
     }
 }

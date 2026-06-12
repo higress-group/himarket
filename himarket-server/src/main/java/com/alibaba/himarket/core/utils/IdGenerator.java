@@ -43,6 +43,7 @@ public class IdGenerator {
     private static final String CONSUMER_PREFIX = "consumer-";
     private static final String ADMINISTRATOR_PREFIX = "admin-";
     private static final String NACOS_PREFIX = "nacos-";
+    private static final String AIREGISTRY_PREFIX = "airegistry-";
     private static final String HIGRESS_PREFIX = "higress-";
     private static final String CATEGORY_PREFIX = "category-";
 
@@ -87,6 +88,10 @@ public class IdGenerator {
 
     public static String genNacosId() {
         return NACOS_PREFIX + randomId();
+    }
+
+    public static String genAiRegistryId() {
+        return AIREGISTRY_PREFIX + randomId();
     }
 
     public static String genSessionId() {

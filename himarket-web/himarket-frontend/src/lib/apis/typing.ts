@@ -188,6 +188,8 @@ export interface ITool {
 export interface ISkillConfig {
   skillTags?: string[];
   downloadCount?: number;
+  registryType?: 'NACOS' | 'AIREGISTRY';
+  airegistryId?: string;
   nacosId?: string;
   namespace?: string;
   skillName?: string;

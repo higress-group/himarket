@@ -35,7 +35,7 @@ import 'github-markdown-css/github-markdown-light.css';
 import 'highlight.js/styles/github.css';
 import type { ApiProduct } from '@/types/api-product';
 
-import type { UploadRequestOption } from 'rc-upload/lib/interface';
+import type { UploadProps } from 'antd';
 
 // ── Parse YAML front matter from markdown (supports | and > multiline) ──
 function parseFrontMatter(content: string): { frontmatter: Record<string, string>; body: string } {
@@ -531,6 +531,7 @@ export function ApiProductWorkerPackage({
       await apiProductApi.updateProductSource(apiProduct.productId, {
         nacosId: values.nacosId,
         namespace: values.namespace,
+        registryType: 'NACOS',
         sourceType: 'NACOS',
       });
       message.success(t('product.package.nacosUpdated'));
@@ -662,7 +663,7 @@ export function ApiProductWorkerPackage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasReviewing, productId]);
 
-  const customRequest = async (options: UploadRequestOption) => {
+  const customRequest: NonNullable<UploadProps['customRequest']> = async (options) => {
     const { file, onError, onSuccess } = options;
     setUploading(true);
     try {

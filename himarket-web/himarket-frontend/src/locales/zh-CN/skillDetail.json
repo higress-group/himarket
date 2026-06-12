@@ -8,6 +8,8 @@
   "noVersion": "暂无版本",
   "downloadSkillPackage": "下载 Skill 包",
   "npxDownload": "NPX 下载",
+  "cliCredentialStep": "Step 1. 首次使用，配置 CLI 登录凭证",
+  "cliUserDoc": "（CLI 用户文档）",
   "outputDir": "输出目录",
   "outputDirPlaceholder": "输入输出目录路径",
   "httpDownload": "HTTP 下载",

@@ -17,8 +17,11 @@ import type {
   UpdateGatewayRequest,
   GetGatewayApisParams,
   GetNacosParams,
+  GetAiRegistryParams,
   CreateNacosRequest,
+  CreateAiRegistryRequest,
   UpdateNacosRequest,
+  UpdateAiRegistryRequest,
   GetNacosMcpServersParams,
 } from '@/types';
 
@@ -296,10 +299,11 @@ export const apiProductApi = {
   // 批量导入 AI API 资源为产品
   importProducts: (data: {
     productType: string;
-    source: 'GATEWAY' | 'NACOS' | 'EXTERNAL';
+    source: 'GATEWAY' | 'NACOS' | 'AIREGISTRY' | 'EXTERNAL';
     sourceConfig:
       | { instanceId: string }
       | { instanceId: string; namespace?: string }
+      | { instanceId: string; namespace: string }
       | { provider: string };
     items: Array<{
       resourceName?: string;
@@ -324,7 +328,9 @@ export const apiProductApi = {
   // 更新产品来源
   updateProductSource: (
     productId: string,
-    data: { sourceType: 'NACOS'; nacosId: string; namespace: string },
+    data:
+      | { registryType: 'NACOS'; sourceType?: 'NACOS'; nacosId: string; namespace: string }
+      | { registryType: 'AIREGISTRY'; airegistryId: string; namespace: string },
   ) => {
     return api.put(`/products/${productId}/source`, data);
   },
@@ -434,6 +440,16 @@ export const nacosApi = {
       params: data,
     });
   },
+  getNacosSkills: (
+    nacosId: string,
+    params?: {
+      page?: number;
+      size?: number;
+      namespaceId?: string;
+    },
+  ) => {
+    return api.get(`/nacos/${nacosId}/skills`, { params });
+  },
   // 获取指定 Nacos 实例的命名空间列表
   getNamespaces: (nacosId: string, params?: { page?: number; size?: number }) => {
     return api.get(`/nacos/${nacosId}/namespaces`, { params });
@@ -446,6 +462,40 @@ export const nacosApi = {
   },
   updateNacos: (nacosId: string, data: UpdateNacosRequest) => {
     return api.put(`/nacos/${nacosId}`, data);
+  },
+};
+
+export const airegistryApi = {
+  create: (data: CreateAiRegistryRequest) => {
+    return api.post(`/airegistries`, data);
+  },
+  delete: (airegistryId: string) => {
+    return api.delete(`/airegistries/${airegistryId}`);
+  },
+  getDefault: () => {
+    return api.get(`/airegistries/default`);
+  },
+  getSkills: (
+    airegistryId: string,
+    params: { namespaceId: string; page?: number; size?: number },
+  ) => {
+    return api.get(`/airegistries/${airegistryId}/skills`, { params });
+  },
+  list: (params?: GetAiRegistryParams) => {
+    return api.get(`/airegistries`, { params });
+  },
+  setDefault: (airegistryId: string, namespaceId?: string) => {
+    return api.put(`/airegistries/${airegistryId}/default`, null, {
+      params: namespaceId ? { namespaceId } : undefined,
+    });
+  },
+  update: (airegistryId: string, data: UpdateAiRegistryRequest) => {
+    return api.put(`/airegistries/${airegistryId}`, data);
+  },
+  validate: (airegistryId: string, namespaceId?: string) => {
+    return api.post(`/airegistries/${airegistryId}/validate`, null, {
+      params: namespaceId ? { namespaceId } : undefined,
+    });
   },
 };
 
@@ -500,6 +550,8 @@ export const skillApi = {
     api.patch(`/skills/${productId}/versions/${version}`, { status: 'offline' }),
   onlineVersion: (productId: string, version: string) =>
     api.patch(`/skills/${productId}/versions/${version}`, { status: 'online' }),
+  publishApprovedVersion: (productId: string, version: string) =>
+    api.post(`/skills/${productId}/versions/${version}/publish`),
   publishVersion: (productId: string, version: string) =>
     api.post(`/skills/${productId}/versions`, { version }),
   setLatestVersion: (productId: string, version: string) =>
