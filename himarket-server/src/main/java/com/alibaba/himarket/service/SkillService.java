@@ -74,6 +74,14 @@ public interface SkillService {
     void publishVersion(String productId, String version);
 
     /**
+     * Publishes a reviewed version.
+     *
+     * @param productId the product identifier
+     * @param version the reviewed version to publish
+     */
+    void publishApprovedVersion(String productId, String version);
+
+    /**
      * Changes the online status of a specific version.
      *
      * @param productId the product identifier

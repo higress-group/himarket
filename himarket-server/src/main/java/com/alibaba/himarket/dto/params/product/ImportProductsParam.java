@@ -40,15 +40,17 @@ public class ImportProductsParam {
     @JsonSubTypes({
         @JsonSubTypes.Type(value = GatewayImportConfigParam.class, name = "GATEWAY"),
         @JsonSubTypes.Type(value = NacosImportConfigParam.class, name = "NACOS"),
+        @JsonSubTypes.Type(value = AiRegistryImportConfigParam.class, name = "AIREGISTRY"),
         @JsonSubTypes.Type(value = ExternalImportConfigParam.class, name = "EXTERNAL")
     })
     @Schema(
             description =
-                    "Import source configuration. GATEWAY and NACOS use instance configuration,"
-                            + " while EXTERNAL uses marketplace configuration.",
+                    "Import source configuration. GATEWAY, NACOS, and AIREGISTRY use instance"
+                            + " configuration, while EXTERNAL uses marketplace configuration.",
             oneOf = {
                 GatewayImportConfigParam.class,
                 NacosImportConfigParam.class,
+                AiRegistryImportConfigParam.class,
                 ExternalImportConfigParam.class
             },
             requiredMode = Schema.RequiredMode.REQUIRED)
@@ -58,9 +60,11 @@ public class ImportProductsParam {
     @NotEmpty(message = "Import items cannot be empty")
     private List<@Valid ProductImportItemParam> items;
 
-    @AssertTrue(message = "Gateway and Nacos import items must specify resource name")
+    @AssertTrue(message = "Gateway, Nacos, and AIRegistry import items must specify resource name")
     public boolean hasResourceNamesForInstanceSources() {
-        if (source != ProductImportSource.GATEWAY && source != ProductImportSource.NACOS) {
+        if (source != ProductImportSource.GATEWAY
+                && source != ProductImportSource.NACOS
+                && source != ProductImportSource.AIREGISTRY) {
             return true;
         }
         return items != null

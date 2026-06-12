@@ -24,5 +24,7 @@ public enum ProductImportSource {
 
     NACOS,
 
+    AIREGISTRY,
+
     EXTERNAL
 }

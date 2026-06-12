@@ -19,6 +19,8 @@
 
 package com.alibaba.himarket.support.product;
 
+import com.alibaba.himarket.support.enums.SkillRegistryType;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,17 +44,28 @@ public class SkillConfig {
     private Long downloadCount;
 
     /**
+     * Skill registry backend type. Empty value is treated as NACOS for old data.
+     */
+    private SkillRegistryType registryType;
+
+    /**
      * Associated Nacos instance ID (nacos_instance.nacos_id)
      */
     private String nacosId;
 
     /**
-     * Nacos namespace, defaults to "public"
+     * Associated AIRegistry config ID (airegistry_instance.airegistry_id)
+     */
+    @JsonProperty("airegistryId")
+    private String aiRegistryId;
+
+    /**
+     * Skill registry namespace.
      */
     private String namespace;
 
     /**
-     * Nacos Skill name (unique identifier)
+     * Skill name (unique identifier)
      */
     private String skillName;
 }

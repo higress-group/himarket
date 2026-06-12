@@ -199,7 +199,9 @@ public class ProductController {
 
     @Operation(
             summary = "Import product resources",
-            description = "Import resources from a gateway, Nacos, or an external marketplace")
+            description =
+                    "Import resources from a gateway, Nacos, AIRegistry, or an external"
+                            + " marketplace")
     @PostMapping("/import")
     @AdminAuth
     public ImportProductsResult importProducts(
@@ -226,6 +228,11 @@ public class ProductController {
                                                         value =
                                                                 "{\"source\":\"NACOS\",\"productType\":\"MCP_SERVER\",\"sourceConfig\":{\"instanceId\":\"nacos-xxx\",\"namespace\":\"public\"},\"items\":[{\"resourceName\":\"fetch\",\"description\":\"Web"
                                                                     + " content fetcher\"}]}"),
+                                                @ExampleObject(
+                                                        name = "Import from AIRegistry",
+                                                        value =
+                                                                "{\"source\":\"AIREGISTRY\",\"productType\":\"AGENT_SKILL\",\"sourceConfig\":{\"instanceId\":\"airegistry-xxx\",\"namespace\":\"default\"},\"items\":[{\"resourceName\":\"code-review\",\"description\":\"Code"
+                                                                    + " review skill\"}]}"),
                                                 @ExampleObject(
                                                         name = "Import from external marketplace",
                                                         value =

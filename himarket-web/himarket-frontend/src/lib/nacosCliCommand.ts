@@ -9,7 +9,7 @@ export interface NacosCliCommandParams {
   command: 'agentspec-get' | 'skill-get';
   outputDir?: string;
   resourceName: string;
-  server: NacosCliServerInfo;
+  server?: NacosCliServerInfo;
   version?: string;
 }
 
@@ -18,9 +18,9 @@ function quoteIfNeeded(value: string): string {
 }
 
 export function buildNacosCliCommand(params: NacosCliCommandParams): string {
-  const isDefaultHost = params.server.nacosHost === DEFAULT_NACOS_HOST;
-  const hostArg = isDefaultHost ? '' : ` --host ${params.server.nacosHost}`;
-  const portArg = params.server.nacosPort ? ` --port ${params.server.nacosPort}` : '';
+  const isDefaultHost = params.server?.nacosHost === DEFAULT_NACOS_HOST;
+  const hostArg = params.server && !isDefaultHost ? ` --host ${params.server.nacosHost}` : '';
+  const portArg = params.server?.nacosPort ? ` --port ${params.server.nacosPort}` : '';
   const outputArg = params.outputDir ? ` -o ${quoteIfNeeded(params.outputDir)}` : '';
   const versionArg = params.version ? ` --version ${params.version}` : '';
 

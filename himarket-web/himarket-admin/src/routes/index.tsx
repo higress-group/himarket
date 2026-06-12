@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import LayoutWrapper from '@/components/LayoutWrapper';
+import AiRegistryConsoles from '@/pages/AiRegistryConsoles';
 import ApiProductDetail from '@/pages/ApiProductDetail';
 import GatewayConsoles from '@/pages/GatewayConsoles';
 import Login from '@/pages/Login';
@@ -89,6 +90,10 @@ export const router = createBrowserRouter([
       {
         element: <NacosConsoles />,
         path: 'consoles/nacos',
+      },
+      {
+        element: <AiRegistryConsoles />,
+        path: 'consoles/airegistry',
       },
       {
         element: <SandboxConsoles />,

@@ -197,6 +197,7 @@ function SkillDetail() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedHttp, setCopiedHttp] = useState(false);
+  const [copiedProfile, setCopiedProfile] = useState(false);
   const [mdRawMode, setMdRawMode] = useState(true);
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
@@ -388,6 +389,25 @@ function SkillDetail() {
   const { description, name } = data;
   const skillTags = skillConfig?.skillTags || [];
   const hasFiles = fileTree.length > 0;
+  const isAiRegistrySkill = skillConfig?.registryType === 'AIREGISTRY';
+  const installResourceName = cliInfo?.resourceName || skillConfig?.skillName || name;
+  const showNpxInstall = Boolean(cliInfo) || isAiRegistrySkill;
+  const showHttpDownload = versions.length > 0;
+  const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+  const selectedInstallVersion =
+    selectedVersion && !selectedVersionInfo?.isLatest ? selectedVersion : undefined;
+  const skillGetCommand = buildNacosCliCommand({
+    command: 'skill-get',
+    outputDir,
+    resourceName: installResourceName,
+    server: cliInfo || undefined,
+    version: selectedInstallVersion,
+  });
+  const httpDownloadUrl = `${
+    typeof window !== 'undefined' ? window.location.origin : ''
+  }/api/v1/skills/${skillProductId}/download${
+    selectedInstallVersion ? `?version=${encodeURIComponent(selectedInstallVersion)}` : ''
+  }`;
 
   const renderFilePreview = () => {
     if (!selectedFilePath) {
@@ -726,8 +746,8 @@ function SkillDetail() {
                 </Button>
               </div>
 
-              {/* Nacos CLI command */}
-              {cliInfo && (
+              {/* NPX download command */}
+              {showNpxInstall && (
                 <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
                   <div className="flex items-center gap-1.5 mb-3">
                     <CodeOutlined className="text-indigo-400/80 text-[13px]" />
@@ -735,6 +755,45 @@ function SkillDetail() {
                       {t('npxDownload')}
                     </span>
                   </div>
+
+                  {isAiRegistrySkill && (
+                    <div className="mb-3">
+                      <div className="text-xs font-semibold text-gray-700 mb-1.5">
+                        {t('cliCredentialStep')}
+                        <a
+                          className="ml-1 text-blue-600 hover:text-blue-700"
+                          href="https://help.aliyun.com/zh/mse/user-guide/nacos-cli-access-ai-registry-login-credential-configuration-guide?spm=5176.mse-prod.console-base_help.dexternal.66a72675UrvmaY"
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {t('cliUserDoc')}
+                        </a>
+                      </div>
+                      <div className="relative rounded-md bg-gray-900 border border-gray-800 pl-3 pr-9 py-2.5">
+                        <button
+                          className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                          onClick={() => {
+                            copyToClipboard('npx @nacos-group/cli profile edit').then(() => {
+                              setCopiedProfile(true);
+                              setTimeout(() => setCopiedProfile(false), 2000);
+                            });
+                          }}
+                        >
+                          {copiedProfile ? (
+                            <CheckOutlined className="text-green-400" />
+                          ) : (
+                            <CopyOutlined />
+                          )}
+                        </button>
+                        <code
+                          className="text-[12px] text-gray-100 break-all"
+                          style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
+                        >
+                          npx @nacos-group/cli profile edit
+                        </code>
+                      </div>
+                    </div>
+                  )}
 
                   {/* IDE/Tool Selection */}
                   <div className="mb-3">
@@ -781,18 +840,7 @@ function SkillDetail() {
                     <button
                       className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
                       onClick={() => {
-                        const selectedVersionInfo = versions.find(
-                          (v) => v.version === selectedVersion,
-                        );
-                        const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const cmd = buildNacosCliCommand({
-                          command: 'skill-get',
-                          outputDir,
-                          resourceName: cliInfo.resourceName,
-                          server: cliInfo,
-                          version: isLatest ? undefined : selectedVersion,
-                        });
-                        copyToClipboard(cmd).then(() => {
+                        copyToClipboard(skillGetCommand).then(() => {
                           setCopied(true);
                           setTimeout(() => setCopied(false), 2000);
                         });
@@ -804,26 +852,14 @@ function SkillDetail() {
                       className="text-[12px] text-gray-700 break-all"
                       style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
                     >
-                      {(() => {
-                        const selectedVersionInfo = versions.find(
-                          (v) => v.version === selectedVersion,
-                        );
-                        const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        return buildNacosCliCommand({
-                          command: 'skill-get',
-                          outputDir,
-                          resourceName: cliInfo.resourceName,
-                          server: cliInfo,
-                          version: isLatest ? undefined : selectedVersion,
-                        });
-                      })()}
+                      {skillGetCommand}
                     </code>
                   </div>
                 </div>
               )}
 
               {/* HTTP 下载 */}
-              {cliInfo && (
+              {showHttpDownload && (
                 <div className="px-4 py-3">
                   <div className="flex items-center gap-1.5 mb-2">
                     <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
@@ -836,16 +872,7 @@ function SkillDetail() {
                       className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
                       disabled={!selectedVersion}
                       onClick={() => {
-                        const selectedVersionInfo = versions.find(
-                          (v) => v.version === selectedVersion,
-                        );
-                        const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionParam =
-                          selectedVersion && !isLatest
-                            ? `?version=${encodeURIComponent(selectedVersion)}`
-                            : '';
-                        const url = `${window.location.origin}/api/v1/skills/${skillProductId}/download${versionParam}`;
-                        copyToClipboard(url).then(() => {
+                        copyToClipboard(httpDownloadUrl).then(() => {
                           setCopiedHttp(true);
                           setTimeout(() => setCopiedHttp(false), 2000);
                         });
@@ -857,17 +884,7 @@ function SkillDetail() {
                       className="text-[12px] text-gray-700 break-all"
                       style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
                     >
-                      {(() => {
-                        const selectedVersionInfo = versions.find(
-                          (v) => v.version === selectedVersion,
-                        );
-                        const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionParam =
-                          selectedVersion && !isLatest
-                            ? `?version=${encodeURIComponent(selectedVersion)}`
-                            : '';
-                        return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/skills/${skillProductId}/download${versionParam}`;
-                      })()}
+                      {httpDownloadUrl}
                     </code>
                   </div>
                 </div>

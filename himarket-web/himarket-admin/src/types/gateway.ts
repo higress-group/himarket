@@ -67,4 +67,16 @@ export interface NacosNamespace {
   namespaceDesc?: string;
 }
 
+export interface AiRegistryInstance {
+  airegistryId: string;
+  name: string;
+  regionId: string;
+  endpoint?: string;
+  namespaceId: string;
+  accessKeyId?: string;
+  description?: string;
+  isDefault?: boolean;
+  createAt?: string | number;
+}
+
 export type GatewayType = 'APIG_API' | 'APIG_AI' | 'HIGRESS' | 'ADP_AI_GATEWAY' | 'APSARA_GATEWAY';

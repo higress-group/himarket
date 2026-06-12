@@ -21,7 +21,19 @@ import {
   CloseCircleFilled,
   LinkOutlined,
 } from '@ant-design/icons';
-import { Upload, message, Spin, Tooltip, Button, Select, Tag, Modal, Space, Form } from 'antd';
+import {
+  Upload,
+  message,
+  Spin,
+  Tooltip,
+  Button,
+  Select,
+  Tag,
+  Modal,
+  Space,
+  Form,
+  Input,
+} from 'antd';
 import hljs from 'highlight.js';
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -29,13 +41,14 @@ import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 
 import { useLocale } from '@/contexts/LocaleContext';
-import { apiProductApi, nacosApi } from '@/lib/api';
+import { airegistryApi, apiProductApi, nacosApi } from '@/lib/api';
 import { skillApi } from '@/lib/api';
 import type { ApiProduct } from '@/types/api-product';
+import type { AiRegistryInstance } from '@/types/gateway';
 
-import type { UploadRequestOption } from 'rc-upload/lib/interface';
 import 'github-markdown-css/github-markdown-light.css';
 import 'highlight.js/styles/github.css';
+import type { UploadProps } from 'antd';
 
 // ── Parse YAML front matter from markdown (supports | and > multiline) ──
 function parseFrontMatter(content: string): { frontmatter: Record<string, string>; body: string } {
@@ -364,7 +377,11 @@ export function ApiProductSkillPackage({
 }: ApiProductSkillPackageProps) {
   const productId = apiProduct.productId;
   const { locale, t } = useLocale();
-  const hasNacos = !!apiProduct.skillConfig?.nacosId;
+  const registryType = apiProduct.skillConfig?.registryType || 'NACOS';
+  const hasSkillRegistry =
+    registryType === 'AIREGISTRY'
+      ? !!apiProduct.skillConfig?.airegistryId
+      : !!apiProduct.skillConfig?.nacosId;
   const [fileTree, setFileTree] = useState<SkillFileTreeNode[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | undefined>();
   const [selectedFile, setSelectedFile] = useState<FileContent | null>(null);
@@ -390,8 +407,12 @@ export function ApiProductSkillPackage({
   const [nsLoading, setNsLoading] = useState(false);
   const [nacosSaving, setNacosSaving] = useState(false);
   const [nacosForm] = Form.useForm();
+  const selectedRegistryType = Form.useWatch('registryType', nacosForm) || registryType;
   const [currentNacosName, setCurrentNacosName] = useState<string>('');
+  const [aiRegistryInstances, setAiRegistryInstances] = useState<AiRegistryInstance[]>([]);
+  const [currentAiRegistryName, setCurrentAiRegistryName] = useState<string>('');
   const lastNacosNameFetchKeyRef = useRef('');
+  const lastAiRegistryNameFetchKeyRef = useRef('');
 
   // Fetch nacos name
   useEffect(() => {
@@ -424,6 +445,36 @@ export function ApiProductSkillPackage({
       .catch(() => {});
   }, [apiProduct.skillConfig?.nacosId]);
 
+  useEffect(() => {
+    const aiRegistryId = apiProduct.skillConfig?.airegistryId;
+    if (!aiRegistryId) {
+      lastAiRegistryNameFetchKeyRef.current = '';
+      setCurrentAiRegistryName('');
+      return;
+    }
+
+    if (lastAiRegistryNameFetchKeyRef.current === aiRegistryId) {
+      return;
+    }
+    lastAiRegistryNameFetchKeyRef.current = aiRegistryId;
+
+    airegistryApi
+      .list({ page: 1, size: 1000 })
+      .then((res: unknown) => {
+        if (lastAiRegistryNameFetchKeyRef.current !== aiRegistryId) {
+          return;
+        }
+
+        const resObj = res as {
+          data?: { content?: AiRegistryInstance[] };
+        };
+        const list = resObj.data?.content || [];
+        const found = list.find((item) => item.airegistryId === aiRegistryId);
+        setCurrentAiRegistryName(found?.name || aiRegistryId);
+      })
+      .catch(() => {});
+  }, [apiProduct.skillConfig?.airegistryId]);
+
   const fetchNacosInstances = async () => {
     setNacosLoading(true);
     try {
@@ -432,6 +483,11 @@ export function ApiProductSkillPackage({
     } finally {
       setNacosLoading(false);
     }
+  };
+
+  const fetchAiRegistryInstances = async () => {
+    const res = await airegistryApi.list({ page: 1, size: 1000 });
+    setAiRegistryInstances(res.data?.content || []);
   };
 
   const handleNacosChange = async (nacosId: string) => {
@@ -446,12 +502,25 @@ export function ApiProductSkillPackage({
     }
   };
 
+  const handleAiRegistryChange = (airegistryId: string) => {
+    const instance = aiRegistryInstances.find((item) => item.airegistryId === airegistryId);
+    nacosForm.setFieldsValue({ namespace: instance?.namespaceId });
+  };
+
   const openNacosModal = () => {
     fetchNacosInstances();
+    fetchAiRegistryInstances();
+    const currentRegistryType = apiProduct.skillConfig?.registryType || 'NACOS';
     const currentNacosId = apiProduct.skillConfig?.nacosId;
+    const currentAiRegistryId = apiProduct.skillConfig?.airegistryId;
     const currentNamespace = apiProduct.skillConfig?.namespace || 'public';
-    if (currentNacosId) {
-      nacosForm.setFieldsValue({ nacosId: currentNacosId, namespace: currentNamespace });
+    nacosForm.setFieldsValue({
+      airegistryId: currentAiRegistryId,
+      nacosId: currentNacosId,
+      namespace: currentNamespace,
+      registryType: currentRegistryType,
+    });
+    if (currentRegistryType === 'NACOS' && currentNacosId) {
       handleNacosChange(currentNacosId);
     }
     setNacosModalVisible(true);
@@ -461,12 +530,21 @@ export function ApiProductSkillPackage({
     const values = await nacosForm.validateFields();
     setNacosSaving(true);
     try {
-      await apiProductApi.updateProductSource(apiProduct.productId, {
-        nacosId: values.nacosId,
-        namespace: values.namespace,
-        sourceType: 'NACOS',
-      });
-      message.success(t('product.package.nacosUpdated'));
+      if (values.registryType === 'AIREGISTRY') {
+        await apiProductApi.updateProductSource(apiProduct.productId, {
+          airegistryId: values.airegistryId,
+          namespace: values.namespace,
+          registryType: 'AIREGISTRY',
+        });
+      } else {
+        await apiProductApi.updateProductSource(apiProduct.productId, {
+          nacosId: values.nacosId,
+          namespace: values.namespace,
+          registryType: 'NACOS',
+          sourceType: 'NACOS',
+        });
+      }
+      message.success(t('product.package.registryUpdated'));
       setNacosModalVisible(false);
       handleRefresh();
     } finally {
@@ -594,13 +672,20 @@ export function ApiProductSkillPackage({
     }
   })();
 
-  const isUnpublished = previewItem?.status === 'draft' || previewItem?.status === 'offline';
+  const isDraft = previewItem?.status === 'draft';
+  const isOffline = previewItem?.status === 'offline';
   const isOnline = previewItem?.status === 'online';
   const isReviewing = previewItem?.status === 'reviewing';
-  const isRejected = previewItem?.status === 'draft' && pipelineStatus?.status === 'REJECTED';
-  const canPublish = !!previewVersion && isUnpublished;
+  const isApproved = previewItem?.status === 'approved';
+  const isRejected =
+    previewItem?.status === 'rejected' ||
+    (previewItem?.status === 'draft' && pipelineStatus?.status === 'REJECTED');
+  const supportsDeleteDraft = registryType !== 'AIREGISTRY';
+  const canPublish = !!previewVersion && isDraft;
+  const canPublishApproved = !!previewVersion && isApproved;
+  const canOnline = !!previewVersion && isOffline;
   const canOffline = !!previewVersion && isOnline;
-  const canDeleteDraft = !!previewVersion && isUnpublished;
+  const canDeleteDraft = supportsDeleteDraft && !!previewVersion && isDraft;
   const canForcePublish = !!previewVersion && isRejected;
   const showPublishActions = canPublish || isReviewing;
   const totalDownloads = versions.reduce((sum, item) => sum + (item.downloadCount ?? 0), 0);
@@ -645,6 +730,55 @@ export function ApiProductSkillPackage({
         }
       },
       title: t('product.package.offlineTitle'),
+    });
+  };
+
+  const handleOnlineVersion = async (version: string) => {
+    Modal.confirm({
+      cancelText: t('common.cancel'),
+      content: t('product.package.onlineConfirm', { version }),
+      icon: <ExclamationCircleFilled />,
+      okText: t('product.package.onlineOk'),
+      onOk: async () => {
+        setActionLoading('online');
+        try {
+          await skillApi.onlineVersion(productId, version);
+          message.success(t('product.package.onlineSuccess', { version }));
+          await Promise.all([fetchVersions(), fetchFileTree(version)]);
+          onUploadSuccess?.();
+        } catch (error: unknown) {
+          const errMsg = error instanceof Error ? error.message : t('product.package.onlineFailed');
+          message.error(errMsg);
+        } finally {
+          setActionLoading(null);
+        }
+      },
+      title: t('product.package.onlineTitle'),
+    });
+  };
+
+  const handlePublishApprovedVersion = async (version: string) => {
+    Modal.confirm({
+      cancelText: t('common.cancel'),
+      content: t('product.package.publishApprovedConfirm', { version }),
+      icon: <ExclamationCircleFilled />,
+      okText: t('product.package.publishApprovedOk'),
+      onOk: async () => {
+        setActionLoading('publishApproved');
+        try {
+          await skillApi.publishApprovedVersion(productId, version);
+          message.success(t('product.package.publishApprovedSuccess', { version }));
+          await Promise.all([fetchVersions(), fetchFileTree(version)]);
+          onUploadSuccess?.();
+        } catch (error: unknown) {
+          const errMsg =
+            error instanceof Error ? error.message : t('product.package.publishApprovedFailed');
+          message.error(errMsg);
+        } finally {
+          setActionLoading(null);
+        }
+      },
+      title: t('product.package.publishApprovedTitle'),
     });
   };
 
@@ -733,7 +867,7 @@ export function ApiProductSkillPackage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasReviewing, productId]);
 
-  const customRequest = async (options: UploadRequestOption) => {
+  const customRequest: NonNullable<UploadProps['customRequest']> = async (options) => {
     const { file, onError, onSuccess } = options;
     setUploading(true);
     try {
@@ -923,7 +1057,7 @@ export function ApiProductSkillPackage({
 
       {/* Card 1: Version Management */}
       <div className="border rounded-lg bg-white p-4 space-y-3">
-        {/* Nacos status row */}
+        {/* Skill registry status row */}
         <div className="flex items-center justify-between gap-4 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Tag
@@ -935,7 +1069,13 @@ export function ApiProductSkillPackage({
                 padding: '4px 12px',
               }}
             >
-              {currentNacosName} / {apiProduct.skillConfig?.namespace || 'public'}
+              {registryType === 'AIREGISTRY'
+                ? `${t('nav.airegistryInstances')} / ${currentAiRegistryName || apiProduct.skillConfig?.airegistryId || '-'} / ${
+                    apiProduct.skillConfig?.namespace || '-'
+                  }`
+                : `${currentNacosName || apiProduct.skillConfig?.nacosId || '-'} / ${
+                    apiProduct.skillConfig?.namespace || 'public'
+                  }`}
             </Tag>
           </div>
           <Button
@@ -944,9 +1084,7 @@ export function ApiProductSkillPackage({
             style={{ background: '#6B5CE7', borderColor: '#6B5CE7' }}
             type="primary"
           >
-            {apiProduct.skillConfig?.nacosId
-              ? t('product.package.switchNacos')
-              : t('product.package.linkNacos')}
+            {t('product.package.configureRegistry')}
           </Button>
         </div>
         {/* Row 1: Version selector + action buttons + upload */}
@@ -995,7 +1133,7 @@ export function ApiProductSkillPackage({
                 {t('product.package.submitReview')}
               </Button>
             )}
-            {(canDeleteDraft || isReviewing) && (
+            {supportsDeleteDraft && (canDeleteDraft || isReviewing) && (
               <Button
                 danger
                 disabled={isReviewing}
@@ -1015,6 +1153,24 @@ export function ApiProductSkillPackage({
                 {t('product.package.forcePublishOk')}
               </Button>
             )}
+            {canPublishApproved && (
+              <Button
+                loading={actionLoading === 'publishApproved'}
+                onClick={() => previewVersion && handlePublishApprovedVersion(previewVersion)}
+                type="primary"
+              >
+                {t('product.package.publishApprovedOk')}
+              </Button>
+            )}
+            {canOnline && (
+              <Button
+                loading={actionLoading === 'online'}
+                onClick={() => previewVersion && handleOnlineVersion(previewVersion)}
+                type="primary"
+              >
+                {t('product.package.versionOnline')}
+              </Button>
+            )}
             {canOffline && (
               <Button
                 danger
@@ -1030,18 +1186,20 @@ export function ApiProductSkillPackage({
             accept=".zip,.tar.gz"
             capture={undefined}
             customRequest={customRequest}
-            disabled={uploading || !hasNacos}
+            disabled={uploading || !hasSkillRegistry}
             hasControlInside={false}
             pastable={false}
             showUploadList={false}
           >
             <Button
               className="!h-auto !px-4 !py-2.5"
-              disabled={!hasNacos}
+              disabled={!hasSkillRegistry}
               icon={<UploadOutlined />}
               loading={uploading}
               style={
-                !hasNacos ? { background: '#f5f5f5', borderColor: '#d9d9d9', color: '#bfbfbf' } : {}
+                !hasSkillRegistry
+                  ? { background: '#f5f5f5', borderColor: '#d9d9d9', color: '#bfbfbf' }
+                  : {}
               }
             >
               <div className="leading-snug text-left">
@@ -1061,14 +1219,18 @@ export function ApiProductSkillPackage({
                 ? '!bg-green-50 !text-green-600'
                 : previewItem?.status === 'reviewing'
                   ? '!bg-blue-50 !text-blue-600'
-                  : '!bg-gray-100 !text-gray-500'
+                  : previewItem?.status === 'approved'
+                    ? '!bg-amber-50 !text-amber-600'
+                    : '!bg-gray-100 !text-gray-500'
             }`}
           >
             {previewItem?.status === 'online'
               ? t('product.package.statusOnline')
               : previewItem?.status === 'reviewing'
                 ? t('product.package.statusReviewing')
-                : t('product.package.statusUnpublished')}
+                : previewItem?.status === 'approved'
+                  ? t('product.package.statusApproved')
+                  : t('product.package.statusUnpublished')}
           </Tag>
           <span className="text-gray-400">
             {t('product.package.downloads')}{' '}
@@ -1076,7 +1238,10 @@ export function ApiProductSkillPackage({
           </span>
           {(() => {
             const pStatus = pipelineStatus?.status;
-            const isApproved = pStatus === 'APPROVED' || previewItem?.status === 'online';
+            const isApproved =
+              pStatus === 'APPROVED' ||
+              previewItem?.status === 'online' ||
+              previewItem?.status === 'approved';
             const isRejected = pStatus === 'REJECTED';
             const isInProgress = isReviewing && !isApproved && !isRejected;
             const pipelineNodes = pipelineStatus?.pipeline as PipelineNode[] | undefined;
@@ -1247,7 +1412,7 @@ export function ApiProductSkillPackage({
         )}
       </div>
 
-      {/* Nacos Modal */}
+      {/* Skill Registry Modal */}
       <Modal
         cancelText={t('common.cancel')}
         confirmLoading={nacosSaving}
@@ -1255,40 +1420,83 @@ export function ApiProductSkillPackage({
         onCancel={() => setNacosModalVisible(false)}
         onOk={handleNacosSave}
         open={nacosModalVisible}
-        title={t('product.package.nacosTitle')}
+        title={t('product.package.registryTitle')}
       >
         <Form form={nacosForm} layout="vertical">
           <Form.Item
-            label={t('product.package.nacosInstance')}
-            name="nacosId"
-            rules={[{ message: t('product.package.nacosRequired'), required: true }]}
+            initialValue={registryType}
+            label={t('product.package.registryType')}
+            name="registryType"
+            rules={[{ required: true }]}
           >
             <Select
-              loading={nacosLoading}
-              onChange={handleNacosChange}
-              options={nacosInstances.map((n) => ({
-                label: `${n.nacosName}${
-                  n.isDefault ? ` (${t('product.package.nacosDefault')})` : ''
-                }`,
-                value: n.nacosId,
-              }))}
-              placeholder={t('product.package.selectNacos')}
+              options={[
+                { label: 'Nacos', value: 'NACOS' },
+                { label: t('nav.airegistryInstances'), value: 'AIREGISTRY' },
+              ]}
             />
           </Form.Item>
-          <Form.Item
-            label={t('product.package.namespace')}
-            name="namespace"
-            rules={[{ message: t('product.package.namespaceRequired'), required: true }]}
-          >
-            <Select
-              loading={nsLoading}
-              options={nacosNsOptions.map((ns) => ({
-                label: ns.namespaceName || ns.namespaceId || 'public',
-                value: ns.namespaceId || '',
-              }))}
-              placeholder={t('product.package.selectNamespace')}
-            />
-          </Form.Item>
+          {selectedRegistryType === 'AIREGISTRY' ? (
+            <>
+              <Form.Item
+                label={t('product.package.airegistryInstance')}
+                name="airegistryId"
+                rules={[{ message: t('product.package.airegistryRequired'), required: true }]}
+              >
+                <Select
+                  onChange={handleAiRegistryChange}
+                  options={aiRegistryInstances.map((item) => ({
+                    label: `${item.name}${
+                      item.isDefault ? ` (${t('product.package.nacosDefault')})` : ''
+                    }`,
+                    value: item.airegistryId,
+                  }))}
+                  placeholder={t('product.package.selectAiRegistry')}
+                />
+              </Form.Item>
+              <Form.Item
+                label={t('product.package.namespace')}
+                name="namespace"
+                rules={[{ message: t('product.package.namespaceRequired'), required: true }]}
+              >
+                <Input placeholder={t('page.airegistry.namespaceIdPlaceholder')} />
+              </Form.Item>
+            </>
+          ) : (
+            <>
+              <Form.Item
+                label={t('product.package.nacosInstance')}
+                name="nacosId"
+                rules={[{ message: t('product.package.nacosRequired'), required: true }]}
+              >
+                <Select
+                  loading={nacosLoading}
+                  onChange={handleNacosChange}
+                  options={nacosInstances.map((n) => ({
+                    label: `${n.nacosName}${
+                      n.isDefault ? ` (${t('product.package.nacosDefault')})` : ''
+                    }`,
+                    value: n.nacosId,
+                  }))}
+                  placeholder={t('product.package.selectNacos')}
+                />
+              </Form.Item>
+              <Form.Item
+                label={t('product.package.namespace')}
+                name="namespace"
+                rules={[{ message: t('product.package.namespaceRequired'), required: true }]}
+              >
+                <Select
+                  loading={nsLoading}
+                  options={nacosNsOptions.map((ns) => ({
+                    label: ns.namespaceName || ns.namespaceId || 'public',
+                    value: ns.namespaceId || '',
+                  }))}
+                  placeholder={t('product.package.selectNamespace')}
+                />
+              </Form.Item>
+            </>
+          )}
         </Form>
       </Modal>
     </div>

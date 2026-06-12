@@ -19,10 +19,12 @@ import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
+import com.alibaba.himarket.service.AiRegistrySkillService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.SkillService;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
+import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -63,6 +65,7 @@ public class SkillServiceImpl implements SkillService {
 
     private final ProductRepository productRepository;
     private final ContextHolder contextHolder;
+    private final AiRegistrySkillService aiRegistrySkillService;
 
     @Override
     public void uploadPackage(String productId, MultipartFile file) throws IOException {
@@ -72,11 +75,30 @@ public class SkillServiceImpl implements SkillService {
         }
 
         Product product = findProduct(productId);
-        SkillRef ref = getSkillRef(productId, true);
-
         byte[] zipBytes = file.getBytes();
 
-        SkillConfig config = product.getFeature().getSkillConfig();
+        SkillConfig config = resolveSkillConfig(product);
+        if (config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            if (StrUtil.isBlank(config.getAiRegistryId())
+                    || StrUtil.isBlank(config.getNamespace())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "AIRegistry skill config not found");
+            }
+            String skillName =
+                    aiRegistrySkillService.uploadFromZip(
+                            config.getAiRegistryId(),
+                            config.getNamespace(),
+                            zipBytes,
+                            file.getOriginalFilename(),
+                            true);
+            if (StrUtil.isBlank(config.getSkillName())) {
+                config.setSkillName(skillName);
+            }
+            productRepository.save(product);
+            return;
+        }
+
+        SkillRef ref = getSkillRef(productId, true);
 
         if (StrUtil.isBlank(ref.getSkillName())) {
             // First upload: use overwrite mode in case Nacos already has a skill with the same name
@@ -97,9 +119,28 @@ public class SkillServiceImpl implements SkillService {
         productRepository.save(product);
     }
 
+    private SkillConfig resolveSkillConfig(Product product) {
+        if (product.getFeature() == null || product.getFeature().getSkillConfig() == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Skill registry is not configured");
+        }
+        return product.getFeature().getSkillConfig();
+    }
+
     @Override
     public void deleteSkill(String productId) {
         Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            if (StrUtil.isNotBlank(config.getSkillName())) {
+                aiRegistrySkillService.deleteSkill(
+                        config.getAiRegistryId(), config.getNamespace(), config.getSkillName());
+                config.setSkillName(null);
+                productRepository.save(product);
+            }
+            return;
+        }
+
         SkillRef ref = getSkillRef(productId, false);
 
         if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
@@ -112,7 +153,6 @@ public class SkillServiceImpl implements SkillService {
                     return null;
                 });
 
-        SkillConfig config = product.getFeature().getSkillConfig();
         config.setSkillName(null);
 
         productRepository.save(product);
@@ -120,6 +160,22 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public List<FileTreeNode> getFileTree(String productId, String version) {
+        Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            if (StrUtil.isBlank(config.getSkillName())) {
+                return Collections.emptyList();
+            }
+            version = validateAndResolveVersion(productId, version);
+            Skill skill =
+                    aiRegistrySkillService.getSkillVersion(
+                            config.getAiRegistryId(),
+                            config.getNamespace(),
+                            config.getSkillName(),
+                            version);
+            return FileTreeBuilder.build(skill);
+        }
+
         SkillRef ref = getSkillRef(productId, false);
         if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
             return Collections.emptyList();
@@ -140,9 +196,24 @@ public class SkillServiceImpl implements SkillService {
     public FileContentResult getFileContent(String productId, String path, String version) {
         version = validateAndResolveVersion(productId, version);
 
+        Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            Skill skill =
+                    aiRegistrySkillService.getSkillVersion(
+                            config.getAiRegistryId(),
+                            config.getNamespace(),
+                            config.getSkillName(),
+                            version);
+            return getFileContentFromSkill(skill, path);
+        }
+
         SkillRef ref = getSkillRef(productId, true);
         Skill skill = fetchSkill(ref, version);
+        return getFileContentFromSkill(skill, path);
+    }
 
+    private FileContentResult getFileContentFromSkill(Skill skill, String path) {
         // Virtual SKILL.md generated from Skill metadata
         if ("SKILL.md".equals(path)) {
             String skillMd = SkillMdBuilder.build(skill);
@@ -188,6 +259,24 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public List<VersionResult> listVersions(String productId) {
         Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            if (StrUtil.isBlank(config.getSkillName())) {
+                return Collections.emptyList();
+            }
+            List<VersionResult> results =
+                    aiRegistrySkillService.listVersions(
+                            config.getAiRegistryId(), config.getNamespace(), config.getSkillName());
+            syncProductStatus(product, results);
+            if (!contextHolder.isAdministrator()) {
+                results =
+                        results.stream()
+                                .filter(v -> "online".equals(v.getStatus()))
+                                .collect(Collectors.toList());
+            }
+            return results;
+        }
+
         SkillRef ref = getSkillRef(productId, false);
 
         if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
@@ -229,7 +318,8 @@ public class SkillServiceImpl implements SkillService {
                                                 .status(
                                                         VersionResult.resolveStatus(
                                                                 v.getStatus(),
-                                                                v.getPublishPipelineInfo()))
+                                                                v.getPublishPipelineInfo(),
+                                                                false))
                                                 .updateTime(v.getUpdateTime())
                                                 .downloadCount(v.getDownloadCount())
                                                 .publishPipelineInfo(v.getPublishPipelineInfo())
@@ -266,8 +356,42 @@ public class SkillServiceImpl implements SkillService {
         return results;
     }
 
+    private void syncProductStatus(Product product, List<VersionResult> versions) {
+        boolean hasOnline = versions.stream().anyMatch(v -> "online".equals(v.getStatus()));
+        ProductStatus current = product.getStatus();
+        ProductStatus targetStatus;
+        if (hasOnline) {
+            targetStatus = (current != ProductStatus.PUBLISHED) ? ProductStatus.READY : current;
+        } else {
+            targetStatus =
+                    (current == ProductStatus.PUBLISHED)
+                            ? ProductStatus.READY
+                            : ProductStatus.PENDING;
+        }
+        if (current != targetStatus) {
+            product.setStatus(targetStatus);
+            productRepository.save(product);
+        }
+    }
+
     @Override
     public void publishVersion(String productId, String version) {
+        Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            String submittedVersion =
+                    aiRegistrySkillService.submit(
+                            config.getAiRegistryId(),
+                            config.getNamespace(),
+                            config.getSkillName(),
+                            version);
+            log.info(
+                    "Submitted AIRegistry Skill {}, version {}",
+                    config.getSkillName(),
+                    submittedVersion);
+            return;
+        }
+
         SkillRef ref = getSkillRef(productId, true);
 
         String submittedVersion =
@@ -278,8 +402,47 @@ public class SkillServiceImpl implements SkillService {
     }
 
     @Override
+    public void publishApprovedVersion(String productId, String version) {
+        Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            aiRegistrySkillService.publish(
+                    config.getAiRegistryId(),
+                    config.getNamespace(),
+                    config.getSkillName(),
+                    version,
+                    true);
+            syncProductStatus(product, listVersions(productId));
+            return;
+        }
+
+        SkillRef ref = getSkillRef(productId, true);
+        execute(
+                ref.getNacosId(),
+                s -> {
+                    s.publish(ref.getNamespace(), ref.getSkillName(), version, true);
+                    return null;
+                });
+        log.info("Published Skill {}, version {}", ref.getSkillName(), version);
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
+    @Override
     public void changeVersionStatus(String productId, String version, boolean online) {
         Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            aiRegistrySkillService.changeVersionStatus(
+                    config.getAiRegistryId(),
+                    config.getNamespace(),
+                    config.getSkillName(),
+                    version,
+                    online);
+            syncProductStatus(product, listVersions(productId));
+            return;
+        }
+
         SkillRef ref = getSkillRef(productId, true);
 
         execute(
@@ -301,6 +464,18 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public void forcePublishVersion(String productId, String version, Boolean updateLatestLabel) {
         Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            aiRegistrySkillService.forcePublish(
+                    config.getAiRegistryId(),
+                    config.getNamespace(),
+                    config.getSkillName(),
+                    version,
+                    updateLatestLabel);
+            syncProductStatus(product, listVersions(productId));
+            return;
+        }
+
         SkillRef ref = getSkillRef(productId, true);
 
         execute(
@@ -382,8 +557,8 @@ public class SkillServiceImpl implements SkillService {
                                                         .equals(
                                                                 VersionResult.resolveStatus(
                                                                         v.getStatus(),
-                                                                        v
-                                                                                .getPublishPipelineInfo())));
+                                                                        v.getPublishPipelineInfo(),
+                                                                        false)));
             }
 
             ProductStatus current = product.getStatus();
@@ -417,6 +592,12 @@ public class SkillServiceImpl implements SkillService {
     @Override
     public void deleteDraft(String productId) {
         Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "AIRegistry does not support deleting draft");
+        }
+
         SkillRef ref = getSkillRef(productId, true);
 
         boolean deleted =
@@ -447,7 +628,6 @@ public class SkillServiceImpl implements SkillService {
                 if (product.getStatus() != ProductStatus.PUBLISHED) {
                     product.setStatus(ProductStatus.PENDING);
                 }
-                SkillConfig config = product.getFeature().getSkillConfig();
                 config.setSkillName(null);
                 productRepository.save(product);
             } else {
@@ -460,7 +640,6 @@ public class SkillServiceImpl implements SkillService {
             log.info(
                     "Skill {} not found after draft deletion, clearing reference",
                     ref.getSkillName());
-            SkillConfig config = product.getFeature().getSkillConfig();
             config.setSkillName(null);
             productRepository.save(product);
         }
@@ -468,6 +647,17 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public void setLatestVersion(String productId, String version) {
+        Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            aiRegistrySkillService.setLatestVersion(
+                    config.getAiRegistryId(),
+                    config.getNamespace(),
+                    config.getSkillName(),
+                    version);
+            return;
+        }
+
         SkillRef ref = getSkillRef(productId, true);
 
         // If the target version is still marked as "reviewing" in Nacos metadata
@@ -486,7 +676,7 @@ public class SkillServiceImpl implements SkillService {
         log.info("Set latest: Skill {}, version {}", ref.getSkillName(), version);
     }
 
-    private void ensurePublished(SkillRef ref, String version) {
+    private boolean ensurePublished(SkillRef ref, String version) {
         SkillMeta meta;
         try {
             meta =
@@ -494,10 +684,10 @@ public class SkillServiceImpl implements SkillService {
                             ref.getNacosId(),
                             s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
         } catch (Exception e) {
-            return;
+            return false;
         }
         if (meta == null) {
-            return;
+            return false;
         }
         // Check if the version is still the reviewingVersion in Nacos metadata
         if (version.equals(meta.getReviewingVersion())) {
@@ -508,12 +698,31 @@ public class SkillServiceImpl implements SkillService {
                     "Auto-published Skill {} version {} to clear reviewing state",
                     ref.getSkillName(),
                     version);
+            return true;
         }
+        return false;
     }
 
     @Override
     public void downloadPackage(String productId, String version, HttpServletResponse response)
             throws IOException {
+        Product product = findProduct(productId);
+        SkillConfig config = product.getFeature().getSkillConfig();
+        if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            byte[] zipBytes =
+                    aiRegistrySkillService.downloadZip(
+                            config.getAiRegistryId(),
+                            config.getNamespace(),
+                            config.getSkillName(),
+                            version);
+            response.setContentType("application/zip");
+            response.setHeader(
+                    "Content-Disposition",
+                    "attachment; filename=\"" + config.getSkillName() + ".zip\"");
+            response.getOutputStream().write(zipBytes);
+            return;
+        }
+
         SkillRef ref = getSkillRef(productId, true);
 
         // 先调用 Nacos HTTP API 下载，让 Nacos 增加下载计数
@@ -862,6 +1071,7 @@ public class SkillServiceImpl implements SkillService {
         SkillConfig config = product.getFeature().getSkillConfig();
 
         if (config == null
+                || config.getRegistryType() == SkillRegistryType.AIREGISTRY
                 || StrUtil.isBlank(config.getNacosId())
                 || StrUtil.isBlank(config.getSkillName())) {
             return null;

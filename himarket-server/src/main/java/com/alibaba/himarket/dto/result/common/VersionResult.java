@@ -48,6 +48,11 @@ public class VersionResult {
      * "审核不通过" instead of misleadingly showing "审核中".
      */
     public static String resolveStatus(String rawStatus, String publishPipelineInfo) {
+        return resolveStatus(rawStatus, publishPipelineInfo, true);
+    }
+
+    public static String resolveStatus(
+            String rawStatus, String publishPipelineInfo, boolean approvedAsOnline) {
         if (!"reviewing".equals(rawStatus) || publishPipelineInfo == null) {
             return rawStatus;
         }
@@ -55,7 +60,7 @@ public class VersionResult {
             JsonNode pipeline = JsonUtil.readTree(publishPipelineInfo);
             String pipelineStatus = pipeline.path("status").asText();
             if ("APPROVED".equals(pipelineStatus)) {
-                return "online";
+                return approvedAsOnline ? "online" : "approved";
             }
             if ("REJECTED".equals(pipelineStatus)) {
                 return "rejected";

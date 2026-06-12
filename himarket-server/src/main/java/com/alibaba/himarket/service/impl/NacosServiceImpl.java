@@ -39,6 +39,7 @@ import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
+import com.alibaba.himarket.dto.result.nacos.NacosSkillResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
@@ -50,6 +51,7 @@ import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerBasicInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
+import com.alibaba.nacos.api.ai.model.skills.SkillSummary;
 import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.model.response.Namespace;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerFactory;
@@ -703,6 +705,42 @@ public class NacosServiceImpl implements NacosService {
                 pageable.getPageNumber(),
                 pageable.getPageSize(),
                 agentPage.getTotalCount());
+    }
+
+    @Override
+    public PageResult<NacosSkillResult> fetchSkills(
+            String nacosId, String namespaceId, Pageable pageable) throws Exception {
+        AiMaintainerService service = getAiMaintainerService(nacosId);
+        com.alibaba.nacos.api.model.Page<SkillSummary> page =
+                service.skill()
+                        .listSkills(
+                                StrUtil.blankToDefault(namespaceId, "public"),
+                                null,
+                                null,
+                                1,
+                                Integer.MAX_VALUE);
+        if (page == null || page.getPageItems() == null) {
+            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+        }
+        return page.getPageItems().stream()
+                .map(
+                        skill ->
+                                NacosSkillResult.builder()
+                                        .name(skill.getName())
+                                        .description(skill.getDescription())
+                                        .downloadCount(skill.getDownloadCount())
+                                        .build())
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .collect(
+                        Collectors.collectingAndThen(
+                                Collectors.toList(),
+                                list ->
+                                        PageResult.of(
+                                                list,
+                                                pageable.getPageNumber(),
+                                                pageable.getPageSize(),
+                                                page.getPageItems().size())));
     }
 
     /**

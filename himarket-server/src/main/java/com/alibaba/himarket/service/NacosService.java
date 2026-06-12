@@ -28,6 +28,7 @@ import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
 import com.alibaba.himarket.dto.result.nacos.MseNacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
+import com.alibaba.himarket.dto.result.nacos.NacosSkillResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
@@ -128,6 +129,9 @@ public interface NacosService {
      * @throws Exception 获取 Agent 列表时可能抛出的异常
      */
     PageResult<NacosAgentResult> fetchAgents(String nacosId, String namespaceId, Pageable pageable)
+            throws Exception;
+
+    PageResult<NacosSkillResult> fetchSkills(String nacosId, String namespaceId, Pageable pageable)
             throws Exception;
 
     /**

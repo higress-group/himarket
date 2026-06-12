@@ -264,7 +264,9 @@ export interface ProductFeature {
 export interface ApiProductSkillConfig {
   skillTags?: string[];
   downloadCount?: number;
+  registryType?: 'NACOS' | 'AIREGISTRY';
   nacosId?: string;
+  airegistryId?: string;
   namespace?: string;
   skillName?: string;
 }

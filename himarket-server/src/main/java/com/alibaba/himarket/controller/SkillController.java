@@ -90,6 +90,14 @@ public class SkillController {
         skillService.publishVersion(productId, param.getVersion());
     }
 
+    @Operation(summary = "Publish approved Skill version")
+    @PostMapping("/{productId}/versions/{version}/publish")
+    @AdminAuth
+    public void publishApprovedVersion(
+            @PathVariable String productId, @PathVariable String version) {
+        skillService.publishApprovedVersion(productId, version);
+    }
+
     @Operation(summary = "Update Skill version status")
     @PatchMapping("/{productId}/versions/{version}")
     @AdminAuth

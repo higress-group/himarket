@@ -8,6 +8,8 @@
   "noVersion": "No versions",
   "downloadSkillPackage": "Download Skill Package",
   "npxDownload": "NPX Download",
+  "cliCredentialStep": "Step 1. Configure CLI credentials before first use",
+  "cliUserDoc": "(CLI user guide)",
   "outputDir": "Output Directory",
   "outputDirPlaceholder": "Enter output directory path",
   "httpDownload": "HTTP Download",
