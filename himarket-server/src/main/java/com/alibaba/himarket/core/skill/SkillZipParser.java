@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.alibaba.himarket.core.skill;
 
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -23,8 +42,8 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * ZIP 包解析工具类。参考 Nacos 服务端 SkillZipParser 实现。
- * 解析 ZIP → 提取 SKILL.md → 构建 Skill 对象。
+ * Utility for parsing Skill ZIP packages, based on the Nacos server SkillZipParser.
+ * Parses ZIP content, extracts SKILL.md, and builds a Skill object.
  */
 public final class SkillZipParser {
 
@@ -54,11 +73,11 @@ public final class SkillZipParser {
     }
 
     /**
-     * 解析 ZIP 包为 Nacos Skill 对象。
+     * Parses a ZIP package into a Nacos Skill object.
      *
-     * @param zipBytes ZIP 文件字节数组
-     * @param namespaceId Nacos 命名空间
-     * @return Skill 对象（含 name、description、instruction、resources）
+     * @param zipBytes ZIP file bytes
+     * @param namespaceId Nacos namespace
+     * @return Skill object containing name, description, instruction, and resources
      */
     public static Skill parseSkillFromZip(byte[] zipBytes, String namespaceId) {
         if (zipBytes == null || zipBytes.length == 0) {
@@ -68,7 +87,7 @@ public final class SkillZipParser {
         try {
             List<ZipEntryData> entries = unzipToEntries(zipBytes);
 
-            // 查找 SKILL.md（根目录或一级子目录）
+            // Find SKILL.md in the root directory or the first-level child directory.
             String skillMdContent = null;
             for (ZipEntryData entry : entries) {
                 if (isMacOsMetadataFile(entry.name)) continue;
@@ -94,6 +113,41 @@ public final class SkillZipParser {
         }
     }
 
+    /**
+     * Parses resource paths from a Skill ZIP without loading resource content.
+     *
+     * @param zipBytes ZIP file bytes
+     * @return Nacos Skill resource paths
+     */
+    public static List<String> parseResourcePathsFromZip(byte[] zipBytes) {
+        if (zipBytes == null || zipBytes.length == 0) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP file is empty");
+        }
+
+        try {
+            ZipManifest manifest = readZipManifest(zipBytes);
+            if (manifest.skillMdContent() == null || manifest.skillMdContent().isBlank()) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER, "SKILL.md was not found in the ZIP package");
+            }
+
+            Skill skill = parseSkillMarkdown(manifest.skillMdContent(), "");
+            List<String> resourcePaths = new ArrayList<>();
+            for (String entryName : manifest.entryNames()) {
+                ResourcePath resourcePath = parseResourcePath(entryName, skill.getName());
+                if (resourcePath != null) {
+                    resourcePaths.add(resourcePath.path());
+                }
+            }
+            return resourcePaths;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "Failed to parse ZIP package: " + e.getMessage());
+        }
+    }
+
     private static List<ZipEntryData> unzipToEntries(byte[] zipBytes) throws IOException {
         List<ZipEntryData> result = new ArrayList<>();
         try (ZipArchiveInputStream zis =
@@ -107,17 +161,59 @@ public final class SkillZipParser {
             while ((entry = zis.getNextEntry()) != null) {
                 if (entry.isDirectory()) continue;
                 String name = entry.getName();
-                if (name != null && (name.contains("__MACOSX") || name.contains("/__MACOSX/")))
+                if (isIgnoredZipEntry(name)) {
+                    drainEntry(zis, buffer);
                     continue;
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                int n;
-                while ((n = zis.read(buffer)) != -1) {
-                    out.write(buffer, 0, n);
                 }
-                result.add(new ZipEntryData(name, out.toByteArray()));
+                result.add(new ZipEntryData(name, readEntryBytes(zis, buffer)));
             }
         }
         return result;
+    }
+
+    private static ZipManifest readZipManifest(byte[] zipBytes) throws IOException {
+        List<String> entryNames = new ArrayList<>();
+        String skillMdContent = null;
+        try (ZipArchiveInputStream zis =
+                new ZipArchiveInputStream(
+                        new ByteArrayInputStream(zipBytes),
+                        StandardCharsets.UTF_8.name(),
+                        true,
+                        true)) {
+            ZipArchiveEntry entry;
+            byte[] buffer = new byte[8192];
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+                String name = entry.getName();
+                if (isIgnoredZipEntry(name)) {
+                    drainEntry(zis, buffer);
+                    continue;
+                }
+                entryNames.add(name);
+                if (skillMdContent == null
+                        && (SKILL_MD_FILE.equals(name) || name.endsWith("/" + SKILL_MD_FILE))) {
+                    skillMdContent =
+                            new String(readEntryBytes(zis, buffer), StandardCharsets.UTF_8);
+                } else {
+                    drainEntry(zis, buffer);
+                }
+            }
+        }
+        return new ZipManifest(entryNames, skillMdContent);
+    }
+
+    private static byte[] readEntryBytes(ZipArchiveInputStream zis, byte[] buffer)
+            throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int n;
+        while ((n = zis.read(buffer)) != -1) {
+            out.write(buffer, 0, n);
+        }
+        return out.toByteArray();
+    }
+
+    private static void drainEntry(ZipArchiveInputStream zis, byte[] buffer) throws IOException {
+        while (zis.read(buffer) != -1) {}
     }
 
     private static Map<String, SkillResource> parseResources(
@@ -125,40 +221,12 @@ public final class SkillZipParser {
         Map<String, SkillResource> resources = new HashMap<>(16);
         for (ZipEntryData entry : entries) {
             String itemName = entry.name;
-            if (isMacOsMetadataFile(itemName)) continue;
-            if (itemName.endsWith(SKILL_MD_FILE) || itemName.endsWith("/")) continue;
-
-            String[] parts = itemName.split("/");
-            String type;
-            String resourceName;
-
-            if (parts.length == 1) {
-                type = "";
-                resourceName = parts[0];
-            } else if (parts.length == 2 && parts[0].equals(skillName)) {
-                type = "";
-                resourceName = parts[1];
-            } else if (parts.length >= 3 && parts[0].equals(skillName)) {
-                StringBuilder typeSb = new StringBuilder();
-                for (int i = 1; i < parts.length - 1; i++) {
-                    if (typeSb.length() > 0) typeSb.append('/');
-                    typeSb.append(parts[i]);
-                }
-                type = typeSb.toString();
-                resourceName = parts[parts.length - 1];
-            } else if (parts.length >= 2) {
-                StringBuilder typeSb = new StringBuilder();
-                for (int i = 0; i < parts.length - 1; i++) {
-                    if (typeSb.length() > 0) typeSb.append('/');
-                    typeSb.append(parts[i]);
-                }
-                type = typeSb.toString();
-                resourceName = parts[parts.length - 1];
-            } else {
+            ResourcePath path = parseResourcePath(itemName, skillName);
+            if (path == null) {
                 continue;
             }
 
-            boolean isBinary = isBinaryResource(resourceName);
+            boolean isBinary = isBinaryResource(path.name());
             String content;
             Map<String, Object> metadata = new HashMap<>(4);
             if (isBinary) {
@@ -169,14 +237,53 @@ public final class SkillZipParser {
             }
 
             SkillResource resource = new SkillResource();
-            resource.setName(resourceName);
-            resource.setType(type);
+            resource.setName(path.name());
+            resource.setType(path.type());
             resource.setContent(content);
             resource.setMetadata(metadata.isEmpty() ? null : metadata);
-            String key = SkillUtils.generateResourceId(type, resourceName);
+            String key = SkillUtils.generateResourceId(path.type(), path.name());
             resources.put(key, resource);
         }
         return resources;
+    }
+
+    private static ResourcePath parseResourcePath(String itemName, String skillName) {
+        if (itemName == null || itemName.isEmpty()) return null;
+        if (isMacOsMetadataFile(itemName)) return null;
+        if (itemName.endsWith(SKILL_MD_FILE) || itemName.endsWith("/")) return null;
+
+        String[] parts = itemName.split("/");
+        String type;
+        String name;
+
+        if (parts.length == 1) {
+            type = "";
+            name = parts[0];
+        } else if (parts.length == 2 && parts[0].equals(skillName)) {
+            type = "";
+            name = parts[1];
+        } else if (parts.length >= 3 && parts[0].equals(skillName)) {
+            type = joinPath(parts, 1, parts.length - 1);
+            name = parts[parts.length - 1];
+        } else if (parts.length >= 2) {
+            type = joinPath(parts, 0, parts.length - 1);
+            name = parts[parts.length - 1];
+        } else {
+            return null;
+        }
+
+        return new ResourcePath(type, name);
+    }
+
+    private static String joinPath(String[] parts, int startInclusive, int endExclusive) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = startInclusive; i < endExclusive; i++) {
+            if (builder.length() > 0) {
+                builder.append('/');
+            }
+            builder.append(parts[i]);
+        }
+        return builder.toString();
     }
 
     private static Skill parseSkillMarkdown(String markdownContent, String namespaceId) {
@@ -258,5 +365,23 @@ public final class SkillZipParser {
         return fileName.startsWith(MACOS_METADATA_PREFIX);
     }
 
+    private static boolean isIgnoredZipEntry(String itemName) {
+        return itemName == null
+                || itemName.contains("__MACOSX")
+                || itemName.contains("/__MACOSX/")
+                || isMacOsMetadataFile(itemName);
+    }
+
     private record ZipEntryData(String name, byte[] data) {}
+
+    private record ZipManifest(List<String> entryNames, String skillMdContent) {}
+
+    private record ResourcePath(String type, String name) {
+        String path() {
+            if (type == null || type.isBlank()) {
+                return name;
+            }
+            return type + "/" + name;
+        }
+    }
 }

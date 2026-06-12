@@ -17,14 +17,17 @@
  * under the License.
  */
 
-package com.alibaba.himarket.service.hicoding.sandbox;
+package com.alibaba.himarket.config;
 
-public record ConfigFile(String relativePath, String content, String contentHash, ConfigType type) {
+import com.alibaba.himarket.utils.JsonUtil;
+import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Configuration;
 
-    public enum ConfigType {
-        MODEL_SETTINGS,
-        MCP_CONFIG,
-        SKILL_CONFIG,
-        CUSTOM
+@Configuration
+public class JsonConfig {
+
+    @PostConstruct
+    void configureJsonDefaults() {
+        JsonUtil.configureDefaultStreamReadConstraints();
     }
 }

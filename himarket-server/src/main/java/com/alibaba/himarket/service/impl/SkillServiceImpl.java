@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
@@ -9,6 +28,7 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
+import com.alibaba.himarket.core.skill.SkillZipParser;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
@@ -28,6 +48,7 @@ import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.himarket.utils.JsonUtil;
+import com.alibaba.nacos.api.ai.model.NacosAiConfigKeyCodec;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillMeta;
 import com.alibaba.nacos.api.ai.model.skills.SkillResource;
@@ -60,6 +81,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class SkillServiceImpl implements SkillService {
 
     private static final long MAX_ZIP_SIZE = 10 * 1024 * 1024;
+
+    private static final int NACOS_DATA_ID_MAX_LENGTH = 256;
 
     private final NacosService nacosService;
 
@@ -102,17 +125,12 @@ public class SkillServiceImpl implements SkillService {
 
         if (StrUtil.isBlank(ref.getSkillName())) {
             // First upload: use overwrite mode in case Nacos already has a skill with the same name
-            String skillName =
-                    execute(
-                            ref.getNacosId(),
-                            s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
+            String skillName = uploadSkillZip(ref, zipBytes);
             log.info("Uploaded new Skill draft: {}", skillName);
             config.setSkillName(skillName);
         } else {
             // Subsequent upload: use overwrite mode to bypass reviewing version blocking
-            execute(
-                    ref.getNacosId(),
-                    s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
+            uploadSkillZip(ref, zipBytes);
             log.info("Uploaded (overwrite) for Skill {}", ref.getSkillName());
         }
 
@@ -725,25 +743,26 @@ public class SkillServiceImpl implements SkillService {
 
         SkillRef ref = getSkillRef(productId, true);
 
-        // 先调用 Nacos HTTP API 下载，让 Nacos 增加下载计数
+        // Download through the Nacos HTTP API so Nacos can increase the download count.
         downloadFromNacos(ref, version, response);
     }
 
     /**
-     * 通过调用 Nacos HTTP API 下载 Skill ZIP 包，使 Nacos 自动增加下载计数
+     * Downloads the Skill ZIP package through the Nacos HTTP API so Nacos can increase
+     * the download count automatically.
      * API: GET /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
      */
     private void downloadFromNacos(SkillRef ref, String version, HttpServletResponse response)
             throws IOException {
         try {
             NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
-            // 优先使用展示地址，不存在则使用 serverUrl
+            // Prefer the display URL and fall back to the server URL.
             String nacosBaseUrl =
                     StrUtil.isNotBlank(nacosInstance.getDisplayServerUrl())
                             ? nacosInstance.getDisplayServerUrl()
                             : nacosInstance.getServerUrl();
 
-            // 构建 Nacos 下载 URL:
+            // Build the Nacos download URL:
             // /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
             StringBuilder urlBuilder = new StringBuilder();
             urlBuilder.append(nacosBaseUrl);
@@ -763,7 +782,7 @@ public class SkillServiceImpl implements SkillService {
                         .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8.name()));
             }
 
-            // 添加认证参数（如果 Nacos 有用户名密码）
+            // Add authentication parameters if the Nacos instance has credentials.
             if (StrUtil.isNotBlank(nacosInstance.getUsername())
                     && StrUtil.isNotBlank(nacosInstance.getPassword())) {
                 urlBuilder
@@ -781,11 +800,11 @@ public class SkillServiceImpl implements SkillService {
             }
 
             String downloadUrl = urlBuilder.toString();
-            // 日志中密码脱敏
+            // Mask the password in logs.
             String loggedUrl = downloadUrl.replaceAll("password=[^&]+", "password=***");
             log.info("Calling Nacos download API: {}", loggedUrl);
 
-            // 创建 HTTP 连接
+            // Create the HTTP connection.
             java.net.URL url = new java.net.URL(downloadUrl);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -794,7 +813,7 @@ public class SkillServiceImpl implements SkillService {
 
             int responseCode = conn.getResponseCode();
             if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                // 设置响应头
+                // Set response headers.
                 response.setContentType("application/zip");
                 String encodedName =
                         java.net.URLEncoder.encode(
@@ -803,7 +822,7 @@ public class SkillServiceImpl implements SkillService {
                 response.setHeader(
                         "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
 
-                // 流式传输 ZIP 文件
+                // Stream the ZIP file.
                 try (var input = conn.getInputStream();
                         var output = response.getOutputStream()) {
                     input.transferTo(output);
@@ -811,18 +830,18 @@ public class SkillServiceImpl implements SkillService {
                 log.info("Downloaded skill {} from Nacos successfully", ref.getSkillName());
             } else {
                 log.warn("Nacos download API returned non-OK status: {}", responseCode);
-                // 降级为本地生成 ZIP
+                // Fall back to local ZIP generation.
                 fallbackToLocalDownload(ref, version, response);
             }
         } catch (Exception e) {
             log.warn("Failed to download from Nacos, fallback to local generation", e);
-            // 降级为本地生成 ZIP
+            // Fall back to local ZIP generation.
             fallbackToLocalDownload(ref, version, response);
         }
     }
 
     /**
-     * 降级方案：本地生成 ZIP 包（不增加 Nacos 下载计数）
+     * Fallback path: generate the ZIP package locally without increasing the Nacos download count.
      */
     private void fallbackToLocalDownload(SkillRef ref, String version, HttpServletResponse response)
             throws IOException {
@@ -883,7 +902,14 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public String uploadSkillFromZip(String nacosId, String namespace, byte[] zipBytes) {
+        validateSkillResourceDataIds(zipBytes);
         return execute(nacosId, s -> s.uploadSkillFromZip(namespace, zipBytes));
+    }
+
+    private String uploadSkillZip(SkillRef ref, byte[] zipBytes) {
+        validateSkillResourceDataIds(zipBytes);
+        return execute(
+                ref.getNacosId(), s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
     }
 
     /**
@@ -956,6 +982,27 @@ public class SkillServiceImpl implements SkillService {
             return type + "/" + name;
         }
         return name;
+    }
+
+    /**
+     * Validates resource paths before uploading to Nacos so overly long encoded data IDs fail with
+     * a clear parameter error instead of a database truncation error from Nacos.
+     */
+    private void validateSkillResourceDataIds(byte[] zipBytes) {
+        for (String resourcePath : SkillZipParser.parseResourcePathsFromZip(zipBytes)) {
+            String encodedPath = NacosAiConfigKeyCodec.encodeSegment(resourcePath);
+            if (encodedPath != null && encodedPath.length() > NACOS_DATA_ID_MAX_LENGTH) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        StrUtil.format(
+                                "Resource file path is too long. It is {} characters after Nacos"
+                                    + " encoding, which exceeds the {} character limit. Shorten the"
+                                    + " file name or reduce directory nesting: {}",
+                                encodedPath.length(),
+                                NACOS_DATA_ID_MAX_LENGTH,
+                                resourcePath));
+            }
+        }
     }
 
     private void writeZipEntry(ZipOutputStream zos, String path, byte[] data) throws IOException {
