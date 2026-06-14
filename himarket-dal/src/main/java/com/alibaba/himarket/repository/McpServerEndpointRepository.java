@@ -31,21 +31,29 @@ public interface McpServerEndpointRepository extends BaseRepository<McpServerEnd
 
     List<McpServerEndpoint> findByMcpServerIdAndStatus(String mcpServerId, String status);
 
-    /** 查询用户可见的 endpoint（user_id = 指定用户 或 *） */
+    /**
+     * Queries endpoints visible to a user, including endpoints owned by the user or by *.
+     */
     List<McpServerEndpoint> findByMcpServerIdAndUserIdInAndStatus(
             String mcpServerId, List<String> userIds, String status);
 
-    /** 批量查询多个 mcpServerId 的公共 endpoint */
+    /**
+     * Batch queries public endpoints for multiple mcpServerIds.
+     */
     List<McpServerEndpoint> findByMcpServerIdInAndUserIdInAndStatus(
             java.util.Collection<String> mcpServerIds, List<String> userIds, String status);
 
     List<McpServerEndpoint> findByHostingTypeAndHostingInstanceId(
             String hostingType, String hostingInstanceId);
 
-    /** 查询用户拥有的所有 endpoint（userId = 指定用户 或 *） */
+    /**
+     * Queries all endpoints owned by the user or by *.
+     */
     List<McpServerEndpoint> findByUserIdIn(List<String> userIds);
 
-    /** 按 mcpServerId + userId + hostingInstanceId 查找（用于 upsert） */
+    /**
+     * Finds an endpoint by mcpServerId, userId, and hostingInstanceId for upsert.
+     */
     Optional<McpServerEndpoint> findByMcpServerIdAndUserIdAndHostingInstanceId(
             String mcpServerId, String userId, String hostingInstanceId);
 

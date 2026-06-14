@@ -125,7 +125,11 @@ public class IdpServiceImpl implements IdpService {
             config.setTokenEndpoint(tokenEndpoint);
             config.setUserInfoEndpoint(userInfoEndpoint);
         } catch (Exception e) {
-            log.error("Failed to discover OIDC endpoints from discovery URL: {}", discoveryUrl, e);
+            log.error(
+                    "Failed to discover OIDC endpoints, discoveryUrl={}, errorMessage={}",
+                    discoveryUrl,
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
                     StrUtil.format("OIDC config {} issuer is invalid or unreachable", provider));
@@ -237,7 +241,7 @@ public class IdpServiceImpl implements IdpService {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             return keyFactory.generatePublic(spec);
         } catch (Exception e) {
-            log.error("Failed to parse PEM public key", e);
+            log.error("Failed to parse PEM public key, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "Failed to parse PEM public key: " + e.getMessage());
         }
@@ -273,7 +277,7 @@ public class IdpServiceImpl implements IdpService {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             return keyFactory.generatePublic(spec);
         } catch (Exception e) {
-            log.error("Failed to parse JWK RSA parameters", e);
+            log.error("Failed to parse JWK RSA parameters, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
                     "Failed to parse JWK RSA parameters: " + e.getMessage());
@@ -284,7 +288,7 @@ public class IdpServiceImpl implements IdpService {
         String value = jwk.path(fieldName).asText();
         if (StrUtil.isBlank(value)) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Missing field in JWK: " + fieldName);
+                    ErrorCode.INVALID_REQUEST, "Missing JWK field: " + fieldName);
         }
         return value;
     }

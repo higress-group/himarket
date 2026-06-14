@@ -49,8 +49,16 @@ public class APIGClient extends GatewayClient {
         try {
             return function.apply(apigClient);
         } catch (Exception e) {
-            log.error("Error executing APIG request", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, e.getMessage());
+            log.error(
+                    "Failed to execute gateway request, dependency=APIG, operation=execute,"
+                            + " errorType={}, errorMessage={}",
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    e,
+                    "Failed to execute APIG gateway request: " + e.getMessage());
         }
     }
 

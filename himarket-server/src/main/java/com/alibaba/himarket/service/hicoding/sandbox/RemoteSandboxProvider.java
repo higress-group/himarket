@@ -14,15 +14,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * 远程沙箱提供者。
+ * Remote sandbox provider.
  *
- * <p>连接远程 Sidecar 服务，不依赖 K8s API。 Sidecar 可以部署在 K8s Pod、Docker 容器或裸机上，只要地址可达即可。
- * 所有用户共用同一个 Sidecar，通过 {@code /workspace/{userId}} 实现工作目录隔离。
+ * <p>Connects to a remote Sidecar service without depending on the K8s API. The Sidecar can run in
+ * a K8s Pod, Docker container, or bare-metal host as long as it is reachable. Users share one
+ * Sidecar and are isolated by {@code /workspace/{userId}}.
  *
- * <p>文件操作使用绝对路径（参考 OpenSandbox execd 设计），由本 Provider 负责将相对路径
- * 转换为基于 {@code workspacePath} 的绝对路径，Sidecar 端不再需要知道用户上下文。
+ * <p>File operations use absolute paths, following the OpenSandbox execd design. This provider
+ * converts relative paths into absolute paths rooted at {@code workspacePath}, so the Sidecar does
+ * not need user context.
  *
- * <p>文件操作委托给 {@link SandboxHttpClient}，WebSocket 连接复用 {@link RemoteRuntimeAdapter}。
+ * <p>File operations are delegated to {@link SandboxHttpClient}, and WebSocket connections reuse
+ * {@link RemoteRuntimeAdapter}.
  */
 @Component
 public class RemoteSandboxProvider implements SandboxProvider {
@@ -45,11 +48,11 @@ public class RemoteSandboxProvider implements SandboxProvider {
     @Override
     public SandboxInfo acquire(SandboxConfig config) {
         if (config.userId() == null || config.userId().isBlank()) {
-            throw new IllegalArgumentException("userId 不能为空");
+            throw new IllegalArgumentException("userId must not be blank");
         }
         String userId = config.userId();
         if (userId.contains("..") || userId.contains("/")) {
-            throw new IllegalArgumentException("userId 包含非法字符: " + userId);
+            throw new IllegalArgumentException("userId contains invalid characters: " + userId);
         }
 
         AcpProperties.RemoteConfig remoteConfig = acpProperties.getRemote();
@@ -59,7 +62,7 @@ public class RemoteSandboxProvider implements SandboxProvider {
         String workspacePath = "/workspace/" + userId;
 
         logger.info(
-                "[RemoteSandboxProvider] acquire: userId={}, host={}:{}, workspacePath={}",
+                "Acquired remote sandbox, userId={}, host={}, port={}, workspacePath={}",
                 userId,
                 host,
                 port,
@@ -71,7 +74,7 @@ public class RemoteSandboxProvider implements SandboxProvider {
 
     @Override
     public void release(SandboxInfo info) {
-        // 空操作：远程 Sidecar 生命周期由外部管理
+        // No-op: the remote Sidecar lifecycle is managed externally.
     }
 
     @Override
@@ -80,10 +83,11 @@ public class RemoteSandboxProvider implements SandboxProvider {
     }
 
     /**
-     * 写入文件到沙箱。将相对路径转换为基于 workspacePath 的绝对路径。
+     * Writes a file to the sandbox after converting the relative path to an absolute workspace path.
      *
-     * <p>例如：relativePath=".qwen/settings.json", workspacePath="/workspace/dev-xxx"
-     * → 实际写入 "/workspace/dev-xxx/.qwen/settings.json"
+     * <p>For example, {@code relativePath=".qwen/settings.json"} and
+     * {@code workspacePath="/workspace/dev-xxx"} writes
+     * {@code "/workspace/dev-xxx/.qwen/settings.json"}.
      */
     @Override
     public void writeFile(SandboxInfo info, String relativePath, String content)
@@ -93,7 +97,8 @@ public class RemoteSandboxProvider implements SandboxProvider {
     }
 
     /**
-     * 从沙箱读取文件。将相对路径转换为基于 workspacePath 的绝对路径。
+     * Reads a file from the sandbox after converting the relative path to an absolute workspace
+     * path.
      */
     @Override
     public String readFile(SandboxInfo info, String relativePath) throws IOException {
@@ -132,10 +137,10 @@ public class RemoteSandboxProvider implements SandboxProvider {
     }
 
     /**
-     * 将相对路径转换为基于 workspacePath 的绝对路径。
+     * Converts a relative path to an absolute path rooted at workspacePath.
      *
-     * <p>参考 OpenSandbox execd 设计：文件操作使用绝对路径，由调用方负责构建。
-     * Sidecar 端不再依赖 WORKSPACE_ROOT 做路径解析。
+     * <p>Following the OpenSandbox execd design, file operations use absolute paths built by the
+     * caller, so the Sidecar no longer depends on WORKSPACE_ROOT for path resolution.
      */
     private String toAbsolutePath(SandboxInfo info, String relativePath) {
         String wp = info.workspacePath();
@@ -146,17 +151,17 @@ public class RemoteSandboxProvider implements SandboxProvider {
         if (cleaned.startsWith("./")) {
             cleaned = cleaned.substring(2);
         } else if (cleaned.startsWith("/")) {
-            // 绝对路径：校验是否在 workspacePath 范围内
+            // Absolute paths must stay within workspacePath.
             Path normalized = Paths.get(cleaned).normalize();
             if (!normalized.startsWith(Paths.get(wp).normalize())) {
-                throw new SecurityException("路径越界: " + relativePath);
+                throw new SecurityException("Path escapes workspace: " + relativePath);
             }
             return normalized.toString();
         }
         String full = wp.endsWith("/") ? wp + cleaned : wp + "/" + cleaned;
         Path normalized = Paths.get(full).normalize();
         if (!normalized.startsWith(Paths.get(wp).normalize())) {
-            throw new SecurityException("路径越界: " + relativePath);
+            throw new SecurityException("Path escapes workspace: " + relativePath);
         }
         return normalized.toString();
     }

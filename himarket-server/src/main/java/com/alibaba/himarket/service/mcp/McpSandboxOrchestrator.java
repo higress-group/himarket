@@ -157,7 +157,11 @@ public class McpSandboxOrchestrator {
                         .apiKey(apiKey)
                         .build());
 
-        log.info("沙箱部署事件已发布（事务提交后执行）: mcpName={}, sandboxId={}", meta.getMcpName(), sandboxId);
+        log.info(
+                "Sandbox deployment event published after transaction commit, mcpName={},"
+                        + " sandboxId={}",
+                meta.getMcpName(),
+                sandboxId);
     }
 
     /**
@@ -184,17 +188,20 @@ public class McpSandboxOrchestrator {
                         resourceName,
                         secretName);
                 log.info(
-                        "沙箱 undeploy 成功: mcpName={}, sandboxId={}, namespace={}, resourceName={}",
+                        "Sandbox undeploy succeeded, mcpName={}, sandboxId={}, namespace={},"
+                                + " resourceName={}",
                         meta.getMcpName(),
                         ep.getHostingInstanceId(),
                         namespace,
                         resourceName);
             } catch (Exception e) {
                 log.warn(
-                        "沙箱 undeploy 失败（不阻塞删除）: mcpName={}, sandboxId={}, error={}",
+                        "Sandbox undeploy failed and does not block deletion, mcpName={},"
+                                + " sandboxId={}, errorMessage={}",
                         meta.getMcpName(),
                         ep.getHostingInstanceId(),
-                        e.getMessage());
+                        e.getMessage(),
+                        e);
             }
         }
     }
@@ -221,7 +228,7 @@ public class McpSandboxOrchestrator {
         }
     }
 
-    // ==================== SubscribeParams Extraction ====================
+    // SubscribeParams extraction helpers.
 
     public String extractNamespace(McpServerEndpoint endpoint) {
         if (endpoint == null || StrUtil.isBlank(endpoint.getSubscribeParams())) {

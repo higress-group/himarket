@@ -51,7 +51,7 @@ public class NacosToGatewayToolsConverter {
             ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
             return yamlMapper.writeValueAsString(this);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to convert to YAML", e);
+            throw new RuntimeException("Failed to convert to YAML: " + e.getMessage(), e);
         }
     }
 
@@ -78,7 +78,7 @@ public class NacosToGatewayToolsConverter {
                 }
             }
         } catch (Exception e) {
-            // 转换失败时，tools保持空列表
+            // Keep tools empty when conversion fails.
         }
     }
 
@@ -136,7 +136,7 @@ public class NacosToGatewayToolsConverter {
                 }
             }
         } catch (Exception e) {
-            // 转换失败时，args保持空列表
+            // Keep args empty when conversion fails.
         }
 
         return args;

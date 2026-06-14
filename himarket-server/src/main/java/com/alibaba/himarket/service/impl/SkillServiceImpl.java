@@ -105,14 +105,14 @@ public class SkillServiceImpl implements SkillService {
                     execute(
                             ref.getNacosId(),
                             s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
-            log.info("Uploaded new Skill draft: {}", skillName);
+            log.info("Uploaded new Skill draft, skillName={}", skillName);
             config.setSkillName(skillName);
         } else {
             // Subsequent upload: use overwrite mode to bypass reviewing version blocking
             execute(
                     ref.getNacosId(),
                     s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
-            log.info("Uploaded (overwrite) for Skill {}", ref.getSkillName());
+            log.info("Uploaded Skill draft with overwrite, skillName={}", ref.getSkillName());
         }
 
         productRepository.save(product);
@@ -186,7 +186,11 @@ public class SkillServiceImpl implements SkillService {
             Skill skill = fetchSkill(ref, version);
             return FileTreeBuilder.build(skill);
         } catch (Exception e) {
-            log.warn("Failed to fetch file tree for Skill {}", ref.getSkillName(), e);
+            log.warn(
+                    "Failed to fetch file tree for Skill, skillName={}, errorMessage={}",
+                    ref.getSkillName(),
+                    e.getMessage(),
+                    e);
             return Collections.emptyList();
         }
     }
@@ -286,7 +290,9 @@ public class SkillServiceImpl implements SkillService {
                             ref.getNacosId(),
                             s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
         } catch (Exception e) {
-            log.warn("Skill {} not found in Nacos, returning empty versions", ref.getSkillName());
+            log.warn(
+                    "Skill not found in Nacos, returning empty versions, skillName={}",
+                    ref.getSkillName());
             return Collections.emptyList();
         }
 
@@ -379,7 +385,7 @@ public class SkillServiceImpl implements SkillService {
                             config.getSkillName(),
                             version);
             log.info(
-                    "Submitted AIRegistry Skill {}, version {}",
+                    "Submitted AIRegistry Skill, skillName={}, version={}",
                     config.getSkillName(),
                     submittedVersion);
             return;
@@ -391,7 +397,7 @@ public class SkillServiceImpl implements SkillService {
                 execute(
                         ref.getNacosId(),
                         s -> s.submit(ref.getNamespace(), ref.getSkillName(), version));
-        log.info("Submitted Skill {}, version {}", ref.getSkillName(), submittedVersion);
+        log.info("Submitted Skill, skillName={}, version={}", ref.getSkillName(), submittedVersion);
     }
 
     @Override
@@ -416,7 +422,7 @@ public class SkillServiceImpl implements SkillService {
                     s.publish(ref.getNamespace(), ref.getSkillName(), version, true);
                     return null;
                 });
-        log.info("Published Skill {}, version {}", ref.getSkillName(), version);
+        log.info("Published Skill, skillName={}, version={}", ref.getSkillName(), version);
 
         syncProductStatusAfterVersionChange(product, ref);
     }
@@ -446,10 +452,10 @@ public class SkillServiceImpl implements SkillService {
                     return null;
                 });
         log.info(
-                "{}: Skill {}, version {}",
-                online ? "Online" : "Offline",
+                "Changed Skill version status, skillName={}, version={}, online={}",
                 ref.getSkillName(),
-                version);
+                version,
+                online);
 
         syncProductStatusAfterVersionChange(product, ref);
     }
@@ -479,7 +485,7 @@ public class SkillServiceImpl implements SkillService {
                                 ref.getSkillName(),
                                 version,
                                 updateLatestLabel));
-        log.info("Force-published Skill {}, version {}", ref.getSkillName(), version);
+        log.info("Force-published Skill, skillName={}, version={}", ref.getSkillName(), version);
 
         syncProductStatusAfterVersionChange(product, ref);
     }
@@ -524,9 +530,9 @@ public class SkillServiceImpl implements SkillService {
      *
      * <p>Rules:
      * <ul>
-     *   <li>Has online version + non-PUBLISHED → set to READY</li>
-     *   <li>No online version + non-PUBLISHED → set to PENDING</li>
-     *   <li>No online version + PUBLISHED → downgrade to READY</li>
+     *   <li>Has online version + non-PUBLISHED -> set to READY</li>
+     *   <li>No online version + non-PUBLISHED -> set to PENDING</li>
+     *   <li>No online version + PUBLISHED -> downgrade to READY</li>
      * </ul>
      *
      * <p>Wrapped in try-catch so failures don't break the main operation.
@@ -567,14 +573,14 @@ public class SkillServiceImpl implements SkillService {
                 product.setStatus(target);
                 productRepository.save(product);
                 log.info(
-                        "Synced product {} status: {} → {}",
+                        "Synced product status, productId={}, previousStatus={}, currentStatus={}",
                         product.getProductId(),
                         current,
                         target);
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync product status after version change for Skill {}",
+                    "Failed to sync product status after version change for Skill, skillName={}",
                     ref.getSkillName(),
                     e);
         }
@@ -596,9 +602,11 @@ public class SkillServiceImpl implements SkillService {
                         ref.getNacosId(),
                         s -> s.deleteDraft(ref.getNamespace(), ref.getSkillName()));
         if (!deleted) {
-            log.warn("Nacos returned false for deleteDraft of Skill {}", ref.getSkillName());
+            log.warn(
+                    "Nacos returned false for Skill draft deletion, skillName={}",
+                    ref.getSkillName());
         }
-        log.info("Deleted draft for Skill {}", ref.getSkillName());
+        log.info("Deleted Skill draft, skillName={}", ref.getSkillName());
 
         // Clear skillName if no versions remain after deletion
         try {
@@ -629,7 +637,7 @@ public class SkillServiceImpl implements SkillService {
         } catch (Exception e) {
             // Skill no longer exists in Nacos after draft deletion
             log.info(
-                    "Skill {} not found after draft deletion, clearing reference",
+                    "Skill not found after draft deletion, clearing reference, skillName={}",
                     ref.getSkillName());
             config.setSkillName(null);
             productRepository.save(product);
@@ -664,7 +672,7 @@ public class SkillServiceImpl implements SkillService {
                 s ->
                         s.updateLabels(
                                 ref.getNamespace(), ref.getSkillName(), JsonUtil.toJson(labels)));
-        log.info("Set latest: Skill {}, version {}", ref.getSkillName(), version);
+        log.info("Set latest Skill version, skillName={}, version={}", ref.getSkillName(), version);
     }
 
     private boolean ensurePublished(SkillRef ref, String version) {
@@ -686,7 +694,8 @@ public class SkillServiceImpl implements SkillService {
                     ref.getNacosId(),
                     s -> s.publish(ref.getNamespace(), ref.getSkillName(), version, false));
             log.info(
-                    "Auto-published Skill {} version {} to clear reviewing state",
+                    "Auto-published Skill version to clear reviewing state, skillName={},"
+                            + " version={}",
                     ref.getSkillName(),
                     version);
             return true;
@@ -716,25 +725,26 @@ public class SkillServiceImpl implements SkillService {
 
         SkillRef ref = getSkillRef(productId, true);
 
-        // 先调用 Nacos HTTP API 下载，让 Nacos 增加下载计数
+        // Download through the Nacos HTTP API first so Nacos can update its download count.
         downloadFromNacos(ref, version, response);
     }
 
     /**
-     * 通过调用 Nacos HTTP API 下载 Skill ZIP 包，使 Nacos 自动增加下载计数
+     * Downloads the Skill ZIP package through the Nacos HTTP API so Nacos can update its download
+     * count.
      * API: GET /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
      */
     private void downloadFromNacos(SkillRef ref, String version, HttpServletResponse response)
             throws IOException {
         try {
             NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
-            // 优先使用展示地址，不存在则使用 serverUrl
+            // Prefer the display URL and fall back to serverUrl.
             String nacosBaseUrl =
                     StrUtil.isNotBlank(nacosInstance.getDisplayServerUrl())
                             ? nacosInstance.getDisplayServerUrl()
                             : nacosInstance.getServerUrl();
 
-            // 构建 Nacos 下载 URL:
+            // Build the Nacos download URL:
             // /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
             StringBuilder urlBuilder = new StringBuilder();
             urlBuilder.append(nacosBaseUrl);
@@ -754,7 +764,7 @@ public class SkillServiceImpl implements SkillService {
                         .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8.name()));
             }
 
-            // 添加认证参数（如果 Nacos 有用户名密码）
+            // Add authentication parameters when Nacos username and password are configured.
             if (StrUtil.isNotBlank(nacosInstance.getUsername())
                     && StrUtil.isNotBlank(nacosInstance.getPassword())) {
                 urlBuilder
@@ -772,11 +782,18 @@ public class SkillServiceImpl implements SkillService {
             }
 
             String downloadUrl = urlBuilder.toString();
-            // 日志中密码脱敏
-            String loggedUrl = downloadUrl.replaceAll("password=[^&]+", "password=***");
-            log.info("Calling Nacos download API: {}", loggedUrl);
+            log.info(
+                    "Calling Nacos skill download API, dependency=Nacos,"
+                            + " operation=downloadSkillZip, nacosId={}, namespace={}, skillName={},"
+                            + " version={}, serverUrl={}, username={}",
+                    ref.getNacosId(),
+                    ref.getNamespace(),
+                    ref.getSkillName(),
+                    version,
+                    nacosInstance.getServerUrl(),
+                    nacosInstance.getUsername());
 
-            // 创建 HTTP 连接
+            // Create the HTTP connection.
             java.net.URL url = new java.net.URL(downloadUrl);
             java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -785,7 +802,7 @@ public class SkillServiceImpl implements SkillService {
 
             int responseCode = conn.getResponseCode();
             if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                // 设置响应头
+                // Set response headers.
                 response.setContentType("application/zip");
                 String encodedName =
                         java.net.URLEncoder.encode(
@@ -794,26 +811,49 @@ public class SkillServiceImpl implements SkillService {
                 response.setHeader(
                         "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
 
-                // 流式传输 ZIP 文件
+                // Stream the ZIP file.
                 try (var input = conn.getInputStream();
                         var output = response.getOutputStream()) {
                     input.transferTo(output);
                 }
-                log.info("Downloaded skill {} from Nacos successfully", ref.getSkillName());
+                log.info(
+                        "Downloaded skill ZIP from Nacos, dependency=Nacos,"
+                                + " operation=downloadSkillZip, nacosId={}, namespace={},"
+                                + " skillName={}, version={}",
+                        ref.getNacosId(),
+                        ref.getNamespace(),
+                        ref.getSkillName(),
+                        version);
             } else {
-                log.warn("Nacos download API returned non-OK status: {}", responseCode);
-                // 降级为本地生成 ZIP
+                log.warn(
+                        "Nacos skill download API returned non-OK status, dependency=Nacos,"
+                                + " operation=downloadSkillZip, nacosId={}, namespace={},"
+                                + " skillName={}, status={}",
+                        ref.getNacosId(),
+                        ref.getNamespace(),
+                        ref.getSkillName(),
+                        responseCode);
+                // Fall back to local ZIP generation.
                 fallbackToLocalDownload(ref, version, response);
             }
         } catch (Exception e) {
-            log.warn("Failed to download from Nacos, fallback to local generation", e);
-            // 降级为本地生成 ZIP
+            log.warn(
+                    "Failed to download skill ZIP from Nacos, falling back to local generation,"
+                            + " dependency=Nacos, operation=downloadSkillZip, nacosId={},"
+                            + " namespace={}, skillName={}, errorType={}, errorMessage={}",
+                    ref.getNacosId(),
+                    ref.getNamespace(),
+                    ref.getSkillName(),
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
+            // Fall back to local ZIP generation.
             fallbackToLocalDownload(ref, version, response);
         }
     }
 
     /**
-     * 降级方案：本地生成 ZIP 包（不增加 Nacos 下载计数）
+     * Fallback path: generates the ZIP package locally without increasing the Nacos download count.
      */
     private void fallbackToLocalDownload(SkillRef ref, String version, HttpServletResponse response)
             throws IOException {
@@ -1005,15 +1045,18 @@ public class SkillServiceImpl implements SkillService {
                     ref.getNacosId(),
                     s -> s.publish(ref.getNamespace(), ref.getSkillName(), reviewing, true));
             log.info(
-                    "Auto-published reviewing version {} for Skill {} to unblock draft operations",
+                    "Auto-published reviewing Skill version to unblock draft operations,"
+                            + " version={}, skillName={}",
                     reviewing,
                     ref.getSkillName());
         } catch (Exception e) {
             log.warn(
-                    "Failed to auto-publish reviewing version {} for Skill {}: {}",
+                    "Failed to auto-publish reviewing Skill version, version={}, skillName={},"
+                            + " errorMessage={}",
                     reviewing,
                     ref.getSkillName(),
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -1022,7 +1065,11 @@ public class SkillServiceImpl implements SkillService {
             AiMaintainerService service = nacosService.getAiMaintainerService(nacosId);
             return operation.execute(service.skill());
         } catch (NacosException e) {
-            log.error("Nacos operation failed", e);
+            log.error(
+                    "Nacos Skill operation failed, nacosId={}, errorMessage={}",
+                    nacosId,
+                    e.getMessage(),
+                    e);
             throw toBusinessException(e);
         }
     }
@@ -1087,7 +1134,10 @@ public class SkillServiceImpl implements SkillService {
                     .resourceType("skill")
                     .build();
         } catch (Exception e) {
-            log.warn("Failed to get CLI download info for skill product {}", productId, e);
+            log.warn(
+                    "Failed to get CLI download info for skill product, productId={}",
+                    productId,
+                    e);
             return null;
         }
     }
@@ -1118,7 +1168,7 @@ public class SkillServiceImpl implements SkillService {
                 if (productRepository
                         .findByNameAndAdminId(name, contextHolder.getUser())
                         .isPresent()) {
-                    log.info("Skill product '{}' already exists, skipping", name);
+                    log.info("Skill product already exists, skipping import, name={}", name);
                     skippedCount++;
                     continue;
                 }
@@ -1151,15 +1201,18 @@ public class SkillServiceImpl implements SkillService {
 
                 productRepository.save(product);
                 successCount++;
-                log.info("Imported skill product '{}' from Nacos", name);
+                log.info("Imported skill product from Nacos, name={}", name);
             }
         } catch (Exception e) {
-            log.error("Failed to import skills from Nacos", e);
+            log.error("Failed to import skills from Nacos, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "Failed to import skills: " + e.getMessage());
         }
 
-        log.info("Imported {} skills from Nacos, skipped {}", successCount, skippedCount);
+        log.info(
+                "Imported skills from Nacos, successCount={}, skippedCount={}",
+                successCount,
+                skippedCount);
 
         return ImportResult.builder()
                 .resourceType("skill")

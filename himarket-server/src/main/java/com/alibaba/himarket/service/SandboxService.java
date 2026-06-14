@@ -32,57 +32,57 @@ import org.springframework.data.domain.Pageable;
 public interface SandboxService {
 
     /**
-     * 获取所有可用（RUNNING）且支持 MCP 托管的沙箱列表（Portal 端使用）
+     * Lists active RUNNING sandboxes that support MCP hosting for portal use.
      */
     List<SandboxSimpleResult> listMcpCapableSandboxes();
 
     /**
-     * 获取所有可用（RUNNING）沙箱列表（Portal 端使用，只返回 id 和名称）
+     * Lists active RUNNING sandboxes for portal use, returning only ID and name.
      */
     List<SandboxSimpleResult> listActiveSandboxes();
 
     /**
-     * 获取沙箱实例列表
+     * Lists sandbox instances.
      */
     PageResult<SandboxResult> listSandboxes(QuerySandboxParam param, Pageable pageable);
 
     /**
-     * 根据 sandboxId 获取沙箱实例
+     * Gets a sandbox instance by sandboxId.
      */
     SandboxResult getSandbox(String sandboxId);
 
     /**
-     * 导入沙箱实例
+     * Imports a sandbox instance.
      */
     void importSandbox(ImportSandboxParam param);
 
     /**
-     * 更新沙箱实例
+     * Updates a sandbox instance.
      */
     void updateSandbox(String sandboxId, UpdateSandboxParam param);
 
     /**
-     * 删除沙箱实例
+     * Deletes a sandbox instance.
      */
     void deleteSandbox(String sandboxId);
 
     /**
-     * 获取集群信息（解析KubeConfig，返回namespace列表）
+     * Fetches cluster information by parsing KubeConfig and listing namespaces.
      */
     ClusterInfoResult fetchClusterInfo(String kubeConfig);
 
     /**
-     * 手动触发单个沙箱实例的健康检查，返回更新后的状态
+     * Triggers a health check for one sandbox instance and returns the updated status.
      */
     SandboxResult healthCheck(String sandboxId);
 
     /**
-     * 获取指定沙箱集群的 Namespace 列表
+     * Lists namespaces in the specified sandbox cluster.
      */
     List<String> listNamespaces(String sandboxId);
 
     /**
-     * 查询沙箱上的活跃 MCP 部署数量
+     * Counts active MCP deployments on a sandbox.
      */
     int countActiveDeployments(String sandboxId);
 }

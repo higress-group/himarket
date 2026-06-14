@@ -32,93 +32,142 @@ import org.springframework.data.domain.Pageable;
 
 public interface McpServerService {
 
-    /** 保存 MCP 元信息（创建或更新） */
+    /**
+     * Saves MCP metadata, creating or updating it as needed.
+     */
     McpMetaResult saveMeta(SaveMcpMetaParam param);
 
-    /** 注册 MCP Server：自动创建 Product + McpMeta + ProductRef */
+    /**
+     * Registers an MCP Server and creates the related Product, MCP metadata, and ProductRef.
+     */
     McpMetaResult registerMcp(RegisterMcpParam param);
 
-    /** 根据 mcpServerId 获取元信息 */
+    /**
+     * Gets MCP metadata by mcpServerId.
+     */
     McpMetaResult getMeta(String mcpServerId);
 
-    /** 根据 productId 获取该产品下所有 MCP 元信息 */
+    /**
+     * Lists all MCP metadata under a product.
+     */
     List<McpMetaResult> listMetaByProduct(String productId);
 
-    /** 批量获取多个产品的 MCP 元信息（含公共 endpoint 热数据） */
+    /**
+     * Lists MCP metadata for multiple products, including public endpoint runtime data.
+     */
     List<McpMetaResult> listMetaByProductIds(List<String> productIds);
 
-    /** 删除 MCP 元信息及其关联的所有 endpoint */
+    /**
+     * Deletes MCP metadata and all associated endpoints.
+     */
     void deleteMeta(String mcpServerId);
 
-    /** 删除产品下所有 MCP 元信息、endpoint、ProductRef，并重置产品状态 */
+    /**
+     * Deletes all MCP metadata, endpoints, and ProductRef records under a product.
+     */
     void deleteMetaByProduct(String productId);
 
     /**
-     * 强制删除产品下所有 MCP 资源（跳过发布检查）。
-     * 供 ProductService 删除产品时调用，此时 publication 已被清理。
+     * Force deletes all MCP resources under a product, skipping publication checks.
+     *
+     * <p>ProductService calls this after the related publication records have already been cleaned.
      */
     void forceDeleteMetaByProduct(String productId);
 
-    /** 保存 endpoint（创建或更新） */
+    /**
+     * Saves an endpoint, creating or updating it as needed.
+     */
     McpEndpointResult saveEndpoint(SaveMcpEndpointParam param);
 
-    /** 获取指定 MCP Server 的所有 endpoint */
+    /**
+     * Lists all endpoints for an MCP Server.
+     */
     List<McpEndpointResult> listEndpoints(String mcpServerId);
 
-    /** 删除单个 endpoint */
+    /**
+     * Deletes one endpoint.
+     */
     void deleteEndpoint(String endpointId);
 
-    /** 市场列表：已发布且公开的 MCP Server（分页） */
+    /**
+     * Lists published and public MCP Servers for marketplace pages.
+     */
     PageResult<McpMetaResult> listPublishedMcpServers(Pageable pageable);
 
-    /** 查询当前用户拥有的所有 MCP endpoint（我的MCP） */
+    /**
+     * Lists all MCP endpoints owned by the current user.
+     */
     List<MyEndpointResult> listMyEndpoints();
 
     /**
-     * 根据 productId 列表解析当前用户的 MCP 传输配置。
-     * 优先使用用户订阅的 endpoint（热数据），找不到则返回空（由调用方 fallback）。
+     * Resolves MCP transport configs for the current user and the given product IDs.
+     *
+     * <p>The resolver prefers endpoints subscribed by the user. When no endpoint is available, it
+     * returns an empty list and lets callers decide their fallback behavior.
      */
     List<McpTransportConfig> resolveTransportConfigs(List<String> productIds, String userId);
 
-    /** 根据 mcpName 获取元信息 */
+    /**
+     * Gets MCP metadata by mcpName.
+     */
     McpMetaResult getMetaByName(String mcpName);
 
-    /** 分页查询指定来源的 MCP 元信息 */
+    /**
+     * Lists MCP metadata from one origin.
+     */
     PageResult<McpMetaResult> listMetaByOrigin(String origin, Pageable pageable);
 
-    /** 分页查询所有 MCP 元信息 */
+    /**
+     * Lists all MCP metadata.
+     */
     PageResult<McpMetaResult> listAllMeta(Pageable pageable);
 
-    /** 分页查询指定来源的已发布 MCP 元信息（Open API 用，只返回关联产品已发布的记录） */
+    /**
+     * Lists published MCP metadata from one origin for Open API responses.
+     */
     PageResult<McpMetaResult> listPublishedMetaByOrigin(String origin, Pageable pageable);
 
-    /** 分页查询所有已发布 MCP 元信息（Open API 用，只返回关联产品已发布的记录） */
+    /**
+     * Lists all published MCP metadata for Open API responses.
+     */
     PageResult<McpMetaResult> listAllPublishedMeta(Pageable pageable);
 
     /**
-     * 根据 mcpServerId 获取已发布的元信息（Open API 用）。
-     * 如果关联产品未发布，抛出 NOT_FOUND 异常。
+     * Gets published MCP metadata by mcpServerId for Open API responses.
+     *
+     * <p>Throws NOT_FOUND when the related product is not published.
      */
     McpMetaResult getPublishedMeta(String mcpServerId);
 
     /**
-     * 根据 mcpName 获取已发布的元信息（Open API 用）。
-     * 如果关联产品未发布，抛出 NOT_FOUND 异常。
+     * Gets published MCP metadata by mcpName for Open API responses.
+     *
+     * <p>Throws NOT_FOUND when the related product is not published.
      */
     McpMetaResult getPublishedMetaByName(String mcpName);
 
-    /** 刷新工具列表：连接 endpoint 获取 tools/list，保存到 meta.toolsConfig */
+    /**
+     * Refreshes tools by calling tools/list on the endpoint and saving meta.toolsConfig.
+     */
     McpMetaResult refreshTools(String mcpServerId);
 
-    /** 更新服务介绍 */
+    /**
+     * Updates the service introduction.
+     */
     McpMetaResult updateServiceIntro(String mcpServerId, String serviceIntro);
 
-    /** 更新工具配置（手动编辑） */
+    /**
+     * Updates the tools config edited manually by an admin.
+     */
     McpMetaResult updateToolsConfig(String mcpServerId, String toolsConfig);
 
-    /** 管理员手动部署沙箱：为已保存的 MCP 配置部署沙箱 endpoint */
+    /**
+     * Deploys a sandbox endpoint for a saved MCP config.
+     */
     McpMetaResult deploySandbox(String mcpServerId, SaveMcpMetaParam param);
 
-    /** 管理员取消沙箱托管：删除沙箱 CRD 和 endpoint */
+    /**
+     * Undeploys sandbox hosting by deleting sandbox CRDs and endpoints.
+     */
     McpMetaResult undeploySandbox(String mcpServerId);
 }

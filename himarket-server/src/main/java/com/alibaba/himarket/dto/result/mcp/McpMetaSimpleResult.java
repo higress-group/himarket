@@ -7,8 +7,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * MCP Server 精简信息 — 用于 Open API 列表查询。
- * 不暴露 productId、connectionConfig 等内部/敏感字段。
+ * Simplified MCP Server metadata for Open API list queries.
+ *
+ * <p>Internal or sensitive fields such as productId and connectionConfig are not exposed.
  */
 @Data
 @Builder

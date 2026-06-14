@@ -21,12 +21,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * 配置文件构建器。
+ * Builds CLI configuration files.
  *
- * <p>将 {@link ResolvedSessionConfig} 转换为 {@link ConfigFile} 列表。 封装了 {@link CliConfigGenerator}
- * 调用、临时目录管理、文件收集等逻辑。
+ * <p>Converts {@link ResolvedSessionConfig} into {@link ConfigFile} entries. Encapsulates {@link
+ * CliConfigGenerator} calls, temporary directory management, and file collection.
  *
- * <p>从 {@code HiCodingWebSocketHandler.prepareConfigFiles()} 中提取。
+ * <p>Extracted from {@code HiCodingWebSocketHandler.prepareConfigFiles()}.
  */
 @Component
 public class ConfigFileBuilder {
@@ -40,13 +40,13 @@ public class ConfigFileBuilder {
     }
 
     /**
-     * 构建配置文件列表。
+     * Builds configuration files.
      *
-     * @param resolved 已解析的会话配置
-     * @param providerKey CLI 提供者标识
-     * @param providerConfig CLI 提供者配置
-     * @param runtimeConfig 运行时配置（额外环境变量会被合并到此对象）
-     * @return 配置文件列表（含路径、内容、哈希）
+     * @param resolved       resolved session configuration
+     * @param providerKey    CLI provider key
+     * @param providerConfig CLI provider configuration
+     * @param runtimeConfig  runtime configuration; extra environment variables are merged into it
+     * @return configuration files with path, content, and hash
      */
     public List<ConfigFile> build(
             ResolvedSessionConfig resolved,
@@ -56,7 +56,7 @@ public class ConfigFileBuilder {
 
         CliConfigGenerator generator = configGeneratorRegistry.get(providerKey);
         if (generator == null) {
-            logger.warn("[ConfigFileBuilder] 未找到 CliConfigGenerator: providerKey={}", providerKey);
+            logger.warn("CLI config generator not found, providerKey={}", providerKey);
             return List.of();
         }
 
@@ -65,29 +65,29 @@ public class ConfigFileBuilder {
         try {
             tempDir = Files.createTempDirectory("sandbox-config-");
 
-            // 1. 模型配置
+            // 1. Model configuration.
             generateModelConfig(generator, tempDir, resolved, runtimeConfig, providerKey);
 
-            // 2. MCP 配置
+            // 2. MCP configuration.
             if (resolved.getMcpServers() != null
                     && !resolved.getMcpServers().isEmpty()
                     && providerConfig.isSupportsMcp()) {
                 generateMcpConfig(generator, tempDir, resolved, providerKey);
             }
 
-            // 3. Skill 配置
+            // 3. Skill configuration.
             if (resolved.getSkills() != null
                     && !resolved.getSkills().isEmpty()
                     && providerConfig.isSupportsSkill()) {
                 generateSkillConfig(generator, tempDir, resolved, providerKey);
             }
 
-            // 4. 收集所有生成的文件
+            // 4. Collect generated files.
             configFiles = collectConfigFiles(tempDir);
 
         } catch (Exception e) {
             logger.error(
-                    "[ConfigFileBuilder] 配置文件构建失败: provider={}, error={}",
+                    "Failed to build config files, provider={}, errorMessage={}",
                     providerKey,
                     e.getMessage(),
                     e);
@@ -118,13 +118,13 @@ public class ConfigFileBuilder {
                 runtimeConfig.getEnv().putAll(extraEnv);
             }
             logger.info(
-                    "[ConfigFileBuilder] 模型配置已准备: provider={}, baseUrl={}, modelId={}",
+                    "Model config prepared, provider={}, baseUrl={}, modelId={}",
                     providerKey,
                     resolved.getCustomModelConfig().getBaseUrl(),
                     resolved.getCustomModelConfig().getModelId());
         } catch (Exception e) {
             logger.error(
-                    "[ConfigFileBuilder] 模型配置生成失败: provider={}, error={}",
+                    "Failed to generate model config, provider={}, errorMessage={}",
                     providerKey,
                     e.getMessage(),
                     e);
@@ -139,12 +139,12 @@ public class ConfigFileBuilder {
         try {
             generator.generateMcpConfig(tempDir.toString(), resolved.getMcpServers());
             logger.info(
-                    "[ConfigFileBuilder] MCP 配置已准备: provider={}, {} server(s)",
+                    "MCP config prepared, provider={}, serverCount={}",
                     providerKey,
                     resolved.getMcpServers().size());
         } catch (Exception e) {
             logger.error(
-                    "[ConfigFileBuilder] MCP 配置生成失败: provider={}, error={}",
+                    "Failed to generate MCP config, provider={}, errorMessage={}",
                     providerKey,
                     e.getMessage(),
                     e);
@@ -159,12 +159,12 @@ public class ConfigFileBuilder {
         try {
             generator.generateSkillConfig(tempDir.toString(), resolved.getSkills());
             logger.info(
-                    "[ConfigFileBuilder] Skill 配置已准备: provider={}, {} skill(s)",
+                    "Skill config prepared, provider={}, skillCount={}",
                     providerKey,
                     resolved.getSkills().size());
         } catch (Exception e) {
             logger.error(
-                    "[ConfigFileBuilder] Skill 配置生成失败: provider={}, error={}",
+                    "Failed to generate skill config, provider={}, errorMessage={}",
                     providerKey,
                     e.getMessage(),
                     e);
@@ -184,17 +184,21 @@ public class ConfigFileBuilder {
                                 ConfigFile.ConfigType type = inferConfigType(relativePath);
                                 configFiles.add(new ConfigFile(relativePath, content, hash, type));
                             } catch (IOException e) {
-                                logger.warn("[ConfigFileBuilder] 读取配置文件失败: {}", e.getMessage());
+                                logger.warn(
+                                        "Failed to read config file, path={}, errorMessage={}",
+                                        file,
+                                        e.getMessage(),
+                                        e);
                             }
                         });
         return configFiles;
     }
 
     /**
-     * 根据文件相对路径推断配置类型。
+     * Infers the configuration type from a relative file path.
      */
     static ConfigFile.ConfigType inferConfigType(String relativePath) {
-        // .nacos/ 目录下的 yaml 文件识别为 SKILL_CONFIG
+        // Treat .nacos/*.yaml files as skill configuration.
         if (relativePath.startsWith(".nacos/") && relativePath.endsWith(".yaml")) {
             return ConfigFile.ConfigType.SKILL_CONFIG;
         }
@@ -202,14 +206,14 @@ public class ConfigFileBuilder {
             return ConfigFile.ConfigType.SKILL_CONFIG;
         }
         if (relativePath.endsWith("settings.json")) {
-            // settings.json 现在包含合并后的模型+MCP配置，标记为 MODEL_SETTINGS
+            // settings.json contains merged model and MCP configuration.
             return ConfigFile.ConfigType.MODEL_SETTINGS;
         }
         return ConfigFile.ConfigType.CUSTOM;
     }
 
     /**
-     * 计算内容的 SHA-256 哈希值。
+     * Computes the SHA-256 hash of the content.
      */
     static String sha256(String content) {
         try {
@@ -217,7 +221,7 @@ public class ConfigFileBuilder {
             byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 不可用", e);
+            throw new RuntimeException("SHA-256 is not available", e);
         }
     }
 

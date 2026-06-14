@@ -49,11 +49,4 @@ public class PortalSettingConfig {
      * OAuth2 configurations
      */
     private List<OAuth2Config> oauth2Configs;
-
-    /**
-     * Search engine configuration (New)
-     * Each Portal can only configure one search engine
-     * null means not configured
-     */
-    private SearchEngineConfig searchEngineConfig;
 }

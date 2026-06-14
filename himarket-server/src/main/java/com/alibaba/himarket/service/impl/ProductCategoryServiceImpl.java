@@ -276,7 +276,10 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             categoryRelationRepository.saveAll(newRelations);
         }
 
-        log.info("Bound {} products to category {}", newRelations.size(), categoryId);
+        log.info(
+                "Bound products to category, productCount={}, categoryId={}",
+                newRelations.size(),
+                categoryId);
     }
 
     private ProductCategory findCategory(String categoryId) {
@@ -324,7 +327,9 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                     predicates.add(cb.exists(subquery));
 
                 } catch (IllegalArgumentException e) {
-                    log.warn("Invalid product type provided: {}", param.getProductType());
+                    log.warn(
+                            "Invalid product type provided, productType={}",
+                            param.getProductType());
                     // Return no results for invalid product type
                     predicates.add(cb.disjunction());
                 }

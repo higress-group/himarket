@@ -31,8 +31,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 沙箱集群健康检查定时任务。
- * 每 10 分钟检查一次所有沙箱实例的 K8s 集群连通性，更新状态。
+ * Scheduled sandbox cluster health check task.
+ *
+ * <p>Every 10 minutes, checks K8s connectivity for all sandbox instances and updates their status.
  */
 @Component
 @RequiredArgsConstructor
@@ -47,25 +48,25 @@ public class SandboxHealthCheckTask {
         if (sandboxes.isEmpty()) {
             return;
         }
-        log.info("[SandboxHealthCheck] 开始检查 {} 个沙箱实例", sandboxes.size());
+        log.info("Checking sandbox instances, count={}", sandboxes.size());
         for (SandboxInstance sandbox : sandboxes) {
             checkOne(sandbox);
         }
-        log.info("[SandboxHealthCheck] 检查完成");
+        log.info("Completed sandbox health check, count={}", sandboxes.size());
     }
 
     /**
-     * 检查单个沙箱实例的集群连通性并更新状态。
+     * Checks one sandbox instance for cluster connectivity and updates its status.
      */
     public void checkOne(SandboxInstance sandbox) {
         String kubeConfig = sandbox.getKubeConfig();
         if (kubeConfig == null || kubeConfig.isBlank()) {
-            updateStatus(sandbox, "ERROR", "KubeConfig 为空");
+            updateStatus(sandbox, "ERROR", "KubeConfig is empty");
             return;
         }
         try {
             KubernetesClient client = K8sClientUtils.getClient(kubeConfig);
-            // 尝试列出 namespace 验证连通性
+            // List namespaces to verify connectivity.
             client.namespaces().list();
 
             updateStatus(sandbox, "RUNNING", null);
@@ -74,11 +75,11 @@ public class SandboxHealthCheckTask {
             if (msg == null || msg.isBlank()) {
                 msg = e.getClass().getSimpleName();
             }
-            // 截断过长的错误信息
+            // Keep the status message short enough for storage and display.
             if (msg.length() > 500) {
                 msg = msg.substring(0, 500);
             }
-            // 连接失败时清除缓存，下次重新创建 client
+            // Evict failed clients so the next check creates a fresh connection.
             K8sClientUtils.evictClient(kubeConfig);
             updateStatus(sandbox, "ERROR", msg);
         }
@@ -92,7 +93,8 @@ public class SandboxHealthCheckTask {
         sandboxInstanceRepository.save(sandbox);
         if (!status.equals(oldStatus)) {
             log.warn(
-                    "[SandboxHealthCheck] 状态变更: sandbox={}, {} -> {}, message={}",
+                    "Sandbox health status changed, sandboxName={}, oldStatus={}, newStatus={},"
+                            + " message={}",
                     sandbox.getSandboxName(),
                     oldStatus,
                     status,

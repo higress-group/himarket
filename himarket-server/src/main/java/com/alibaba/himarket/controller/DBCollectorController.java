@@ -62,7 +62,7 @@ public class DBCollectorController {
                 presetRegistry.getPreset(request.getScenario());
         if (preset == null) {
             log.warn(
-                    "DBCollector scenario not found, returning empty result. scenario: {}",
+                    "DBCollector scenario not found, returning empty result, scenario={}",
                     request.getScenario());
             return buildEmptyResponse(request.getScenario());
         }
@@ -121,7 +121,8 @@ public class DBCollectorController {
             }
         } catch (Exception e) {
             log.warn(
-                    "DBCollector query failed, returning empty result. scenario: {}, err: {}",
+                    "DBCollector query failed, returning empty result, scenario={},"
+                            + " errorMessage={}",
                     request.getScenario(),
                     e.getMessage(),
                     e);

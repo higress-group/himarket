@@ -25,45 +25,47 @@ import com.alibaba.himarket.dto.params.sls.SlsCheckLogstoreRequest;
 import com.alibaba.himarket.dto.params.sls.SlsCheckProjectRequest;
 import com.alibaba.himarket.dto.params.sls.SlsCommonQueryRequest;
 
-/** 通用SLS日志查询服务 支持多种认证方式和场景化查询 */
+/**
+ * Generic SLS log query service with configurable authentication and scenario queries.
+ */
 public interface SlsLogService {
 
     /**
-     * 执行通用SQL查询
+     * Executes a generic SLS SQL query.
      *
-     * @param request 查询请求
-     * @return 查询结果
+     * @param request query request
+     * @return query response
      */
     GenericSlsQueryResponse executeQuery(GenericSlsQueryRequest request);
 
     /**
-     * 执行通用SQL查询
+     * Executes a common SLS SQL query.
      *
-     * @param request 查询请求
-     * @return 查询结果
+     * @param request query request
+     * @return query response
      */
     GenericSlsQueryResponse executeQuery(SlsCommonQueryRequest request);
 
     /**
-     * 检查Project是否存在
+     * Checks whether the SLS project exists.
      *
-     * @param request 查询请求（包含认证信息）
-     * @return 是否存在
+     * @param request query request with authentication context
+     * @return whether the project exists
      */
     Boolean checkProjectExists(SlsCheckProjectRequest request);
 
     /**
-     * 检查Logstore是否存在
+     * Checks whether the SLS logstore exists.
      *
-     * @param request 查询请求（包含认证信息）
-     * @return 是否存在
+     * @param request query request with authentication context
+     * @return whether the logstore exists
      */
     Boolean checkLogstoreExists(SlsCheckLogstoreRequest request);
 
     /**
-     * 为全局日志的 logstore 更新索引 使用配置中心的 project 和 logstore
+     * Updates indexes for the configured global log logstore.
      *
-     * @param userId 用户ID（用于STS认证）
+     * @param userId user ID used when STS authentication is enabled
      */
     void updateLogIndex(String userId);
 }

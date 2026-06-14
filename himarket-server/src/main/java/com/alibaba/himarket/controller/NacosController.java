@@ -129,9 +129,11 @@ public class NacosController {
         return nacosService.fetchNamespaces(nacosId, pageable);
     }
 
-    // ==================== Agent APIs ====================
-
-    /** Lists Agents from Nacos. Keep this list-only behavior aligned with GatewayController. */
+    /**
+     * Lists Agents from Nacos.
+     *
+     * <p>Keep this list-only behavior aligned with GatewayController.
+     */
     @Operation(
             summary = "List Agents from Nacos",
             description =

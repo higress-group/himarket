@@ -34,10 +34,10 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CreateConsumerParam implements InputConverter<Consumer> {
 
-    @NotBlank(message = "Consumer名称不能为空")
-    @Size(max = 50, message = "Consumer名称长度不能超过50个字符")
+    @NotBlank(message = "Consumer name is required")
+    @Size(max = 50, message = "Consumer name cannot exceed 50 characters")
     private String name;
 
-    @Size(max = 256, message = "Consumer描述长度不能超过256个字符")
+    @Size(max = 256, message = "Consumer description cannot exceed 256 characters")
     private String description;
 }

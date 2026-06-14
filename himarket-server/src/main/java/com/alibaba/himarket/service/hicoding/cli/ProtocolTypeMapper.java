@@ -3,23 +3,23 @@ package com.alibaba.himarket.service.hicoding.cli;
 import java.util.List;
 
 /**
- * 将 aiProtocols 列表映射为 CustomModelConfig 的 protocolType 的工具类。
+ * Maps aiProtocols to CustomModelConfig protocolType.
  *
- * <p>映射规则：
+ * <p>Mapping rules:
  * <ul>
- *   <li>列表为空或 null 时，返回 "openai"</li>
- *   <li>第一个元素包含 "openai"（不区分大小写）时，返回 "openai"</li>
- *   <li>第一个元素包含 "anthropic"（不区分大小写）时，返回 "anthropic"</li>
- *   <li>其他情况默认返回 "openai"</li>
+ *   <li>Return "openai" when the list is null or empty.</li>
+ *   <li>Return "openai" when the first item contains "openai" case-insensitively.</li>
+ *   <li>Return "anthropic" when the first item contains "anthropic" case-insensitively.</li>
+ *   <li>Return "openai" otherwise.</li>
  * </ul>
  */
 public class ProtocolTypeMapper {
 
     /**
-     * 将 aiProtocols 列表映射为协议类型字符串。
+     * Maps aiProtocols to a protocol type string.
      *
-     * @param aiProtocols AI 协议列表
-     * @return 协议类型，"openai" 或 "anthropic"
+     * @param aiProtocols AI protocol list
+     * @return protocol type, either "openai" or "anthropic"
      */
     public static String map(List<String> aiProtocols) {
         if (aiProtocols == null || aiProtocols.isEmpty()) {

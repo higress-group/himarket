@@ -24,10 +24,11 @@ import jakarta.persistence.*;
 import lombok.*;
 
 /**
- * MCP Server 技术配置（冷数据）。
+ * MCP Server technical configuration.
  *
- * <p>只存储 MCP 独有的技术字段（协议、连接、工具等）。
- * 展示信息（名称、描述、图标、文档）统一由关联的 Product 管理。
+ * <p>This entity stores MCP-specific technical fields such as protocol, connection, and tools.
+ * Display fields such as name, description, icon, and documentation are managed by the related
+ * Product.
  */
 @Entity
 @Table(
@@ -90,7 +91,9 @@ public class McpServerMeta extends BaseEntity {
     @Column(name = "created_by", length = 64)
     private String createdBy;
 
-    /** 持久化前将空字符串的 JSON 列置为 null，避免 MySQL JSON 列写入非法值 */
+    /**
+     * Converts blank JSON columns to null before persistence to avoid invalid MySQL JSON values.
+     */
     @PrePersist
     @PreUpdate
     private void sanitizeJsonFields() {

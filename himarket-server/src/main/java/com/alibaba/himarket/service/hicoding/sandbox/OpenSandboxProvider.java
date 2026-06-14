@@ -7,10 +7,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * OpenSandbox 沙箱提供者（空实现）。
+ * OpenSandbox provider placeholder.
  *
- * <p>预留 OpenSandbox 对接接口，当前所有操作方法抛出 {@link UnsupportedOperationException}。
- * 仅在 {@code acp.open-sandbox.enabled=true} 时注册到 Spring 容器。
+ * <p>Reserves the OpenSandbox integration surface. Current operations throw
+ * {@link UnsupportedOperationException}. Registered in the Spring container only when
+ * {@code acp.open-sandbox.enabled=true}.
  */
 @Component
 @ConditionalOnProperty(name = "acp.open-sandbox.enabled", havingValue = "true")
@@ -23,12 +24,12 @@ public class OpenSandboxProvider implements SandboxProvider {
 
     @Override
     public SandboxInfo acquire(SandboxConfig config) {
-        throw new UnsupportedOperationException("OpenSandbox 尚未实现");
+        throw new UnsupportedOperationException("OpenSandbox is not implemented yet");
     }
 
     @Override
     public void release(SandboxInfo info) {
-        // 空实现
+        // No-op placeholder.
     }
 
     @Override
@@ -39,16 +40,16 @@ public class OpenSandboxProvider implements SandboxProvider {
     @Override
     public void writeFile(SandboxInfo info, String relativePath, String content)
             throws IOException {
-        throw new UnsupportedOperationException("OpenSandbox 尚未实现");
+        throw new UnsupportedOperationException("OpenSandbox is not implemented yet");
     }
 
     @Override
     public String readFile(SandboxInfo info, String relativePath) throws IOException {
-        throw new UnsupportedOperationException("OpenSandbox 尚未实现");
+        throw new UnsupportedOperationException("OpenSandbox is not implemented yet");
     }
 
     @Override
     public RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config) {
-        throw new UnsupportedOperationException("OpenSandbox 尚未实现");
+        throw new UnsupportedOperationException("OpenSandbox is not implemented yet");
     }
 }

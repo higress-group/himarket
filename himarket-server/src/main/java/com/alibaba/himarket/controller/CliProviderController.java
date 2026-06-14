@@ -64,7 +64,10 @@ public class CliProviderController {
         try {
             consumer = consumerService.getPrimaryConsumer();
         } catch (Exception e) {
-            logger.debug("No primary consumer found for current developer: {}", e.getMessage());
+            logger.debug(
+                    "No primary consumer found for current developer, errorMessage={}",
+                    e.getMessage(),
+                    e);
             return MarketModelsResponse.builder()
                     .models(Collections.emptyList())
                     .apiKey(null)
@@ -102,7 +105,7 @@ public class CliProviderController {
             ProductResult product = productMap.get(subscription.getProductId());
             if (product == null) {
                 logger.warn(
-                        "Product not found for subscription: productId={}",
+                        "Product not found for subscription, productId={}",
                         subscription.getProductId());
                 continue;
             }
@@ -131,7 +134,10 @@ public class CliProviderController {
         try {
             consumer = consumerService.getPrimaryConsumer();
         } catch (Exception e) {
-            logger.debug("No primary consumer found for current developer: {}", e.getMessage());
+            logger.debug(
+                    "No primary consumer found for current developer, errorMessage={}",
+                    e.getMessage(),
+                    e);
             return MarketMcpsResponse.builder()
                     .mcpServers(Collections.emptyList())
                     .authHeaders(null)
@@ -166,7 +172,7 @@ public class CliProviderController {
             ProductResult product = productMap.get(subscription.getProductId());
             if (product == null) {
                 logger.warn(
-                        "Product not found for subscription: productId={}",
+                        "Product not found for subscription, productId={}",
                         subscription.getProductId());
                 continue;
             }
@@ -224,7 +230,7 @@ public class CliProviderController {
             Map<String, String> headers = credentialContext.copyHeaders();
             return headers.isEmpty() ? null : headers;
         } catch (Exception e) {
-            logger.debug("Failed to get auth headers: {}", e.getMessage());
+            logger.debug("Failed to get auth headers, errorMessage={}", e.getMessage(), e);
             return null;
         }
     }
@@ -232,7 +238,7 @@ public class CliProviderController {
     private MarketMcpInfo buildMarketMcpInfo(ProductResult product) {
         if (product.getMcpConfig() == null) {
             logger.warn(
-                    "Product mcpConfig is incomplete, skipping: productId={}, name={}",
+                    "Product mcpConfig is incomplete, skipping, productId={}, name={}",
                     product.getProductId(),
                     product.getName());
             return null;
@@ -242,7 +248,7 @@ public class CliProviderController {
             McpTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
             if (transportConfig == null) {
                 logger.warn(
-                        "Failed to extract transport config from product, skipping: productId={},"
+                        "Failed to extract transport config from product, skipping, productId={},"
                                 + " name={}",
                         product.getProductId(),
                         product.getName());
@@ -263,11 +269,12 @@ public class CliProviderController {
                     .build();
         } catch (Exception e) {
             logger.warn(
-                    "Error processing mcpConfig for product, skipping: productId={}, name={},"
-                            + " error={}",
+                    "Error processing mcpConfig for product, skipping, productId={}, name={},"
+                            + " errorMessage={}",
                     product.getProductId(),
                     product.getName(),
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
             return null;
         }
     }
@@ -285,7 +292,10 @@ public class CliProviderController {
             return apiKeyConfig.getCredentials().get(0).getApiKey();
         } catch (Exception e) {
             logger.debug(
-                    "Failed to get credential for consumer {}: {}", consumerId, e.getMessage());
+                    "Failed to get credential for consumer, consumerId={}, errorMessage={}",
+                    consumerId,
+                    e.getMessage(),
+                    e);
             return null;
         }
     }
@@ -303,7 +313,7 @@ public class CliProviderController {
         ModelConfigResult modelConfig = product.getModelConfig();
         if (modelConfig == null || modelConfig.getModelAPIConfig() == null) {
             logger.warn(
-                    "Product modelConfig is incomplete, skipping: productId={}, name={}",
+                    "Product modelConfig is incomplete, skipping, productId={}, name={}",
                     product.getProductId(),
                     product.getName());
             return null;
@@ -315,7 +325,7 @@ public class CliProviderController {
                         modelConfig.getModelAPIConfig().getAiProtocols());
         if (baseUrl == null) {
             logger.warn(
-                    "Failed to extract baseUrl from product routes, skipping: productId={},"
+                    "Failed to extract baseUrl from product routes, skipping, productId={},"
                             + " name={}",
                     product.getProductId(),
                     product.getName());
@@ -372,7 +382,9 @@ public class CliProviderController {
         return result;
     }
 
-    /** Checks whether a command is available in the system PATH. */
+    /**
+     * Checks whether a command is available in the system PATH.
+     */
     static boolean isCommandAvailable(String command) {
         if (command == null || command.isBlank()) {
             return false;
@@ -388,7 +400,10 @@ public class CliProviderController {
             return process.exitValue() == 0;
         } catch (Exception e) {
             logger.debug(
-                    "Failed to check command availability for '{}': {}", command, e.getMessage());
+                    "Failed to check command availability, command={}, errorMessage={}",
+                    command,
+                    e.getMessage(),
+                    e);
             return false;
         }
     }

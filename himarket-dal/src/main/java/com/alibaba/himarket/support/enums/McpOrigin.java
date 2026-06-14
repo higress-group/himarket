@@ -20,26 +20,40 @@
 package com.alibaba.himarket.support.enums;
 
 /**
- * MCP Server 来源。
+ * MCP Server origin.
  */
 public enum McpOrigin {
-    /** 管理员在 Admin 后台手动创建 */
+    /**
+     * Created manually in the admin console.
+     */
     ADMIN,
-    /** 从网关导入 */
+    /**
+     * Imported from a gateway.
+     */
     GATEWAY,
-    /** 从 Nacos 导入 */
+    /**
+     * Imported from Nacos.
+     */
     NACOS,
-    /** 通过 Open API 注册 */
+    /**
+     * Registered through Open API.
+     */
     OPEN_API,
-    /** 从 AgentRuntime 注册 */
+    /**
+     * Registered from AgentRuntime.
+     */
     AGENTRUNTIME,
-    /** 开发者在 Portal 端注册 */
+    /**
+     * Registered by a developer in the portal.
+     */
     USER,
-    /** 从第三方供应商 API 导入 */
+    /**
+     * Imported from a third-party vendor API.
+     */
     VENDOR_IMPORT;
 
     /**
-     * 从字符串解析，大小写不敏感，无法识别时返回 ADMIN。
+     * Parses a value case-insensitively, returning ADMIN when the value is not recognized.
      */
     public static McpOrigin fromString(String value) {
         if (value == null || value.isBlank()) {

@@ -22,7 +22,6 @@ package com.alibaba.himarket.service.gateway.client;
 import cn.hutool.core.map.MapBuilder;
 import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.gateway.HigressConfig;
-import com.alibaba.himarket.utils.JsonUtil;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -89,10 +88,8 @@ public class HigressClient extends GatewayClient {
         try {
             ensureConsoleToken();
 
-            // 构建URL
             String url = buildUrlWithParams(path, queryParams);
 
-            // Headers
             HttpHeaders mergedHeaders = new HttpHeaders();
             if (headers != null) {
                 mergedHeaders.putAll(headers);
@@ -104,28 +101,41 @@ public class HigressClient extends GatewayClient {
                             url, method, new HttpEntity<>(body, mergedHeaders), responseType);
 
             log.info(
-                    "Higress response: status={}, body={}",
+                    "Received gateway response, dependency=Higress, operation=execute,"
+                            + " status={}, body={}",
                     response.getStatusCode(),
-                    JsonUtil.toJson(response.getBody()));
+                    response.getBody());
 
             return response.getBody();
         } catch (HttpClientErrorException e) {
-            // 401重新登录，且只重试一次
+            // Retry once after a console session expires.
             if (e.getStatusCode() == HttpStatus.UNAUTHORIZED
                     && !Boolean.TRUE.equals(isRetrying.get())) {
-                log.warn("Token expired, trying to relogin");
+                log.warn(
+                        "Retrying gateway request after authentication expired,"
+                                + " dependency=Higress, operation=execute, status={}",
+                        e.getStatusCode());
                 higressToken = null;
                 isRetrying.set(true);
                 return doExecute(path, method, headers, queryParams, body, responseType);
             }
             log.error(
-                    "HTTP error executing Higress request: status={}, body={}",
+                    "Failed to execute gateway request, dependency=Higress, operation=execute,"
+                            + " status={}, responseBody={}, errorType={}, errorMessage={}",
                     e.getStatusCode(),
-                    e.getResponseBodyAsString());
+                    e.getResponseBodyAsString(),
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw e;
         } catch (Exception e) {
-            log.error("Error executing Higress request: {}", e.getMessage());
-            throw new RuntimeException("Failed to execute Higress request", e);
+            log.error(
+                    "Failed to execute gateway request, dependency=Higress, operation=execute,"
+                            + " errorType={}, errorMessage={}",
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
+            throw new RuntimeException("Failed to execute Higress request: " + e.getMessage(), e);
         }
     }
 

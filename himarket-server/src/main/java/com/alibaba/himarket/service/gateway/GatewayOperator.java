@@ -113,7 +113,9 @@ public abstract class GatewayOperator<T> {
         return (T) clientCache.get(clientKey, key -> createClient(gateway));
     }
 
-    /** Create a gateway client for the given gateway. */
+    /**
+     * Creates a gateway client for the given gateway.
+     */
     private GatewayClient createClient(Gateway gateway) {
         switch (gateway.getGatewayType()) {
             case APIG_API:

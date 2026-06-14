@@ -41,7 +41,9 @@ import org.springframework.web.bind.annotation.*;
 @Component
 public class PublicAccessPathScanner implements ApplicationContextAware {
 
-    /** Represents a public endpoint with its HTTP method and path pattern. */
+    /**
+     * Represents a public endpoint with its HTTP method and path pattern.
+     */
     public record PublicAccessEndpoint(HttpMethod httpMethod, String path) {}
 
     private Set<PublicAccessEndpoint> publicAccessEndpoints = Set.of();
@@ -66,21 +68,29 @@ public class PublicAccessPathScanner implements ApplicationContextAware {
             publicAccessEndpoints = endpoints;
             if (!publicAccessEndpoints.isEmpty()) {
                 log.info(
-                        "Discovered {} @PublicAccess endpoints: {}",
+                        "Discovered @PublicAccess endpoints, count={}, endpoints={}",
                         publicAccessEndpoints.size(),
                         publicAccessEndpoints);
             }
         } catch (Exception e) {
-            log.warn("Failed to scan @PublicAccess paths, no public paths will be registered", e);
+            log.warn(
+                    "Failed to scan @PublicAccess paths, no public paths will be registered,"
+                            + " errorMessage={}",
+                    e.getMessage(),
+                    e);
         }
     }
 
-    /** Returns the list of public access endpoints with HTTP method information. */
+    /**
+     * Returns the public access endpoints with HTTP method information.
+     */
     public List<PublicAccessEndpoint> getPublicAccessEndpoints() {
         return List.copyOf(publicAccessEndpoints);
     }
 
-    /** Returns the public access paths (for backward compatibility). */
+    /**
+     * Returns the public access paths for backward compatibility.
+     */
     public String[] getPublicAccessPaths() {
         return publicAccessEndpoints.stream()
                 .map(PublicAccessEndpoint::path)

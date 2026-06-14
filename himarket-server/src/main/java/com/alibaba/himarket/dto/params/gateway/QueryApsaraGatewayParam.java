@@ -28,30 +28,30 @@ import lombok.Data;
 @Data
 public class QueryApsaraGatewayParam implements InputConverter<ApsaraGatewayConfig> {
 
-    @NotBlank(message = "RegionId不能为空")
+    @NotBlank(message = "Region ID is required")
     @JsonProperty("regionId")
     private String regionId;
 
-    @NotBlank(message = "AccessKeyId不能为空")
+    @NotBlank(message = "Access key ID is required")
     @JsonProperty("accessKeyId")
     private String accessKeyId;
 
-    @NotBlank(message = "AccessKeySecret不能为空")
+    @NotBlank(message = "Access key secret is required")
     @JsonProperty("accessKeySecret")
     private String accessKeySecret;
 
     @JsonProperty("securityToken")
     private String securityToken;
 
-    @NotBlank(message = "Domain不能为空")
+    @NotBlank(message = "Domain is required")
     @JsonProperty("domain")
     private String domain;
 
-    @NotBlank(message = "Product不能为空")
+    @NotBlank(message = "Product is required")
     @JsonProperty("product")
     private String product;
 
-    @NotBlank(message = "Version不能为空")
+    @NotBlank(message = "Version is required")
     @JsonProperty("version")
     private String version;
 

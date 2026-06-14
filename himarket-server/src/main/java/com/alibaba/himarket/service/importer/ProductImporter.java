@@ -86,7 +86,7 @@ public class ProductImporter {
         ProductType productType = param.getProductType();
         ProductImportSourceConfigParam sourceConfig = param.getSourceConfig();
         log.info(
-                "Importing products of type {} from source: {}",
+                "Importing products, productType={}, sourceConfig={}",
                 productType,
                 JsonUtil.toJson(sourceConfig));
         for (ProductImportItemParam item : param.getItems()) {
@@ -99,7 +99,10 @@ public class ProductImporter {
                 }
                 result.setSuccessCount(result.getSuccessCount() + 1);
             } catch (Exception e) {
-                log.warn("Failed to import product item: {}", item.getResourceName(), e);
+                log.warn(
+                        "Failed to import product item, resourceName={}",
+                        item.getResourceName(),
+                        e);
                 ProductImportResult failure = new ProductImportResult();
                 failure.setResourceName(item.getResourceName());
                 failure.setErrorMessage(e.getMessage());
@@ -130,7 +133,10 @@ public class ProductImporter {
                             productType, (GatewayImportConfigParam) sourceConfig, item);
             productService.addProductRef(product.getProductId(), addProductRefParam);
         } catch (Exception e) {
-            log.warn("Failed to add gateway reference for product: {}", product.getProductId(), e);
+            log.warn(
+                    "Failed to add gateway reference for product, productId={}",
+                    product.getProductId(),
+                    e);
             productService.deleteProduct(product.getProductId());
             throw e;
         }
@@ -150,7 +156,7 @@ public class ProductImporter {
             ProductImportItemParam item) {
         GatewayResult gateway = gatewayService.getGateway(importConfigParam.getInstanceId());
 
-        // TODO: support other gateways
+        // TODO: Support other gateway types.
         GatewayType gatewayType = gateway.getGatewayType();
         HigressRefConfig higressRefConfig =
                 gatewayType.isHigress() ? buildHigressRefConfig(productType, item) : null;
@@ -291,7 +297,10 @@ public class ProductImporter {
 
             productService.addProductRef(product.getProductId(), addProductRefParam);
         } catch (Exception e) {
-            log.warn("Failed to add Nacos reference for product: {}", product.getProductId(), e);
+            log.warn(
+                    "Failed to add Nacos reference for product, productId={}",
+                    product.getProductId(),
+                    e);
             productService.deleteProduct(product.getProductId());
             throw e;
         }

@@ -28,10 +28,10 @@ public class ApsaraGatewayBaseRequest {
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> map = mapper.convertValue(this, Map.class);
 
-        // 移除值为 null 的字段
+        // Remove fields with null values.
         map.entrySet().removeIf(entry -> entry.getValue() == null);
 
-        // 或者移除空字符串
+        // Remove fields with empty string values.
         map.entrySet()
                 .removeIf(
                         entry -> {

@@ -16,10 +16,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Claude Code CLI 工具的配置文件生成器。
- * 生成 .claude/settings.json 文件到工作目录下的 .claude/ 子目录，
- * 将 MCP Server 配置写入 {workingDirectory}/.mcp.json 文件（官方推荐路径）。
- * 支持与已有配置文件合并，保留用户已有的其他配置项。
+ * Configuration generator for Claude Code CLI.
+ * Generates .claude/settings.json under the working directory and writes MCP server configuration
+ * to {workingDirectory}/.mcp.json. Existing configuration is merged to preserve unrelated user
+ * settings.
  */
 public class ClaudeCodeConfigGenerator implements CliConfigGenerator {
 
@@ -42,21 +42,21 @@ public class ClaudeCodeConfigGenerator implements CliConfigGenerator {
     @Override
     public Map<String, String> generateConfig(String workingDirectory, CustomModelConfig config)
             throws IOException {
-        // Step 1: 构建环境变量 Map
+        // Step 1: Build environment variables.
         Map<String, String> envVars = new HashMap<>();
         envVars.put("ANTHROPIC_API_KEY", config.getApiKey());
         envVars.put("ANTHROPIC_BASE_URL", config.getBaseUrl());
         envVars.put("ANTHROPIC_MODEL", config.getModelId());
 
-        // Step 2: 创建 .claude 目录
+        // Step 2: Create .claude/.
         Path claudeDir = Path.of(workingDirectory, CLAUDE_DIR);
         Files.createDirectories(claudeDir);
 
-        // Step 3: 读取已有 settings.json（保留 mcpServers 等字段）
+        // Step 3: Read existing settings.json and preserve unrelated fields.
         Path configPath = claudeDir.resolve(CONFIG_FILE_NAME);
         Map<String, Object> root = readExistingConfig(configPath);
 
-        // Step 4: 合并 env 字段（声明式环境变量）
+        // Step 4: Merge the declarative env section.
         @SuppressWarnings("unchecked")
         Map<String, Object> envSection =
                 root.containsKey("env")
@@ -67,10 +67,10 @@ public class ClaudeCodeConfigGenerator implements CliConfigGenerator {
         envSection.put("ANTHROPIC_MODEL", config.getModelId());
         root.put("env", envSection);
 
-        // Step 5: 设置 model 字段
+        // Step 5: Set the model field.
         root.put("model", config.getModelId());
 
-        // Step 6: 写入 settings.json
+        // Step 6: Write settings.json.
         writeConfig(configPath, root);
 
         return envVars;
@@ -90,8 +90,8 @@ public class ClaudeCodeConfigGenerator implements CliConfigGenerator {
     }
 
     /**
-     * 将 MCP Server 列表合并到根配置的 mcpServers 段中。
-     * 按 name 去重，新条目覆盖同名旧条目。
+     * Merges MCP servers into the root mcpServers section.
+     * Uses name as the deduplication key; new entries override existing entries with the same name.
      */
     @SuppressWarnings("unchecked")
     void mergeMcpServers(
@@ -120,9 +120,8 @@ public class ClaudeCodeConfigGenerator implements CliConfigGenerator {
     }
 
     /**
-     * 读取已有的 JSON 配置文件。
-     * 如果文件不存在，返回空 map。
-     * 如果文件内容不是合法 JSON，记录警告并返回空 map（后续会覆盖）。
+     * Reads an existing JSON configuration file.
+     * Returns an empty map when the file does not exist or cannot be parsed.
      */
     Map<String, Object> readExistingConfig(Path configPath) {
         if (!Files.exists(configPath)) {
@@ -135,13 +134,16 @@ public class ClaudeCodeConfigGenerator implements CliConfigGenerator {
                             content, new TypeReference<LinkedHashMap<String, Object>>() {});
             return existing != null ? existing : new LinkedHashMap<>();
         } catch (Exception e) {
-            logger.warn("已有配置文件不是合法 JSON，将使用全新配置覆盖: {}", e.getMessage());
+            logger.warn(
+                    "Existing configuration file is not valid JSON and will be overwritten,"
+                            + " errorMessage={}",
+                    e.getMessage());
             return new LinkedHashMap<>();
         }
     }
 
     /**
-     * 将配置写入指定的 JSON 配置文件。
+     * Writes the JSON configuration file.
      */
     private void writeConfig(Path configPath, Map<String, Object> root) throws IOException {
         String json =

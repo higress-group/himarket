@@ -116,7 +116,9 @@ public class DashScopeImageFormatter extends DashScopeChatFormatter {
                                     }
                                     // Extract image
                                     if (part.getImage() != null && !part.getImage().isEmpty()) {
-                                        log.debug("Extracted image URL: {}", part.getImage());
+                                        log.debug(
+                                                "Extracted image URL, imageUrl={}",
+                                                part.getImage());
                                         blocks.add(
                                                 ImageBlock.builder()
                                                         .source(

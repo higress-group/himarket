@@ -8,8 +8,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 /**
- * SandboxProvider 注册中心。
- * 根据 SandboxType 查找对应的 Provider 实现。
+ * SandboxProvider registry.
+ *
+ * <p>Finds provider implementations by {@link SandboxType}.
  */
 @Component
 public class SandboxProviderRegistry {
@@ -25,7 +26,7 @@ public class SandboxProviderRegistry {
     public SandboxProvider getProvider(SandboxType type) {
         SandboxProvider provider = providers.get(type);
         if (provider == null) {
-            throw new IllegalArgumentException("不支持的沙箱类型: " + type);
+            throw new IllegalArgumentException("Unsupported sandbox type: " + type);
         }
         return provider;
     }

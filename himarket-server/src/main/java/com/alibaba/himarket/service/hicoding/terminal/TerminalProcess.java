@@ -20,8 +20,9 @@ import reactor.core.scheduler.Schedulers;
 
 /**
  * Manages an interactive shell process with PTY support.
- * Uses pty4j to provide a proper pseudo-terminal so that interactive
- * programs (tab completion, colors, Ctrl+C, etc.) work correctly.
+ *
+ * <p>Uses pty4j to provide a proper pseudo-terminal so that interactive programs (tab completion,
+ * colors, Ctrl+C, etc.) work correctly.
  */
 public class TerminalProcess {
 
@@ -60,7 +61,7 @@ public class TerminalProcess {
         this.stdin = process.getOutputStream();
 
         logger.info(
-                "Terminal process started: shell={}, cwd={}, pid={}, size={}x{}",
+                "Terminal process started, shell={}, cwd={}, pid={}, cols={}, rows={}",
                 shell,
                 cwd,
                 process.pid(),
@@ -89,7 +90,11 @@ public class TerminalProcess {
                         }
                     } catch (IOException e) {
                         if (!closed) {
-                            logger.error("Error reading terminal output", e);
+                            logger.error(
+                                    "Failed to read terminal output, pid={}, errorMessage={}",
+                                    process.pid(),
+                                    e.getMessage(),
+                                    e);
                         }
                     } finally {
                         outputSink.tryEmitComplete();
@@ -115,9 +120,14 @@ public class TerminalProcess {
         if (process == null || !process.isAlive()) return;
         try {
             process.setWinSize(new WinSize(cols, rows));
-            logger.trace("Terminal resized to {}x{}", cols, rows);
+            logger.trace("Terminal resized, cols={}, rows={}", cols, rows);
         } catch (Exception e) {
-            logger.warn("Failed to resize terminal: {}", e.getMessage());
+            logger.warn(
+                    "Failed to resize terminal, cols={}, rows={}, errorMessage={}",
+                    cols,
+                    rows,
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -150,14 +160,16 @@ public class TerminalProcess {
             try {
                 boolean exited = process.waitFor(5, TimeUnit.SECONDS);
                 if (!exited) {
-                    logger.warn("Terminal process did not exit in time, force killing");
+                    logger.warn(
+                            "Terminal process did not exit in time, force killing, pid={}",
+                            process.pid());
                     process.destroyForcibly();
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
             logger.info(
-                    "Terminal process stopped (exit={})",
+                    "Terminal process stopped, exit={}",
                     process.isAlive() ? "still running" : process.exitValue());
         }
 

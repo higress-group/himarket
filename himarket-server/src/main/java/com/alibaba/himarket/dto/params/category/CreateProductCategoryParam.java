@@ -29,11 +29,11 @@ import lombok.Data;
 @Data
 public class CreateProductCategoryParam implements InputConverter<ProductCategory> {
 
-    @NotBlank(message = "类别名称不能为空")
-    @Size(max = 100, message = "分类名称长度不能超过100个字符")
+    @NotBlank(message = "Category name is required")
+    @Size(max = 100, message = "Category name cannot exceed 100 characters")
     private String name;
 
-    @Size(max = 500, message = "分类描述长度不能超过500个字符")
+    @Size(max = 500, message = "Category description cannot exceed 500 characters")
     private String description;
 
     private Icon icon;

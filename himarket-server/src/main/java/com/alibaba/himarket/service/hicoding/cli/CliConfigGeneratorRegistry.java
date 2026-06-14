@@ -7,10 +7,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * CLI 配置生成器注册表。
+ * CLI configuration generator registry.
  *
- * <p>将各 {@link CliConfigGenerator} 实现注册为 Spring Bean，
- * 供 {@link ConfigFileBuilder} 注入使用。
+ * <p>Registers {@link CliConfigGenerator} implementations as a Spring Bean for {@link
+ * ConfigFileBuilder}.
  */
 @Configuration
 public class CliConfigGeneratorRegistry {

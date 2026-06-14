@@ -79,7 +79,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         // Check products exist
         productService.existsProducts(param.getProducts());
 
-        // TODO check if the user has subscribed to the product
+        // TODO: Check whether the user has subscribed to the product.
 
         String sessionId = IdGenerator.genSessionId();
         ChatSession session = param.convertTo();

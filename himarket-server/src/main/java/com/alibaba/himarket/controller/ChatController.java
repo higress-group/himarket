@@ -74,7 +74,10 @@ public class ChatController {
                             try {
                                 emitter.send(event);
                             } catch (Exception e) {
-                                log.error("Failed to send event", e);
+                                log.error(
+                                        "Failed to send chat event, sessionId={}",
+                                        param.getSessionId(),
+                                        e);
                                 emitter.completeWithError(e);
                             }
                         },

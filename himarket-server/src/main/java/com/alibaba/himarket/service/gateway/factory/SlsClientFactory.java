@@ -34,7 +34,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-/** SLS客户端工厂，根据配置文件自动选择STS或AK/SK认证方式 */
+/**
+ * Factory for creating SLS clients from the configured authentication mode.
+ */
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -42,15 +44,18 @@ public class SlsClientFactory {
 
     private final SlsConfig slsConfig;
 
-    /** STS模式的Client缓存（按userId缓存，25分钟过期） Client创建成本较高，应该缓存复用 */
+    /**
+     * STS client cache keyed by user ID. Client creation is relatively expensive, so clients are
+     * reused for a short window.
+     */
     private final Cache<String, Client> stsClientCache =
             Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(25, TimeUnit.MINUTES).build();
 
     /**
-     * 根据配置创建SLS客户端
+     * Creates an SLS client from the configured authentication type.
      *
-     * @param userId 用户ID（仅当authType=STS时需要）
-     * @return SLS客户端
+     * @param userId user ID required when authType is STS
+     * @return SLS client
      */
     public Client createClient(String userId) {
         SlsAuthType authType = slsConfig.getAuthType();
@@ -62,19 +67,19 @@ public class SlsClientFactory {
     }
 
     /**
-     * 使用STS方式创建SLS客户端（缓存Client对象）
+     * Creates an SLS client with STS credentials.
      *
-     * @param userId 用户ID
-     * @return SLS客户端
+     * @param userId user ID used to load STS credentials
+     * @return SLS client
      */
     private Client createClientWithSts(String userId) {
-        throw new UnsupportedOperationException("STS not support");
+        throw new UnsupportedOperationException("STS authentication is not supported");
     }
 
     /**
-     * 使用AK/SK方式创建SLS客户端（使用配置文件中的AK/SK）
+     * Creates an SLS client with the configured AK/SK credentials.
      *
-     * @return SLS客户端
+     * @return SLS client
      */
     private Client createClientWithAkSk() {
         String accessKeyId = slsConfig.getAccessKeyId();
@@ -91,19 +96,24 @@ public class SlsClientFactory {
 
         try {
             Credentials credentials = new DefaultCredentials(accessKeyId, accessKeySecret);
-            log.debug("Creating SLS client with AK/SK, endpoint: {}", endpoint);
+            log.debug("Creating SLS client, dependency=SLS, authType=AK_SK, endpoint={}", endpoint);
             return new Client(endpoint, credentials, null);
         } catch (Exception e) {
-            log.error("Failed to create SLS client with AK/SK", e);
+            log.error(
+                    "Failed to create SLS client, dependency=SLS, authType=AK_SK,"
+                            + " errorType={}, errorMessage={}",
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "Failed to create SLS client with AK/SK");
         }
     }
 
     /**
-     * 获取有效的endpoint
+     * Returns the configured SLS endpoint.
      *
-     * @return 有效的endpoint
+     * @return SLS endpoint
      */
     private String getEffectiveEndpoint() {
         String endpoint = slsConfig.getEndpoint();

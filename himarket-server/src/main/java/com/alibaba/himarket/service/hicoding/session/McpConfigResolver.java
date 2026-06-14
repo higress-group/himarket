@@ -16,10 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 根据 MCP 产品 ID 列表解析完整 MCP 连接配置的服务。
+ * Resolves complete MCP connection configuration from MCP product IDs.
  *
- * <p>优先通过 {@code McpServerService.resolveTransportConfigs()} 从热数据（endpoint）解析，
- * 同时校验用户订阅状态。未订阅的产品会被跳过。
+ * <p>Uses {@code McpServerService.resolveTransportConfigs()} first so endpoint data and user
+ * subscription checks stay in one place. Products without approved subscriptions are skipped.
  */
 @Service
 @RequiredArgsConstructor
@@ -31,10 +31,10 @@ public class McpConfigResolver {
     private final ContextHolder contextHolder;
 
     /**
-     * 根据 MCP 产品 ID 列表解析完整 MCP 连接配置。
+     * Resolves complete MCP connection configuration from MCP product IDs.
      *
-     * @param mcpEntries 前端传入的 MCP 标识符列表
-     * @return 解析后的 ResolvedMcpEntry 列表（未订阅或解析失败的条目被跳过）
+     * @param mcpEntries MCP identifier list from the frontend
+     * @return resolved ResolvedMcpEntry list; unsubscribed or failed entries are skipped
      */
     public List<ResolvedSessionConfig.ResolvedMcpEntry> resolve(
             List<CliSessionConfig.McpServerEntry> mcpEntries) {
@@ -44,7 +44,7 @@ public class McpConfigResolver {
 
         String userId = contextHolder.getUser();
 
-        // 1. 提取 productId 列表，构建 name 映射
+        // 1. Extract product IDs and build the display-name lookup.
         List<String> productIds =
                 mcpEntries.stream().map(CliSessionConfig.McpServerEntry::getProductId).toList();
         Map<String, String> nameByProductId =
@@ -55,7 +55,7 @@ public class McpConfigResolver {
                                         CliSessionConfig.McpServerEntry::getName,
                                         (a, b) -> a));
 
-        // 2. 通过 McpServerService 解析热数据（含订阅校验）
+        // 2. Resolve endpoint data through McpServerService, including subscription checks.
         List<McpTransportConfig> hotConfigs =
                 mcpServerService.resolveTransportConfigs(productIds, userId);
         Map<String, McpTransportConfig> hotConfigMap =
@@ -64,17 +64,17 @@ public class McpConfigResolver {
                                 Collectors.toMap(
                                         McpTransportConfig::getProductId, c -> c, (a, b) -> a));
 
-        // 3. 获取认证头（热数据已自带 headers，但冷数据 fallback 需要）
+        // 3. Load auth headers for entries whose endpoint data does not include headers.
         Map<String, String> authHeaders = extractAuthHeaders();
 
-        // 4. 逐个组装结果：优先热数据，fallback 冷数据
+        // 4. Build resolved entries from available endpoint data.
         List<ResolvedSessionConfig.ResolvedMcpEntry> result = new ArrayList<>();
         for (CliSessionConfig.McpServerEntry entry : mcpEntries) {
             String productId = entry.getProductId();
             McpTransportConfig hotConfig = hotConfigMap.get(productId);
 
             if (hotConfig != null) {
-                // 热数据可用（已通过订阅校验）
+                // Endpoint data is available and has passed subscription checks.
                 String transportType =
                         hotConfig.getTransportMode() == McpTransportMode.STREAMABLE_HTTP
                                 ? "streamable-http"
@@ -88,10 +88,9 @@ public class McpConfigResolver {
                         hotConfig.getHeaders() != null ? hotConfig.getHeaders() : authHeaders);
                 result.add(resolved);
             } else {
-                // 热数据不可用：可能未订阅，也可能无 endpoint
-                // 跳过并记录日志（订阅校验已在 resolveTransportConfigs 中完成）
                 log.info(
-                        "MCP 产品无可用热数据或未订阅，跳过: productId={}, name={}",
+                        "MCP transport config unavailable or subscription not approved. "
+                                + "Skipping entry, productId={}, name={}",
                         productId,
                         nameByProductId.get(productId));
             }
@@ -100,8 +99,8 @@ public class McpConfigResolver {
     }
 
     /**
-     * 提取当前开发者的认证请求头。
-     * 复用 CliProviderController.extractAuthHeaders() 逻辑。
+     * Extracts auth headers for the current developer.
+     * Reuses the CliProviderController.extractAuthHeaders() behavior.
      */
     private Map<String, String> extractAuthHeaders() {
         try {
@@ -110,7 +109,7 @@ public class McpConfigResolver {
             Map<String, String> headers = credentialContext.copyHeaders();
             return headers.isEmpty() ? null : headers;
         } catch (Exception e) {
-            log.debug("Failed to get auth headers: {}", e.getMessage());
+            log.debug("Failed to resolve auth headers, errorMessage={}", e.getMessage(), e);
             return null;
         }
     }

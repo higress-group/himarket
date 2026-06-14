@@ -47,7 +47,9 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.springframework.stereotype.Component;
 
-/** 官方 MCP Registry 供应商适配器，调用 MCP Registry 公开 API 查询 MCP Server 列表。 */
+/**
+ * Vendor adapter for the official MCP Registry public API.
+ */
 @Slf4j
 @Component
 public class McpRegistryAdapter implements McpVendorAdapter {
@@ -113,8 +115,13 @@ public class McpRegistryAdapter implements McpVendorAdapter {
             }
             return item;
         } catch (IOException e) {
-            log.warn("MCP Registry detail API failed for {}", resourceId, e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "供应商 API 连接超时");
+            log.warn(
+                    "MCP Registry detail API failed, resourceId={}, errorMessage={}",
+                    resourceId,
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Vendor API connection timed out: " + e.getMessage());
         }
     }
 
@@ -125,14 +132,14 @@ public class McpRegistryAdapter implements McpVendorAdapter {
             if (page > 1) {
                 String cursor = cursorCache.getIfPresent(page);
                 if (cursor == null) {
-                    log.warn("MCP Registry: no cached cursor for page {}, returning empty", page);
+                    log.warn("MCP Registry cursor cache missed, page={}", page);
                     return PageResult.empty(page, size);
                 }
                 return fetchPage(keyword, page, size, cursor);
             }
             return fetchPage(keyword, page, size, null);
         } catch (IOException e) {
-            log.warn("MCP Registry API call failed", e);
+            log.warn("MCP Registry API call failed, errorMessage={}", e.getMessage(), e);
             return PageResult.empty(page, size);
         }
     }
@@ -141,12 +148,12 @@ public class McpRegistryAdapter implements McpVendorAdapter {
             throws IOException {
         StringBuilder urlBuilder = new StringBuilder(BASE_URL);
         urlBuilder.append("?limit=").append(size);
-        // 只获取最新版本，避免重复
+        // Fetch only the latest version to avoid duplicates.
         urlBuilder.append("&version=latest");
         if (cursor != null && !cursor.isBlank()) {
             urlBuilder.append("&cursor=").append(cursor);
         }
-        // MCP Registry 支持按 name 子串搜索
+        // MCP Registry supports substring search by server name.
         if (keyword != null && !keyword.isBlank()) {
             urlBuilder.append("&search=").append(keyword);
         }
@@ -155,7 +162,10 @@ public class McpRegistryAdapter implements McpVendorAdapter {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body() == null) {
-                log.warn("MCP Registry API returned non-success status: {}", response.code());
+                log.warn(
+                        "MCP Registry API returned non-success status, status={}, url={}",
+                        response.code(),
+                        request.url());
                 return PageResult.empty(page, size);
             }
 
@@ -167,7 +177,7 @@ public class McpRegistryAdapter implements McpVendorAdapter {
                 return PageResult.empty(page, size);
             }
 
-            // 解析分页元数据
+            // Parse pagination metadata and cache the next cursor for page navigation.
             ObjectNode metadata = (ObjectNode) json.get("metadata");
 
             boolean hasNextPage = false;
@@ -182,7 +192,7 @@ public class McpRegistryAdapter implements McpVendorAdapter {
             for (int i = 0; i < servers.size(); i++) {
                 try {
                     ObjectNode entry = (ObjectNode) servers.get(i);
-                    // version=latest 已过滤，只需检查 status=active
+                    // version=latest already filters duplicates, so only active status matters.
                     ObjectNode meta = (ObjectNode) entry.get("_meta");
                     if (meta != null) {
                         ObjectNode official = (ObjectNode) meta.get(META_KEY);
@@ -200,12 +210,17 @@ public class McpRegistryAdapter implements McpVendorAdapter {
                         items.add(item);
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to parse MCP Registry item at index {}", i, e);
+                    log.warn(
+                            "Failed to parse MCP Registry item, index={}, errorMessage={}",
+                            i,
+                            e.getMessage(),
+                            e);
                 }
             }
 
-            // 如果有下一页，totalCount 设为 (当前页号 * 每页大小) + 1，确保前端显示下一页按钮
-            // 如果没有下一页，totalCount 就是已加载的总数
+            // When another cursor exists, return a synthetic total that keeps the next page
+            // visible.
+            // Otherwise, return the exact loaded item count.
             long totalCount;
             if (hasNextPage) {
                 totalCount = (long) page * size + size + 1;
@@ -223,7 +238,11 @@ public class McpRegistryAdapter implements McpVendorAdapter {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body() == null) {
-                log.warn("MCP Registry detail API failed for {}: {}", resourceId, response.code());
+                log.warn(
+                        "MCP Registry detail API returned non-success status, resourceId={},"
+                                + " status={}",
+                        resourceId,
+                        response.code());
                 return null;
             }
 
@@ -433,7 +452,7 @@ public class McpRegistryAdapter implements McpVendorAdapter {
      * <p>Rules: replace {@code /} with {@code -}, replace {@code .} with {@code -}, lowercase,
      * truncate to 63 characters.
      *
-     * <p>Example: {@code agency.lona/trading} → {@code agency-lona-trading}
+     * <p>Example: {@code agency.lona/trading} => {@code agency-lona-trading}
      */
     static String toMcpName(String name) {
         String result = name.replace("/", "-").replace(".", "-").toLowerCase();

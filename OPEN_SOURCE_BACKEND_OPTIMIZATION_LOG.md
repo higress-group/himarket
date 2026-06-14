@@ -695,3 +695,671 @@ Follow-up:
 
 - Continue with the next non-Stream/Optional backend theme, likely import/language/comment cleanup
   or gateway-specific readability issues.
+
+## 2026-06-15 - Gateway Comment and Diagnostic Language Cleanup
+
+Background:
+
+- Phase 2 requires Java comments, logs, and local diagnostics to use English in main backend code.
+- The gateway ADP/Apsara path still had Chinese one-line JavaDoc, process-history comments, and
+  local gateway diagnostic messages.
+- The commercial backend has APIG/AIGW gateway operators but no equivalent ADP/Apsara classes, so
+  this batch used the commercial code only as a style reference and did not copy behavior.
+
+Scope:
+
+- `himarket-dal/src/main/java/com/alibaba/himarket/support/gateway/AdpAIGatewayConfig.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/support/gateway/ApsaraGatewayConfig.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/client/AdpAIGatewayClient.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/AdpAIGatewayOperator.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/ApsaraGatewayOperator.java`
+
+Changes:
+
+- Converted touched one-line JavaDoc comments to the project-preferred multi-line style.
+- Translated Chinese JavaDoc, inline comments, logs, and local exception messages to English.
+- Removed redundant comments that only repeated field names, variable names, or historical fix notes.
+- Kept the Chinese `message.contains("不存在")` checks because they intentionally match localized
+  gateway responses for idempotent authorization revocation.
+
+Compatibility:
+
+- No gateway SDK call, HTTP endpoint, DTO field, credential mapping, consumer authorization, or
+  fallback behavior changed.
+- ADP Basic authentication, Apsara credential mapping, default protocol values, and authorization
+  not-found tolerance are preserved.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/"` on the touched files shows only the intentional
+  localized external-response checks.
+- `git diff --check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q spotless:check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 language cleanup in SLS, MCP DTO/service, and Nacos-facing code as separate
+  reviewable batches.
+
+## 2026-06-15 - SLS DTO and Service Contract Language Cleanup
+
+Background:
+
+- The SLS and DBCollector API contract layer still had Chinese JavaDoc and field comments.
+- This area is open-source specific; the commercial backend has no matching SLS/DBCollector backend
+  files to copy, so this batch follows the open-source code's existing contracts.
+
+Scope:
+
+- `himarket-dal/src/main/java/com/alibaba/himarket/support/enums/SlsAuthType.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/SlsLogService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/DBCollectorService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/factory/SlsClientFactory.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/sls/*.java`
+
+Changes:
+
+- Converted SLS DTO, service interface, enum, and factory JavaDoc comments to English.
+- Expanded touched one-line JavaDoc into the project-preferred multi-line style.
+- Reworded the unsupported STS factory diagnostic into natural English.
+- Kept JSON field names, validation annotations, SLS query parameters, and response structures
+  unchanged.
+
+Compatibility:
+
+- No API path, request/response field, authentication selection, SLS client creation, or query
+  behavior changed.
+- The MCP route_name compatibility notes remain documented in English.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/"` on the touched SLS DTO/service/factory files returned no
+  matches.
+- `git diff --check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q spotless:check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 language cleanup in `SlsLogServiceImpl`, `DBCollectorServiceImpl`, and the
+  preset SQL registries as a separate batch because those files are much larger.
+
+## 2026-06-15 - SLS Implementation and Preset Registry Language Cleanup
+
+Background:
+
+- After cleaning the SLS DTO and service contract layer, the implementation and preset registry
+  files still had Chinese JavaDoc and inline comments.
+- These files are open-source specific; no matching commercial implementation exists, so the batch
+  keeps open-source SQL templates and behavior intact.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/converter/SlsResponseConverter.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/SlsLogServiceImpl.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/DBCollectorServiceImpl.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/factory/SlsPresetSqlRegistry.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/factory/DBCollectorPresetSqlRegistry.java`
+
+Changes:
+
+- Translated implementation, converter, and preset registry JavaDoc and inline comments to English.
+- Removed comments that only repeated the next statement, while keeping filter mapping and index
+  strategy notes that are useful for maintenance.
+- Corrected one DBCollector comment to match the existing `/mcp-servers` path-prefix check.
+- Left SLS SQL templates, DBCollector SQL templates, field aliases, scenario names, and response
+  conversion logic unchanged.
+
+Compatibility:
+
+- No query SQL, filter mapping, index configuration behavior, controller contract, or response
+  structure changed.
+- Existing SLS and DBCollector scenario names remain frontend/backend contracts.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/"` on the touched implementation/registry/converter files
+  returned no matches.
+- `git diff --check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q spotless:check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 cleanup in Nacos and MCP-related service/DTO files.
+
+## 2026-06-15 - Nacos and Vendor Adapter Language Cleanup
+
+Background:
+
+- Phase 2 still had Chinese JavaDoc, inline comments, and local diagnostics in the Nacos management
+  path and external MCP vendor adapters.
+- The commercial backend has no matching Nacos or external vendor adapter implementation, so this
+  batch used the commercial code only as a style reference and kept open-source behavior intact.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/controller/NacosController.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/NacosService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/NacosServiceImpl.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/vendor/McpVendorService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/vendor/McpVendorServiceImpl.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/vendor/VendorAdapterRegistry.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/vendor/McpRegistryAdapter.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/vendor/ModelScopeAdapter.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/vendor/LobeHubAdapter.java`
+
+Changes:
+
+- Translated Nacos service/controller JavaDoc, inline comments, and local exception messages to
+  English.
+- Removed redundant numbered step comments and section marker comments that repeated method flow.
+- Preserved comments that explain Nacos SDK paging, standard AgentCard serialization, A2A route
+  behavior, MCP Registry cursor paging, and LobeHub JWT client assertion authentication.
+- Translated vendor adapter JavaDoc and local vendor/OAuth diagnostic messages to English.
+- Expanded touched one-line JavaDoc into the project-preferred multi-line style.
+
+Compatibility:
+
+- No REST path, request/response field, Nacos SDK call, MCP vendor API call, pagination behavior,
+  OAuth token flow, cache policy, or import mapping changed.
+- Nacos default-instance handling, namespace verification, Agent/MCP/Skill listing, and vendor
+  connection construction remain behaviorally unchanged.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/"` on the touched Java files returned no matches.
+- `git diff --check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q spotless:check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 cleanup in MCP DTO/service and HiCoding sandbox/runtime-adjacent files.
+
+## 2026-06-15 - MCP Sandbox and Meta DTO Language Cleanup
+
+Background:
+
+- The MCP sandbox deployment and metadata DTO path still had Chinese JavaDoc, section marker
+  comments, validation messages, and deployment logs.
+- These files are open-source specific and model the sandbox/endpoint workflow, so this batch keeps
+  the existing deployment and response semantics while normalizing language.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/mcp/SaveMcpMetaParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/mcp/UpdateServiceIntroParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/mcp/McpMetaPublicResult.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/mcp/McpMetaResult.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpConnectionConfig.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpSandboxDeployListener.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpSandboxDeployStrategy.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpSandboxOrchestrator.java`
+
+Changes:
+
+- Translated MCP metadata DTO JavaDoc, field comments, validation messages, and computed-field
+  notes to English.
+- Translated sandbox deployment strategy JavaDoc and retained parameter details for CRD, Secret,
+  endpoint, namespace, and resource-spec boundaries.
+- Translated sandbox deployment listener/orchestrator logs and comments to English.
+- Removed redundant step comments and section marker comments while preserving explanations for
+  transaction-after-commit deployment, deploy result parsing, SSE endpoint normalization, and
+  rollback behavior.
+- Expanded touched one-line JavaDoc into the project-preferred multi-line style.
+
+Compatibility:
+
+- No DTO field name, validation group, REST contract, JSON field, connection-config parsing,
+  endpoint state transition, event publishing, K8s CRD deployment, Secret cleanup, or rollback
+  behavior changed.
+- Validation annotations are unchanged; only the displayed validation messages were translated.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/|// ={3,}"` on the touched MCP files returned no matches.
+- `git diff --check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q spotless:check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 cleanup in the remaining MCP service/DTO files or move to gateway/IdP/security
+  contract comments as the next language-cleanup batch.
+
+## 2026-06-15 - MCP API DTO and Helper Language Cleanup
+
+Background:
+
+- After the sandbox/meta batch, several smaller MCP API DTOs, repository contracts, event payloads,
+  and helper classes still had Chinese JavaDoc, one-line JavaDoc, validation messages, TODOs, and
+  diagnostic logs.
+- These files define contracts around Open API registration, subscription, endpoint visibility,
+  protocol normalization, and tools_config parsing, so the cleanup focuses on wording only.
+
+Scope:
+
+- `himarket-dal/src/main/java/com/alibaba/himarket/repository/McpServerEndpointRepository.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/repository/McpServerMetaRepository.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/support/consumer/McpAuthConfig.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/mcp/SubscribeMcpParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/mcp/McpConnectParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/mcp/SaveMcpEndpointParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/mcp/RegisterMcpParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/mcp/DeploySandboxParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/mcp/McpEndpointResult.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/mcp/McpConnectResult.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/mcp/MyEndpointResult.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/mcp/McpMetaSimpleResult.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/mcp/McpMetaDetailResult.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpSandboxDeployEvent.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpSandboxUndeployEvent.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpProtocolUtils.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpToolsConfigParser.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/SelfHostedDeployStrategy.java`
+
+Changes:
+
+- Translated MCP API DTO JavaDoc, field comments, validation messages, and result visibility notes
+  to English.
+- Converted touched one-line JavaDoc to the multi-line style.
+- Translated repository comments that document endpoint visibility, public endpoint lookup, and
+  N+1 avoidance.
+- Translated sandbox deployment event documentation while preserving the transaction-after-commit
+  and POJO event explanation.
+- Translated protocol normalization and tools_config JSON/YAML parsing comments and logs.
+- Translated SELF_HOSTED placeholder TODOs and unsupported-operation messages.
+
+Compatibility:
+
+- No repository method name, validation annotation, DTO field, JSON contract, protocol
+  normalization rule, tools_config parsing behavior, event payload, or unsupported SELF_HOSTED
+  behavior changed.
+- Validation annotations are unchanged; only the displayed validation messages were translated.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/|// ={3,}"` on the touched files returned no matches.
+- `git diff --check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q spotless:check` passed.
+- `/Users/zhaoh/app/maven/apache-maven-3.8.1/bin/mvn -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 cleanup in the larger MCP runtime/service implementations, such as
+  `McpTransportResolver`, `McpConfigSyncHelper`, and `AgentRuntimeDeployStrategy`, as separate
+  reviewable batches.
+
+## 2026-06-15 - MCP Runtime Implementation Language Cleanup
+
+Background:
+
+- The larger MCP runtime/service implementation files still had Chinese JavaDoc, inline comments,
+  deployment logs, and diagnostic exception messages.
+- These files cover open-source specific runtime deployment and endpoint resolution paths. The
+  commercial backend does not provide a directly matching AGENT_RUNTIME CRD implementation, so this
+  batch keeps the existing open-source behavior and normalizes language only.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpTransportResolver.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/McpConfigSyncHelper.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/mcp/AgentRuntimeDeployStrategy.java`
+
+Changes:
+
+- Translated MCP transport resolution logs and sandbox authentication diagnostics to English.
+- Translated MCP config sync helper comments, endpoint sync logs, icon/config parsing logs, and
+  endpoint extraction errors to English.
+- Translated AGENT_RUNTIME deployment JavaDoc, CRD template comments, Secret/CRD lifecycle logs,
+  endpoint polling diagnostics, env/header/query routing notes, and resourceSpec errors to English.
+- Removed section marker comments and expanded touched one-line JavaDoc into the preferred
+  multi-line style.
+
+Compatibility:
+
+- No endpoint selection, subscription validation, credential lookup, auth header resolution,
+  ProductRef sync, public endpoint sync, connectionConfig conversion, K8s Secret creation/deletion,
+  CRD template selection/rendering, resource placeholder default, endpoint polling, or fallback URL
+  extraction behavior changed.
+- Validation and exception types are unchanged; only diagnostic text was translated.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/|// ={3,}"` on the touched MCP runtime files returned no
+  matches.
+- `git diff --check` passed.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 cleanup in the remaining MCP service, gateway, IdP, and security implementation
+  files.
+
+## 2026-06-15 - MCP Service Contract and Orchestration Language Cleanup
+
+Background:
+
+- The MCP service interface, service orchestration implementations, and core MCP entity/enum files
+  still had Chinese JavaDoc, one-line JavaDoc, section marker comments, logs, and diagnostic
+  exceptions.
+- No matching files were found in the commercial backend for these open-source MCP service classes,
+  so this batch follows the existing open-source semantics and performs wording cleanup only.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/service/McpServerService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/McpServerServiceImpl.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/McpSandboxDeployServiceImpl.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/entity/McpServerMeta.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/entity/McpServerEndpoint.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/support/enums/McpHostingType.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/support/enums/McpEndpointStatus.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/support/enums/McpOrigin.java`
+
+Changes:
+
+- Translated MCP service contract JavaDoc and expanded one-line JavaDoc into the preferred
+  multi-line style.
+- Translated MCP registration, sandbox deployment, deletion, tool refresh, and endpoint diagnostic
+  messages to English.
+- Translated sandbox deployment dispatch comments, unsupported-type errors, and sandbox status
+  errors.
+- Translated MCP entity and enum documentation while preserving field, enum, and JPA metadata.
+- Removed section marker comments in the service implementation.
+
+Compatibility:
+
+- No method signature, repository call, transaction boundary, Product/MCP metadata relationship,
+  sandbox deploy/undeploy orchestration, endpoint deletion, tool refresh flow, entity column
+  mapping, enum value, or JSON field sanitation behavior changed.
+- Only diagnostic text, comments, and JavaDoc style were changed.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/|// ={3,}"` on the touched MCP service/entity/enum files
+  returned no matches.
+- `git diff --check` passed.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 cleanup in gateway operator/client, sandbox health checks, skill parsing, and
+  remaining DTO/controller validation text.
+
+## 2026-06-15 - Sandbox and K8s Language Cleanup
+
+Background:
+
+- The sandbox service contract, sandbox implementation, scheduled health check, K8s client helper,
+  and sandbox DTO/result files still had Chinese JavaDoc, inline comments, validation messages,
+  operational logs, and diagnostic exception messages.
+- No matching files were found in the commercial backend for this sandbox/K8s group, so this batch
+  keeps the open-source implementation semantics and only normalizes wording.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/service/McpSandboxDeployService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/SandboxService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/SandboxServiceImpl.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/sandbox/SandboxHealthCheckTask.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/core/utils/K8sClientUtils.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/sandbox/ClusterInfoParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/sandbox/ImportSandboxParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/result/sandbox/SandboxSimpleResult.java`
+
+Changes:
+
+- Translated sandbox service and MCP sandbox deploy service JavaDoc to English.
+- Translated sandbox import/update/delete, K8s cluster connection, namespace listing, current-user,
+  and active-deployment diagnostics to English.
+- Translated sandbox health check comments, status messages, and operational logs to English.
+- Translated K8s client cache comments and logs while keeping the connectivity verification and
+  rebuild behavior documented.
+- Aligned touched logs with the logging guideline style: short English event messages,
+  lowerCamelCase key fields, throwable stack retention for error logs, and no MDC requirement for
+  the open-source backend.
+- Translated sandbox validation messages and expanded the touched one-line JavaDoc.
+
+Compatibility:
+
+- No service method signature, repository query, transaction boundary, K8s client cache policy,
+  health-check schedule, RUNNING/ERROR status value, namespace listing, cluster metadata extraction,
+  or sandbox deletion guard changed.
+- Validation annotations are unchanged; only displayed validation messages were translated.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/|// ={3,}"` on the touched sandbox/K8s files returned no
+  matches.
+- `git diff --check` passed.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests compile` passed.
+
+Follow-up:
+
+- Continue Phase 2 cleanup in gateway operator/client files, skill parsing/download paths, and
+  remaining DTO/controller validation text.
+
+## 2026-06-15 - Logging Guideline Alignment
+
+Background:
+
+- After the initial language cleanup, several foundational logs still did not fully match the
+  logging guideline style: exception logs used artificial prefixes, gateway client logs lacked
+  stable key fields, and JSON utility diagnostics needed a readability pass.
+- The commercial backend has corresponding `ExceptionAdvice`, `JsonUtil`, `APIGClient`, and
+  `PopGatewayClient` files. Their logging direction was used as a reference, but the open-source
+  backend intentionally does not add requestId/action MDC fields.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/core/advice/ExceptionAdvice.java`
+- `himarket-dal/src/main/java/com/alibaba/himarket/utils/JsonUtil.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/client/APIGClient.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/client/PopGatewayClient.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/client/HigressClient.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/factory/SlsClientFactory.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/config/ObservabilityConfig.java`
+
+Changes:
+
+- Removed artificial exception-log prefixes and converted global exception logs to short English
+  messages with key fields.
+- Kept `JsonUtil` parse diagnostics direct and simple, including the original JSON value where the
+  helper is already used for local troubleshooting.
+- Aligned APIG, POP, Higress, and SLS client logs with `dependency`, `operation`, `status`,
+  `errorType`, and `errorMessage` fields.
+- Stopped logging Higress response bodies and HTTP error bodies directly.
+- Avoided logging the full DB datasource URL in observability startup logs.
+
+Compatibility:
+
+- No exception mapping, response payload contract, JSON parse/serialize behavior, gateway request
+  execution, retry behavior, SLS client creation, or observability source selection changed.
+- Logging remains MDC-free in the open-source backend.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|/\\*\\* [^*].* \\*/|// ={3,}|\\[Business Exception\\]|\\[Validation Exception\\]|\\[System Exception\\]"`
+  on the touched files returned no matches.
+- `git diff --check` passed.
+- `./mvnw -q spotless:check -DskipTests` passed.
+
+Follow-up:
+
+- Continue aligning remaining gateway operator/client and skill download logs with the same logging
+  guideline.
+
+## 2026-06-15 - Gateway Client Logging Expansion
+
+Background:
+
+- Gateway clients and basic operators still had legacy `Error ...` logs, Chinese comments, section
+  marker comments, and logs that did not consistently expose stable key fields.
+- Commercial `GatewayClient` and `APIGOperator` were checked for comparable behavior. Their
+  endpoint-fallback semantics matched the open-source implementation, while open-source logging
+  remains MDC-free.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/client/ApsaraGatewayClient.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/client/AdpAIGatewayClient.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/client/GatewayClient.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/APIGOperator.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/HigressOperator.java`
+
+Changes:
+
+- Replaced repeated Apsara client error logs with a shared helper that records `dependency`,
+  `operation`, `errorType`, and `errorMessage`.
+- Converted Apsara client section markers and Chinese JavaDoc/comments to English.
+- Aligned ADP, APIG, and Higress logs with external-dependency logging fields.
+- Avoided logging gateway request bodies; only body field counts or presence flags are logged.
+- Translated Higress consumer-existence TODO and gateway endpoint fallback comments.
+
+Compatibility:
+
+- No gateway request action, path, method, payload, retry behavior, endpoint fallback, consumer
+  lookup, authorization revocation, or URI construction behavior changed.
+- Logs remain MDC-free in the open-source backend.
+
+Verification:
+
+- `rg -n "[\\p{Han}]|// ={3,}|/\\*\\* [^*].* \\*/|log\\.(debug|info|warn|error)\\(\"Error|requestBody|body=|\\["`
+  on the touched gateway files returned no actionable matches.
+- `git diff --check` passed.
+
+Follow-up:
+
+- Continue applying the logging guideline to the larger Apsara/ADP gateway operators and remaining
+  IdP/Nacos/skill download logs.
+
+## 2026-06-15 - Gateway Operator Logging Expansion
+
+Background:
+
+- The large ADP and Apsara gateway operators still contained legacy `Error ...` logs and ADP-side
+  info logs that printed full request/response payloads.
+- The commercial backend does not contain matching ADP/Apsara operator implementations, so this
+  batch followed the shared gateway logging guideline directly and kept the open-source backend
+  MDC-free.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/AdpAIGatewayOperator.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/gateway/ApsaraGatewayOperator.java`
+
+Changes:
+
+- Converted gateway operator logs to short English event messages with stable key fields such as
+  `dependency`, `operation`, `gatewayId`, `consumerId`, `mcpServerName`, and `modelApiId`.
+- Removed ADP logs that printed complete request bodies, response bodies, or full gateway URLs.
+- Kept throwable stacks on error logs and added `errorType`/`errorMessage` metadata where useful.
+- Replaced localized not-found string literals with named constants using escaped text, preserving
+  idempotent revocation behavior without visible non-English source text.
+- Normalized related exception messages from `Error ...` to `Failed ...`.
+
+Compatibility:
+
+- No gateway API endpoint, request body construction, response parsing, authorization flow,
+  idempotent revocation handling, or consumer ID fallback behavior changed.
+- Apsara model config fetching now closes its SDK client in a `finally` block, matching the
+  surrounding operator methods.
+
+Verification:
+
+- Targeted `rg` scan on both gateway operator files returned no actionable Chinese text, one-line
+  JavaDoc, `requestBody=`/`responseBody=` log output, or legacy `Error ...` log template matches.
+- `git diff --check` passed for the touched operator files.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests compile` passed.
+
+## 2026-06-15 - Skill Package Text and Download Logging Cleanup
+
+Background:
+
+- The SKILL.md parser/builder helpers and Skill/Worker ZIP download paths still had Chinese
+  JavaDoc, inline comments, and validation messages.
+- The Nacos ZIP download logs printed the full download URL after password masking. The URL is now
+  replaced with structured context fields to avoid exposing full request URLs in logs.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/core/skill/SkillMdBuilder.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/core/skill/FileTreeBuilder.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/core/skill/SkillMdDocument.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/core/skill/SkillMdParser.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/core/skill/SkillZipParser.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/SkillServiceImpl.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/impl/WorkerServiceImpl.java`
+
+Changes:
+
+- Translated SKILL.md parser/builder JavaDoc, inline comments, and local validation messages to
+  English.
+- Expanded touched one-line JavaDoc comments to the preferred multi-line style.
+- Aligned Skill/Worker Nacos ZIP download logs with `dependency`, `operation`, resource identity,
+  status, and error metadata fields.
+- Avoided logging the full Nacos download URL while preserving the existing authenticated download
+  request construction.
+
+Compatibility:
+
+- No SKILL.md parsing rule, ZIP entry traversal, binary resource detection, Nacos download URL
+  construction, fallback behavior, response header, or ZIP streaming behavior changed.
+
+Verification:
+
+- Targeted `rg` scan on the touched files returned no actionable Chinese text, one-line JavaDoc,
+  full URL log output, or legacy success/error log template matches.
+- `git diff --check` passed for the touched files.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests compile` passed.
+
+## 2026-06-15 - Service Interface and Validation Text Cleanup
+
+Background:
+
+- Several public service interfaces still had Chinese JavaDoc, sparse parameter descriptions, or
+  one-line JavaDoc.
+- Gateway, consumer, category, and admin DTOs still had Chinese validation messages.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/service/AdministratorService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/DeveloperService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/OidcService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/IdpService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/GatewayService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/OAuth2Service.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/service/RevokedTokenService.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/gateway/QueryApsaraGatewayParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/consumer/CreateConsumerParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/consumer/CreateCredentialParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/category/CreateProductCategoryParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/category/UpdateProductCategoryParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/admin/ResetPasswordParam.java`
+
+Changes:
+
+- Translated service JavaDoc and parameter descriptions to English.
+- Expanded touched one-line JavaDoc comments to the preferred multi-line style.
+- Translated validation messages to concise English while preserving existing constraints and field
+  names.
+
+Compatibility:
+
+- No service signature, DTO field, JSON property, validation annotation, validation bound, or
+  authentication/gateway flow changed.
+
+Verification:
+
+- Targeted `rg` scan on the touched files returned no actionable Chinese text or one-line JavaDoc.
+- `git diff --check` passed for the touched files.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests compile` passed.

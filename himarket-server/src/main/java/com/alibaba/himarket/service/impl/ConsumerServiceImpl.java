@@ -177,9 +177,11 @@ public class ConsumerServiceImpl implements ConsumerService {
                 }
             } catch (Exception e) {
                 log.error(
-                        "revoke consumer authorization error, consumerId: {}, productId: {}",
+                        "Failed to revoke consumer authorization, consumerId={}, productId={},"
+                                + " errorMessage={}",
                         consumerId,
                         subscription.getProductId(),
+                        e.getMessage(),
                         e);
             }
         }
@@ -198,8 +200,9 @@ public class ConsumerServiceImpl implements ConsumerService {
                         consumerRef.getGwConsumerId(), consumerRef.getGatewayConfig());
             } catch (Exception e) {
                 log.error(
-                        "deleteConsumer gatewayConsumer error, gwConsumerId: {}",
+                        "Failed to delete gateway consumer, gwConsumerId={}, errorMessage={}",
                         consumerRef.getGwConsumerId(),
+                        e.getMessage(),
                         e);
             }
         }
@@ -268,8 +271,9 @@ public class ConsumerServiceImpl implements ConsumerService {
                         consumerRef.getGwConsumerId(), credential, consumerRef.getGatewayConfig());
             } catch (Exception e) {
                 log.error(
-                        "Update gatewayConsumer error, gwConsumerId: {}",
+                        "Failed to update gateway consumer, gwConsumerId={}, errorMessage={}",
                         consumerRef.getGwConsumerId(),
+                        e.getMessage(),
                         e);
             }
         }
@@ -305,10 +309,10 @@ public class ConsumerServiceImpl implements ConsumerService {
         subscription.setSubscriptionId(IdGenerator.genSubscriptionId());
         subscription.setConsumerId(consumerId);
 
-        // 判断是否自动审批
+        // Resolve whether this subscription can be approved automatically.
         boolean autoApprove = resolveAutoApprove(product, consumer);
 
-        // 网关来源：需要同步授权到网关
+        // Gateway products need synchronized gateway-side authorization.
         if (productRef != null && productRef.getSourceType() == SourceType.GATEWAY) {
             if (autoApprove) {
                 ConsumerAuthConfig consumerAuthConfig =
@@ -604,8 +608,8 @@ public class ConsumerServiceImpl implements ConsumerService {
 
             if (!isConsumerExistsInGateway(gwConsumerId, gatewayConfig)) {
                 log.warn(
-                        "Consumer in gateway was deleted, need to recreate consumer: gwConsumerId:"
-                                + " {}, gatewayType: {}",
+                        "Gateway consumer is missing and will be recreated, gwConsumerId={},"
+                                + " gatewayType={}",
                         gwConsumerId,
                         gatewayConfig.getGatewayType());
 
@@ -644,10 +648,11 @@ public class ConsumerServiceImpl implements ConsumerService {
             return gatewayService.isConsumerExists(gwConsumerId, gatewayConfig);
         } catch (Exception e) {
             log.warn(
-                    "Failed to check consumer existence in gateway, gwConsumerId: {}, gatewayType:"
-                            + " {}",
+                    "Failed to check gateway consumer existence, gwConsumerId={}, gatewayType={},"
+                            + " errorMessage={}",
                     gwConsumerId,
                     gatewayConfig.getGatewayType(),
+                    e.getMessage(),
                     e);
             return true;
         }
@@ -657,14 +662,18 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Async("taskExecutor")
     public void onDeveloperDeletion(DeveloperDeletingEvent event) {
         String developerId = event.getDeveloperId();
-        log.info("Cleaning consumers for developer {}", developerId);
+        log.info("Cleaning consumers for developer, developerId={}", developerId);
 
         List<Consumer> consumers = consumerRepository.findAllByDeveloperId(developerId);
         for (Consumer consumer : consumers) {
             try {
                 deleteConsumer(consumer.getConsumerId());
             } catch (Exception e) {
-                log.error("Failed to delete consumer {}", consumer.getConsumerId(), e);
+                log.error(
+                        "Failed to delete consumer, consumerId={}, errorMessage={}",
+                        consumer.getConsumerId(),
+                        e.getMessage(),
+                        e);
             }
         }
     }
@@ -673,7 +682,7 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Async("taskExecutor")
     public void onProductDeletion(ProductDeletingEvent event) {
         String productId = event.getProductId();
-        log.info("Cleaning subscriptions for product {}", productId);
+        log.info("Cleaning subscriptions for product, productId={}", productId);
 
         subscriptionRepository.deleteAllByProductId(productId);
 
@@ -685,9 +694,11 @@ public class ConsumerServiceImpl implements ConsumerService {
                 unsubscribeProduct(subscription.getConsumerId(), subscription.getProductId());
             } catch (Exception e) {
                 log.error(
-                        "Failed to unsubscribe product {} for consumer {}",
+                        "Failed to unsubscribe product for consumer, productId={}, consumerId={},"
+                                + " errorMessage={}",
                         productId,
                         subscription.getConsumerId(),
+                        e.getMessage(),
                         e);
             }
         }
@@ -742,12 +753,12 @@ public class ConsumerServiceImpl implements ConsumerService {
                     .orElseGet(
                             () -> {
                                 log.debug(
-                                        "No credential found for consumer: {}",
+                                        "No credential found for consumer, consumerId={}",
                                         consumer.getConsumerId());
                                 return CredentialContext.builder().build();
                             });
         } catch (BusinessException e) {
-            log.debug("No consumer found for developer: {}", developerId);
+            log.debug("No consumer found for developer, developerId={}", developerId);
             return CredentialContext.builder().build();
         }
     }
@@ -759,7 +770,7 @@ public class ConsumerServiceImpl implements ConsumerService {
 
         // Return if consumer is already primary
         if (BooleanUtil.isTrue(consumer.getIsPrimary())) {
-            log.debug("Consumer already primary: consumerId={}", consumerId);
+            log.debug("Consumer already primary, consumerId={}", consumerId);
             return;
         }
 
@@ -782,7 +793,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 .map(
                         consumer -> {
                             log.debug(
-                                    "Found existing primary consumer: developerId={},"
+                                    "Found existing primary consumer, developerId={},"
                                             + " consumerId={}",
                                     developerId,
                                     consumer.getConsumerId());

@@ -4,17 +4,19 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * MCP 远程连接请求参数。
+ * MCP remote connection request parameters.
  */
 @Data
 public class McpConnectParam {
 
-    @NotBlank(message = "sandboxId 不能为空")
+    @NotBlank(message = "Sandbox ID is required")
     private String sandboxId;
 
-    @NotBlank(message = "传输类型不能为空")
+    @NotBlank(message = "Transport type is required")
     private String transportType;
 
-    /** 用户填写的参数（JSON 格式），可选 */
+    /**
+     * Optional user-provided parameters as JSON.
+     */
     private String params;
 }

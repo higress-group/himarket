@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * "我的MCP" 列表项：endpoint + meta 合并展示。
+ * "My MCP" list item composed from endpoint and metadata.
  */
 @Data
 @Builder
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class MyEndpointResult {
 
-    // ---- endpoint 字段 ----
+    // Endpoint fields.
     private String endpointId;
     private String mcpServerId;
     private String endpointUrl;
@@ -26,7 +26,7 @@ public class MyEndpointResult {
     private String status;
     private LocalDateTime endpointCreatedAt;
 
-    // ---- meta 字段（展示用） ----
+    // Metadata display fields.
     private String productId;
     private String displayName;
     private String mcpName;

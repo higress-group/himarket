@@ -37,19 +37,20 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class McpServerSpec extends ApiSpec {
 
-    @NotNull(message = "FromType cannot be null")
+    @NotNull(message = "MCP source type cannot be null")
     private McpFromType fromType;
 
-    @NotNull(message = "Protocol cannot be null")
+    @NotNull(message = "MCP protocol cannot be null")
     private McpProtocolType protocol;
 
     private ToolsConfig toolsConfig;
 
-    @NotNull(message = "Connection cannot be null")
+    @NotNull(message = "MCP connection cannot be null")
     @Valid
     private McpConnection connection;
 
-    @AssertTrue(message = "ToolsConfig is required for HTTP_TO_MCP and must be null for NATIVE_MCP")
+    @AssertTrue(
+            message = "Tools config is required for HTTP_TO_MCP and must be null for NATIVE_MCP")
     private boolean isToolsConfigValid() {
         if (McpFromType.HTTP_TO_MCP == fromType) {
             return toolsConfig != null;

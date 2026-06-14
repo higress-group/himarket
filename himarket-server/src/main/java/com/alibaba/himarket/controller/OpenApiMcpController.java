@@ -67,8 +67,6 @@ public class OpenApiMcpController {
         verifyApiKey(key);
     }
 
-    // ==================== Write APIs ====================
-
     @Operation(
             summary = "Register MCP server",
             description = "Register MCP metadata through the API key protected integration API")
@@ -82,8 +80,6 @@ public class OpenApiMcpController {
     // @PostMapping("/meta")
     // public McpMetaDetailResult saveMeta(...)
 
-    // ==================== Detail query APIs ====================
-
     @Operation(summary = "Get MCP server by mcpServerId")
     @GetMapping("/meta/{mcpServerId}")
     public McpMetaDetailResult getMeta(@PathVariable String mcpServerId) {
@@ -95,8 +91,6 @@ public class OpenApiMcpController {
     public McpMetaDetailResult getMetaByName(@PathVariable String mcpName) {
         return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMetaByName(mcpName));
     }
-
-    // ==================== List query APIs ====================
 
     @Operation(
             summary = "List published MCP servers by origin",

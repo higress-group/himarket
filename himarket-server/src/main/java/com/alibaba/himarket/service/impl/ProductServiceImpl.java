@@ -367,7 +367,10 @@ public class ProductServiceImpl implements ProductService {
                             try {
                                 portal = portalService.getPortal(publication.getPortalId());
                             } catch (Exception e) {
-                                log.error("Failed to get portal: {}", publication.getPortalId(), e);
+                                log.error(
+                                        "Failed to get portal, portalId={}",
+                                        publication.getPortalId(),
+                                        e);
                                 return null;
                             }
 
@@ -462,7 +465,8 @@ public class ProductServiceImpl implements ProductService {
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to cleanup remote resources for product {}, continuing with deletion",
+                    "Failed to cleanup remote resources for product, continuing with deletion,"
+                            + " productId={}",
                     product.getProductId(),
                     e);
         }
@@ -556,9 +560,13 @@ public class ProductServiceImpl implements ProductService {
         try {
             publicationRepository.deleteAllByPortalId(portalId);
 
-            log.info("Completed cleanup publications for portal {}", portalId);
+            log.info("Completed cleanup publications for portal, portalId={}", portalId);
         } catch (Exception e) {
-            log.error("Failed to unpublish products for portal {}: {}", portalId, e.getMessage());
+            log.error(
+                    "Failed to unpublish products for portal, portalId={}, errorMessage={}",
+                    portalId,
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -865,9 +873,10 @@ public class ProductServiceImpl implements ProductService {
                                 productRef.getGatewayId(), product.getType(), productRef);
             } catch (Exception e) {
                 log.warn(
-                        "Failed to fetch API credential for product {}: {}",
+                        "Failed to fetch API credential, productId={}, errorMessage={}",
                         productRef.getProductId(),
-                        e.getMessage());
+                        e.getMessage(),
+                        e);
             }
         }
 
@@ -885,9 +894,10 @@ public class ProductServiceImpl implements ProductService {
             productRef.setMcpConfig(JsonUtil.toJson(mcpConfig));
         } catch (Exception e) {
             log.warn(
-                    "Failed to convert tools for {}: {}",
+                    "Failed to convert MCP tools, mcpServerName={}, errorMessage={}",
                     mcpConfig.getMcpServerName(),
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -1096,9 +1106,13 @@ public class ProductServiceImpl implements ProductService {
 
             productRefRepository.save(productRef);
 
-            log.info("Auto-sync product ref: {} successfully completed", productId);
+            log.info("Auto-sync product ref completed, productId={}", productId);
         } catch (Exception e) {
-            log.warn("Failed to auto-sync product ref: {}", productId, e);
+            log.warn(
+                    "Failed to auto-sync product ref, productId={}, errorMessage={}",
+                    productId,
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -1228,14 +1242,15 @@ public class ProductServiceImpl implements ProductService {
                 return param.getModelFilter().matches(config);
             } catch (Exception e) {
                 log.warn(
-                        "Failed to parse modelConfig for product: {}",
+                        "Failed to parse modelConfig for product, productId={}, errorMessage={}",
                         productRef.getProductId(),
+                        e.getMessage(),
                         e);
                 return false;
             }
         }
 
-        // TODO: Add other filter types here
+        // TODO: Add other filter types here.
         // if (param.getType() == ProductType.AGENT && param.getAgentFilter() != null) {
         //     ...
         // }

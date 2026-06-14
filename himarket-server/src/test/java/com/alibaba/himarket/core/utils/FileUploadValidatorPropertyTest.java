@@ -80,7 +80,9 @@ class FileUploadValidatorPropertyTest {
                     Map.entry(
                             ".mkv", new byte[] {0x1A, 0x45, (byte) 0xDF, (byte) 0xA3, 0x01, 0x00}));
 
-    /** Returns a mock InputStream with correct magic bytes for the given extension. */
+    /**
+     * Returns a mock InputStream with correct magic bytes for the given extension.
+     */
     private static void mockMagicBytes(MultipartFile mockFile, String extension)
             throws IOException {
         byte[] magicBytes = TEST_MAGIC_BYTES.get(extension);

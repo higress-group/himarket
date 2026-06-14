@@ -144,7 +144,7 @@ public class OAuth2ServiceImpl implements OAuth2Service {
         // Generate access token
         String accessToken = TokenUtil.generateDeveloperToken(developerId);
         log.info(
-                "JWT Bearer authentication successful, provider: {}, developer: {}",
+                "JWT Bearer authentication succeeded, provider={}, developerId={}",
                 oAuth2Config.getProvider(),
                 developerId);
         return AuthResult.of(accessToken, TokenUtil.getTokenExpiresIn());

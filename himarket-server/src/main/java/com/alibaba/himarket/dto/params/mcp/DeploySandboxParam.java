@@ -22,11 +22,13 @@ package com.alibaba.himarket.dto.params.mcp;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-/** 管理员手动部署沙箱的请求参数。 */
+/**
+ * Request parameters for manual admin sandbox deployment.
+ */
 @Data
 public class DeploySandboxParam {
 
-    @NotBlank(message = "沙箱实例ID不能为空")
+    @NotBlank(message = "Sandbox instance ID is required")
     private String sandboxId;
 
     private String transportType;
@@ -39,7 +41,9 @@ public class DeploySandboxParam {
 
     private String resourceSpec;
 
-    /** 转换为 Service 层使用的 SaveMcpMetaParam。 */
+    /**
+     * Converts this request into SaveMcpMetaParam for the service layer.
+     */
     public SaveMcpMetaParam toSaveMcpMetaParam() {
         SaveMcpMetaParam param = new SaveMcpMetaParam();
         param.setSandboxId(sandboxId);

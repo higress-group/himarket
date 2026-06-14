@@ -162,12 +162,12 @@ public class DashScopeImageChatModel extends ChatModelBase {
                                         effectiveOptions.getAdditionalHeaders(),
                                         effectiveOptions.getAdditionalBodyParams(),
                                         effectiveOptions.getAdditionalQueryParams());
-                        log.debug("Received HTTP response: {}", response);
+                        log.debug("Received DashScope HTTP response, response={}", response);
                         ChatResponse chatResponse = formatter.parseResponse(response, start);
                         return Flux.just(chatResponse);
                     } catch (Exception e) {
                         log.error(
-                                "DashScope image generation HTTP client error: {}",
+                                "DashScope image generation HTTP client error, errorMessage={}",
                                 e.getMessage(),
                                 e);
                         return Flux.error(

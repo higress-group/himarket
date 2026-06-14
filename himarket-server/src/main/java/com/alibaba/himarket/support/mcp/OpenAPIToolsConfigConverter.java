@@ -137,7 +137,9 @@ public final class OpenAPIToolsConfigConverter {
             }
             return parsed == null ? null : JsonUtil.convert(parsed, OpenAPIToolsConfig.class);
         } catch (Exception e) {
-            log.warn("Failed to parse MCP tools config; tools will be omitted: {}", e.getMessage());
+            log.warn(
+                    "Failed to parse MCP tools config, tools will be omitted, errorMessage={}",
+                    e.getMessage());
             return null;
         }
     }

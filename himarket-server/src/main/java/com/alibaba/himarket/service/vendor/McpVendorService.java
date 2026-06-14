@@ -23,10 +23,14 @@ import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItemResult;
 import com.alibaba.himarket.support.enums.McpVendorType;
 
-/** MCP 供应商业务服务，提供远程 MCP 列表查询能力。 */
+/**
+ * Service for listing remote MCP servers from external vendors.
+ */
 public interface McpVendorService {
 
-    /** 查询远程 MCP 列表（带已存在标记）。 */
+    /**
+     * Lists remote MCP servers and marks items that already exist in the platform.
+     */
     PageResult<RemoteMcpItemResult> listRemoteMcpItems(
             McpVendorType vendorType, String keyword, int page, int size);
 }

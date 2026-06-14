@@ -102,12 +102,13 @@ public class DashScopeImageLlmService extends AbstractLlmService {
 
         } catch (Exception e) {
             log.error(
-                    "Failed to process image generation request for chatId: {}",
+                    "Failed to process image generation request, chatId={}, errorMessage={}",
                     param.getChatId(),
+                    e.getMessage(),
                     e);
             ChatError chatError = ChatError.from(e);
             chatContext.fail();
-            chatContext.appendAnswer("[Image generation failed: " + e.getMessage() + "]");
+            chatContext.appendAnswer("[Image generation failed. Reason: " + e.getMessage() + "]");
             resultHandler.accept(chatContext.toResult());
 
             return Flux.just(
@@ -124,14 +125,16 @@ public class DashScopeImageLlmService extends AbstractLlmService {
             Flux<ChatEvent> flux, String chatId, ChatContext chatContext) {
         return flux.doOnCancel(
                         () -> {
-                            log.warn("Image generation was canceled by client, chatId: {}", chatId);
+                            log.warn("Image generation was canceled by client, chatId={}", chatId);
                             chatContext.fail();
                         })
                 .doOnError(
                         error -> {
                             log.error(
-                                    "Image generation stream encountered error, chatId: {}",
+                                    "Image generation stream encountered error, chatId={},"
+                                            + " errorMessage={}",
                                     chatId,
+                                    error.getMessage(),
                                     error);
                             chatContext.fail();
                             chatContext.appendAnswer(
@@ -141,9 +144,11 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                         error -> {
                             ChatError chatError = ChatError.from(error);
                             log.error(
-                                    "Image generation failed, chatId: {}, errorType: {}",
+                                    "Image generation failed, chatId={}, errorType={},"
+                                            + " errorMessage={}",
                                     chatId,
                                     chatError,
+                                    error.getMessage(),
                                     error);
 
                             return Flux.just(
@@ -186,7 +191,8 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                             .build();
             bodyParams.put("parameters", defaultParams);
 
-            log.debug("Added default parameters for image generation: {}", defaultParams);
+            log.debug(
+                    "Added default parameters for image generation, parameters={}", defaultParams);
         }
 
         return request;
@@ -206,7 +212,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
 
         ModelFeature modelFeature = getOrDefaultModelFeature(request.getProduct());
         String modelName = modelFeature.getModel();
-        log.info("Creating DashScopeImageChatModel for image model '{}'", modelName);
+        log.info("Creating DashScopeImageChatModel, modelName={}", modelName);
 
         String baseUrl = request.getUri() != null ? request.getUri().toString() : null;
 
@@ -264,11 +270,14 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                                 // Image URL - send as markdown format
                                 String imageUrl = ((URLSource) imageBlock.getSource()).getUrl();
                                 String image = String.format("![Generated Image](%s)", imageUrl);
-                                log.info("Generated image URL for chatId {}: {}", chatId, imageUrl);
+                                log.info(
+                                        "Generated image URL, chatId={}, imageUrl={}",
+                                        chatId,
+                                        imageUrl);
                                 return Flux.just(ChatEvent.text(chatId, image));
                             } else {
                                 log.warn(
-                                        "Unsupported content block type: {}",
+                                        "Unsupported content block type, blockType={}",
                                         block.getClass().getName());
                                 return Flux.empty();
                             }

@@ -20,20 +20,28 @@
 package com.alibaba.himarket.support.enums;
 
 /**
- * MCP Server Endpoint 的托管类型。
+ * Hosting type of an MCP Server endpoint.
  */
 public enum McpHostingType {
-    /** 沙箱托管 */
+    /**
+     * Hosted by a sandbox.
+     */
     SANDBOX,
-    /** 网关托管 */
+    /**
+     * Hosted by a gateway.
+     */
     GATEWAY,
-    /** Nacos 托管 */
+    /**
+     * Hosted by Nacos.
+     */
     NACOS,
-    /** 直连（用户自行提供 URL） */
+    /**
+     * Direct connection with a user-provided URL.
+     */
     DIRECT;
 
     /**
-     * 根据 MCP 来源推断默认的托管类型。
+     * Infers the default hosting type from the MCP origin.
      */
     public static McpHostingType fromOrigin(McpOrigin origin) {
         if (origin == null) return DIRECT;

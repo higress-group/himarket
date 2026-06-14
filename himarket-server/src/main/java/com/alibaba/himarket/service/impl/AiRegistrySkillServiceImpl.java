@@ -536,8 +536,10 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
             long maxSize = Long.parseLong(uploadInfo.getMaxSize());
             if (fileSize > maxSize) {
                 log.warn(
-                        "AIRegistry Skill package exceeds max size, aiRegistryId={}, maxSize={}",
+                        "AIRegistry Skill package exceeds max size, aiRegistryId={}, fileSize={},"
+                                + " maxSize={}",
                         aiRegistryId,
+                        fileSize,
                         maxSize);
                 throw new BusinessException(
                         ErrorCode.INVALID_PARAMETER,
@@ -559,9 +561,11 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 log.warn(
-                        "Failed to PUT AIRegistry Skill package, aiRegistryId={}, status={}",
+                        "Failed to PUT AIRegistry Skill package, aiRegistryId={}, status={},"
+                                + " responseMessage={}",
                         aiRegistryId,
-                        response.code());
+                        response.code(),
+                        response.message());
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR, "Failed to upload AIRegistry Skill package");
             }
@@ -576,13 +580,20 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
             ErrorCode errorCode = mapTeaErrorCode(teaException);
             String code = StrUtil.blankToDefault(teaException.getCode(), "Unknown");
             log.warn(
-                    "{}: AIRegistry error code={}, status={}",
+                    "AIRegistry request failed, operation={}, errorCode={}, status={},"
+                            + " errorMessage={}",
                     message,
                     code,
-                    teaException.getStatusCode());
+                    teaException.getStatusCode(),
+                    teaException.getMessage());
             return new BusinessException(errorCode, message + ": " + code);
         }
-        log.warn("{}", message, e);
+        log.warn(
+                "AIRegistry request failed, operation={}, errorType={}, errorMessage={}",
+                message,
+                e.getClass().getSimpleName(),
+                e.getMessage(),
+                e);
         return new BusinessException(ErrorCode.INTERNAL_ERROR, message);
     }
 

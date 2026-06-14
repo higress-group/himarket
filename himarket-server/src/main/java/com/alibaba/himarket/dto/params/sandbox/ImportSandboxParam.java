@@ -27,13 +27,13 @@ import lombok.Data;
 @Data
 public class ImportSandboxParam implements InputConverter<SandboxInstance> {
 
-    @NotBlank(message = "实例名称不能为空")
+    @NotBlank(message = "Instance name must not be blank")
     private String sandboxName;
 
-    @NotBlank(message = "实例类型不能为空")
+    @NotBlank(message = "Instance type must not be blank")
     private String sandboxType;
 
-    @NotBlank(message = "KubeConfig不能为空")
+    @NotBlank(message = "KubeConfig must not be blank")
     private String kubeConfig;
 
     private String description;

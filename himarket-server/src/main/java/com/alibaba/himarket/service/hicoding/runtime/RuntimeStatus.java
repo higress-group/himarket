@@ -1,22 +1,32 @@
 package com.alibaba.himarket.service.hicoding.runtime;
 
 /**
- * 运行时实例状态枚举。
+ * Runtime instance status.
  */
 public enum RuntimeStatus {
 
-    /** 创建中 */
+    /**
+     * Creating.
+     */
     CREATING,
 
-    /** 运行中 */
+    /**
+     * Running.
+     */
     RUNNING,
 
-    /** WS 已断开，但 sidecar session 可能仍存活 */
+    /**
+     * WebSocket is disconnected, but the Sidecar session may still be alive.
+     */
     DETACHED,
 
-    /** 已停止 */
+    /**
+     * Stopped.
+     */
     STOPPED,
 
-    /** 异常 */
+    /**
+     * Error state.
+     */
     ERROR
 }

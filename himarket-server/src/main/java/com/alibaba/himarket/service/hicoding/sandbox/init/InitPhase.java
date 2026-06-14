@@ -1,25 +1,45 @@
 package com.alibaba.himarket.service.hicoding.sandbox.init;
 
 /**
- * 初始化阶段接口。 每个阶段通过 InitContext.getProvider() 获取 SandboxProvider， 执行沙箱类型无关的初始化逻辑。
+ * Initialization phase interface.
+ *
+ * <p>Each phase obtains the {@link com.alibaba.himarket.service.hicoding.sandbox.SandboxProvider}
+ * through {@link InitContext#getProvider()} and performs sandbox-type-agnostic initialization
+ * logic.
  */
 public interface InitPhase {
 
-    /** 阶段名称，用于日志和事件追踪。 */
+    /**
+     * Phase name used for logs and event tracing.
+     */
     String name();
 
-    /** 执行顺序，值越小越先执行。 */
+    /**
+     * Execution order; smaller values run earlier.
+     */
     int order();
 
-    /** 判断当前阶段是否需要执行。返回 false 时跳过并记录 PHASE_SKIP 事件。 */
+    /**
+     * Returns whether the current phase should execute.
+     *
+     * <p>When false, the pipeline skips the phase and records a PHASE_SKIP event.
+     */
     boolean shouldExecute(InitContext context);
 
-    /** 执行阶段逻辑。 */
+    /**
+     * Executes phase logic.
+     */
     void execute(InitContext context) throws InitPhaseException;
 
-    /** 验证阶段执行结果是否就绪。verify 返回 true 后才执行下一阶段。 */
+    /**
+     * Verifies whether the phase result is ready.
+     *
+     * <p>The next phase runs only after verify returns true.
+     */
     boolean verify(InitContext context);
 
-    /** 该阶段的重试策略。 */
+    /**
+     * Retry policy for this phase.
+     */
     RetryPolicy retryPolicy();
 }

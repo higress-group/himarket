@@ -247,9 +247,15 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                             .equals(((PopClientException) cause).getErrCode())) {
                 return retrievalConsumer(gwConsumerName, config);
             }
-            log.error("Error creating Consumer", e);
+            log.error(
+                    "Failed to create gateway consumer, dependency=APIG, operation=createConsumer,"
+                            + " consumerName={}, errorType={}, errorMessage={}",
+                    gwConsumerName,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error creating Consumer，Cause：" + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR, "Failed to create Consumer: " + e.getMessage());
         }
     }
 
@@ -342,9 +348,16 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 return false;
             }
 
-            log.error("Error fetching Consumer", e);
+            log.error(
+                    "Failed to fetch gateway consumer, dependency=APIG,"
+                            + " operation=isConsumerExists, consumerId={}, errorType={},"
+                            + " errorMessage={}",
+                    consumerId,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error fetching Consumer，Cause：" + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR, "Failed to fetch Consumer: " + e.getMessage());
         } finally {
             client.close();
         }
@@ -483,15 +496,24 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                     && "DatabaseError.RecordNotFound"
                             .equals(((PopClientException) cause).getErrCode())) {
                 log.warn(
-                        "Consumer authorization rules[{}] not found, ignore",
+                        "Consumer authorization rules not found, skipping revocation,"
+                                + " dependency=APIG, operation=revokeConsumerAuthorization,"
+                                + " authorizationRuleIds={}",
                         apigAuthConfig.getAuthorizationRuleIds());
                 return;
             }
 
-            log.error("Error deleting Consumer Authorization", e);
+            log.error(
+                    "Failed to delete consumer authorization, dependency=APIG,"
+                            + " operation=revokeConsumerAuthorization, consumerId={},"
+                            + " errorType={}, errorMessage={}",
+                    consumerId,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "Error deleting Consumer Authorization，Cause：" + e.getMessage());
+                    "Failed to delete Consumer Authorization: " + e.getMessage());
         }
     }
 
@@ -526,7 +548,14 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                 // Build gateway URI with http scheme by default
                                 return new URI("http://" + ip);
                             } catch (URISyntaxException e) {
-                                log.error("Error creating URI for IP: {}", ip, e);
+                                log.error(
+                                        "Failed to create gateway URI, dependency=APIG,"
+                                                + " operation=fetchGatewayUris, ip={},"
+                                                + " errorType={}, errorMessage={}",
+                                        ip,
+                                        e.getClass().getSimpleName(),
+                                        e.getMessage(),
+                                        e);
                                 return null;
                             }
                         })

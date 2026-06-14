@@ -1,7 +1,7 @@
 package com.alibaba.himarket.service.hicoding.filesystem;
 
 /**
- * 文件元信息。
+ * File metadata.
  */
 public record FileInfo(
         String path,

@@ -19,29 +19,29 @@ import org.springframework.stereotype.Component;
 import reactor.core.Disposable;
 
 /**
- * WebSocket 连接状态和资源管理器。
+ * WebSocket connection state and resource manager.
  *
- * <p>从 HiCodingWebSocketHandler 中提取连接级别的状态管理和资源清理逻辑， 使 Handler 不再直接持有
- * ConcurrentHashMap 字段。
+ * <p>Extracts connection-level state management and resource cleanup from
+ * HiCodingWebSocketHandler, so the handler no longer owns ConcurrentHashMap fields directly.
  *
- * <p>管理的状态包括：
+ * <p>Managed state includes:
  *
  * <ul>
- *   <li>runtimeMap — session → RuntimeAdapter（CLI 运行时）
- *   <li>subscriptionMap — session → Disposable（stdout 订阅）
- *   <li>cwdMap — session → 工作目录
- *   <li>userIdMap — session → 用户 ID
- *   <li>sandboxModeMap — session → 沙箱模式
- *   <li>pendingMessageMap — session → 待转发消息队列（初始化期间缓存）
- *   <li>deferredInitMap — session → 延迟初始化参数
- *   <li>detachedSessionMap — userId → DetachedSessionInfo（已 detach 但仍可 reattach 的会话）
+ *   <li>runtimeMap: session to RuntimeAdapter for the CLI runtime
+ *   <li>subscriptionMap: session to Disposable stdout subscription
+ *   <li>cwdMap: session to working directory
+ *   <li>userIdMap: session to user ID
+ *   <li>sandboxModeMap: session to sandbox mode
+ *   <li>pendingMessageMap: session to queued messages buffered during initialization
+ *   <li>deferredInitMap: session to deferred initialization parameters
+ *   <li>detachedSessionMap: userId to detached sessions that can still be reattached
  * </ul>
  */
 @Component
 public class HiCodingConnectionManager {
 
     private static final Logger logger = LoggerFactory.getLogger(HiCodingConnectionManager.class);
-    private static final long DETACH_TTL_MILLIS = 10 * 60 * 1000L; // 10 分钟
+    private static final long DETACH_TTL_MILLIS = 10 * 60 * 1000L; // 10 minutes.
 
     private final ConcurrentHashMap<String, RuntimeAdapter> runtimeMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Disposable> subscriptionMap = new ConcurrentHashMap<>();
@@ -53,11 +53,15 @@ public class HiCodingConnectionManager {
     private final ConcurrentHashMap<String, DeferredInitParams> deferredInitMap =
             new ConcurrentHashMap<>();
 
-    /** userId → 已 detach 但可 reattach 的会话信息。 */
+    /**
+     * Detached sessions keyed by userId that can still be reattached.
+     */
     private final ConcurrentHashMap<String, DetachedSessionInfo> detachedSessionMap =
             new ConcurrentHashMap<>();
 
-    /** 定期清理过期 detached 会话的调度器。 */
+    /**
+     * Scheduler that periodically cleans up expired detached sessions.
+     */
     private final ScheduledExecutorService cleanupScheduler =
             Executors.newSingleThreadScheduledExecutor(
                     r -> {
@@ -67,9 +71,11 @@ public class HiCodingConnectionManager {
                     });
 
     /**
-     * 延迟初始化上下文：当 WebSocket 握手时 URL 中没有 cliSessionConfig， 等待前端通过 session/config
-     * 消息发送配置后再启动 pipeline。 存储 afterConnectionEstablished 中解析好的参数，供 session/config
-     * 消息到达时使用。
+     * Deferred initialization context.
+     *
+     * <p>When the WebSocket handshake URL does not contain cliSessionConfig, the pipeline waits for
+     * the frontend to send configuration through the session/config message. This record stores the
+     * parameters parsed in afterConnectionEstablished until that message arrives.
      */
     public record DeferredInitParams(
             String userId,
@@ -79,8 +85,9 @@ public class HiCodingConnectionManager {
             SandboxType sandboxType) {}
 
     /**
-     * 已 detach 的会话信息，存储在 detachedSessionMap 中。 当前端 WebSocket 重连时，可通过 userId
-     * 查找并 reattach。
+     * Detached session information stored in detachedSessionMap.
+     *
+     * <p>When the frontend WebSocket reconnects, it can be looked up by userId and reattached.
      */
     public record DetachedSessionInfo(
             String sidecarSessionId,
@@ -109,7 +116,7 @@ public class HiCodingConnectionManager {
                         if (removed != null && removed.adapter() != null) {
                             removed.adapter().close();
                             logger.info(
-                                    "Cleaned up expired detached session: userId={}, age={}s",
+                                    "Cleaned up expired detached session, userId={}, age={}s",
                                     userId,
                                     (now - removed.detachedAtMillis()) / 1000);
                         }
@@ -118,12 +125,15 @@ public class HiCodingConnectionManager {
     }
 
     /**
-     * 注册新连接。在 WebSocket 连接建立时调用，初始化该 session 的所有状态映射。
+     * Registers a new connection.
+     *
+     * <p>Called when the WebSocket connection is established to initialize all state maps for the
+     * session.
      *
      * @param sessionId WebSocket session ID
-     * @param userId 用户 ID
-     * @param cwd 工作目录
-     * @param sandboxMode 沙箱模式（可为 null）
+     * @param userId user ID
+     * @param cwd working directory
+     * @param sandboxMode sandbox mode, nullable
      */
     public void registerConnection(
             String sessionId, String userId, String cwd, String sandboxMode) {
@@ -134,11 +144,13 @@ public class HiCodingConnectionManager {
     }
 
     /**
-     * 注册初始化成功后的运行时资源。在沙箱初始化完成后调用。
+     * Registers runtime resources after successful initialization.
+     *
+     * <p>Called after sandbox initialization completes.
      *
      * @param sessionId WebSocket session ID
-     * @param adapter CLI 运行时适配器
-     * @param subscription stdout 订阅句柄
+     * @param adapter CLI runtime adapter
+     * @param subscription stdout subscription handle
      */
     public void registerRuntime(String sessionId, RuntimeAdapter adapter, Disposable subscription) {
         runtimeMap.put(sessionId, adapter);
@@ -146,14 +158,15 @@ public class HiCodingConnectionManager {
     }
 
     /**
-     * 清理连接资源。在 WebSocket 连接关闭时调用。
+     * Cleans up connection resources.
      *
-     * <p>如果 RuntimeAdapter 是 RemoteRuntimeAdapter 且已获取到 sidecarSessionId，
-     * 则执行 detach 操作（保留 sidecar 进程），而非直接 close。 detach 后的会话存储在 detachedSessionMap
-     * 中，等待前端重连。
+     * <p>Called when the WebSocket connection closes. If the RuntimeAdapter is a
+     * RemoteRuntimeAdapter with a sidecarSessionId, it detaches and preserves the Sidecar process
+     * instead of closing it directly. The detached session is stored in detachedSessionMap for a
+     * future frontend reconnect.
      *
-     * <p>清理顺序：pendingMessages → deferredInit → subscription（dispose） → runtime（detach 或 close）
-     * → cwd → userId → sandboxMode
+     * <p>Cleanup order: pendingMessages, deferredInit, subscription disposal, runtime detach or
+     * close, cwd, userId, sandboxMode.
      *
      * @param sessionId WebSocket session ID
      */
@@ -171,7 +184,7 @@ public class HiCodingConnectionManager {
         String cwd = cwdMap.remove(sessionId);
         String sandboxMode = sandboxModeMap.remove(sessionId);
 
-        // 如果是 RemoteRuntimeAdapter 且有 sidecarSessionId，执行 detach 而非 close
+        // Detach RemoteRuntimeAdapter instances with a sidecarSessionId instead of closing them.
         if (runtime instanceof RemoteRuntimeAdapter remoteAdapter
                 && remoteAdapter.getSidecarSessionId() != null
                 && userId != null) {
@@ -191,36 +204,36 @@ public class HiCodingConnectionManager {
             return;
         }
 
-        // 非 Remote 或无 sidecarSessionId，直接 close
+        // Non-remote runtimes or runtimes without sidecarSessionId are closed directly.
         if (runtime != null) {
             runtime.close();
         }
     }
 
     /**
-     * 原子地获取并移除指定用户的 detached 会话。 如果存在则返回 DetachedSessionInfo，否则返回 null。
+     * Atomically gets and removes the detached session for the specified user.
      *
-     * @param userId 用户 ID
-     * @return DetachedSessionInfo，不存在时返回 null
+     * @param userId user ID
+     * @return DetachedSessionInfo, or null when none exists
      */
     public DetachedSessionInfo takeDetachedSession(String userId) {
         return detachedSessionMap.remove(userId);
     }
 
     /**
-     * 查看指定用户是否有 detached 会话（不移除）。
+     * Returns the detached session for the specified user without removing it.
      *
-     * @param userId 用户 ID
-     * @return DetachedSessionInfo，不存在时返回 null
+     * @param userId user ID
+     * @return DetachedSessionInfo, or null when none exists
      */
     public DetachedSessionInfo peekDetachedSession(String userId) {
         return detachedSessionMap.get(userId);
     }
 
     /**
-     * 强制销毁指定用户的 detached 会话。
+     * Force-destroys the detached session for the specified user.
      *
-     * @param userId 用户 ID
+     * @param userId user ID
      */
     public void destroyDetachedSession(String userId) {
         DetachedSessionInfo detached = detachedSessionMap.remove(userId);
@@ -234,47 +247,50 @@ public class HiCodingConnectionManager {
     }
 
     /**
-     * 获取指定 session 的 RuntimeAdapter。
+     * Returns the RuntimeAdapter for the specified session.
      *
      * @param sessionId WebSocket session ID
-     * @return RuntimeAdapter，未初始化时返回 null
+     * @return RuntimeAdapter, or null before initialization
      */
     public RuntimeAdapter getRuntime(String sessionId) {
         return runtimeMap.get(sessionId);
     }
 
     /**
-     * 获取指定 session 的用户 ID。
+     * Returns the user ID for the specified session.
      *
      * @param sessionId WebSocket session ID
-     * @return 用户 ID，未注册时返回 null
+     * @return user ID, or null when unregistered
      */
     public String getUserId(String sessionId) {
         return userIdMap.get(sessionId);
     }
 
     /**
-     * 获取指定 session 的工作目录。
+     * Returns the working directory for the specified session.
      *
      * @param sessionId WebSocket session ID
-     * @return 工作目录路径，未注册时返回 null
+     * @return working directory path, or null when unregistered
      */
     public String getCwd(String sessionId) {
         return cwdMap.get(sessionId);
     }
 
     /**
-     * 获取指定 session 的待转发消息队列。
+     * Returns queued messages for the specified session.
      *
      * @param sessionId WebSocket session ID
-     * @return 消息队列，未注册时返回 null
+     * @return message queue, or null when unregistered
      */
     public Queue<String> getPendingMessages(String sessionId) {
         return pendingMessageMap.get(sessionId);
     }
 
     /**
-     * 移除指定 session 的待转发消息队列。 在沙箱初始化完成后调用，标记该 session 不再需要缓存消息。
+     * Removes the queued message map entry for the specified session.
+     *
+     * <p>Called after sandbox initialization completes to mark that the session no longer needs
+     * message buffering.
      *
      * @param sessionId WebSocket session ID
      */
@@ -283,20 +299,22 @@ public class HiCodingConnectionManager {
     }
 
     /**
-     * 原子地获取并移除指定 session 的延迟初始化参数。 使用 remove() 而非 get()，确保参数只被消费一次。
+     * Atomically gets and removes deferred initialization parameters for the specified session.
+     *
+     * <p>Uses remove() instead of get() to guarantee the parameters are consumed only once.
      *
      * @param sessionId WebSocket session ID
-     * @return 延迟初始化参数，不存在时返回 null
+     * @return deferred initialization parameters, or null when none exist
      */
     public DeferredInitParams getDeferredInit(String sessionId) {
         return deferredInitMap.remove(sessionId);
     }
 
     /**
-     * 设置指定 session 的延迟初始化参数。
+     * Sets deferred initialization parameters for the specified session.
      *
      * @param sessionId WebSocket session ID
-     * @param params 延迟初始化参数
+     * @param params deferred initialization parameters
      */
     public void setDeferredInit(String sessionId, DeferredInitParams params) {
         deferredInitMap.put(sessionId, params);

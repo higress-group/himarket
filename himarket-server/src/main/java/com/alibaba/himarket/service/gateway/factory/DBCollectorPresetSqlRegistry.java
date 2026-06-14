@@ -26,15 +26,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * DBCollector 场景 SQL 注册表（MySQL/MariaDB 方言）
+ * DBCollector scenario SQL registry for the MySQL/MariaDB dialect.
  *
- * <p>说明：
+ * <p>Rules:
  *
  * <ul>
- *   <li>场景名与前端契约保持一致，尽量对齐 {@link SlsPresetSqlRegistry} 的场景集合
- *   <li>SQL 使用 access_logs 表（init.sql）作为数据源
- *   <li>SQL 模板内需包含 {@code /*WHERE*\/} 占位符，由服务层注入时间范围与通用过滤条件
- *   <li>SQL 模板内允许使用 {@code {interval}} 占位符，由服务层替换为请求的 interval（秒）
+ *   <li>Scenario names match frontend contracts and should stay close to {@link
+ *       SlsPresetSqlRegistry} where possible.
+ *   <li>SQL uses the access_logs table from init.sql.
+ *   <li>SQL templates include the {@code /*WHERE*\/} placeholder for service-layer time and
+ *       filter injection.
+ *   <li>SQL templates may include the {@code {interval}} placeholder, replaced by the requested
+ *       interval in seconds.
  * </ul>
  */
 @Component
@@ -44,7 +47,9 @@ public class DBCollectorPresetSqlRegistry {
     public static final String WHERE_PLACEHOLDER = "/*WHERE*/";
     public static final String BIZ_PLACEHOLDER = "/*BIZ*/";
 
-    /** 场景预设 */
+    /**
+     * Scenario preset.
+     */
     @Getter
     public static class Preset {
         private final String name;
@@ -70,7 +75,6 @@ public class DBCollectorPresetSqlRegistry {
     private final Map<String, Preset> presets = new HashMap<>();
 
     public DBCollectorPresetSqlRegistry() {
-        // ===== CARD =====
         presets.put(
                 "pv",
                 new Preset(
@@ -151,8 +155,8 @@ public class DBCollectorPresetSqlRegistry {
                         null,
                         null));
 
-        // ===== LINE（统一输出 time 字段）=====
-        // QPS（流式/非流式/总）
+        // LINE presets, always returning a time field.
+        // Streaming, non-streaming, and total QPS.
         presets.put(
                 "qps_stream",
                 new Preset(
@@ -197,7 +201,7 @@ public class DBCollectorPresetSqlRegistry {
                         "time",
                         "total_qps"));
 
-        // 成功率（网关/模型通用）
+        // Success rate for gateway and model dashboards.
         presets.put(
                 "success_rate",
                 new Preset(
@@ -213,7 +217,7 @@ public class DBCollectorPresetSqlRegistry {
                         "time",
                         "success_rate"));
 
-        // Token/s（输入/输出/总）
+        // Input, output, and total tokens per second.
         presets.put(
                 "token_per_sec_input",
                 new Preset(
@@ -254,7 +258,7 @@ public class DBCollectorPresetSqlRegistry {
                         "time",
                         "total_token"));
 
-        // 平均RT（模型侧：从 ai_log 提取）
+        // Average response time from ai_log for model metrics.
         presets.put(
                 "rt_avg_total",
                 new Preset(
@@ -326,7 +330,7 @@ public class DBCollectorPresetSqlRegistry {
                         "time",
                         "first_token_rt"));
 
-        // 缓存命中/未命中/跳过（模型侧）
+        // Cache hit, miss, and skip rates for model metrics.
         presets.put(
                 "cache_hit",
                 new Preset(
@@ -370,7 +374,7 @@ public class DBCollectorPresetSqlRegistry {
                         "time",
                         "skip"));
 
-        // 限流请求数/s（模型侧）
+        // Rate-limited requests per second for model metrics.
         presets.put(
                 "ratelimited_per_sec",
                 new Preset(
@@ -387,7 +391,7 @@ public class DBCollectorPresetSqlRegistry {
                         "time",
                         "ratelimited"));
 
-        // MCP 总QPS（仅 MCPP 大盘）
+        // Total QPS for the MCP dashboard.
         presets.put(
                 "qps_total_simple",
                 new Preset(
@@ -402,7 +406,7 @@ public class DBCollectorPresetSqlRegistry {
                         "time",
                         "total"));
 
-        // MCP：平均RT / P50/P90/P95/P99（基于 duration）
+        // MCP average and percentile response times based on duration.
         presets.put(
                 "rt_avg",
                 new Preset(
@@ -423,7 +427,6 @@ public class DBCollectorPresetSqlRegistry {
         addDurationPercentilePreset("rt_p90", 0.90, "rt_p90");
         addDurationPercentilePreset("rt_p50", 0.50, "rt_p50");
 
-        // ===== TABLE =====
         presets.put(
                 "model_token_table",
                 new Preset(
@@ -525,7 +528,7 @@ public class DBCollectorPresetSqlRegistry {
                         null,
                         null));
 
-        // MCP 表格
+        // MCP table presets.
         presets.put(
                 "method_distribution",
                 new Preset(
@@ -576,7 +579,7 @@ public class DBCollectorPresetSqlRegistry {
                         null,
                         null));
 
-        // 过滤选项（返回字段名需与前端 extractField 对齐）
+        // Filter option presets. Returned field names must match the frontend extractField logic.
         presets.put(
                 "filter_service_options",
                 new Preset(
@@ -662,7 +665,8 @@ public class DBCollectorPresetSqlRegistry {
     }
 
     private void addDurationPercentilePreset(String name, double p, String valueAlias) {
-        // 使用窗口函数按时间桶计算分位数（避免依赖特定数据库的 percentile 函数）
+        // Use window functions by time bucket instead of relying on database-specific percentile
+        // functions.
         String percentile = Double.toString(p);
         presets.put(
                 name,
@@ -694,7 +698,7 @@ public class DBCollectorPresetSqlRegistry {
         if (scenario == null) return null;
         Preset p = presets.get(scenario);
         if (p == null) {
-            log.warn("Unknown DBCollector scenario: {}", scenario);
+            log.warn("Unknown DBCollector scenario, scenario={}", scenario);
         }
         return p;
     }

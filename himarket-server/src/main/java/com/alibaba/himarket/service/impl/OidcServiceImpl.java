@@ -101,14 +101,14 @@ public class OidcServiceImpl implements OidcService {
                         .build()
                         .toUriString();
 
-        log.info("Generated OIDC authorization URL: {}", authUrl);
+        log.info("Generated OIDC authorization URL, url={}", authUrl);
         return authUrl;
     }
 
     @Override
     public AuthResult handleCallback(
             String code, String state, HttpServletRequest request, HttpServletResponse response) {
-        log.info("Processing OIDC callback with code: {}, state: {}", code, state);
+        log.info("Processing OIDC callback, code={}, state={}", code, state);
 
         // Parse state to get provider info
         IdpState idpState = parseState(state);
@@ -125,7 +125,7 @@ public class OidcServiceImpl implements OidcService {
 
         // Get user info, prefer ID Token, fallback to UserInfo endpoint
         Map<String, Object> userInfo = getUserInfo(tokenResult, oidcConfig);
-        log.info("Get OIDC user info: {}", userInfo);
+        log.info("Resolved OIDC user info, userInfo={}", userInfo);
 
         // Handle user authentication
         String developerId = createOrGetDeveloper(userInfo, oidcConfig);
@@ -235,7 +235,10 @@ public class OidcServiceImpl implements OidcService {
         params.add(IdpConstants.CLIENT_ID, authCodeConfig.getClientId());
         params.add(IdpConstants.CLIENT_SECRET, authCodeConfig.getClientSecret());
 
-        log.info("Request tokens at: {}, params: {}", authCodeConfig.getTokenEndpoint(), params);
+        log.info(
+                "Requesting OIDC token, clientId={}, tokenEndpoint={}",
+                authCodeConfig.getClientId(),
+                authCodeConfig.getTokenEndpoint());
         return executeRequest(
                 authCodeConfig.getTokenEndpoint(),
                 HttpMethod.POST,
@@ -247,7 +250,7 @@ public class OidcServiceImpl implements OidcService {
     private Map<String, Object> getUserInfo(IdpTokenResult tokenResult, OidcConfig oidcConfig) {
         // Prefer ID Token
         if (StrUtil.isNotBlank(tokenResult.getIdToken())) {
-            log.info("Get user info form id token: {}", tokenResult.getIdToken());
+            log.info("Extracting OIDC user info from ID token");
             return parseUserInfo(tokenResult.getIdToken(), oidcConfig);
         }
 
@@ -278,11 +281,11 @@ public class OidcServiceImpl implements OidcService {
                 throw new BusinessException(ErrorCode.INVALID_REQUEST, "ID Token has expired");
             }
         }
-        // TODO Verify signature
+        // TODO: Verify the ID token signature.
 
         Map<String, Object> userInfo = jwt.getPayload().getClaimsJson();
 
-        log.info("Successfully extracted user info from ID Token, sub: {}", userInfo);
+        log.info("Extracted OIDC user info from ID token, claimCount={}", userInfo.size());
         return userInfo;
     }
 
@@ -293,7 +296,9 @@ public class OidcServiceImpl implements OidcService {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(accessToken);
 
-            log.info("Fetching user info from endpoint: {}", authCodeConfig.getUserInfoEndpoint());
+            log.info(
+                    "Fetching OIDC user info, userInfoEndpoint={}",
+                    authCodeConfig.getUserInfoEndpoint());
             Map<String, Object> userInfo =
                     executeRequest(
                             authCodeConfig.getUserInfoEndpoint(),
@@ -302,12 +307,13 @@ public class OidcServiceImpl implements OidcService {
                             null,
                             Map.class);
 
-            log.info("Successfully fetched user info from endpoint, sub: {}", userInfo);
+            log.info("Fetched OIDC user info, claimCount={}", userInfo.size());
             return userInfo;
         } catch (Exception e) {
             log.error(
-                    "Failed to fetch user info from endpoint: {}",
+                    "Failed to fetch OIDC user info, userInfoEndpoint={}," + " errorMessage={}",
                     authCodeConfig.getUserInfoEndpoint(),
+                    e.getMessage(),
                     e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Failed to get user info");
         }
@@ -375,12 +381,12 @@ public class OidcServiceImpl implements OidcService {
             Object body,
             Class<T> responseType) {
         HttpEntity<?> requestEntity = new HttpEntity<>(body, headers);
-        log.info("Executing HTTP request to: {}", url);
+        log.info("Executing OIDC HTTP request, url={}", url);
         ResponseEntity<String> response =
                 restTemplate.exchange(url, method, requestEntity, String.class);
 
         log.info(
-                "Received HTTP response from: {}, status: {}, body: {}",
+                "Received OIDC HTTP response, url={}, status={}, body={}",
                 url,
                 response.getStatusCode(),
                 response.getBody());

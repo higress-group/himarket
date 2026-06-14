@@ -60,7 +60,7 @@ public class OidcController {
             throws IOException {
         String authUrl = oidcService.buildAuthorizationUrl(provider, apiPrefix, request);
 
-        log.info("Redirecting to OIDC authorization URL: {}", authUrl);
+        log.info("Redirecting to OIDC authorization URL, url={}", authUrl);
         response.sendRedirect(authUrl);
     }
 

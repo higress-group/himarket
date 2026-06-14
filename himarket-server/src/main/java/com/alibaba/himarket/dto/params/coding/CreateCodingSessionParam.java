@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 public class CreateCodingSessionParam implements InputConverter<CodingSession> {
 
-    @NotBlank(message = "cliSessionId cannot be empty")
+    @NotBlank(message = "CLI session ID cannot be empty")
     private String cliSessionId;
 
     private String title;

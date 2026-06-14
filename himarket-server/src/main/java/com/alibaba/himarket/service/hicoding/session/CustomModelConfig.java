@@ -5,7 +5,7 @@ import java.util.Set;
 import lombok.Data;
 
 /**
- * 自定义模型配置，包含模型接入点 URL、API Key、模型 ID、显示名称和协议类型。
+ * Custom model configuration with endpoint URL, API key, model ID, display name, and protocol.
  */
 @Data
 public class CustomModelConfig {
@@ -13,49 +13,59 @@ public class CustomModelConfig {
     private static final Set<String> ALLOWED_PROTOCOL_TYPES =
             Set.of("openai", "anthropic", "gemini");
 
-    /** 模型接入点 URL */
+    /**
+     * Model endpoint URL.
+     */
     private String baseUrl;
 
-    /** API Key */
+    /**
+     * API Key
+     */
     private String apiKey;
 
-    /** 模型 ID */
+    /**
+     * Model ID.
+     */
     private String modelId;
 
-    /** 模型显示名称 */
+    /**
+     * Model display name.
+     */
     private String modelName;
 
-    /** 协议类型: openai | anthropic | gemini，默认 openai */
+    /**
+     * Protocol type: openai | anthropic | gemini. Defaults to openai.
+     */
     private String protocolType = "openai";
 
     /**
-     * 校验配置的合法性。
+     * Validates the configuration.
      *
-     * @return 校验错误信息列表，为空表示校验通过
+     * @return validation errors; an empty list means the configuration is valid
      */
     public List<String> validate() {
         java.util.ArrayList<String> errors = new java.util.ArrayList<>();
 
-        // 校验 baseUrl：非空且为合法 URL（以 http:// 或 https:// 开头）
+        // Validate baseUrl: required and must start with http:// or https://.
         if (baseUrl == null || baseUrl.isBlank()) {
-            errors.add("baseUrl 不能为空");
+            errors.add("baseUrl must not be empty");
         } else if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
-            errors.add("baseUrl 格式不合法，必须以 http:// 或 https:// 开头");
+            errors.add("baseUrl must start with http:// or https://");
         }
 
-        // 校验 apiKey：非空
+        // Validate apiKey: required.
         if (apiKey == null || apiKey.isBlank()) {
-            errors.add("apiKey 不能为空，缺少凭证");
+            errors.add("apiKey must not be empty");
         }
 
-        // 校验 modelId：非空
+        // Validate modelId: required.
         if (modelId == null || modelId.isBlank()) {
-            errors.add("modelId 不能为空，缺少模型标识");
+            errors.add("modelId must not be empty");
         }
 
-        // 校验 protocolType：必须在允许范围内
+        // Validate protocolType: must be in the allowed set.
         if (protocolType == null || !ALLOWED_PROTOCOL_TYPES.contains(protocolType)) {
-            errors.add("protocolType 必须是 openai、anthropic、gemini 之一");
+            errors.add("protocolType must be one of openai, anthropic, or gemini");
         }
 
         return errors;

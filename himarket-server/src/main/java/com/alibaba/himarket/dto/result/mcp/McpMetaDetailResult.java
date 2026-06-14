@@ -7,9 +7,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * MCP Server 详细信息 — 用于 Open API 单条查询。
- * 不暴露 productId、connectionConfig（含内部网络地址）等敏感字段。
- * 改为暴露 resolvedConfig（标准化后的 mcpServers 格式，仅含公开 URL）。
+ * MCP Server detail result for Open API single-item queries.
+ *
+ * <p>Sensitive fields such as productId and connectionConfig are not exposed. The result exposes
+ * resolvedConfig instead, which uses the standardized mcpServers format and contains only public
+ * URLs.
  */
 @Data
 @Builder
@@ -25,7 +27,10 @@ public class McpMetaDetailResult {
     private String icon;
     private String protocolType;
 
-    /** 标准化后的连接配置（mcpServers 格式），不含内部网络地址和环境变量 */
+    /**
+     * Standardized mcpServers connection config without internal network addresses or environment
+     * variables.
+     */
     private String resolvedConfig;
 
     private String origin;

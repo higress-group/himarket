@@ -6,47 +6,59 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 保存 MCP Server 元信息参数。
+ * Parameters for saving MCP Server metadata.
  *
- * <p>该 DTO 承载多个场景的输入，通过验证组区分：
+ * <p>This DTO supports multiple input scenarios through validation groups:
  * <ul>
- *   <li>{@link AdminCreate} — 管理员在 Admin 后台手动创建 MCP</li>
- *   <li>{@link GatewayImport} — 从网关导入，需要 gatewayId + refConfig</li>
- *   <li>{@link NacosImport} — 从 Nacos 导入，需要 nacosId + refConfig</li>
- *   <li>{@link SandboxDeploy} — 沙箱部署，需要 sandboxId + transportType</li>
+ *   <li>{@link AdminCreate} for manual MCP creation in the admin console</li>
+ *   <li>{@link GatewayImport} for gateway import, requiring gatewayId and refConfig</li>
+ *   <li>{@link NacosImport} for Nacos import, requiring nacosId and refConfig</li>
+ *   <li>{@link SandboxDeploy} for sandbox deployment, requiring sandboxId and transportType</li>
  * </ul>
  *
- * <p>默认验证组（无 groups 注解）适用于所有场景。
+ * <p>The default validation group applies to all scenarios.
  */
 @Data
 public class SaveMcpMetaParam {
 
-    // ==================== 验证组定义 ====================
+    // Validation groups.
 
-    /** 管理员手动创建 */
+    /**
+     * Manual admin creation.
+     */
     public interface AdminCreate {}
 
-    /** 网关导入 */
+    /**
+     * Gateway import.
+     */
     public interface GatewayImport {}
 
-    /** Nacos 导入 */
+    /**
+     * Nacos import.
+     */
     public interface NacosImport {}
 
-    /** 沙箱部署 */
+    /**
+     * Sandbox deployment.
+     */
     public interface SandboxDeploy {}
 
-    // ==================== 通用字段（所有场景必填） ====================
+    // Fields required by all scenarios.
 
-    @NotBlank(message = "关联产品ID不能为空")
+    @NotBlank(message = "Product ID is required")
     private String productId;
 
-    @NotBlank(message = "MCP 英文名称不能为空")
-    @Pattern(regexp = "^[a-z][a-z0-9-]*$", message = "小写字母开头，仅含小写字母、数字、连字符")
-    @Size(max = 63, message = "不超过 63 个字符")
+    @NotBlank(message = "MCP name is required")
+    @Pattern(
+            regexp = "^[a-z][a-z0-9-]*$",
+            message =
+                    "MCP name must start with a lowercase letter and contain only lowercase"
+                            + " letters, digits, and hyphens")
+    @Size(max = 63, message = "MCP name must be at most 63 characters")
     private String mcpName;
 
-    @NotBlank(message = "MCP 展示名称不能为空")
-    @Size(max = 128, message = "不超过 128 个字符")
+    @NotBlank(message = "MCP display name is required")
+    @Size(max = 128, message = "MCP display name must be at most 128 characters")
     private String displayName;
 
     private String description;
@@ -57,21 +69,27 @@ public class SaveMcpMetaParam {
 
     private String origin;
 
-    @NotBlank(message = "协议类型不能为空")
+    @NotBlank(message = "Protocol type is required")
     private String protocolType;
 
-    @NotBlank(message = "连接配置不能为空")
+    @NotBlank(message = "Connection config is required")
     private String connectionConfig;
 
-    // ==================== 展示字段 ====================
+    // Display fields.
 
-    /** JSON 字符串 */
+    /**
+     * Tags JSON string.
+     */
     private String tags;
 
-    /** JSON 字符串 */
+    /**
+     * Icon JSON string.
+     */
     private String icon;
 
-    /** JSON 字符串 */
+    /**
+     * Extra parameter definition JSON string.
+     */
     private String extraParams;
 
     private String serviceIntro;
@@ -80,48 +98,72 @@ public class SaveMcpMetaParam {
 
     private String publishStatus;
 
-    /** JSON 字符串 */
+    /**
+     * Tools config JSON string.
+     */
     private String toolsConfig;
 
-    /** 创建者（外部系统可传入用户ID） */
+    /**
+     * Creator user ID, optionally provided by external systems.
+     */
     private String createdBy;
 
-    // ==================== 网关导入字段 ====================
+    // Gateway import fields.
 
-    /** 网关导入时的网关ID（GatewayImport 场景必填） */
-    @NotBlank(message = "网关ID不能为空", groups = GatewayImport.class)
+    /**
+     * Gateway ID required for GatewayImport.
+     */
+    @NotBlank(message = "Gateway ID is required", groups = GatewayImport.class)
     private String gatewayId;
 
-    // ==================== Nacos 导入字段 ====================
+    // Nacos import fields.
 
-    /** Nacos 导入时的 Nacos 实例ID（NacosImport 场景必填） */
-    @NotBlank(message = "Nacos实例ID不能为空", groups = NacosImport.class)
+    /**
+     * Nacos instance ID required for NacosImport.
+     */
+    @NotBlank(message = "Nacos instance ID is required", groups = NacosImport.class)
     private String nacosId;
 
-    /** 网关/Nacos 的 refConfig JSON（用于 ProductRef 关联） */
+    /**
+     * Gateway or Nacos refConfig JSON used for ProductRef binding.
+     */
     private String refConfig;
 
-    // ==================== 沙箱部署字段 ====================
+    // Sandbox deployment fields.
 
-    /** 是否需要沙箱托管 */
+    /**
+     * Whether sandbox hosting is required.
+     */
     private Boolean sandboxRequired;
 
-    /** 管理员预部署沙箱ID（SandboxDeploy 场景必填） */
-    @NotBlank(message = "沙箱实例ID不能为空", groups = SandboxDeploy.class)
+    /**
+     * Sandbox ID required for SandboxDeploy.
+     */
+    @NotBlank(message = "Sandbox instance ID is required", groups = SandboxDeploy.class)
     private String sandboxId;
 
-    /** 管理员预部署传输协议：sse / http（sandboxRequired=true 时使用） */
+    /**
+     * Pre-deployment transport protocol, such as sse or http.
+     */
     private String transportType;
 
-    /** 管理员预部署鉴权方式：none / bearer（sandboxRequired=true 时使用） */
+    /**
+     * Pre-deployment authentication type, such as none or bearer.
+     */
     private String authType;
 
-    /** 管理员预部署时填写的参数实际值 JSON（如 {"API_KEY":"sk-xxx"}） */
+    /**
+     * Actual parameter values JSON provided during pre-deployment.
+     */
     private String paramValues;
 
-    /** 部署目标 Namespace（AGENT_RUNTIME 沙箱在 MCP 创建时选择） */
+    /**
+     * Target deployment namespace for AGENT_RUNTIME sandbox.
+     */
     private String namespace;
 
-    /** 资源规格配置 JSON（CPU/内存等，在 MCP 配置沙箱部署时设置） */
+    /**
+     * Resource specification JSON, such as CPU and memory settings.
+     */
     private String resourceSpec;
 }

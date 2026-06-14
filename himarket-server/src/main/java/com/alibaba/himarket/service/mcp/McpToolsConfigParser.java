@@ -29,8 +29,9 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
- * 将网关返回的 tools 配置（可能是 YAML 或 JSON）标准化为合法 JSON 字符串。
- * 网关的 MCP tools 字段可能是 YAML 格式的纯文本，直接写入 MySQL JSON 列会报错。
+ * Normalizes tools config returned by a gateway into valid JSON.
+ *
+ * <p>Gateway MCP tools may be plain YAML text; writing that directly to a MySQL JSON column fails.
  */
 @Slf4j
 public final class McpToolsConfigParser {
@@ -40,11 +41,12 @@ public final class McpToolsConfigParser {
     private McpToolsConfigParser() {}
 
     /**
-     * 将 tools 配置标准化为合法 JSON 字符串。
+     * Normalizes tools config into a valid JSON string.
+     *
      * <ul>
-     *   <li>已经是合法 JSON → 原样返回</li>
-     *   <li>YAML 格式 → 解析后转为 JSON</li>
-     *   <li>空白值 → 返回 null</li>
+     *   <li>Valid JSON is returned as-is</li>
+     *   <li>YAML is parsed and converted to JSON</li>
+     *   <li>Blank values return null</li>
      * </ul>
      */
     @SuppressWarnings("unchecked")
@@ -54,22 +56,22 @@ public final class McpToolsConfigParser {
         }
         String trimmed = raw.trim();
 
-        // 先尝试按 JSON 解析
         try {
             OBJECT_MAPPER.readTree(trimmed);
             return trimmed;
         } catch (IOException e) {
-            log.debug("tools_config 非 JSON 格式，尝试按 YAML 解析: {}", e.getMessage());
+            log.debug(
+                    "tools_config is not JSON, trying YAML parsing, errorMessage={}",
+                    e.getMessage());
         }
 
-        // 尝试按 YAML 解析
         try {
             Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
             Object parsed = yaml.load(raw);
             if (parsed == null) {
                 return null;
             }
-            // 网关格式: { server: "...", tools: [...] }，提取 tools 字段
+            // Gateway format: { server: "...", tools: [...] }. Extract tools when present.
             if (parsed instanceof Map) {
                 Map<String, Object> map = (Map<String, Object>) parsed;
                 Object tools = map.get("tools");
@@ -81,10 +83,12 @@ public final class McpToolsConfigParser {
             if (parsed instanceof List) {
                 return OBJECT_MAPPER.writeValueAsString(parsed);
             }
-            // 纯字符串等标量，不是有效的 tools 配置
             return null;
         } catch (Exception e) {
-            log.warn("tools_config 既非 JSON 也非 YAML，忽略: {}", e.getMessage());
+            log.warn(
+                    "tools_config is neither JSON nor YAML and will be ignored, errorMessage={}",
+                    e.getMessage(),
+                    e);
             return null;
         }
     }

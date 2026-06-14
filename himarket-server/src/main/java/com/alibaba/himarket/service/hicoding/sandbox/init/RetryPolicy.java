@@ -17,7 +17,10 @@ public record RetryPolicy(
         return new RetryPolicy(2, Duration.ofMillis(500), 2.0, Duration.ofSeconds(3));
     }
 
-    /** 适用于 LB 规则下发场景：最多重试 10 次，初始 3s，指数退避，最大间隔 10s，总等待约 60s。 */
+    /**
+     * Suitable for LB rule propagation: retries up to 10 times with 3s initial delay, exponential
+     * backoff, 10s maximum interval, and about 60s total wait.
+     */
     public static RetryPolicy lbWarmup() {
         return new RetryPolicy(10, Duration.ofSeconds(3), 1.5, Duration.ofSeconds(10));
     }

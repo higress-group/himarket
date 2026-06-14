@@ -11,13 +11,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 从 Nacos Skill 的 resource Map 构建文件树。
- * 在根节点下添加 SKILL.md 虚拟节点。
- * 按目录优先、同类型按名称字母序排列。
+ * Builds a file tree from the Nacos Skill resource map.
+ * Adds a virtual SKILL.md node at the root.
+ * Sorts directories first, then sorts entries of the same type alphabetically.
  */
 public final class FileTreeBuilder {
-
-    private FileTreeBuilder() {}
 
     public static List<FileTreeNode> build(Skill skill) {
         Map<String, FileTreeNode> dirMap = new LinkedHashMap<>();
@@ -80,7 +78,7 @@ public final class FileTreeBuilder {
             List<FileTreeNode> currentLevel = rootChildren;
             StringBuilder currentPath = new StringBuilder();
             for (int i = 0; i < parts.length - 1; i++) {
-                if (currentPath.length() > 0) currentPath.append("/");
+                if (!currentPath.isEmpty()) currentPath.append("/");
                 currentPath.append(parts[i]);
                 String dirPath = currentPath.toString();
 
@@ -115,7 +113,7 @@ public final class FileTreeBuilder {
     private static boolean isBinaryContent(SkillResource resource) {
         if (resource.getMetadata() != null) {
             Object encoding = resource.getMetadata().get("encoding");
-            if ("base64".equals(encoding)) return true;
+            return "base64".equals(encoding);
         }
         return false;
     }

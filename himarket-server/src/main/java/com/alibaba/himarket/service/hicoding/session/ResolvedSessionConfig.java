@@ -5,50 +5,67 @@ import java.util.Map;
 import lombok.Data;
 
 /**
- * 后端解析后的完整会话配置 DTO。
- * 由 CliSessionConfig（纯标识符）经后端解析服务填充而成，供 CliConfigGenerator 使用。
+ * Complete session configuration resolved from CliSessionConfig for CliConfigGenerator.
  */
 @Data
 public class ResolvedSessionConfig {
 
-    /** 解析后的完整模型配置（可能为 null） */
+    /**
+     * Resolved custom model configuration, or null.
+     */
     private CustomModelConfig customModelConfig;
 
-    /** 解析后的 MCP Server 列表（含完整连接信息） */
+    /**
+     * Resolved MCP servers with complete connection details.
+     */
     private List<ResolvedMcpEntry> mcpServers;
 
-    /** 解析后的 Skill 列表（含坐标+凭证） */
+    /**
+     * Resolved skills with coordinates and credentials.
+     */
     private List<ResolvedSkillEntry> skills;
 
-    /** 认证凭据（直接透传） */
+    /**
+     * Auth credential passed through from the frontend.
+     */
     private String authToken;
 
     @Data
     public static class ResolvedMcpEntry {
-        /** MCP 服务名称 */
+        /**
+         * MCP server name.
+         */
         private String name;
 
-        /** MCP 端点 URL */
+        /**
+         * MCP endpoint URL.
+         */
         private String url;
 
-        /** 传输协议类型：sse 或 streamable-http */
+        /**
+         * Transport protocol type: sse or streamable-http.
+         */
         private String transportType;
 
-        /** 认证请求头（可能为 null） */
+        /**
+         * Auth headers, or null.
+         */
         private Map<String, String> headers;
     }
 
     @Data
     public static class ResolvedSkillEntry {
-        /** Skill 名称 */
+        /**
+         * Skill name.
+         */
         private String name;
 
-        // Skill 坐标
+        // Skill coordinates.
         private String nacosId;
         private String namespace;
         private String skillName;
 
-        // Nacos 凭证
+        // Nacos credentials.
         private String serverAddr;
         private String username;
         private String password;

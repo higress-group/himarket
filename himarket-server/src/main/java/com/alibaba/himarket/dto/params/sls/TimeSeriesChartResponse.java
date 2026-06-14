@@ -27,7 +27,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** 时序图表数据响应 用于前端时序图表渲染 */
+/**
+ * Time-series chart response for frontend rendering.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -35,47 +37,71 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TimeSeriesChartResponse {
 
-    /** 时序数据点列表 */
+    /**
+     * Time-series data points.
+     */
     private List<TimeSeriesDataPoint> dataPoints;
 
-    /** 图表元数据 */
+    /**
+     * Chart metadata.
+     */
     private ChartMetadata metadata;
 
-    /** 时序数据点 */
+    /**
+     * Time-series data point.
+     */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class TimeSeriesDataPoint {
-        /** 时间戳 */
+        /**
+         * Timestamp label.
+         */
         private String timestamp;
 
-        /** 数值 */
+        /**
+         * Metric value.
+         */
         private Double value;
 
-        /** 分组维度（可选） */
+        /**
+         * Optional grouping dimensions.
+         */
         private Map<String, String> dimensions;
     }
 
-    /** 图表元数据 */
+    /**
+     * Chart metadata.
+     */
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ChartMetadata {
-        /** 图表标题 */
+        /**
+         * Chart title.
+         */
         private String title;
 
-        /** X轴标签 */
+        /**
+         * X-axis label.
+         */
         private String xAxisLabel;
 
-        /** Y轴标签 */
+        /**
+         * Y-axis label.
+         */
         private String yAxisLabel;
 
-        /** 数据总数 */
+        /**
+         * Total data point count.
+         */
         private Long totalCount;
 
-        /** 时间间隔（秒） */
+        /**
+         * Time interval in seconds.
+         */
         private Integer interval;
     }
 }

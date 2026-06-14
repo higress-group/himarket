@@ -3,8 +3,9 @@ package com.alibaba.himarket.service.hicoding.sandbox;
 import java.util.Map;
 
 /**
- * 沙箱创建/获取配置。
- * 统一各沙箱类型的配置参数。
+ * Sandbox create/acquire configuration.
+ *
+ * <p>Unifies configuration parameters across sandbox types.
  */
 public record SandboxConfig(
         String userId,
@@ -12,5 +13,5 @@ public record SandboxConfig(
         String workspacePath,
         Map<String, String> env,
         Map<String, String> resources,
-        // E2B 特有配置（未来）
+        // Future E2B-specific configuration.
         String e2bTemplate) {}

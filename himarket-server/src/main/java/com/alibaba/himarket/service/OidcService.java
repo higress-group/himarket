@@ -28,31 +28,31 @@ import java.util.List;
 public interface OidcService {
 
     /**
-     * 重定向到授权服务器
+     * Builds the authorization server redirect URL.
      *
-     * @param provider
-     * @param apiPrefix
-     * @param request
-     * @return
+     * @param provider identity provider key
+     * @param apiPrefix API prefix
+     * @param request HTTP request
+     * @return authorization URL
      */
     String buildAuthorizationUrl(String provider, String apiPrefix, HttpServletRequest request);
 
     /**
-     * 授权服务器回调
+     * Handles the authorization server callback.
      *
-     * @param code
-     * @param state
-     * @param request
-     * @param response
-     * @return
+     * @param code authorization code
+     * @param state state value
+     * @param request HTTP request
+     * @param response HTTP response
+     * @return authentication result
      */
     AuthResult handleCallback(
             String code, String state, HttpServletRequest request, HttpServletResponse response);
 
     /**
-     * 可用的OIDC认证列表
+     * Lists available OIDC providers.
      *
-     * @return
+     * @return available provider list
      */
     List<IdpResult> getAvailableProviders();
 }

@@ -3,16 +3,19 @@ package com.alibaba.himarket.service.gateway;
 import java.util.List;
 
 /**
- * 模型 API 路径归一化工具类。
+ * Normalizes model API paths for SDK, CLI, and generated curl examples.
  *
- * <p>根据路由匹配类型（Exact/Prefix）和 AI 协议（OpenAI/Anthropic 等）智能补全路径，
- * 确保所有消费者（HiChat SDK、HiCoding CLI、前端 curl 示例）生成正确的 URL。
+ * <p>The resolver uses route match type and AI protocol to decide whether a route path already
+ * represents a full endpoint or only a base path.
  *
- * <p>归一化规则：
+ * <p>Normalization rules:
+ *
  * <ul>
- *   <li>Exact: path 是完整端点。baseUrl = 去掉端点后缀；endpointUrl = 原样</li>
- *   <li>Prefix: path 只是前缀。如果不含版本前缀则追加；endpointUrl = baseUrl + 端点后缀</li>
- *   <li>Regex / null / Unknown: 不做处理，原样返回</li>
+ *   <li>Exact: the path is a full endpoint. Base URL strips the endpoint suffix, while endpoint
+ *       URL keeps the path as-is.</li>
+ *   <li>Prefix: the path is a prefix. The resolver appends a version prefix when needed and builds
+ *       endpoint URL from base URL plus the endpoint suffix.</li>
+ *   <li>Regex, null, or unknown: the resolver returns the original path.</li>
  * </ul>
  */
 public class ModelEndpointResolver {
@@ -23,13 +26,12 @@ public class ModelEndpointResolver {
     private static final String ANTHROPIC_ENDPOINT_SUFFIX = "/messages";
 
     /**
-     * 归一化路由路径为 SDK/CLI 使用的 baseUrl 路径部分。
-     * SDK 会在 baseUrl 后追加 /chat/completions 等端点路径。
+     * Resolves a route path to the base URL path used by SDKs and CLIs.
      *
-     * @param pathValue   路由路径值
-     * @param pathType    路由匹配类型（Exact/Prefix）
-     * @param aiProtocols AI 协议列表
-     * @return 归一化后的 baseUrl 路径
+     * @param pathValue route path value
+     * @param pathType route match type, such as Exact or Prefix
+     * @param aiProtocols AI protocol values
+     * @return normalized base URL path
      */
     public static String resolveBaseUrlPath(
             String pathValue, String pathType, List<String> aiProtocols) {
@@ -51,17 +53,17 @@ public class ModelEndpointResolver {
             return stripEndpointSuffix(path, protocol);
         }
 
-        // Regex or other unknown types — return as-is
+        // Regex or other unknown types: return as-is.
         return path;
     }
 
     /**
-     * 归一化路由路径为完整的 API 端点路径（用于 curl 示例等）。
+     * Resolves a route path to the full API endpoint path.
      *
-     * @param pathValue   路由路径值
-     * @param pathType    路由匹配类型（Exact/Prefix）
-     * @param aiProtocols AI 协议列表
-     * @return 归一化后的完整端点路径
+     * @param pathValue route path value
+     * @param pathType route match type, such as Exact or Prefix
+     * @param aiProtocols AI protocol values
+     * @return normalized full endpoint path
      */
     public static String resolveEndpointPath(
             String pathValue, String pathType, List<String> aiProtocols) {
@@ -85,12 +87,12 @@ public class ModelEndpointResolver {
             return path;
         }
 
-        // Regex or other unknown types — return as-is
+        // Regex or other unknown types: return as-is.
         return path;
     }
 
     /**
-     * 检测协议类型。复用 ProtocolTypeMapper 的逻辑。
+     * Detects the model protocol family.
      */
     static String detectProtocol(List<String> aiProtocols) {
         if (aiProtocols == null || aiProtocols.isEmpty()) {
@@ -108,7 +110,7 @@ public class ModelEndpointResolver {
     }
 
     /**
-     * Exact 模式下去掉端点后缀，得到 baseUrl 路径。
+     * Strips the endpoint suffix from an Exact route path to get the base URL path.
      */
     private static String stripEndpointSuffix(String path, String protocol) {
         String suffix = getEndpointSuffix(protocol);
@@ -119,24 +121,24 @@ public class ModelEndpointResolver {
     }
 
     /**
-     * Prefix 模式下确保包含版本路径。
+     * Ensures a Prefix route path includes the protocol version path.
      */
     private static String ensureVersionPrefix(String path, String protocol) {
         String versionPrefix = getVersionPrefix(protocol);
         String endpointSuffix = getEndpointSuffix(protocol);
 
         // If path already ends with the full endpoint suffix (e.g., /v1/chat/completions),
-        // strip it and return just the base with version
+        // strip it and return just the base with version.
         if (path.endsWith(endpointSuffix)) {
             return path.substring(0, path.length() - endpointSuffix.length());
         }
 
-        // If path already ends with version prefix, no need to append
+        // If path already ends with version prefix, no need to append.
         if (path.endsWith(versionPrefix)) {
             return path;
         }
 
-        // Append version prefix
+        // Append version prefix.
         return path + versionPrefix;
     }
 
@@ -162,7 +164,7 @@ public class ModelEndpointResolver {
     }
 
     /**
-     * 判断路径类型是否为前缀匹配（Higress 的 Prefix/Pre 均视为前缀匹配）。
+     * Checks whether the route path type is a prefix match.
      */
     private static boolean isPrefixType(String pathType) {
         return "Prefix".equalsIgnoreCase(pathType) || "Pre".equalsIgnoreCase(pathType);

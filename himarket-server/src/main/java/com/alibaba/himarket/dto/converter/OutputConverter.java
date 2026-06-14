@@ -25,10 +25,10 @@ import cn.hutool.core.bean.copier.CopyOptions;
 public interface OutputConverter<Target extends OutputConverter<Target, Source>, Source> {
 
     /**
-     * 以Source更新Target
+     * Updates the current target object from a source object.
      *
-     * @param source
-     * @return
+     * @param source source object
+     * @return updated target object
      */
     @SuppressWarnings("unchecked")
     default Target convertFrom(Source source) {

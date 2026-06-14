@@ -103,7 +103,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
                                     StrUtil.format(
-                                            "{}:{}已存在", Resources.GATEWAY, param.getGatewayId()));
+                                            "{} '{}' already exists",
+                                            Resources.GATEWAY,
+                                            param.getGatewayId()));
                         });
 
         gatewayRepository
@@ -113,7 +115,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
                                     StrUtil.format(
-                                            "{}:{}已存在", Resources.GATEWAY, param.getGatewayName()));
+                                            "{} '{}' already exists",
+                                            Resources.GATEWAY,
+                                            param.getGatewayName()));
                         });
 
         Gateway gateway = param.convertTo();
@@ -162,9 +166,10 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     @Override
     public void deleteGateway(String gatewayId) {
         Gateway gateway = findGateway(gatewayId);
-        // 已有Product引用时不允许删除
+        // A gateway referenced by a product cannot be deleted.
         if (productRefRepository.existsByGatewayId(gatewayId)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "网关已被Product引用");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Gateway is referenced by products");
         }
 
         gatewayRepository.delete(gateway);

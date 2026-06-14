@@ -52,8 +52,6 @@ public class McpServerController {
     private final McpServerService mcpServerService;
     private final ContextHolder contextHolder;
 
-    // ==================== Management APIs (Admin required) ====================
-
     @Operation(summary = "Save MCP metadata")
     @PostMapping("/meta")
     @AdminAuth
@@ -88,8 +86,6 @@ public class McpServerController {
     public void deleteEndpoint(@PathVariable String endpointId) {
         mcpServerService.deleteEndpoint(endpointId);
     }
-
-    // ==================== Query APIs (Portal accessible) ====================
 
     @Operation(summary = "Get MCP metadata")
     @GetMapping("/meta/{mcpServerId}")

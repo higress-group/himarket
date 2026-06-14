@@ -91,7 +91,7 @@ public class AiRegistryServiceImpl implements AiRegistryService {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
                                     StrUtil.format(
-                                            "{}:{} already exists",
+                                            "{} already exists, name={}",
                                             AIREGISTRY_RESOURCE,
                                             param.getName()));
                         });
@@ -103,7 +103,7 @@ public class AiRegistryServiceImpl implements AiRegistryService {
             instance.setIsDefault(true);
         }
         aiRegistryInstanceRepository.save(instance);
-        log.info("Created AIRegistry config {}", instance.getAiRegistryId());
+        log.info("Created AIRegistry config, aiRegistryId={}", instance.getAiRegistryId());
     }
 
     @Override
@@ -120,7 +120,8 @@ public class AiRegistryServiceImpl implements AiRegistryService {
             if (existingInstance != null) {
                 throw new BusinessException(
                         ErrorCode.CONFLICT,
-                        StrUtil.format("{}:{} already exists", AIREGISTRY_RESOURCE, requestedName));
+                        StrUtil.format(
+                                "{} already exists, name={}", AIREGISTRY_RESOURCE, requestedName));
             }
         }
         param.update(instance);

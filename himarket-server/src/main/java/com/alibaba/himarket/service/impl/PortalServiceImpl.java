@@ -51,11 +51,9 @@ import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.IdpService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.support.enums.DomainType;
-import com.alibaba.himarket.support.enums.SearchEngineType;
 import com.alibaba.himarket.support.portal.OidcConfig;
 import com.alibaba.himarket.support.portal.PortalSettingConfig;
 import com.alibaba.himarket.support.portal.PortalUiConfig;
-import com.alibaba.himarket.support.portal.SearchEngineConfig;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.transaction.Transactional;
 import java.util.ArrayList;
@@ -201,11 +199,6 @@ public class PortalServiceImpl implements PortalService {
             idpService.validateOAuth2Configs(setting.getOauth2Configs());
         }
 
-        // Verify search engine config
-        if (setting.getSearchEngineConfig() != null) {
-            validateSearchEngineConfig(setting.getSearchEngineConfig());
-        }
-
         // At least keep one authentication method
         if (BooleanUtil.isFalse(setting.getBuiltinAuthEnabled())) {
             boolean enabledOidc = false;
@@ -332,7 +325,10 @@ public class PortalServiceImpl implements PortalService {
                                         portal.getPortalSettingConfig()
                                                 .getAutoApproveSubscriptions());
                             } catch (Exception e) {
-                                log.error("Failed to get portal: {}", publication.getPortalId(), e);
+                                log.error(
+                                        "Failed to get portal, portalId={}",
+                                        publication.getPortalId(),
+                                        e);
                             }
 
                             // Fill product information
@@ -349,7 +345,9 @@ public class PortalServiceImpl implements PortalService {
                                 }
                             } catch (Exception e) {
                                 log.error(
-                                        "Failed to get product: {}", publication.getProductId(), e);
+                                        "Failed to get product, productId={}",
+                                        publication.getProductId(),
+                                        e);
                             }
 
                             return publicationResult;
@@ -372,92 +370,5 @@ public class PortalServiceImpl implements PortalService {
                         () ->
                                 new BusinessException(
                                         ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
-    }
-
-    /**
-     * Core method: Get API Key based on engine type for search ability calls
-     * (e.g. TalkSearchAbilityServiceGoogleImpl)
-     */
-    @Override
-    public String getSearchEngineApiKey(String portalId, SearchEngineType engineType) {
-        Portal portal = findPortal(portalId);
-        PortalSettingConfig settings = portal.getPortalSettingConfig();
-
-        if (settings == null || settings.getSearchEngineConfig() == null) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND,
-                    StrUtil.format("Portal {} has not configured search engine", portalId));
-        }
-
-        SearchEngineConfig config = settings.getSearchEngineConfig();
-
-        // Check if engine type matches
-        if (config.getEngineType() != engineType) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND,
-                    StrUtil.format(
-                            "Portal {} configured search engine type is {}, not {}",
-                            portalId,
-                            config.getEngineType(),
-                            engineType));
-        }
-
-        // Check if enabled
-        if (!config.isEnabled()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST,
-                    StrUtil.format("Search engine for Portal {} is disabled", portalId));
-        }
-
-        return config
-                .getApiKey(); // API Key will be automatically decrypted (via @Encrypted annotation)
-    }
-
-    @Override
-    public SearchEngineConfig getSearchEngineConfig(String portalId) {
-        Portal portal = findPortal(portalId);
-        PortalSettingConfig settings = portal.getPortalSettingConfig();
-
-        if (settings == null) {
-            return null;
-        }
-
-        return settings.getSearchEngineConfig();
-    }
-
-    private void validateSearchEngineConfig(SearchEngineConfig config) {
-        if (config == null) {
-            return;
-        }
-
-        // Validate if engine type is supported
-        if (config.getEngineType() == null) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Search engine type cannot be empty");
-        }
-
-        if (!SearchEngineType.isSupported(config.getEngineType())) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST,
-                    StrUtil.format(
-                            "Unsupported search engine type: {}, currently only supports: {}",
-                            config.getEngineType(),
-                            SearchEngineType.getSupportedTypes()));
-        }
-
-        // Validate required fields
-        if (StrUtil.isBlank(config.getEngineName())) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Search engine name cannot be empty");
-        }
-
-        if (StrUtil.isBlank(config.getApiKey())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API Key cannot be empty");
-        }
-
-        log.info(
-                "Validated search engine config: type={}, name={}",
-                config.getEngineType(),
-                config.getEngineName());
     }
 }

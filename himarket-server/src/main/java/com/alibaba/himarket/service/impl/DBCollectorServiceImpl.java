@@ -41,7 +41,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-/** 基于 MariaDB/MySQL 的 access_logs 查询实现 */
+/**
+ * access_logs query implementation backed by MariaDB or MySQL.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -69,7 +71,7 @@ public class DBCollectorServiceImpl implements DBCollectorService {
             String where = buildWhereClause(request, params);
 
             if (!sql.contains(DBCollectorPresetSqlRegistry.WHERE_PLACEHOLDER)) {
-                // 兜底：如果模板里没有占位符，就直接在末尾拼 WHERE（避免误改 SQL 结构）
+                // Fallback for legacy templates without a WHERE placeholder.
                 sql = sql + " " + where;
             } else {
                 sql = sql.replace(DBCollectorPresetSqlRegistry.WHERE_PLACEHOLDER, where);
@@ -82,7 +84,6 @@ public class DBCollectorServiceImpl implements DBCollectorService {
                                 buildBizClause(request));
             }
 
-            // 可选 limit：仅当请求显式传入 pageSize 且 SQL 未显式 limit 时追加
             if (request.getPageSize() != null && !containsLimit(sql)) {
                 sql = sql + " LIMIT " + clampLimit(request.getPageSize());
             }
@@ -107,7 +108,11 @@ public class DBCollectorServiceImpl implements DBCollectorService {
                     .elapsedMillis(System.currentTimeMillis() - start)
                     .build();
         } catch (Exception e) {
-            log.warn("[DBCollector Query Failed] sql: {}, err: {}", originalSql, e.getMessage(), e);
+            log.warn(
+                    "DBCollector query failed, sql={}, errorMessage={}",
+                    originalSql,
+                    e.getMessage(),
+                    e);
             return GenericSlsQueryResponse.builder()
                     .success(false)
                     .processStatus("Complete")
@@ -135,7 +140,7 @@ public class DBCollectorServiceImpl implements DBCollectorService {
     private int clampInterval(Integer interval) {
         int v = interval == null ? 60 : interval;
         if (v <= 0) return 60;
-        // 防止 interval 太小导致 SQL 过重（前端常用 1/15/60）
+        // Keep overly large intervals bounded while preserving common frontend values.
         if (v < 1) v = 1;
         if (v > 24 * 3600) v = 24 * 3600;
         return v;
@@ -174,7 +179,6 @@ public class DBCollectorServiceImpl implements DBCollectorService {
             params.addValue("endTime", endTs);
         }
 
-        // 通用过滤：与 GenericSlsQueryRequest 字段对齐
         appendOrEquals(sb, params, "instance_id", "clusterId", request.getClusterId());
         appendOrEquals(sb, params, "api", "api", request.getApi());
         appendOrEquals(sb, params, "model", "model", request.getModel());
@@ -182,7 +186,6 @@ public class DBCollectorServiceImpl implements DBCollectorService {
         appendOrEquals(sb, params, "route_name", "route", request.getRoute());
         appendOrEquals(sb, params, "upstream_cluster", "service", request.getService());
 
-        // 兼容 MCP 监控侧字段（如果 DTO 已扩展，这里也会生效；否则数组为 null）
         appendOrEquals(sb, params, "route_name", "routeName", request.getRouteName());
         appendOrEquals(
                 sb, params, "upstream_cluster", "upstreamCluster", request.getUpstreamCluster());
@@ -192,11 +195,11 @@ public class DBCollectorServiceImpl implements DBCollectorService {
     }
 
     /**
-     * pv/uv 场景区分来源：
+     * Distinguishes pv/uv sources by product type.
      *
      * <ul>
-     *   <li>Model 请求：ai_log.model 字段存在且不为空
-     *   <li>MCP 请求：ai_log.mcp_tool_name 字段存在且不为空
+     *   <li>Model requests require a non-empty ai_log.model field.
+     *   <li>MCP requests are identified by the /mcp-servers path prefix.
      * </ul>
      */
     private String buildBizClause(GenericSlsQueryRequest request) {

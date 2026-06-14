@@ -133,7 +133,8 @@ public class ChatService {
 
             if (!unsubscribedProducts.isEmpty()) {
                 log.warn(
-                        "MCP products `{}` are not subscribed, which may cause unauthorized access",
+                        "MCP products are not subscribed, which may cause unauthorized access,"
+                                + " productIds={}",
                         unsubscribedProducts);
             }
         }
@@ -267,7 +268,7 @@ public class ChatService {
         messages = truncateMessages(messages);
 
         log.debug(
-                "Built {} AgentScope messages from {} conversations for session: {}",
+                "Built AgentScope messages, messageCount={}, conversationCount={}, sessionId={}",
                 messages.size(),
                 latestChats.size(),
                 param.getSessionId());
@@ -358,7 +359,9 @@ public class ChatService {
                 contentBlock = VideoBlock.builder().source(source).build();
                 break;
             default:
-                log.warn("Unsupported media attachment type: {}", attachment.getType());
+                log.warn(
+                        "Unsupported media attachment type, attachmentType={}",
+                        attachment.getType());
                 return;
         }
 
@@ -379,7 +382,7 @@ public class ChatService {
         if (messages.size() > maxMessages) {
             int startIndex = messages.size() - maxMessages;
             List<Msg> truncated = messages.subList(startIndex, messages.size());
-            log.debug("Truncated history to last {} conversation pairs", maxHistoryPairs);
+            log.debug("Truncated history, maxConversationPairs={}", maxHistoryPairs);
             return truncated;
         }
 
@@ -434,14 +437,18 @@ public class ChatService {
         String sessionId = event.getSessionId();
 
         try {
-            log.info("Cleaning chat records and attachments for session: {}", sessionId);
+            log.info("Cleaning chat records and attachments, sessionId={}", sessionId);
 
             // Delete all chat records
             chatRepository.deleteAllBySessionId(sessionId);
 
-            log.info("Successfully cleaned chat records for session: {}", sessionId);
+            log.info("Cleaned chat records and attachments, sessionId={}", sessionId);
         } catch (Exception e) {
-            log.error("Failed to cleanup chat records for session: {}", sessionId, e);
+            log.error(
+                    "Failed to cleanup chat records, sessionId={}, errorMessage={}",
+                    sessionId,
+                    e.getMessage(),
+                    e);
         }
     }
 }

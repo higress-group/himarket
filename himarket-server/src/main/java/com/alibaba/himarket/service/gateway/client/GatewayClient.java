@@ -30,9 +30,9 @@ public abstract class GatewayClient {
         String internalEndpoint = String.format("apig-vpc.%s.aliyuncs.com", region);
         String publicEndpoint = String.format("apig.%s.aliyuncs.com", region);
 
-        // 优先尝试内网endpoint
+        // Prefer the internal endpoint when it is reachable.
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(internalEndpoint, 443), 1000); // 1秒超时
+            socket.connect(new InetSocketAddress(internalEndpoint, 443), 1000); // 1 second timeout
             return internalEndpoint;
         } catch (Exception e) {
             return publicEndpoint;

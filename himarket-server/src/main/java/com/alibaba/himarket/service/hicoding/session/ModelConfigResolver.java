@@ -18,15 +18,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 根据市场产品 ID 解析完整模型配置的服务。
+ * Resolves complete model configuration from a marketplace product ID.
  *
- * <p>解析流程：
+ * <p>Resolution flow:
  * <ol>
- *   <li>获取当前开发者的 Primary Consumer</li>
- *   <li>获取订阅列表并筛选 APPROVED 状态</li>
- *   <li>获取产品详情，提取 baseUrl、protocolType、modelId</li>
- *   <li>获取 apiKey</li>
- *   <li>组装 CustomModelConfig</li>
+ *   <li>Load the current developer's primary consumer.</li>
+ *   <li>Load subscriptions and keep APPROVED products.</li>
+ *   <li>Load product details, then extract baseUrl, protocolType, and modelId.</li>
+ *   <li>Load the API key.</li>
+ *   <li>Build CustomModelConfig.</li>
  * </ol>
  */
 @Service
@@ -38,30 +38,28 @@ public class ModelConfigResolver {
     private final ProductService productService;
 
     /**
-     * 根据市场产品 ID 解析完整模型配置。
+     * Resolves complete model configuration from a marketplace product ID.
      *
-     * @param modelProductId 市场产品 ID
-     * @param userId 开发者 ID（用于异步线程上下文，避免依赖 SecurityContextHolder）
-     * @return 解析后的 CustomModelConfig，解析失败时返回 null
+     * @param modelProductId marketplace product ID
+     * @param userId developer ID used by async threads instead of SecurityContextHolder
+     * @return resolved CustomModelConfig, or null when resolution fails
      */
     public CustomModelConfig resolve(String modelProductId, String userId) {
-        log.info("[ModelConfigResolver] ===== 开始解析 ===== modelProductId={}", modelProductId);
+        log.info("Resolving model config, modelProductId={}", modelProductId);
 
-        // 1. 获取 Primary Consumer
+        // 1. Load the primary consumer.
         ConsumerResult consumer;
         try {
             consumer = consumerService.getPrimaryConsumer(userId);
-            log.info(
-                    "[ModelConfigResolver] Primary Consumer 获取成功: consumerId={}",
-                    consumer.getConsumerId());
+            log.info("Resolved primary consumer, consumerId={}", consumer.getConsumerId());
         } catch (Exception e) {
-            log.warn("[ModelConfigResolver] 无法获取 Primary Consumer: {}", e.getMessage());
+            log.warn("Failed to resolve primary consumer, errorMessage={}", e.getMessage(), e);
             return null;
         }
 
         String consumerId = consumer.getConsumerId();
 
-        // 2. 获取订阅列表，筛选 APPROVED 状态
+        // 2. Load subscriptions and keep APPROVED products.
         List<SubscriptionResult> subscriptions =
                 consumerService.listConsumerSubscriptions(consumerId);
         List<String> approvedProductIds =
@@ -71,33 +69,32 @@ public class ModelConfigResolver {
                         .toList();
 
         log.info(
-                "[ModelConfigResolver] 订阅列表: total={}, approved={}",
+                "Loaded consumer subscriptions, total={}, approved={}",
                 subscriptions.size(),
                 approvedProductIds.size());
 
         if (!approvedProductIds.contains(modelProductId)) {
-            log.warn("[ModelConfigResolver] 产品未订阅或订阅未批准: modelProductId={}", modelProductId);
+            log.warn(
+                    "Model product is not approved for this consumer, modelProductId={}",
+                    modelProductId);
             return null;
         }
 
-        // 3. 获取产品详情
+        // 3. Load product details.
         Map<String, ProductResult> productMap = productService.getProducts(List.of(modelProductId));
         ProductResult product = productMap.get(modelProductId);
         if (product == null) {
-            log.warn("[ModelConfigResolver] 产品不存在: modelProductId={}", modelProductId);
+            log.warn("Model product not found, modelProductId={}", modelProductId);
             return null;
         }
 
-        log.info(
-                "[ModelConfigResolver] 产品获取成功: name={}, type={}",
-                product.getName(),
-                product.getType());
+        log.info("Loaded model product, name={}, type={}", product.getName(), product.getType());
 
-        // 4. 提取 baseUrl
+        // 4. Extract baseUrl.
         ModelConfigResult modelConfig = product.getModelConfig();
         if (modelConfig == null || modelConfig.getModelAPIConfig() == null) {
             log.warn(
-                    "[ModelConfigResolver] 产品 modelConfig 不完整: modelProductId={}, name={}",
+                    "Model config is incomplete, modelProductId={}, name={}",
                     modelProductId,
                     product.getName());
             return null;
@@ -109,19 +106,19 @@ public class ModelConfigResolver {
                         modelConfig.getModelAPIConfig().getAiProtocols());
         if (baseUrl == null) {
             log.warn(
-                    "[ModelConfigResolver] 无法从路由中提取 baseUrl: modelProductId={}, name={}",
+                    "Failed to extract baseUrl from model routes, modelProductId={}, name={}",
                     modelProductId,
                     product.getName());
             return null;
         }
 
-        log.info("[ModelConfigResolver] baseUrl 提取成功: {}", baseUrl);
+        log.info("Extracted model base URL, baseUrl={}", baseUrl);
 
-        // 5. 提取 protocolType
+        // 5. Extract protocolType.
         String protocolType =
                 ProtocolTypeMapper.map(modelConfig.getModelAPIConfig().getAiProtocols());
 
-        // 6. 提取 modelId
+        // 6. Extract modelId.
         String modelId = null;
         if (product.getFeature() != null
                 && product.getFeature().getModelFeature() != null
@@ -129,17 +126,17 @@ public class ModelConfigResolver {
             modelId = product.getFeature().getModelFeature().getModel();
         }
 
-        // 7. 提取 apiKey
+        // 7. Load apiKey.
         String apiKey = extractApiKey(consumerId);
         if (apiKey == null) {
             log.warn(
-                    "Failed to extract apiKey: modelProductId={}, consumerId={}",
+                    "Failed to extract API key, modelProductId={}, consumerId={}",
                     modelProductId,
                     consumerId);
             return null;
         }
 
-        // 8. 组装 CustomModelConfig
+        // 8. Build CustomModelConfig.
         CustomModelConfig config = new CustomModelConfig();
         config.setBaseUrl(baseUrl);
         config.setApiKey(apiKey);
@@ -150,28 +147,30 @@ public class ModelConfigResolver {
     }
 
     private String extractApiKey(String consumerId) {
-        log.info("[ModelConfigResolver] 开始提取 apiKey: consumerId={}", consumerId);
+        log.info("Extracting API key for model config, consumerId={}", consumerId);
         try {
             ConsumerCredentialResult credential = consumerService.getCredential(consumerId);
             if (credential == null) {
-                log.warn("[ModelConfigResolver] credential 为 null: consumerId={}", consumerId);
+                log.warn("Credential is missing for model config, consumerId={}", consumerId);
                 return null;
             }
             if (credential.getApiKeyConfig() == null) {
-                log.warn("[ModelConfigResolver] apiKeyConfig 为 null: consumerId={}", consumerId);
+                log.warn("API key config is missing for model config, consumerId={}", consumerId);
                 return null;
             }
             ApiKeyConfig apiKeyConfig = credential.getApiKeyConfig();
             if (apiKeyConfig.getCredentials() == null || apiKeyConfig.getCredentials().isEmpty()) {
-                log.warn("[ModelConfigResolver] credentials 为空: consumerId={}", consumerId);
+                log.warn(
+                        "API key credentials are empty for model config, consumerId={}",
+                        consumerId);
                 return null;
             }
             String apiKey = apiKeyConfig.getCredentials().get(0).getApiKey();
-            log.info("[ModelConfigResolver] apiKey 提取成功: consumerId={}", consumerId);
+            log.info("Extracted API key for model config, consumerId={}", consumerId);
             return apiKey;
         } catch (Exception e) {
             log.warn(
-                    "[ModelConfigResolver] 提取 apiKey 失败: consumerId={}, error={}",
+                    "Failed to extract API key for model config, consumerId={}, errorMessage={}",
                     consumerId,
                     e.getMessage(),
                     e);

@@ -391,11 +391,13 @@ public class AIGWOperator extends APIGOperator {
                         gateway, consumerId, resourceType.getType(), resourceId);
             }
             log.error(
-                    "Error authorizing consumer {} to {}:{} in AI gateway {}",
+                    "Failed to authorize AI gateway consumer, consumerId={}, resourceType={},"
+                            + " resourceId={}, gatewayId={}, errorMessage={}",
                     consumerId,
                     resourceType,
                     resourceId,
                     gateway.getGatewayId(),
+                    e.getMessage(),
                     e);
             throw new BusinessException(
                     ErrorCode.GATEWAY_ERROR,

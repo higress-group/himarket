@@ -24,22 +24,32 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** ADP AI网关授权配置 */
+/**
+ * ADP AI Gateway authorization configuration.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class AdpAIAuthConfig {
 
-    /** MCP Server名称 */
+    /**
+     * MCP server name.
+     */
     private String mcpServerName;
 
-    /** Model API ID */
+    /**
+     * Model API ID.
+     */
     private String modelApiId;
 
-    /** 消费者ID */
+    /**
+     * Consumer ID.
+     */
     private String consumerId;
 
-    /** 网关实例ID */
+    /**
+     * Gateway instance ID.
+     */
     private String gwInstanceId;
 }

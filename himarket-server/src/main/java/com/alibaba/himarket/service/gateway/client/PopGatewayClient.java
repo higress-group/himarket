@@ -64,7 +64,6 @@ public class PopGatewayClient extends GatewayClient {
             Map<String, String> queryParams,
             Function<JsonNode, E> converter) {
 
-        // CommonRequest
         CommonRequest request = new CommonRequest();
         request.setSysProtocol(ProtocolType.HTTPS);
         request.setSysDomain(getAPIGEndpoint(config.getRegion()));
@@ -72,7 +71,6 @@ public class PopGatewayClient extends GatewayClient {
         request.setSysUriPattern(uri);
         request.setSysMethod(methodType);
 
-        // Query Parameters
         if (queryParams != null) {
             for (Map.Entry<String, String> entry : queryParams.entrySet()) {
                 request.putQueryParameter(entry.getKey(), entry.getValue());
@@ -85,8 +83,18 @@ public class PopGatewayClient extends GatewayClient {
 
             return converter.apply(data);
         } catch (ClientException e) {
-            log.error("Error executing Pop request", e);
-            throw new RuntimeException(e);
+            log.error(
+                    "Failed to execute gateway request, dependency=POP, operation=execute,"
+                            + " uri={}, method={}, queryParams={}, errorType={},"
+                            + " errorMessage={}",
+                    uri,
+                    methodType,
+                    queryParams,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
+            throw new RuntimeException(
+                    "Failed to execute POP gateway request: " + e.getMessage(), e);
         }
     }
 }

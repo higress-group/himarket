@@ -33,7 +33,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-/** {@link McpVendorService} 默认实现。 */
+/**
+ * Default {@link McpVendorService} implementation.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

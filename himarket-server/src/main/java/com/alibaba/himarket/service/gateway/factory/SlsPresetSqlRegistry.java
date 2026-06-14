@@ -26,14 +26,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 预置场景SQL注册表 说明： - 场景名作为前后端契约（如：pv、uv、qps_total） - 每个场景包含展示类型、预设SQL、必要的字段别名（用于时序图） - 严格忽略
- * cluster_id 与 ai_log.api 两个过滤条件，其余保留 - 注释说明每个场景查询的含义，便于维护与扩展
+ * Registry for preset scenario SQL.
+ *
+ * <p>Scenario names are frontend/backend contracts, such as pv, uv, and qps_total. Each preset
+ * defines the display type, SQL, and optional field aliases for time-series rendering.
  */
 @Component
 @Slf4j
 public class SlsPresetSqlRegistry {
 
-    /** 展示类型 */
+    /**
+     * Display type.
+     */
     @Getter
     public enum DisplayType {
         CARD,
@@ -41,22 +45,34 @@ public class SlsPresetSqlRegistry {
         TABLE
     }
 
-    /** 场景预设 */
+    /**
+     * Scenario preset.
+     */
     @Getter
     public static class Preset {
-        /** 场景名 */
+        /**
+         * Scenario name.
+         */
         private final String name;
 
-        /** 展示类型 */
+        /**
+         * Display type.
+         */
         private final DisplayType type;
 
-        /** 预设SQL（检索段 | select 统计段） */
+        /**
+         * Preset SQL in search-segment | select-segment form.
+         */
         private final String sql;
 
-        /** 时序图时间字段别名（LINE类型需要） */
+        /**
+         * Time field alias required by LINE presets.
+         */
         private final String timeField;
 
-        /** 时序图数值字段别名（LINE类型需要） */
+        /**
+         * Value field alias required by LINE presets.
+         */
         private final String valueField;
 
         public Preset(
@@ -72,12 +88,12 @@ public class SlsPresetSqlRegistry {
     private final Map<String, Preset> presets = new HashMap<>();
 
     public SlsPresetSqlRegistry() {
-        // 卡片类
-        // 总请求次数（适用场景：模型大盘、MCP大盘）
+        // Card presets.
+        // Total request count for model and MCP dashboards.
         presets.put(
                 "pv",
                 new Preset("pv", DisplayType.CARD, "(*) | select count(1) as pv", null, null));
-        // 独立调用者数量（适用场景：模型大盘、MCP大盘）
+        // Unique caller count for model and MCP dashboards.
         presets.put(
                 "uv",
                 new Preset(
@@ -86,7 +102,7 @@ public class SlsPresetSqlRegistry {
                         "(*) | select approx_distinct(\"x_forwarded_for\") as uv",
                         null,
                         null));
-        // Fallback 请求数（仅模型大盘）
+        // Fallback request count for the model dashboard.
         presets.put(
                 "fallback_count",
                 new Preset(
@@ -95,7 +111,7 @@ public class SlsPresetSqlRegistry {
                         "(* and response_code_details: internal_redirect) | select count(1) as cnt",
                         null,
                         null));
-        // 网关入流量MB（仅MCP大盘）
+        // Gateway inbound traffic in MB for the MCP dashboard.
         presets.put(
                 "bytes_received",
                 new Preset(
@@ -105,7 +121,7 @@ public class SlsPresetSqlRegistry {
                                 + " received",
                         null,
                         null));
-        // 网关出流量MB（仅MCP大盘）
+        // Gateway outbound traffic in MB for the MCP dashboard.
         presets.put(
                 "bytes_sent",
                 new Preset(
@@ -114,7 +130,7 @@ public class SlsPresetSqlRegistry {
                         "(*) | select round(sum(\"bytes_sent\") / 1024.0 / 1024.0, 3) as sent",
                         null,
                         null));
-        // 输入 Token 总数（仅模型大盘）
+        // Total input tokens for the model dashboard.
         presets.put(
                 "input_token_total",
                 new Preset(
@@ -124,7 +140,7 @@ public class SlsPresetSqlRegistry {
                                 + " as integer)) as input_token",
                         null,
                         null));
-        // 输出 Token 总数（仅模型大盘）
+        // Total output tokens for the model dashboard.
         presets.put(
                 "output_token_total",
                 new Preset(
@@ -134,7 +150,7 @@ public class SlsPresetSqlRegistry {
                                 + " '$.output_token') as integer)) as output_token",
                         null,
                         null));
-        // Token 总数（仅模型大盘）
+        // Total tokens for the model dashboard.
         presets.put(
                 "token_total",
                 new Preset(
@@ -146,8 +162,8 @@ public class SlsPresetSqlRegistry {
                         null,
                         null));
 
-        // 线图类
-        // 流式QPS（仅模型大盘）
+        // Line chart presets.
+        // Streaming QPS for the model dashboard.
         presets.put(
                 "qps_stream",
                 new Preset(
@@ -159,7 +175,7 @@ public class SlsPresetSqlRegistry {
                             + " order by time limit all",
                         "time",
                         "stream_qps"));
-        // 非流式QPS（仅模型大盘）
+        // Non-streaming QPS for the model dashboard.
         presets.put(
                 "qps_normal",
                 new Preset(
@@ -171,7 +187,7 @@ public class SlsPresetSqlRegistry {
                             + " order by time limit all",
                         "time",
                         "normal_qps"));
-        // 总体QPS（仅模型大盘）
+        // Total QPS for the model dashboard.
         presets.put(
                 "qps_total",
                 new Preset(
@@ -183,7 +199,7 @@ public class SlsPresetSqlRegistry {
                             + " AS time FROM log GROUP BY time order by time limit all",
                         "time",
                         "total_qps"));
-        // 请求成功率（适用场景：模型大盘、MCP大盘）
+        // Request success rate for model and MCP dashboards.
         presets.put(
                 "success_rate",
                 new Preset(
@@ -198,7 +214,7 @@ public class SlsPresetSqlRegistry {
                             + " t2 on t1.time = t2.time order by t2.time limit all",
                         "time",
                         "success_rate"));
-        // Token/s（输入）（仅模型大盘）
+        // Input tokens per second for the model dashboard.
         presets.put(
                 "token_per_sec_input",
                 new Preset(
@@ -210,7 +226,7 @@ public class SlsPresetSqlRegistry {
                             + " BY time order by time limit all",
                         "time",
                         "input_token"));
-        // Token/s（输出）（仅模型大盘）
+        // Output tokens per second for the model dashboard.
         presets.put(
                 "token_per_sec_output",
                 new Preset(
@@ -222,7 +238,7 @@ public class SlsPresetSqlRegistry {
                             + " BY time order by time limit all",
                         "time",
                         "output_token"));
-        // Token/s（总）（仅模型大盘）
+        // Total tokens per second for the model dashboard.
         presets.put(
                 "token_per_sec_total",
                 new Preset(
@@ -235,7 +251,7 @@ public class SlsPresetSqlRegistry {
                             + " BY time order by time limit all",
                         "time",
                         "total_token"));
-        // 平均RT（整体）（仅模型大盘）
+        // Overall average response time for the model dashboard.
         presets.put(
                 "rt_avg_total",
                 new Preset(
@@ -247,7 +263,7 @@ public class SlsPresetSqlRegistry {
                             + " AS time FROM log GROUP BY time order by time limit all",
                         "time",
                         "total_rt"));
-        // 平均RT（流式）（仅模型大盘）
+        // Streaming average response time for the model dashboard.
         presets.put(
                 "rt_avg_stream",
                 new Preset(
@@ -260,7 +276,7 @@ public class SlsPresetSqlRegistry {
                             + " order by time limit all",
                         "time",
                         "stream_rt"));
-        // 平均RT（非流式）（仅模型大盘）
+        // Non-streaming average response time for the model dashboard.
         presets.put(
                 "rt_avg_normal",
                 new Preset(
@@ -273,7 +289,7 @@ public class SlsPresetSqlRegistry {
                             + " order by time limit all",
                         "time",
                         "normal_rt"));
-        // 首包RT（仅模型大盘）
+        // First-token response time for the model dashboard.
         presets.put(
                 "rt_first_token",
                 new Preset(
@@ -287,7 +303,7 @@ public class SlsPresetSqlRegistry {
                             + " limit all",
                         "time",
                         "first_token_rt"));
-        // 缓存命中/未命中/跳过（仅模型大盘）
+        // Cache hit, miss, and skip rates for the model dashboard.
         presets.put(
                 "cache_hit",
                 new Preset(
@@ -318,7 +334,7 @@ public class SlsPresetSqlRegistry {
                             + " %H:%i:%s') AS time FROM log GROUP BY time order by time limit all",
                         "time",
                         "skip"));
-        // 限流请求数/s（仅模型大盘）
+        // Rate-limited requests per second for the model dashboard.
         presets.put(
                 "ratelimited_per_sec",
                 new Preset(
@@ -330,7 +346,7 @@ public class SlsPresetSqlRegistry {
                             + " order by time limit all",
                         "time",
                         "ratelimited"));
-        // QPS（按状态码分组）（仅MCP大盘）
+        // QPS grouped by status code for the MCP dashboard.
         presets.put(
                 "qps_by_status",
                 new Preset(
@@ -342,7 +358,7 @@ public class SlsPresetSqlRegistry {
                             + " all",
                         "time",
                         "qps"));
-        // 总QPS（仅MCP大盘）
+        // Total QPS for the MCP dashboard.
         presets.put(
                 "qps_total_simple",
                 new Preset(
@@ -354,7 +370,7 @@ public class SlsPresetSqlRegistry {
                             + " order by time limit all",
                         "time",
                         "total"));
-        // 平均RT（仅MCP大盘）
+        // Average response time for the MCP dashboard.
         presets.put(
                 "rt_avg",
                 new Preset(
@@ -365,7 +381,7 @@ public class SlsPresetSqlRegistry {
                             + " AS time FROM log GROUP BY time order by time limit all",
                         "time",
                         "rt_avg"));
-        // P99 RT（仅MCP大盘）
+        // P99 response time for the MCP dashboard.
         presets.put(
                 "rt_p99",
                 new Preset(
@@ -376,7 +392,7 @@ public class SlsPresetSqlRegistry {
                             + " AS time FROM log GROUP BY time order by time limit all",
                         "time",
                         "rt_p99"));
-        // P95 RT（仅MCP大盘）
+        // P95 response time for the MCP dashboard.
         presets.put(
                 "rt_p95",
                 new Preset(
@@ -387,7 +403,7 @@ public class SlsPresetSqlRegistry {
                             + " AS time FROM log GROUP BY time order by time limit all",
                         "time",
                         "rt_p95"));
-        // P90 RT（仅MCP大盘）
+        // P90 response time for the MCP dashboard.
         presets.put(
                 "rt_p90",
                 new Preset(
@@ -398,7 +414,7 @@ public class SlsPresetSqlRegistry {
                             + " AS time FROM log GROUP BY time order by time limit all",
                         "time",
                         "rt_p90"));
-        // P50 RT（仅MCP大盘）
+        // P50 response time for the MCP dashboard.
         presets.put(
                 "rt_p50",
                 new Preset(
@@ -410,8 +426,8 @@ public class SlsPresetSqlRegistry {
                         "time",
                         "rt_p50"));
 
-        // 表格类
-        // 模型token使用统计（仅模型大盘）
+        // Table presets.
+        // Token usage by model for the model dashboard.
         presets.put(
                 "model_token_table",
                 new Preset(
@@ -426,7 +442,7 @@ public class SlsPresetSqlRegistry {
                             + " group by model order by total_token desc",
                         null,
                         null));
-        // 消费者token使用统计（仅模型大盘）
+        // Token usage by consumer for the model dashboard.
         presets.put(
                 "consumer_token_table",
                 new Preset(
@@ -441,7 +457,7 @@ public class SlsPresetSqlRegistry {
                             + " group by consumer order by total_token desc",
                         null,
                         null));
-        // 服务token使用统计（仅模型大盘）
+        // Token usage by service for the model dashboard.
         presets.put(
                 "service_token_table",
                 new Preset(
@@ -456,7 +472,7 @@ public class SlsPresetSqlRegistry {
                             + " group by upstream_cluster order by total_token desc",
                         null,
                         null));
-        // 错误请求统计（仅模型大盘）
+        // Error request statistics for the model dashboard.
         presets.put(
                 "error_requests_table",
                 new Preset(
@@ -468,7 +484,7 @@ public class SlsPresetSqlRegistry {
                             + " response_flags order by cnt desc limit all",
                         null,
                         null));
-        // 限流消费者统计（仅模型大盘）
+        // Rate-limited consumer statistics for the model dashboard.
         presets.put(
                 "ratelimited_consumer_table",
                 new Preset(
@@ -479,7 +495,7 @@ public class SlsPresetSqlRegistry {
                             + " consumer order by ratelimited_count desc",
                         null,
                         null));
-        // 风险类型统计（仅模型大盘）
+        // Risk type statistics for the model dashboard.
         presets.put(
                 "risk_label_table",
                 new Preset(
@@ -490,7 +506,7 @@ public class SlsPresetSqlRegistry {
                                 + " risklabel order by cnt desc",
                         null,
                         null));
-        // 风险消费者统计（仅模型大盘）
+        // Risk consumer statistics for the model dashboard.
         presets.put(
                 "risk_consumer_table",
                 new Preset(
@@ -501,7 +517,7 @@ public class SlsPresetSqlRegistry {
                             + " by cnt desc",
                         null,
                         null));
-        // Method分布（仅MCP大盘）
+        // Method distribution for the MCP dashboard.
         presets.put(
                 "method_distribution",
                 new Preset(
@@ -511,7 +527,7 @@ public class SlsPresetSqlRegistry {
                                 + " method",
                         null,
                         null));
-        // 网关状态码分布（仅MCP大盘）
+        // Gateway status code distribution for the MCP dashboard.
         presets.put(
                 "gateway_status_distribution",
                 new Preset(
@@ -521,7 +537,7 @@ public class SlsPresetSqlRegistry {
                                 + " group by status",
                         null,
                         null));
-        // 后端状态码分布（仅MCP大盘）
+        // Backend status code distribution for the MCP dashboard.
         presets.put(
                 "backend_status_distribution",
                 new Preset(
@@ -531,7 +547,7 @@ public class SlsPresetSqlRegistry {
                                 + " status, count(1) as count group by status",
                         null,
                         null));
-        // 请求分布（仅MCP大盘）
+        // Request distribution for the MCP dashboard.
         presets.put(
                 "request_distribution",
                 new Preset(
@@ -544,8 +560,8 @@ public class SlsPresetSqlRegistry {
                         null,
                         null));
 
-        // 前端下拉框选项类 - 用于辅助用户构建查询条件
-        // 实例列表
+        // Frontend filter option presets.
+        // Instance list.
         presets.put(
                 "filter_service_options",
                 new Preset(
@@ -555,7 +571,7 @@ public class SlsPresetSqlRegistry {
                                 + " not null limit 100",
                         null,
                         null));
-        // API列表
+        // API list.
         presets.put(
                 "filter_api_options",
                 new Preset(
@@ -565,7 +581,7 @@ public class SlsPresetSqlRegistry {
                                 + " json_extract(ai_log, '$.api') is not null limit 100",
                         null,
                         null));
-        // 模型列表
+        // Model list.
         presets.put(
                 "filter_model_options",
                 new Preset(
@@ -575,7 +591,7 @@ public class SlsPresetSqlRegistry {
                                 + " where json_extract(ai_log, '$.model') is not null limit 100",
                         null,
                         null));
-        // 路由列表
+        // Route list.
         presets.put(
                 "filter_route_options",
                 new Preset(
@@ -585,7 +601,7 @@ public class SlsPresetSqlRegistry {
                                 + " limit 100",
                         null,
                         null));
-        // 消费者列表
+        // Consumer list.
         presets.put(
                 "filter_consumer_options",
                 new Preset(
@@ -595,7 +611,7 @@ public class SlsPresetSqlRegistry {
                                 + " null limit 100",
                         null,
                         null));
-        // 上游服务列表
+        // Upstream service list.
         presets.put(
                 "filter_upstream_options",
                 new Preset(
@@ -605,7 +621,7 @@ public class SlsPresetSqlRegistry {
                                 + " not null limit 100",
                         null,
                         null));
-        // MCP工具名称列表
+        // MCP tool name list.
         presets.put(
                 "filter_mcp_tool_options",
                 new Preset(
@@ -616,7 +632,7 @@ public class SlsPresetSqlRegistry {
                                 + " '$.mcp_tool_name') is not null limit 100",
                         null,
                         null));
-        // MCP Server列表
+        // MCP server list.
         presets.put(
                 "filter_mcp_server_options",
                 new Preset(
@@ -628,12 +644,14 @@ public class SlsPresetSqlRegistry {
                         null));
     }
 
-    /** 根据场景名获取预设 */
+    /**
+     * Returns the preset for a scenario name.
+     */
     public Preset getPreset(String scenario) {
         if (scenario == null) return null;
         Preset p = presets.get(scenario);
         if (p == null) {
-            log.warn("Unknown scenario: {}", scenario);
+            log.warn("Unknown SLS scenario, scenario={}", scenario);
         }
         return p;
     }

@@ -12,10 +12,11 @@ import org.springframework.web.socket.PingMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * WebSocket 协议级 ping 调度器。
+ * WebSocket protocol-level ping scheduler.
  *
- * <p>管理共享的 ScheduledExecutorService，为每个 WebSocketSession 调度周期性 ping。
- * 作为单例 Bean 供 HiCodingWebSocketHandler 和 TerminalWebSocketHandler 共享。
+ * <p>Manages a shared ScheduledExecutorService and schedules periodic pings for each
+ * WebSocketSession. Shared as a singleton bean by HiCodingWebSocketHandler and
+ * TerminalWebSocketHandler.
  */
 @Component
 public class WebSocketPingScheduler {
@@ -37,15 +38,16 @@ public class WebSocketPingScheduler {
             new ConcurrentHashMap<>();
 
     /**
-     * 为指定 session 启动 ping 定时器。
+     * Starts the ping timer for the specified session.
      *
-     * <p>每 {@value PING_INTERVAL_SECONDS} 秒发送一个 WebSocket 协议级 PingMessage。
-     * 对同一 sessionId 重复调用时，先停止旧的定时器再注册新的。
+     * <p>Sends a WebSocket protocol-level PingMessage every {@value PING_INTERVAL_SECONDS}
+     * seconds. Repeated calls for the same sessionId stop the previous timer before registering a
+     * new one.
      */
     public void startPing(WebSocketSession session) {
         String sessionId = session.getId();
 
-        // 重复调用时先停止旧的
+        // Stop any previous timer before registering a new one.
         stopPing(sessionId);
 
         ScheduledFuture<?> future =
@@ -58,9 +60,11 @@ public class WebSocketPingScheduler {
                                 session.sendMessage(new PingMessage());
                             } catch (Exception e) {
                                 logger.warn(
-                                        "[WS-Ping] Failed to send ping for session {}: {}",
+                                        "Failed to send WebSocket ping, sessionId={},"
+                                                + " errorMessage={}",
                                         sessionId,
-                                        e.getMessage());
+                                        e.getMessage(),
+                                        e);
                             }
                         },
                         PING_INTERVAL_SECONDS,
@@ -68,17 +72,17 @@ public class WebSocketPingScheduler {
                         TimeUnit.SECONDS);
 
         pingFutures.put(sessionId, future);
-        logger.info("[WS-Ping] Started ping scheduler for session {}", sessionId);
+        logger.info("Started WebSocket ping scheduler, sessionId={}", sessionId);
     }
 
     /**
-     * 停止指定 session 的 ping 定时器。
+     * Stops the ping timer for the specified session.
      */
     public void stopPing(String sessionId) {
         ScheduledFuture<?> future = pingFutures.remove(sessionId);
         if (future != null) {
             future.cancel(false);
-            logger.info("[WS-Ping] Stopped ping scheduler for session {}", sessionId);
+            logger.info("Stopped WebSocket ping scheduler, sessionId={}", sessionId);
         }
     }
 }

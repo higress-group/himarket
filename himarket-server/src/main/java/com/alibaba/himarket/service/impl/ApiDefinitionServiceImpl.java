@@ -133,7 +133,7 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
                 .ifPresent(productRefRepository::delete);
 
         apiDefinitionRepository.delete(definition);
-        log.info("Deleted API Definition: {}", apiDefinitionId);
+        log.info("Deleted API Definition, apiDefinitionId={}", apiDefinitionId);
     }
 
     private ApiDefinition findApiDefinition(String apiDefinitionId) {
@@ -182,7 +182,7 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     StrUtil.format(
-                            "Binding product is only supported for MCP_SERVER type, got: {}",
+                            "Binding product is only supported for MCP_SERVER type; actualType={}",
                             definition.getType()));
         }
 

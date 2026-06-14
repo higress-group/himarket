@@ -42,7 +42,8 @@ public class K8sClientUtils {
                             (String key, KubernetesClient client, RemovalCause cause) -> {
                                 if (client != null) {
                                     log.info(
-                                            "关闭KubernetesClient缓存, key={}..., 原因={}",
+                                            "Closing cached KubernetesClient, cacheKeyPrefix={},"
+                                                    + " cause={}",
                                             key != null ? key.substring(0, 12) : "null",
                                             cause);
                                     client.close();
@@ -58,8 +59,10 @@ public class K8sClientUtils {
     }
 
     /**
-     * 根据KubeConfig文本获取KubernetesClient（带Caffeine缓存，6小时无访问过期）。
-     * 如果缓存的 client 连接失败，自动 evict 并重建。
+     * Gets a KubernetesClient from KubeConfig with a Caffeine cache.
+     *
+     * <p>The cache expires after six hours without access. If a cached client fails connectivity
+     * verification, it is evicted and rebuilt automatically.
      */
     public static KubernetesClient getClient(String kubeConfig) {
         String cacheKey = cn.hutool.crypto.digest.DigestUtil.sha256Hex(kubeConfig);
@@ -67,7 +70,9 @@ public class K8sClientUtils {
                 CLIENT_CACHE.get(
                         cacheKey,
                         key -> {
-                            log.info("创建新的KubernetesClient, cacheKey={}...", key.substring(0, 12));
+                            log.info(
+                                    "Creating KubernetesClient, cacheKeyPrefix={}",
+                                    key.substring(0, 12));
                             Config config = Config.fromKubeconfig(kubeConfig);
                             config.setTrustCerts(shouldTrustCerts());
                             return new KubernetesClientBuilder().withConfig(config).build();
@@ -77,8 +82,10 @@ public class K8sClientUtils {
             client.getApiVersion();
         } catch (Exception e) {
             log.warn(
-                    "缓存的KubernetesClient连接失败，重建: cacheKey={}..., error={}",
+                    "Rebuilding KubernetesClient after connectivity check failed,"
+                            + " cacheKeyPrefix={}, errorType={}, errorMessage={}",
                     cacheKey.substring(0, 12),
+                    e.getClass().getSimpleName(),
                     e.getMessage());
             CLIENT_CACHE.invalidate(cacheKey);
             return CLIENT_CACHE.get(
@@ -93,7 +100,7 @@ public class K8sClientUtils {
     }
 
     /**
-     * 移除缓存中的client（kubeConfig变更或实例删除时调用）
+     * Evicts a cached client when KubeConfig changes or an instance is deleted.
      */
     public static void evictClient(String kubeConfig) {
         String cacheKey = cn.hutool.crypto.digest.DigestUtil.sha256Hex(kubeConfig);
@@ -101,7 +108,7 @@ public class K8sClientUtils {
     }
 
     /**
-     * 获取集群ID（kube-system namespace的UID）
+     * Gets the cluster ID from the kube-system namespace UID.
      */
     public static String getClusterId(KubernetesClient client) {
         Namespace kubeSystem = client.namespaces().withName("kube-system").get();
@@ -112,7 +119,7 @@ public class K8sClientUtils {
     }
 
     /**
-     * 获取集群名称（从KubeConfig的current-context中的cluster名称）
+     * Gets the cluster name from the cluster value in the current KubeConfig context.
      */
     public static String getClusterName(KubernetesClient client) {
         Config config = client.getConfiguration();
@@ -123,14 +130,14 @@ public class K8sClientUtils {
     }
 
     /**
-     * 获取apiServer地址
+     * Gets the apiServer address.
      */
     public static String getApiServer(KubernetesClient client) {
         return client.getConfiguration().getMasterUrl();
     }
 
     /**
-     * 列出所有namespace名称
+     * Lists all namespace names.
      */
     public static List<String> listNamespaces(KubernetesClient client) {
         return client.namespaces().list().getItems().stream()

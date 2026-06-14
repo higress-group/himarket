@@ -28,13 +28,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * 会话初始化器。
+ * Initializes HiCoding sessions.
  *
- * <p>编排沙箱初始化的完整流程：获取 Provider → 注入 authToken → 解析配置 →
- * 构建 SandboxConfig/InitContext → 执行 Pipeline → 返回结果。
+ * <p>Orchestrates the full sandbox initialization flow: resolve the provider, inject authToken,
+ * resolve session configuration, build SandboxConfig/InitContext, execute the pipeline, and return
+ * the result.
  *
- * <p>从 {@code HiCodingWebSocketHandler.initSandboxAsync()} 中提取，
- * 不包含 WebSocket 消息发送、stdout 订阅、连接状态管理等职责。
+ * <p>Extracted from {@code HiCodingWebSocketHandler.initSandboxAsync()}. WebSocket message
+ * sending, stdout subscription, and connection state management stay outside this class.
  */
 @Component
 public class SessionInitializer {
@@ -55,7 +56,7 @@ public class SessionInitializer {
     }
 
     /**
-     * 初始化结果。
+     * Initialization result.
      */
     public record InitializationResult(
             boolean success,
@@ -68,16 +69,16 @@ public class SessionInitializer {
             Duration totalDuration) {}
 
     /**
-     * 执行沙箱初始化。
+     * Initializes a sandbox session.
      *
-     * @param userId 用户 ID
-     * @param providerKey CLI 提供者标识
-     * @param providerConfig CLI 提供者配置
-     * @param runtimeConfig 运行时配置
-     * @param sessionConfig 前端传入的会话配置（可为 null）
-     * @param sandboxType 沙箱类型
-     * @param frontendSession 前端 WebSocket session（传递给 InitContext，用于阶段内推送进度）
-     * @return 初始化结果
+     * @param userId          user ID
+     * @param providerKey     CLI provider key
+     * @param providerConfig  CLI provider configuration
+     * @param runtimeConfig   runtime configuration
+     * @param sessionConfig   session configuration from the frontend, or null
+     * @param sandboxType     sandbox type
+     * @param frontendSession frontend WebSocket session passed to InitContext for progress updates
+     * @return initialization result
      */
     public InitializationResult initialize(
             String userId,
@@ -89,19 +90,19 @@ public class SessionInitializer {
             WebSocketSession frontendSession) {
 
         try {
-            // 1. 获取 Provider
+            // 1. Resolve the provider.
             SandboxProvider provider = providerRegistry.getProvider(sandboxType);
 
-            // 2. 注入 authToken 到 CLI 进程环境变量
+            // 2. Inject authToken into CLI process environment variables.
             injectAuthToken(sessionConfig, providerConfig, runtimeConfig, providerKey);
 
-            // 3. 解析配置（仅在 sessionConfig 非空且 provider 支持自定义模型时）
+            // 3. Resolve configuration when the provider supports custom models.
             ResolvedSessionConfig resolved = null;
             if (sessionConfig != null && providerConfig.isSupportsCustomModel()) {
                 resolved = configResolver.resolve(sessionConfig, userId);
             }
 
-            // 4. 构建 SandboxConfig
+            // 4. Build SandboxConfig.
             SandboxConfig sandboxConfig =
                     new SandboxConfig(
                             userId,
@@ -111,7 +112,7 @@ public class SessionInitializer {
                             Map.of(),
                             null);
 
-            // 5. 构建 InitContext（设置 resolvedSessionConfig）
+            // 5. Build InitContext and attach resolved session configuration.
             InitContext context =
                     new InitContext(
                             provider,
@@ -123,7 +124,7 @@ public class SessionInitializer {
                             frontendSession);
             context.setResolvedSessionConfig(resolved);
 
-            // 6. 构建 Pipeline（传入 ConfigFileBuilder 给 ConfigInjectionPhase）
+            // 6. Build the pipeline with ConfigFileBuilder for ConfigInjectionPhase.
             SandboxInitPipeline pipeline =
                     new SandboxInitPipeline(
                             List.of(
@@ -134,18 +135,17 @@ public class SessionInitializer {
                                     new SidecarConnectPhase()),
                             InitConfig.defaults());
 
-            // 7. 执行 Pipeline
+            // 7. Execute the pipeline.
             InitResult result = pipeline.execute(context);
 
-            // 8. 转换为 InitializationResult
+            // 8. Convert the pipeline result.
             return toInitializationResult(result, context);
 
         } catch (Exception e) {
             logger.error(
-                    "[SessionInitializer] 初始化异常: userId={}, provider={}, error={}",
+                    "Session initialization failed, userId={}, provider={}",
                     userId,
                     providerKey,
-                    e.getMessage(),
                     e);
             return new InitializationResult(
                     false,
@@ -160,7 +160,7 @@ public class SessionInitializer {
     }
 
     /**
-     * 注入 authToken 到 CLI 进程环境变量。
+     * Injects authToken into CLI process environment variables.
      */
     private void injectAuthToken(
             CliSessionConfig sessionConfig,
@@ -176,26 +176,23 @@ public class SessionInitializer {
                         .getEnv()
                         .put(providerConfig.getAuthEnvVar(), sessionConfig.getAuthToken());
                 logger.info(
-                        "[SessionInitializer] authToken injected to env var '{}' for provider"
-                                + " '{}', current env size: {}",
-                        providerConfig.getAuthEnvVar(),
+                        "Injected auth token into CLI environment, provider={}, envVar={},"
+                                + " envSize={}",
                         providerKey,
+                        providerConfig.getAuthEnvVar(),
                         runtimeConfig.getEnv().size());
             } else {
-                logger.error(
-                        "[SessionInitializer] runtimeConfig.getEnv() is null, cannot inject"
-                                + " authToken");
+                logger.error("Runtime config environment is missing, cannot inject auth token");
             }
         } else {
             logger.warn(
-                    "[SessionInitializer] Received authToken but authEnvVar is not configured"
-                            + " for provider: {}, ignoring authToken",
+                    "Received auth token without auth environment variable, provider={}",
                     providerKey);
         }
     }
 
     /**
-     * 将 Pipeline 的 InitResult 转换为 InitializationResult。
+     * Converts the pipeline InitResult to InitializationResult.
      */
     private InitializationResult toInitializationResult(InitResult result, InitContext context) {
         if (result.success()) {

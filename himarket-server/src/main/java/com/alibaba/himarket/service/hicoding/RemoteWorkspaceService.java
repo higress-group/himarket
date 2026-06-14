@@ -26,12 +26,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * 远程沙箱文件操作服务。
+ * Remote sandbox file operation service.
  *
- * <p>封装通过 Sidecar HTTP API 操作远程沙箱内文件的逻辑，
- * 供 WorkspaceController 在 runtime=remote 时调用。
+ * <p>Encapsulates file operations in remote sandboxes through the Sidecar HTTP API. Used by
+ * WorkspaceController when runtime=remote.
  *
- * <p>使用 AcpProperties.remote 配置获取 Sidecar 地址。
+ * <p>Uses AcpProperties.remote to resolve the Sidecar address.
  */
 @Service
 public class RemoteWorkspaceService {
@@ -56,7 +56,7 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 获取远程 Sidecar 的地址。
+     * Returns the remote Sidecar host.
      */
     private String getRemoteHost() {
         return acpProperties.getRemote().getHost();
@@ -67,14 +67,14 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 获取 Pod 内的目录树。
-     * 通过 Sidecar HTTP API /files/list 实现，并将返回结果转换为前端期望的树形结构。
+     * Gets the directory tree inside the sandbox.
+     * Calls Sidecar HTTP API /files/list and converts the response to the frontend tree shape.
      *
-     * @param userId 用户 ID
-     * @param cwd    工作目录路径
-     * @param depth  目录深度
-     * @return 前端期望的树形结构 Map
-     * @throws IOException 网络或解析异常
+     * @param userId user ID
+     * @param cwd working directory path
+     * @param depth directory depth
+     * @return frontend tree map
+     * @throws IOException on network or parsing failures
      */
     public Map<String, Object> getDirectoryTree(String userId, String cwd, int depth)
             throws IOException {
@@ -87,17 +87,17 @@ public class RemoteWorkspaceService {
         if (response.statusCode() != 200) {
             throw new BusinessException(
                     ErrorCode.SANDBOX_ERROR,
-                    "Sidecar /files/list 失败 (status="
+                    "Sidecar /files/list failed (status="
                             + response.statusCode()
                             + "): "
                             + response.body());
         }
 
-        // Sidecar 返回: [{"name":"src","type":"dir","children":[...]}]
+        // Sidecar response: [{"name":"src","type":"dir","children":[...]}].
         List<Map<String, Object>> sidecarItems =
                 objectMapper.readValue(response.body(), new TypeReference<>() {});
 
-        // 转换为前端期望的树形结构（根节点为 cwd 目录）
+        // Convert to the frontend tree shape with cwd as the root node.
         Map<String, Object> root = new HashMap<>();
         root.put("name", extractDirName(cwd));
         root.put("path", cwd);
@@ -107,25 +107,25 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 读取 Pod 内的文件内容（UTF-8 文本）。
+     * Reads file content from the sandbox as UTF-8 text.
      *
-     * @param userId   用户 ID
-     * @param filePath 文件路径
-     * @return 文件内容字符串
-     * @throws IOException 网络或解析异常
+     * @param userId user ID
+     * @param filePath file path
+     * @return file content
+     * @throws IOException on network or parsing failures
      */
     public String readFile(String userId, String filePath) throws IOException {
         return readFileWithEncoding(userId, filePath, "utf-8").get("content").toString();
     }
 
     /**
-     * 读取 Pod 内的文件内容，支持指定编码。
+     * Reads file content from the sandbox with a specified encoding.
      *
-     * @param userId   用户 ID
-     * @param filePath 文件路径
-     * @param encoding 编码方式："utf-8" 或 "base64"
-     * @return 包含 content 和 encoding 的 Map
-     * @throws IOException 网络或解析异常
+     * @param userId user ID
+     * @param filePath file path
+     * @param encoding encoding, either "utf-8" or "base64"
+     * @return map containing content and encoding
+     * @throws IOException on network or parsing failures
      */
     public Map<String, Object> readFileWithEncoding(String userId, String filePath, String encoding)
             throws IOException {
@@ -141,7 +141,7 @@ public class RemoteWorkspaceService {
         if (response.statusCode() != 200) {
             throw new BusinessException(
                     ErrorCode.SANDBOX_ERROR,
-                    "Sidecar /files/read 失败 (status="
+                    "Sidecar /files/read failed (status="
                             + response.statusCode()
                             + "): "
                             + response.body());
@@ -154,15 +154,15 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 从远程沙箱下载文件的原始字节。
-     * 优先尝试 Sidecar GET /files/download（原始二进制流，兼容 OpenSandbox execd），
-     * 若 404 则降级为 POST /files/read + base64 解码。
+     * Downloads raw file bytes from the remote sandbox.
+     * Tries Sidecar GET /files/download first, then falls back to POST /files/read with base64
+     * decoding on 404.
      */
     public byte[] readFileBytes(String userId, String filePath) throws IOException {
         String resolved = resolvePathForUser(userId, filePath);
         String host = getRemoteHost();
 
-        // 方案 1：GET /files/download — 直接返回原始字节流，无 JSON 包装
+        // Option 1: GET /files/download returns raw bytes without JSON wrapping.
         String encodedPath =
                 java.net.URLEncoder.encode(resolved, java.nio.charset.StandardCharsets.UTF_8);
         String downloadUrl =
@@ -182,19 +182,25 @@ public class RemoteWorkspaceService {
                     "Sidecar /files/download status={}, fallback to /files/read",
                     dlResp.statusCode());
         } catch (ConnectException | HttpConnectTimeoutException e) {
-            log.error("Sidecar 不可达: {}", downloadUrl, e);
-            throw new BusinessException(ErrorCode.SANDBOX_CONNECTION_FAILED, downloadUrl, e);
+            log.error(
+                    "Sidecar file download endpoint unreachable, userId={}, path={},"
+                            + " errorMessage={}",
+                    userId,
+                    filePath,
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(ErrorCode.SANDBOX_CONNECTION_FAILED, "Sidecar service", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("Sidecar 请求被中断: " + downloadUrl, e);
+            throw new IOException("Sidecar file download request interrupted", e);
         }
 
-        // 方案 2：POST /files/read + base64 解码
+        // Option 2: POST /files/read with base64 decoding.
         Map<String, Object> result = readFileWithEncoding(userId, filePath, "base64");
         String content = result.get("content").toString();
         String encoding = result.get("encoding").toString();
         if ("base64".equals(encoding)) {
-            // 清理空白字符，修复 padding
+            // Remove whitespace and fix padding before decoding.
             String cleaned = content.replaceAll("[\\s\\r\\n]", "");
             int mod = cleaned.length() % 4;
             if (mod != 0) {
@@ -206,13 +212,13 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 获取 Pod 内的文件变更列表。
+     * Gets file changes from the sandbox.
      *
-     * @param userId 用户 ID
-     * @param cwd    工作目录路径
-     * @param since  时间戳（毫秒），返回此时间之后的变更
-     * @return 文件变更列表，每项包含 path、mtimeMs、size、ext
-     * @throws IOException 网络或解析异常
+     * @param userId user ID
+     * @param cwd working directory path
+     * @param since timestamp in milliseconds; changes after this time are returned
+     * @return file changes, each containing path, mtimeMs, size, and ext
+     * @throws IOException on network or parsing failures
      */
     public List<Map<String, Object>> getChanges(String userId, String cwd, long since)
             throws IOException {
@@ -225,7 +231,7 @@ public class RemoteWorkspaceService {
         if (response.statusCode() != 200) {
             throw new BusinessException(
                     ErrorCode.SANDBOX_ERROR,
-                    "Sidecar /files/changes 失败 (status="
+                    "Sidecar /files/changes failed (status="
                             + response.statusCode()
                             + "): "
                             + response.body());
@@ -249,55 +255,57 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 将文件路径解析为用户工作空间下的绝对路径。
+     * Resolves a file path to an absolute path under the user's workspace.
      *
-     * <p>沙箱内每个用户的工作目录为 /workspace/{userId}/，但前端传入的路径可能是
-     * 相对路径（如 "skills/foo.html"），需要补全为 /workspace/{userId}/skills/foo.html。
+     * <p>Each user works under /workspace/{userId}/ in the sandbox. Frontend paths may be relative,
+     * such as "skills/foo.html", and are completed to /workspace/{userId}/skills/foo.html.
      *
-     * @param userId   用户 ID
-     * @param filePath 原始文件路径（可能是绝对或相对路径）
-     * @return 解析后的绝对路径
+     * @param userId user ID
+     * @param filePath original file path, either absolute or relative
+     * @return resolved absolute path
      */
     private String resolvePathForUser(String userId, String filePath) {
         if (filePath == null || filePath.isBlank()) {
             return filePath;
         }
-        // 已经是绝对路径 → 保持原样（可能已包含 userId 或指向共享目录）
+        // Absolute paths are passed through as-is.
         if (filePath.startsWith("/")) {
             return filePath;
         }
-        // 相对路径 → 解析到用户工作空间
+        // Relative paths resolve under the user's workspace.
         return WORKSPACE_ROOT + "/" + userId + "/" + filePath;
     }
 
     /**
-     * 验证文件操作路径是否位于 /workspace/{userId} 目录范围内。
-     * 将路径规范化后检查是否以用户专属工作空间开头，防止路径遍历和跨用户访问。
+     * Validates that a file operation path stays under /workspace/{userId}.
+     * Normalizes the path before checking the user workspace prefix to prevent traversal and
+     * cross-user access.
      *
-     * @param userId 当前用户 ID
-     * @param path   待验证的路径
-     * @throws IllegalArgumentException 如果路径超出用户工作空间范围
+     * @param userId current user ID
+     * @param path path to validate
+     * @throws IllegalArgumentException when the path escapes the user workspace
      */
     private void validateUserPath(String userId, String path) {
         if (path == null || path.isBlank()) {
-            throw new IllegalArgumentException("路径不能为空");
+            throw new IllegalArgumentException("Path must not be empty");
         }
         String userRoot = WORKSPACE_ROOT + "/" + userId;
         Path normalized = Paths.get(path).normalize();
         if (!normalized.startsWith(Paths.get(userRoot).normalize())) {
-            throw new IllegalArgumentException("路径越界：不允许访问其他用户的工作空间");
+            throw new IllegalArgumentException(
+                    "Path escapes the user workspace; cross-user access is not allowed");
         }
     }
 
     /**
-     * 上传文件到远程沙箱。
-     * 通过 Sidecar HTTP API POST /files/write 实现，文件内容以 base64 编码传输。
+     * Uploads a file to the remote sandbox.
+     * Uses Sidecar HTTP API POST /files/write and sends content as base64.
      *
-     * @param userId           用户 ID
-     * @param originalFilename 原始文件名
-     * @param fileData         文件内容字节数组
-     * @return 文件在沙箱中的绝对路径
-     * @throws IOException 网络或解析异常
+     * @param userId user ID
+     * @param originalFilename original file name
+     * @param fileData file content bytes
+     * @return absolute file path in the sandbox
+     * @throws IOException on network or parsing failures
      */
     public String uploadFile(String userId, String originalFilename, byte[] fileData)
             throws IOException {
@@ -315,17 +323,17 @@ public class RemoteWorkspaceService {
         if (response.statusCode() != 200) {
             throw new BusinessException(
                     ErrorCode.SANDBOX_ERROR,
-                    "Sidecar /files/write 失败 (status="
+                    "Sidecar /files/write failed (status="
                             + response.statusCode()
                             + "): "
                             + response.body());
         }
-        log.info("File uploaded to sandbox: user={}, path={}", userId, targetPath);
+        log.info("File uploaded to sandbox, userId={}, path={}", userId, targetPath);
         return targetPath;
     }
 
     /**
-     * 清洗上传文件名：去除路径分隔符，替换非安全字符。
+     * Sanitizes an uploaded file name by stripping path separators and replacing unsafe characters.
      */
     private static String sanitizeUploadFileName(String originalName) {
         if (originalName == null || originalName.isBlank()) {
@@ -341,16 +349,15 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 发送 POST 请求到 Sidecar（使用默认超时）。
+     * Sends a POST request to Sidecar with the default timeout.
      */
     private HttpResponse<String> sendPost(String url, String body) throws IOException {
         return sendPost(url, body, HTTP_TIMEOUT);
     }
 
     /**
-     * 发送 POST 请求到 Sidecar。
-     * 捕获网络连接异常（ConnectException、HttpConnectTimeoutException），
-     * 包装为 BusinessException(SANDBOX_CONNECTION_FAILED)。
+     * Sends a POST request to Sidecar.
+     * Wraps connection failures as BusinessException(SANDBOX_CONNECTION_FAILED).
      */
     private HttpResponse<String> sendPost(String url, String body, Duration timeout)
             throws IOException {
@@ -363,23 +370,27 @@ public class RemoteWorkspaceService {
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
         } catch (ConnectException | HttpConnectTimeoutException e) {
-            log.error("Sidecar 不可达: {}", url, e);
-            throw new BusinessException(ErrorCode.SANDBOX_CONNECTION_FAILED, url, e);
+            log.error(
+                    "Sidecar POST endpoint unreachable, url={}, errorMessage={}",
+                    url,
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(ErrorCode.SANDBOX_CONNECTION_FAILED, "Sidecar service", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("Sidecar 请求被中断: " + url, e);
+            throw new IOException("Sidecar POST request interrupted", e);
         }
     }
 
     /**
-     * 将 Sidecar 返回的文件列表转换为前端期望的树形结构。
+     * Converts Sidecar file list output to the frontend tree shape.
      *
-     * <p>Sidecar 格式: {"name":"src","type":"dir","children":[...]}
-     * <p>前端格式: {"name":"src","path":"/workspace/src","type":"directory","children":[...]}
+     * <p>Sidecar format: {"name":"src","type":"dir","children":[...]}
+     * <p>Frontend format: {"name":"src","path":"/workspace/src","type":"directory","children":[...]}
      *
-     * @param sidecarItems Sidecar 返回的文件列表
-     * @param parentPath   父目录路径
-     * @return 转换后的子节点列表
+     * @param sidecarItems file list returned by Sidecar
+     * @param parentPath parent directory path
+     * @return converted child nodes
      */
     private List<Map<String, Object>> convertChildren(
             List<Map<String, Object>> sidecarItems, String parentPath) {
@@ -419,7 +430,7 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 从路径中提取目录名。
+     * Extracts a directory name from a path.
      */
     private static String extractDirName(String path) {
         if (path == null || path.isEmpty()) {
@@ -431,7 +442,7 @@ public class RemoteWorkspaceService {
     }
 
     /**
-     * 获取文件扩展名。
+     * Gets the file extension.
      */
     private static String getExtension(String fileName) {
         if (fileName == null) {

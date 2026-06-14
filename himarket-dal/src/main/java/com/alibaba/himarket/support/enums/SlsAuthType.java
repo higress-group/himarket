@@ -23,10 +23,14 @@ import lombok.Getter;
 
 @Getter
 public enum SlsAuthType {
-    /** 使用STS临时凭证 */
+    /**
+     * Uses STS temporary credentials.
+     */
     STS("sts", "STS authentication"),
 
-    /** 使用AK/SK */
+    /**
+     * Uses access key and secret key credentials.
+     */
     AK_SK("ak_sk", "AK/SK authentication");
 
     private final String code;

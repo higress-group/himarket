@@ -99,17 +99,19 @@ public class SandboxServiceImpl implements SandboxService {
     public void importSandbox(ImportSandboxParam param) {
         String adminId = contextHolder.getUser();
 
-        // 检查同名实例（全局唯一）
+        // Sandbox names are globally unique.
         sandboxInstanceRepository
                 .findBySandboxName(param.getSandboxName())
                 .ifPresent(
                         existing -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format("实例名称'{}'已存在", param.getSandboxName()));
+                                    StrUtil.format(
+                                            "Sandbox name '{}' already exists",
+                                            param.getSandboxName()));
                         });
 
-        // 从KubeConfig连接集群获取信息
+        // Connect with KubeConfig to resolve cluster metadata.
         try {
             KubernetesClient client = K8sClientUtils.getClient(param.getKubeConfig());
             String apiServer = K8sClientUtils.getApiServer(client);
@@ -126,10 +128,14 @@ public class SandboxServiceImpl implements SandboxService {
         } catch (BusinessException e) {
             throw e;
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.CONFLICT, "沙箱实例已存在（并发冲突），请勿重复导入");
+            throw new BusinessException(
+                    ErrorCode.CONFLICT,
+                    "Sandbox instance already exists due to a concurrent conflict. Do not import it"
+                            + " again");
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.INVALID_PARAMETER, "无法连接K8s集群: " + e.getMessage());
+                    ErrorCode.INVALID_PARAMETER,
+                    "Failed to connect to K8s cluster: " + e.getMessage());
         }
     }
 
@@ -138,7 +144,7 @@ public class SandboxServiceImpl implements SandboxService {
     public void updateSandbox(String sandboxId, UpdateSandboxParam param) {
         SandboxInstance sandbox = findSandbox(sandboxId);
 
-        // 如果修改了名称，检查是否重复（全局唯一）
+        // When the name changes, keep the global uniqueness check.
         if (StrUtil.isNotBlank(param.getSandboxName())
                 && !StrUtil.equals(sandbox.getSandboxName(), param.getSandboxName())) {
             sandboxInstanceRepository
@@ -147,11 +153,13 @@ public class SandboxServiceImpl implements SandboxService {
                             existing -> {
                                 throw new BusinessException(
                                         ErrorCode.CONFLICT,
-                                        StrUtil.format("实例名称'{}'已存在", param.getSandboxName()));
+                                        StrUtil.format(
+                                                "Sandbox name '{}' already exists",
+                                                param.getSandboxName()));
                             });
         }
 
-        // 如果更新了KubeConfig，重新获取集群信息
+        // Refresh cluster metadata when KubeConfig changes.
         if (StrUtil.isNotBlank(param.getKubeConfig())) {
             if (StrUtil.isNotBlank(sandbox.getKubeConfig())) {
                 K8sClientUtils.evictClient(sandbox.getKubeConfig());
@@ -164,7 +172,8 @@ public class SandboxServiceImpl implements SandboxService {
                 throw e;
             } catch (Exception e) {
                 throw new BusinessException(
-                        ErrorCode.INVALID_PARAMETER, "无法连接K8s集群: " + e.getMessage());
+                        ErrorCode.INVALID_PARAMETER,
+                        "Failed to connect to K8s cluster: " + e.getMessage());
             }
         }
 
@@ -172,7 +181,7 @@ public class SandboxServiceImpl implements SandboxService {
         try {
             sandboxInstanceRepository.saveAndFlush(sandbox);
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.CONFLICT, "沙箱实例更新冲突，请重试");
+            throw new BusinessException(ErrorCode.CONFLICT, "Sandbox update conflict. Try again");
         }
     }
 
@@ -181,7 +190,6 @@ public class SandboxServiceImpl implements SandboxService {
     public void deleteSandbox(String sandboxId) {
         SandboxInstance sandbox = findSandbox(sandboxId);
 
-        // 检查是否有 MCP endpoint 正在使用该沙箱
         var activeEndpoints =
                 mcpServerEndpointRepository.findByHostingTypeAndHostingInstanceId(
                         McpHostingType.SANDBOX.name(), sandboxId);
@@ -189,11 +197,13 @@ public class SandboxServiceImpl implements SandboxService {
             throw new BusinessException(
                     ErrorCode.CONFLICT,
                     StrUtil.format(
-                            "该沙箱实例仍有 {} 个 MCP 部署在使用，请先取消相关订阅或删除 MCP 配置后再删除沙箱",
+                            "This sandbox instance is still used by {} MCP deployments. Cancel the"
+                                    + " related subscriptions or delete the MCP configs before"
+                                    + " deleting the sandbox",
                             activeEndpoints.size()));
         }
 
-        // 清除K8s client缓存
+        // Evict the K8s client cache when the sandbox is removed.
         if (StrUtil.isNotBlank(sandbox.getKubeConfig())) {
             K8sClientUtils.evictClient(sandbox.getKubeConfig());
         }
@@ -204,7 +214,7 @@ public class SandboxServiceImpl implements SandboxService {
     public SandboxResult healthCheck(String sandboxId) {
         SandboxInstance sandbox = findSandbox(sandboxId);
         healthCheckTask.checkOne(sandbox);
-        // 重新读取更新后的状态
+        // Reload the latest status after the health check updates the entity.
         sandbox = findSandbox(sandboxId);
         return new SandboxResult().convertFrom(sandbox);
     }
@@ -220,7 +230,11 @@ public class SandboxServiceImpl implements SandboxService {
                     .namespaces(K8sClientUtils.listNamespaces(client))
                     .build();
         } catch (Exception e) {
-            log.error("获取集群信息失败", e);
+            log.error(
+                    "Failed to fetch cluster information, errorType={}, errorMessage={}",
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             String errMsg = e.getMessage();
             if (errMsg == null || errMsg.isBlank()) {
                 errMsg = e.getClass().getSimpleName();
@@ -237,14 +251,15 @@ public class SandboxServiceImpl implements SandboxService {
     public List<String> listNamespaces(String sandboxId) {
         SandboxInstance sandbox = findSandbox(sandboxId);
         if (StrUtil.isBlank(sandbox.getKubeConfig())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "沙箱实例未配置 KubeConfig");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Sandbox instance has no KubeConfig");
         }
         try {
             KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
             return K8sClientUtils.listNamespaces(client);
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "获取 Namespace 列表失败: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR, "Failed to list namespaces: " + e.getMessage());
         }
     }
 
@@ -283,7 +298,8 @@ public class SandboxServiceImpl implements SandboxService {
 
             String adminId = contextHolder.getUser();
             if (StrUtil.isBlank(adminId)) {
-                throw new BusinessException(ErrorCode.UNAUTHORIZED, "未获取到当前用户信息");
+                throw new BusinessException(
+                        ErrorCode.UNAUTHORIZED, "Current user information is unavailable");
             }
             predicates.add(cb.equal(root.get("adminId"), adminId));
 

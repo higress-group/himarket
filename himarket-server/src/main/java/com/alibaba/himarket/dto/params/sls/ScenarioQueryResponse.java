@@ -28,8 +28,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 场景化查询统一响应封装 保留丰富格式： - LINE：使用已定义的 TimeSeriesChartResponse - CARD：使用轻量 POJO 列表而非 Map，提高类型明确性 -
- * TABLE：保留 List<Map<String, String>> 以支持动态列
+ * Unified response wrapper for scenario queries.
+ *
+ * <p>LINE responses use {@link TimeSeriesChartResponse}, CARD responses use typed statistic
+ * entries, and TABLE responses keep dynamic columns as {@code List<Map<String, String>>}.
  */
 @Data
 @Builder
@@ -37,16 +39,24 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ScenarioQueryResponse {
 
-    /** 展示类型 */
+    /**
+     * Display type.
+     */
     private SlsPresetSqlRegistry.DisplayType type;
 
-    /** 线图数据（当 type=LINE 时） */
+    /**
+     * Line chart data when type is LINE.
+     */
     private TimeSeriesChartResponse timeSeries;
 
-    /** 统计卡片数据（当 type=CARD 时） */
+    /**
+     * Statistic card data when type is CARD.
+     */
     private List<StatisticItem> stats;
 
-    /** 表格数据（当 type=TABLE 时） */
+    /**
+     * Table rows when type is TABLE.
+     */
     private List<Map<String, String>> table;
 
     @Data

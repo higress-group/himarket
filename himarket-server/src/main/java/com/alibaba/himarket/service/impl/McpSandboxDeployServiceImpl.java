@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * MCP 沙箱部署服务实现 — 根据沙箱类型分发到对应的部署策略。
+ * MCP sandbox deployment service that dispatches each request to the matching sandbox strategy.
  */
 @Service
 @Slf4j
@@ -56,13 +56,15 @@ public class McpSandboxDeployServiceImpl implements McpSandboxDeployService {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                ErrorCode.NOT_FOUND, "沙箱实例", sandboxId));
+                                                ErrorCode.NOT_FOUND,
+                                                "Sandbox instance",
+                                                sandboxId));
 
-        // 检查沙箱状态，ERROR 状态不允许部署
+        // Reject deployment when the sandbox is already in an error state.
         if ("ERROR".equals(sandbox.getStatus())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    "沙箱实例状态异常，无法部署: "
+                    "Sandbox status is ERROR and deployment cannot continue: "
                             + (sandbox.getStatusMessage() != null
                                     ? sandbox.getStatusMessage()
                                     : sandbox.getSandboxId()));
@@ -71,11 +73,12 @@ public class McpSandboxDeployServiceImpl implements McpSandboxDeployService {
         String sandboxType = sandbox.getSandboxType();
         McpSandboxDeployStrategy strategy = strategyMap.get(sandboxType);
         if (strategy == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "不支持的沙箱类型: " + sandboxType);
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Unsupported sandbox type: " + sandboxType);
         }
 
         log.info(
-                "[McpSandboxDeploy] sandboxId={}, type={}, strategy={}",
+                "Deploying MCP sandbox, sandboxId={}, sandboxType={}, strategy={}",
                 sandboxId,
                 sandboxType,
                 strategy.getClass().getSimpleName());
@@ -114,16 +117,19 @@ public class McpSandboxDeployServiceImpl implements McpSandboxDeployService {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                ErrorCode.NOT_FOUND, "沙箱实例", sandboxId));
+                                                ErrorCode.NOT_FOUND,
+                                                "Sandbox instance",
+                                                sandboxId));
 
         String sandboxType = sandbox.getSandboxType();
         McpSandboxDeployStrategy strategy = strategyMap.get(sandboxType);
         if (strategy == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "不支持的沙箱类型: " + sandboxType);
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Unsupported sandbox type: " + sandboxType);
         }
 
         log.info(
-                "[McpSandboxUndeploy] sandboxId={}, type={}, mcpName={}, userId={},"
+                "Undeploying MCP sandbox, sandboxId={}, sandboxType={}, mcpName={}, userId={},"
                         + " resourceName={}",
                 sandboxId,
                 sandboxType,
@@ -148,14 +154,17 @@ public class McpSandboxDeployServiceImpl implements McpSandboxDeployService {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                ErrorCode.NOT_FOUND, "沙箱实例", sandboxId));
+                                                ErrorCode.NOT_FOUND,
+                                                "Sandbox instance",
+                                                sandboxId));
         String sandboxType = sandbox.getSandboxType();
         McpSandboxDeployStrategy strategy = strategyMap.get(sandboxType);
         if (strategy == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "不支持的沙箱类型: " + sandboxType);
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Unsupported sandbox type: " + sandboxType);
         }
         log.info(
-                "[McpSandboxUndeploy] sandboxId={}, type={}, mcpName={}, userId={},"
+                "Undeploying MCP sandbox, sandboxId={}, sandboxType={}, mcpName={}, userId={},"
                         + " resourceName={}, secretName={}",
                 sandboxId,
                 sandboxType,

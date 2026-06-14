@@ -25,8 +25,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * MCP 沙箱场景的鉴权配置，保存 primary consumer 的鉴权信息。
- * 后续可传给沙箱用于 MCP Server 鉴权。
+ * Authentication config for MCP sandbox scenarios.
+ *
+ * <p>The primary consumer credential is stored here and can be passed to sandbox-hosted MCP servers
+ * for authentication.
  */
 @Data
 @Builder
@@ -34,18 +36,28 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class McpAuthConfig {
 
-    /** 鉴权方式：none / bearer */
+    /**
+     * Authentication type, such as none or bearer.
+     */
     private String authType;
 
-    /** 鉴权来源：Default（Header Bearer）、Header、QueryString */
+    /**
+     * Authentication source, such as Default, Header, or QueryString.
+     */
     private String source;
 
-    /** 请求头/参数名，如 Authorization */
+    /**
+     * Header or parameter name, such as Authorization.
+     */
     private String headerName;
 
-    /** API Key 值 */
+    /**
+     * API key value.
+     */
     private String apiKey;
 
-    /** consumer ID */
+    /**
+     * Consumer ID.
+     */
     private String consumerId;
 }

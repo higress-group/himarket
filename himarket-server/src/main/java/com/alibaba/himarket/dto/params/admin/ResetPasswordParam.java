@@ -21,7 +21,9 @@ package com.alibaba.himarket.dto.params.admin;
 
 import lombok.Data;
 
-/** 修改密码参数 */
+/**
+ * Password reset parameters.
+ */
 @Data
 public class ResetPasswordParam {
 

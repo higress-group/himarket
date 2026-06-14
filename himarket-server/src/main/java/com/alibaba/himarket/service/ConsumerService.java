@@ -36,7 +36,7 @@ import org.springframework.data.domain.Pageable;
 public interface ConsumerService {
 
     /**
-     * Create a consumer
+     * Creates a consumer.
      *
      * @param param consumer creation parameters
      * @return consumer result
@@ -44,7 +44,7 @@ public interface ConsumerService {
     ConsumerResult createConsumer(CreateConsumerParam param);
 
     /**
-     * Create a default consumer for a developer
+     * Creates a default consumer for a developer.
      *
      * @param param consumer creation parameters
      * @param developerId developer ID
@@ -52,101 +52,102 @@ public interface ConsumerService {
     void createConsumerInner(CreateConsumerParam param, String developerId);
 
     /**
-     * List consumers
+     * Lists consumers.
      *
-     * @param param
-     * @param pageable
-     * @return
+     * @param param consumer query parameters
+     * @param pageable pagination parameters
+     * @return paged consumer results
      */
     PageResult<ConsumerResult> listConsumers(QueryConsumerParam param, Pageable pageable);
 
     /**
-     * Get a consumer
+     * Gets a consumer.
      *
-     * @param consumerId
-     * @return
+     * @param consumerId consumer ID
+     * @return consumer information
      */
     ConsumerResult getConsumer(String consumerId);
 
     /**
-     * Delete a consumer
+     * Deletes a consumer.
      *
-     * @param consumerId
+     * @param consumerId consumer ID
      */
     void deleteConsumer(String consumerId);
 
     /**
-     * Add a credential to a consumer
+     * Adds a credential to a consumer.
      *
-     * @param consumerId
-     * @param param
+     * @param consumerId consumer ID
+     * @param param credential creation parameters
      */
     void createCredential(String consumerId, CreateCredentialParam param);
 
     /**
-     * Get a consumer's credential
+     * Gets a consumer credential.
      *
-     * @param consumerId
-     * @return
+     * @param consumerId consumer ID
+     * @return consumer credential information
      */
     ConsumerCredentialResult getCredential(String consumerId);
 
     /**
-     * Update a consumer's credential
+     * Updates a consumer credential.
      *
-     * @param consumerId
-     * @param param
+     * @param consumerId consumer ID
+     * @param param credential update parameters
      */
     void updateCredential(String consumerId, UpdateCredentialParam param);
 
     /**
-     * Delete a consumer's credential
+     * Deletes a consumer credential.
      *
-     * @param consumerId Consumer ID
+     * @param consumerId consumer ID
      */
     void deleteCredential(String consumerId);
 
     /**
-     * Subscribe a product by a consumer
+     * Subscribes a consumer to a product.
      *
-     * @param consumerId
-     * @param param
-     * @return
+     * @param consumerId consumer ID
+     * @param param subscription creation parameters
+     * @return created subscription information
      */
     SubscriptionResult subscribeProduct(String consumerId, CreateSubscriptionParam param);
 
     /**
-     * Unsubscribe a product
+     * Unsubscribes a consumer from a product.
      *
-     * @param consumerId Consumer ID
-     * @param subscriptionId Subscription ID (supports productId for backward compatibility)
+     * @param consumerId consumer ID
+     * @param subscriptionId subscription ID, or product ID for backward compatibility
      */
     void unsubscribeProduct(String consumerId, String subscriptionId);
 
     /**
-     * List subscriptions of a consumer
+     * Lists subscriptions of a consumer.
      *
-     * @param consumerId
-     * @param param
-     * @param pageable
-     * @return
+     * @param consumerId consumer ID
+     * @param param subscription query parameters
+     * @param pageable pagination parameters
+     * @return paged subscription results
      */
     PageResult<SubscriptionResult> listSubscriptions(
             String consumerId, QuerySubscriptionParam param, Pageable pageable);
 
     /**
-     * List subscriptions of a consumer
+     * Lists subscriptions of a consumer.
      *
-     * @param consumerId
-     * @return
+     * @param consumerId consumer ID
+     * @return subscription results
      */
     List<SubscriptionResult> listConsumerSubscriptions(String consumerId);
 
     /**
-     * Approve a subscription
+     * Approves a subscription.
      *
-     * @param consumerId Consumer ID
-     * @param subscriptionId Subscription ID (supports productId for backward compatibility)
+     * @param consumerId consumer ID
+     * @param subscriptionId subscription ID, or product ID for backward compatibility
+     * @return approved subscription information
      */
     SubscriptionResult approveSubscription(String consumerId, String subscriptionId);
 
@@ -160,25 +161,24 @@ public interface ConsumerService {
     CredentialContext getDefaultCredential(String developerId);
 
     /**
-     * Set primary consumer
+     * Sets the primary consumer.
      *
-     * @param consumerId Consumer ID
+     * @param consumerId consumer ID
      */
     void setPrimaryConsumer(String consumerId);
 
     /**
-     * Obtain primary consumer
+     * Gets the primary consumer.
      *
-     * @return ConsumerResult
+     * @return primary consumer information
      */
     ConsumerResult getPrimaryConsumer();
 
     /**
-     * Obtain primary consumer for the specified developer (used in async contexts
-     * where SecurityContext is not available).
+     * Gets the primary consumer for the specified developer.
      *
      * @param developerId developer ID
-     * @return ConsumerResult
+     * @return primary consumer information
      */
     ConsumerResult getPrimaryConsumer(String developerId);
 }

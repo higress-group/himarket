@@ -64,7 +64,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-/** 通用SLS日志查询服务实现 */
+/**
+ * Generic SLS log query service implementation.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -77,30 +79,39 @@ public class SlsLogServiceImpl implements SlsLogService {
 
     private final SlsConfig slsConfig;
 
-    /** Project存在性缓存，10分钟过期 */
+    /**
+     * Project existence cache, expiring after 10 minutes.
+     */
     private final Cache<String, Boolean> projectExistsCache =
             Caffeine.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).maximumSize(100).build();
 
-    /** Logstore存在性缓存，10分钟过期 */
+    /**
+     * Logstore existence cache, expiring after 10 minutes.
+     */
     private final Cache<String, Boolean> logstoreExistsCache =
             Caffeine.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).maximumSize(200).build();
 
-    /** 分词符常量 - 用于不同类型的字段索引 */
-    // 22个分词符（保守策略）：用于标识类字段（model、api、consumer、route_name等），保留完整标识，不拆分 -、_、.
+    /**
+     * Conservative tokenizer for identifier-like fields. It preserves separators such as hyphen,
+     * underscore, and dot inside identifiers.
+     */
     private static final List<String> TOKENS_22 =
             Arrays.asList(
                     ",", "'", "\"", ";", "=", "(", ")", "[", "]", "{", "}", "?", "@", "&", "<", ">",
                     "/", ":", "\n", "\t", "\r", " ");
 
-    // 26个分词符（完整策略）：用于路径、网络地址等字段，更全面的分词
+    /**
+     * Broader tokenizer for path and network-address fields.
+     */
     private static final List<String> TOKENS_26 =
             Arrays.asList(
                     ",", "'", "\"", ";", "\\", "$", "#", "|", "=", "\n", "\t", "\r", "!", "%", "&",
                     "*", "+", "-", ".", "/", ":", "<", ">", "?", "@", "[", "]", "^", "_", "{", "}",
                     " ");
 
-    /** 索引字段定义 - 集中管理所有需要建立索引的字段 */
-    // 文本类型字段
+    /**
+     * Text fields that require SLS index configuration.
+     */
     private static final String[] TEXT_FIELDS = {
         "_time_",
         "answer",
@@ -135,7 +146,9 @@ public class SlsLogServiceImpl implements SlsLogService {
         "__tag__:_cluster_id_"
     };
 
-    // 数值类型字段
+    /**
+     * Numeric fields that require SLS long index configuration.
+     */
     private static final String[] LONG_FIELDS = {
         "bytes_received",
         "bytes_sent",
@@ -152,34 +165,30 @@ public class SlsLogServiceImpl implements SlsLogService {
     public GenericSlsQueryResponse executeQuery(GenericSlsQueryRequest request) {
         long startTime = System.currentTimeMillis();
 
-        // 验证请求参数
         validateQueryRequest(request);
 
-        // 创建SLS客户端（根据配置文件自动选择认证方式）
         Client client = slsClientFactory.createClient(request.getUserId());
 
         String project = slsConfig.getDefaultProject();
         String logstore = slsConfig.getDefaultLogstore();
 
-        // 构建SQL并应用过滤条件和interval替换
         String finalSql = buildSqlWithFilters(request);
         finalSql = replaceSqlInterval(finalSql, request.getInterval());
         String scenario =
                 StringUtils.hasText(request.getScenario()) ? request.getScenario() : "custom";
 
         try {
-            // 检查project和logstore是否存在
             if (!isProjectExists(client, project)) {
-                log.warn("[SLS Query] Project not found: {}", project);
+                log.warn("SLS query project not found, project={}", project);
                 return buildEmptyResponse(request.getSql(), "Project not found: " + project);
             }
 
             if (!isLogstoreExists(client, project, logstore)) {
-                log.warn("[SLS Query] Logstore not found: {}/{}", project, logstore);
+                log.warn(
+                        "SLS query logstore not found, project={}, logstore={}", project, logstore);
                 return buildEmptyResponse(request.getSql(), "Logstore not found: " + logstore);
             }
 
-            // 执行查询
             GetLogsResponse response =
                     client.executeLogstoreSql(
                             project,
@@ -189,22 +198,12 @@ public class SlsLogServiceImpl implements SlsLogService {
                             finalSql,
                             false);
 
-            // 解析结果
             GenericSlsQueryResponse result = parseQueryResponse(response, request.getSql());
             result.setElapsedMillis(System.currentTimeMillis() - startTime);
 
-            // 统一打印一次查询结果日志
             log.info(
-                    "\n========== SLS Query Result ==========\n"
-                            + "Scenario: {}\n"
-                            + "Project: {}\n"
-                            + "Logstore: {}\n"
-                            + "Time Range: {} ~ {}\n"
-                            + "Result Count: {}\n"
-                            + "Elapsed: {}ms\n"
-                            + "Original SQL: {}\n"
-                            + "Final SQL: {}\n"
-                            + "======================================",
+                    "SLS query completed, scenario={}, project={}, logstore={}, fromTime={},"
+                            + " toTime={}, resultCount={}, elapsedMillis={}, sql={}, finalSql={}",
                     scenario,
                     project,
                     logstore,
@@ -219,14 +218,8 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         } catch (LogException e) {
             log.error(
-                    "\n========== SLS Query Failed ==========\n"
-                            + "Scenario: {}\n"
-                            + "Project: {}\n"
-                            + "Logstore: {}\n"
-                            + "Original SQL: {}\n"
-                            + "Final SQL: {}\n"
-                            + "Error: {}\n"
-                            + "======================================",
+                    "SLS query failed, scenario={}, project={}, logstore={}, sql={}, finalSql={},"
+                            + " errorMessage={}",
                     scenario,
                     project,
                     logstore,
@@ -241,7 +234,6 @@ public class SlsLogServiceImpl implements SlsLogService {
 
     @Override
     public GenericSlsQueryResponse executeQuery(SlsCommonQueryRequest request) {
-        // 将 SlsCommonQueryRequest 转换为 GenericSlsQueryRequest
         GenericSlsQueryRequest genericRequest = new GenericSlsQueryRequest();
         genericRequest.setUserId(request.getUserId());
         genericRequest.setFromTime(request.getFromTime());
@@ -256,7 +248,6 @@ public class SlsLogServiceImpl implements SlsLogService {
     @Override
     public Boolean checkProjectExists(SlsCheckProjectRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
-        // 如果传入了project参数，则检查指定的project；否则检查默认project
         String project =
                 StringUtils.hasText(request.getProject())
                         ? request.getProject()
@@ -267,12 +258,10 @@ public class SlsLogServiceImpl implements SlsLogService {
     @Override
     public Boolean checkLogstoreExists(SlsCheckLogstoreRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
-        // 如果传入了project参数，则使用指定的project；否则使用默认project
         String project =
                 StringUtils.hasText(request.getProject())
                         ? request.getProject()
                         : slsConfig.getDefaultProject();
-        // 如果传入了logstore参数，则检查指定的logstore；否则检查默认logstore
         String logstore =
                 StringUtils.hasText(request.getLogstore())
                         ? request.getLogstore()
@@ -280,7 +269,9 @@ public class SlsLogServiceImpl implements SlsLogService {
         return isLogstoreExists(client, project, logstore);
     }
 
-    /** 检查Project是否存在 */
+    /**
+     * Checks whether a project exists.
+     */
     private boolean isProjectExists(Client client, String project) {
         return Boolean.TRUE.equals(
                 projectExistsCache.get(
@@ -295,7 +286,9 @@ public class SlsLogServiceImpl implements SlsLogService {
                         }));
     }
 
-    /** 检查Logstore是否存在 */
+    /**
+     * Checks whether a logstore exists.
+     */
     private boolean isLogstoreExists(Client client, String project, String logstore) {
         String cacheKey = project + ":" + logstore;
         return Boolean.TRUE.equals(
@@ -311,7 +304,9 @@ public class SlsLogServiceImpl implements SlsLogService {
                         }));
     }
 
-    /** 解析查询响应 */
+    /**
+     * Parses an SLS query response into the generic response model.
+     */
     private GenericSlsQueryResponse parseQueryResponse(GetLogsResponse response, String sql) {
         List<Map<String, String>> logs = new ArrayList<>();
         List<Map<String, String>> aggregations = new ArrayList<>();
@@ -329,7 +324,6 @@ public class SlsLogServiceImpl implements SlsLogService {
             }
 
             if (!logMap.isEmpty()) {
-                // 判断是否为聚合结果（通常聚合结果没有__time__字段）
                 if (logMap.containsKey("__time__") || logMap.containsKey("time")) {
                     logs.add(logMap);
                 } else {
@@ -348,7 +342,9 @@ public class SlsLogServiceImpl implements SlsLogService {
                 .build();
     }
 
-    /** 构建空响应 */
+    /**
+     * Builds an empty successful response for unavailable SLS resources.
+     */
     private GenericSlsQueryResponse buildEmptyResponse(String sql, String message) {
         return GenericSlsQueryResponse.builder()
                 .success(true)
@@ -360,7 +356,9 @@ public class SlsLogServiceImpl implements SlsLogService {
                 .build();
     }
 
-    /** 构建错误响应 */
+    /**
+     * Builds an error response.
+     */
     private GenericSlsQueryResponse buildErrorResponse(
             String sql, String errorMessage, long elapsed) {
         return GenericSlsQueryResponse.builder()
@@ -372,25 +370,25 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 替换SQL中的interval占位符
+     * Replaces the interval placeholder in SQL.
      *
-     * @param sql 原始SQL
-     * @param interval 时间间隔（秒），为null时默认15秒
-     * @return 替换后的SQL
+     * @param sql original SQL
+     * @param interval interval in seconds, defaulting to 15 when null
+     * @return SQL with interval placeholders replaced
      */
     private String replaceSqlInterval(String sql, Integer interval) {
         if (sql == null || !sql.contains("{interval}")) {
             return sql;
         }
-        // 默认15秒
         int actualInterval = (interval != null && interval > 0) ? interval : 15;
         return sql.replace("{interval}", String.valueOf(actualInterval));
     }
 
-    /** 验证查询请求参数 */
+    /**
+     * Validates and normalizes query request parameters.
+     */
     private void validateQueryRequest(GenericSlsQueryRequest request) {
 
-        // 验证认证参数（仅当配置为STS时需要userId）
         if (slsConfig.getAuthType() == SlsAuthType.STS) {
             if (!StringUtils.hasText(request.getUserId())) {
                 throw new BusinessException(
@@ -402,7 +400,6 @@ public class SlsLogServiceImpl implements SlsLogService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "SQL cannot be empty");
         }
 
-        // 处理时间区间：优先使用 fromTime/toTime；若为空则解析 startTime/endTime（支持 ISO 8601）
         if (request.getFromTime() == null || request.getToTime() == null) {
             if (StringUtils.hasText(request.getStartTime())
                     && StringUtils.hasText(request.getEndTime())) {
@@ -430,32 +427,35 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 解析字符串时间为 Unix 秒，支持： - ISO 8601（如：2025-11-08T17:18:08.762Z、2025-11-08T17:18:08+08:00） -
-     * 本地时间格式（yyyy-MM-dd HH:mm:ss，按系统时区解析）
+     * Parses a time string to Unix epoch seconds.
+     *
+     * <p>Supported formats are ISO 8601 timestamps and local yyyy-MM-dd HH:mm:ss values parsed in
+     * the system time zone.
      */
     private int parseToEpochSeconds(String timeStr) {
-        // 优先尝试 ISO 8601（UTC Z）
         try {
             if (timeStr.endsWith("Z")) {
                 return (int) Instant.parse(timeStr).getEpochSecond();
             }
         } catch (Exception ignored) {
         }
-        // 尝试 ISO 8601（带偏移）
         try {
             if (timeStr.contains("T")) {
                 return (int) OffsetDateTime.parse(timeStr).toEpochSecond();
             }
         } catch (Exception ignored) {
         }
-        // 回退到本地时间格式
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         LocalDateTime ldt = LocalDateTime.parse(timeStr, formatter);
         return (int) ldt.atZone(ZoneId.systemDefault()).toEpochSecond();
     }
 
     /**
-     * 将通用过滤参数合并到SQL的检索段,保持select部分不变 示例SQL结构:(<检索段>) | select <统计语句> 支持数组过滤条件,使用OR语句拼接,并添加字段存在性检查
+     * Merges generic filter parameters into the SQL search segment while preserving the select
+     * segment.
+     *
+     * <p>Expected SQL shape: {@code (<search segment>) | select <aggregation statement>}. Array
+     * filters are joined with OR and include field-existence checks.
      */
     private String buildSqlWithFilters(GenericSlsQueryRequest request) {
         String sql = request.getSql();
@@ -464,7 +464,6 @@ public class SlsLogServiceImpl implements SlsLogService {
         }
         String[] parts = sql.split("\\|", 2);
         if (parts.length < 2) {
-            // 没有检索段,直接返回原SQL
             return sql;
         }
         String searchPart = parts[0].trim();
@@ -472,60 +471,58 @@ public class SlsLogServiceImpl implements SlsLogService {
 
         List<String> filters = new ArrayList<>();
 
-        // cluster_id => cluster_id(精确匹配,支持OR)
+        // clusterId maps to cluster_id.
         if (request.getClusterId() != null && request.getClusterId().length > 0) {
             filters.add(buildOrFilter("cluster_id", request.getClusterId()));
         }
 
-        // api => ai_log.api(精确匹配,支持OR)
+        // api maps to ai_log.api.
         if (request.getApi() != null && request.getApi().length > 0) {
             filters.add(buildOrFilter("ai_log.api", request.getApi()));
         }
 
-        // model => ai_log.model(精确匹配,支持OR)
+        // model maps to ai_log.model.
         if (request.getModel() != null && request.getModel().length > 0) {
             filters.add(buildOrFilter("ai_log.model", request.getModel()));
         }
 
-        // consumer => consumer(顶层字段,精确匹配,支持OR)
+        // consumer maps to the top-level consumer field.
         if (request.getConsumer() != null && request.getConsumer().length > 0) {
             filters.add(buildOrFilter("consumer", request.getConsumer()));
         }
 
-        // route => route_name(精确匹配,支持OR)
+        // route maps to route_name.
         if (request.getRoute() != null && request.getRoute().length > 0) {
             filters.add(buildOrFilter("route_name", request.getRoute()));
         }
 
-        // route_name => route_name(兼容MCP监控前端传参)
+        // routeName is kept for MCP monitoring frontend compatibility.
         if (request.getRouteName() != null && request.getRouteName().length > 0) {
             filters.add(buildOrFilter("route_name", request.getRouteName()));
         }
 
-        // service => upstream_cluster(精确匹配,支持OR)
+        // service maps to upstream_cluster.
         if (request.getService() != null && request.getService().length > 0) {
             filters.add(buildOrFilter("upstream_cluster", request.getService()));
         }
 
-        // upstream_cluster => upstream_cluster(兼容MCP监控前端传参)
+        // upstreamCluster is kept for MCP monitoring frontend compatibility.
         if (request.getUpstreamCluster() != null && request.getUpstreamCluster().length > 0) {
             filters.add(buildOrFilter("upstream_cluster", request.getUpstreamCluster()));
         }
 
-        // mcp_tool_name => ai_log.mcp_tool_name(兼容MCP监控前端传参)
+        // mcpToolName is kept for MCP monitoring frontend compatibility.
         if (request.getMcpToolName() != null && request.getMcpToolName().length > 0) {
             filters.add(buildOrFilter("ai_log.mcp_tool_name", request.getMcpToolName()));
         }
 
         String merged = StringUtils.hasText(searchPart) ? searchPart : "(*)";
 
-        // 将所有过滤条件用 and 连接,并用括号包裹以保持优先级
         if (!filters.isEmpty()) {
             String allFilters = "(" + String.join(" and ", filters) + ")";
             merged = "(" + merged + ")" + "and " + allFilters;
         }
 
-        // 追加limit限制,避免返回过多数据
         String lowerSelect = selectPart.toLowerCase(Locale.ROOT);
         int defaultLimit = 1000;
         int maxLimit = 5000;
@@ -537,11 +534,11 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 构建OR过滤条件，并添加字段存在性检查
+     * Builds an OR filter condition with a field-existence check.
      *
-     * @param field 字段名
-     * @param values 值数组
-     * @return OR过滤条件字符串，例如：((field: "value1" OR field: "value2") and field: *)
+     * @param field field name
+     * @param values filter values
+     * @return OR filter condition, such as ((field: "value1" OR field: "value2") and field: *)
      */
     private String buildOrFilter(String field, String[] values) {
         if (values == null || values.length == 0) {
@@ -558,21 +555,18 @@ public class SlsLogServiceImpl implements SlsLogService {
             return "";
         }
 
-        // 单个值：(field: "value" and field: *)
-        // 多个值：((field: "value1" OR field: "value2") and field: *)
         String orCondition =
                 conditions.size() == 1
                         ? conditions.get(0)
                         : "(" + String.join(" OR ", conditions) + ")";
 
-        // 添加字段存在性检查
         return "(" + orCondition + " and " + field + ": *)";
     }
 
     /**
-     * 为全局日志的 logstore 更新索引 使用配置中心的 project 和 logstore
+     * Updates indexes for the configured global log logstore.
      *
-     * @param userId 用户ID（用于STS认证）
+     * @param userId user ID used when STS authentication is enabled
      */
     @Override
     public void updateLogIndex(String userId) {
@@ -580,47 +574,49 @@ public class SlsLogServiceImpl implements SlsLogService {
         String logstore = slsConfig.getDefaultLogstore();
 
         if (!StringUtils.hasText(project) || !StringUtils.hasText(logstore)) {
-            log.warn("[Global Log Index] Project or Logstore not configured, skip index update");
+            log.warn("SLS global log index update skipped because project or logstore is missing");
             return;
         }
 
         try {
             Client client = slsClientFactory.createClient(userId);
 
-            // 检查 project 和 logstore 是否存在
             if (!isProjectExists(client, project)) {
-                log.warn("[Global Log Index] Project not found: {}, skip index update", project);
+                log.warn(
+                        "SLS global log index update skipped because project was not found,"
+                                + " project={}",
+                        project);
                 return;
             }
 
             if (!isLogstoreExists(client, project, logstore)) {
                 log.warn(
-                        "[Global Log Index] Logstore not found: {}/{}, skip index update",
+                        "SLS global log index update skipped because logstore was not found,"
+                                + " project={}, logstore={}",
                         project,
                         logstore);
                 return;
             }
 
-            log.info(
-                    "[Global Log Index] Updating index for project: {}, logstore: {}",
-                    project,
-                    logstore);
+            log.info("Updating SLS global log index, project={}, logstore={}", project, logstore);
             addGlobalLogIndex(client, project, logstore);
-            log.info(
-                    "[Global Log Index] Successfully updated index for project: {}, logstore: {}",
-                    project,
-                    logstore);
+            log.info("Updated SLS global log index, project={}, logstore={}", project, logstore);
 
         } catch (Exception e) {
             log.error(
-                    "[Global Log Index] Failed to update index for project: {}, logstore: {}",
+                    "Failed to update SLS global log index, project={}, logstore={},"
+                            + " errorMessage={}",
                     project,
                     logstore,
+                    e.getMessage(),
                     e);
         }
     }
 
-    /** 为全局日志 logstore 添加或更新索引 包含 ai_log（JSON显式子字段索引）以及其他必要字段的索引配置 */
+    /**
+     * Adds or updates indexes for the global log logstore, including explicit ai_log JSON
+     * sub-field indexes.
+     */
     private void addGlobalLogIndex(Client client, String project, String logstore) {
         Index index;
         boolean indexExists = false;
@@ -633,17 +629,15 @@ public class SlsLogServiceImpl implements SlsLogService {
             index = new Index();
         }
 
-        // 如果索引已存在，检查所有必要字段是否都已配置
         if (indexExists && isAllRequiredIndexesConfigured(index)) {
             log.info(
-                    "[Global Log Index] All required indexes already configured for {}/{}, skip"
-                            + " update",
+                    "SLS global log indexes already configured, skipping update, project={},"
+                            + " logstore={}",
                     project,
                     logstore);
             return;
         }
 
-        // 设置全文索引（如果索引不存在），使用22个分词符
         if (!indexExists) {
             IndexLine indexLine = new IndexLine();
             indexLine.SetCaseSensitive(false);
@@ -656,15 +650,12 @@ public class SlsLogServiceImpl implements SlsLogService {
             indexKeys = new IndexKeys();
         }
 
-        // ai_log - JSON类型字段，显式配置子字段索引和统计
         addAiLogJsonIndex(indexKeys);
 
-        // 批量添加文本字段索引
         for (String field : TEXT_FIELDS) {
             addTextIndexIfNotExists(indexKeys, field);
         }
 
-        // 批量添加数值字段索引
         for (String field : LONG_FIELDS) {
             addLongIndexIfNotExists(indexKeys, field);
         }
@@ -675,25 +666,28 @@ public class SlsLogServiceImpl implements SlsLogService {
         try {
             if (indexExists) {
                 client.UpdateIndex(project, logstore, index);
-                log.info("[Global Log Index] Updated existing index for {}/{}", project, logstore);
+                log.info("Updated existing SLS index, project={}, logstore={}", project, logstore);
             } else {
                 client.CreateIndex(project, logstore, index);
-                log.info("[Global Log Index] Created new index for {}/{}", project, logstore);
+                log.info("Created new SLS index, project={}, logstore={}", project, logstore);
             }
         } catch (LogException e) {
             log.error(
-                    "[Global Log Index] Failed to create or update index for logstore: {}",
+                    "Failed to create or update SLS index, project={}, logstore={},"
+                            + " errorMessage={}",
+                    project,
                     logstore,
+                    e.getMessage(),
                     e);
-            throw new RuntimeException("Failed to create or update index", e);
+            throw new RuntimeException("Failed to create or update index: " + e.getMessage(), e);
         }
     }
 
     /**
-     * 检查所有必要的索引字段是否都已配置
+     * Checks whether all required index fields are configured.
      *
-     * @param index 当前索引配置
-     * @return true 如果所有必要字段都已配置，false 否则
+     * @param index current index configuration
+     * @return true when all required fields are configured
      */
     private boolean isAllRequiredIndexesConfigured(Index index) {
         IndexKeys indexKeys = index.GetKeys();
@@ -706,18 +700,14 @@ public class SlsLogServiceImpl implements SlsLogService {
             return false;
         }
 
-        // 收集代码中定义的所有必要字段
-        // 这个方法会在实际添加索引的逻辑中调用，确保字段列表与实际添加的字段保持同步
         Set<String> definedFields = getDefinedIndexFields();
 
-        // 检查所有定义的字段是否都存在于现有索引中
         for (String field : definedFields) {
             if (!keys.containsKey(field)) {
                 return false;
             }
         }
 
-        // 特别检查 ai_log 是否为 JSON 类型索引
         IndexKey aiLogKey = keys.get("ai_log");
         if (!(aiLogKey instanceof IndexJsonKey)) {
             return false;
@@ -727,10 +717,10 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 添加文本类型字段索引（如果不存在） 根据字段类型使用不同的分词符策略
+     * Adds a text field index when it does not already exist.
      *
-     * @param indexKeys 索引键集合
-     * @param fieldName 字段名称
+     * @param indexKeys index key collection
+     * @param fieldName field name
      */
     private void addTextIndexIfNotExists(IndexKeys indexKeys, String fieldName) {
         Map<String, IndexKey> keys = indexKeys.GetKeys();
@@ -744,16 +734,17 @@ public class SlsLogServiceImpl implements SlsLogService {
         key.SetCaseSensitive(false);
         key.SetChn(false);
 
-        // 根据字段类型选择合适的分词符
         List<String> tokens = getTokensForField(fieldName);
         key.SetToken(tokens);
 
         indexKeys.AddKey(fieldName, key);
     }
 
-    /** 根据字段名称返回对应的分词符策略 */
+    /**
+     * Returns the tokenizer strategy for a field.
+     */
     private List<String> getTokensForField(String fieldName) {
-        // IP/网络地址类字段、路径类字段 - 使用26个分词符（完整策略）
+        // Use the broader tokenizer for IP, network address, and path fields.
         if ("x_forwarded_for".equals(fieldName)
                 || "downstream_local_address".equals(fieldName)
                 || "downstream_remote_address".equals(fieldName)
@@ -764,17 +755,16 @@ public class SlsLogServiceImpl implements SlsLogService {
             return TOKENS_26;
         }
 
-        // 标识类字段 - 使用22个分词符（保守策略），保留 -、_、. 等标识符内部字符
-        // 包括：route_name, upstream_cluster, consumer, cluster_id, authority,
-        //      requested_server_name, method, protocol, trace_id, request_id 等
+        // Use the conservative tokenizer for identifier-like fields such as route_name,
+        // upstream_cluster, consumer, cluster_id, authority, trace_id, and request_id.
         return TOKENS_22;
     }
 
     /**
-     * 添加数值类型（long）字段索引（如果不存在）
+     * Adds a long field index when it does not already exist.
      *
-     * @param indexKeys 索引键集合
-     * @param fieldName 字段名称
+     * @param indexKeys index key collection
+     * @param fieldName field name
      */
     private void addLongIndexIfNotExists(IndexKeys indexKeys, String fieldName) {
         Map<String, IndexKey> keys = indexKeys.GetKeys();
@@ -789,9 +779,9 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 为 ai_log JSON 字段添加显式子字段索引配置
+     * Adds explicit sub-field index configuration for the ai_log JSON field.
      *
-     * @param indexKeys 索引键集合
+     * @param indexKeys index key collection
      */
     private void addAiLogJsonIndex(IndexKeys indexKeys) {
         Map<String, IndexKey> keys = indexKeys.GetKeys();
@@ -800,7 +790,6 @@ public class SlsLogServiceImpl implements SlsLogService {
         }
 
         IndexJsonKey jsonKey = new IndexJsonKey();
-        // ai_log 可能存在自定义扩展字段
         jsonKey.setIndexAll(true);
         jsonKey.setMaxDepth(2);
         jsonKey.SetDocValue(true);
@@ -808,10 +797,8 @@ public class SlsLogServiceImpl implements SlsLogService {
         jsonKey.SetChn(false);
         jsonKey.SetToken(TOKENS_26);
 
-        // 配置 ai_log 的子字段索引
         IndexKeys subIndexKeys = new IndexKeys();
 
-        // 文本类型子字段
         addJsonSubField(subIndexKeys, "api", "text");
         addJsonSubField(subIndexKeys, "cache_status", "text");
         addJsonSubField(subIndexKeys, "consumer", "text");
@@ -822,7 +809,6 @@ public class SlsLogServiceImpl implements SlsLogService {
         addJsonSubField(subIndexKeys, "safecheck_status", "text");
         addJsonSubField(subIndexKeys, "token_ratelimit_status", "text");
 
-        // 数值类型子字段
         addJsonSubField(subIndexKeys, "input_token", "long");
         addJsonSubField(subIndexKeys, "llm_first_token_duration", "long");
         addJsonSubField(subIndexKeys, "llm_service_duration", "long");
@@ -831,16 +817,16 @@ public class SlsLogServiceImpl implements SlsLogService {
         jsonKey.setJsonKeys(subIndexKeys);
         indexKeys.AddKey("ai_log", jsonKey);
         log.info(
-                "[Global Log Index] Added JSON index with {} explicit sub-fields for field: ai_log",
+                "Added SLS JSON index, field=ai_log, subFieldCount={}",
                 subIndexKeys.GetKeys().size());
     }
 
     /**
-     * 为JSON字段添加子字段索引（通用方法）
+     * Adds a JSON sub-field index.
      *
-     * @param indexKeys 索引键集合
-     * @param fieldName 字段名称
-     * @param type 字段类型（text/long）
+     * @param indexKeys index key collection
+     * @param fieldName field name
+     * @param type field type, such as text or long
      */
     private void addJsonSubField(IndexKeys indexKeys, String fieldName, String type) {
         IndexKey key = new IndexKey();
@@ -856,20 +842,17 @@ public class SlsLogServiceImpl implements SlsLogService {
     }
 
     /**
-     * 获取代码中定义的所有索引字段名称 这个列表应该与 addGlobalLogIndex() 方法中实际添加的字段保持一致
+     * Returns all index field names defined in code.
      *
-     * @return 所有索引字段名称的集合
+     * @return index field names
      */
     private Set<String> getDefinedIndexFields() {
         Set<String> fields = new HashSet<>();
 
-        // JSON字段
         fields.add("ai_log");
 
-        // 文本字段
         fields.addAll(Arrays.asList(TEXT_FIELDS));
 
-        // 数值字段
         fields.addAll(Arrays.asList(LONG_FIELDS));
 
         return fields;

@@ -6,71 +6,103 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 外部/用户注册 MCP Server 参数。
+ * Parameters for external or user-initiated MCP Server registration.
  *
- * <p>不需要传 productId，系统会自动创建同名 Product。
+ * <p>productId is not required because the system creates a Product with the same name.
  */
 @Data
 public class RegisterMcpParam {
 
-    @NotBlank(message = "MCP 英文名称不能为空")
-    @Size(max = 63, message = "不超过 63 个字符")
-    @Pattern(regexp = "^[a-z][a-z0-9-]*$", message = "小写字母开头，仅含小写字母、数字、连字符")
+    @NotBlank(message = "MCP name is required")
+    @Size(max = 63, message = "MCP name must be at most 63 characters")
+    @Pattern(
+            regexp = "^[a-z][a-z0-9-]*$",
+            message =
+                    "MCP name must start with a lowercase letter and contain only lowercase"
+                            + " letters, digits, and hyphens")
     private String mcpName;
 
-    @NotBlank(message = "MCP 展示名称不能为空")
-    @Size(max = 128, message = "不超过 128 个字符")
+    @NotBlank(message = "MCP display name is required")
+    @Size(max = 128, message = "MCP display name must be at most 128 characters")
     private String displayName;
 
     private String description;
 
     private String repoUrl;
 
-    /** JSON 字符串 */
+    /**
+     * Tags JSON string.
+     */
     private String tags;
 
-    /** JSON 字符串：{ type: "URL", url: "..." } 或 { type: "BASE64", data: "..." } */
+    /**
+     * Icon JSON string, such as { type: "URL", url: "..." } or { type: "BASE64", data: "..." }.
+     */
     private String icon;
 
-    /** 来源标识：OPEN_API（默认）/ AGENTRUNTIME 等 */
+    /**
+     * Origin identifier, such as OPEN_API or AGENTRUNTIME.
+     */
     private String origin;
 
-    /** 外部系统的用户ID，存入 createdBy 字段 */
+    /**
+     * External system user ID stored in createdBy.
+     */
     private String createdBy;
 
-    @NotBlank(message = "协议类型不能为空")
+    @NotBlank(message = "Protocol type is required")
     private String protocolType;
 
-    @NotBlank(message = "连接配置不能为空")
+    @NotBlank(message = "Connection config is required")
     private String connectionConfig;
 
-    /** JSON 字符串：额外参数定义 */
+    /**
+     * Extra parameter definition JSON string.
+     */
     private String extraParams;
 
-    /** Markdown 格式的服务介绍 */
+    /**
+     * Service introduction in Markdown format.
+     */
     private String serviceIntro;
 
-    /** 可见性：PUBLIC / PRIVATE，默认 PUBLIC */
+    /**
+     * Visibility, such as PUBLIC or PRIVATE.
+     */
     private String visibility;
 
-    /** 发布状态：DRAFT / PUBLISHED，默认 PUBLISHED */
+    /**
+     * Publish status, such as DRAFT or PUBLISHED.
+     */
     private String publishStatus;
 
-    /** JSON 字符串：工具配置 */
+    /**
+     * Tools config JSON string.
+     */
     private String toolsConfig;
 
-    /** 是否需要沙箱托管 */
+    /**
+     * Whether sandbox hosting is required.
+     */
     private Boolean sandboxRequired;
 
-    /** 沙箱ID（sandboxRequired=true 时使用） */
+    /**
+     * Sandbox ID used when sandboxRequired is true.
+     */
     private String sandboxId;
 
-    /** 传输协议：sse / http（sandboxRequired=true 时使用） */
+    /**
+     * Transport protocol, such as sse or http, used when sandboxRequired is true.
+     */
     private String transportType;
 
-    /** 鉴权方式：none / bearer */
+    /**
+     * Authentication type, such as none or bearer.
+     */
     private String authType;
 
-    /** 参数实际值 JSON（如 {"API_KEY":"sk-xxx"}） */
+    /**
+     * Actual parameter values JSON.
+     */
     private String paramValues;
 }

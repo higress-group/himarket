@@ -22,46 +22,48 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 
-/** 管理员服务接口，定义管理员相关的核心操作方法 */
+/**
+ * Administrator service.
+ */
 public interface AdministratorService {
 
     /**
-     * 管理员登录
+     * Logs in an administrator.
      *
-     * @param username
-     * @param password
-     * @return
+     * @param username administrator username
+     * @param password administrator password
+     * @return authentication result
      */
     AuthResult login(String username, String password);
 
     /**
-     * 管理员修改密码
+     * Resets the administrator password.
      *
-     * @param oldPassword 旧密码
-     * @param newPassword 新密码
+     * @param oldPassword current password
+     * @param newPassword new password
      */
     void resetPassword(String oldPassword, String newPassword);
 
     /**
-     * 检查指定portalId下是否需要初始化管理员
+     * Checks whether the administrator needs initialization.
      *
-     * @return 是否需要初始化管理员
+     * @return true if initialization is required
      */
     boolean needInit();
 
     /**
-     * 初始化管理员，仅允许首次调用
+     * Initializes the administrator. This is only allowed for the first setup.
      *
-     * @param username 管理员用户名
-     * @param password 管理员密码
-     * @return 初始化成功的管理员信息
+     * @param username administrator username
+     * @param password administrator password
+     * @return initialized administrator information
      */
     AdminResult initAdmin(String username, String password);
 
     /**
-     * 获取当前登录管理员信息
+     * Gets the current administrator information.
      *
-     * @return
+     * @return administrator information
      */
     AdminResult getAdministrator();
 }

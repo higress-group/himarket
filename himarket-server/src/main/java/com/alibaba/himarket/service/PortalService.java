@@ -28,8 +28,6 @@ import com.alibaba.himarket.dto.result.portal.PortalProfileResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
-import com.alibaba.himarket.support.enums.SearchEngineType;
-import com.alibaba.himarket.support.portal.SearchEngineConfig;
 import org.springframework.data.domain.Pageable;
 
 public interface PortalService {
@@ -141,22 +139,4 @@ public interface PortalService {
      * @return the default portal ID or null if not found
      */
     String getDefaultPortal();
-
-    /**
-     * Get API Key by engine type for search functionality.
-     *
-     * @param portalId   the portal ID
-     * @param engineType the search engine type
-     * @return the API Key (automatically decrypted)
-     * @throws com.alibaba.himarket.core.exception.BusinessException if search engine is not configured or disabled
-     */
-    String getSearchEngineApiKey(String portalId, SearchEngineType engineType);
-
-    /**
-     * Get search engine configuration for portal (for developer queries)
-     *
-     * @param portalId the portal ID
-     * @return the search engine configuration, or null if not configured
-     */
-    SearchEngineConfig getSearchEngineConfig(String portalId);
 }

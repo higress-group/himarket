@@ -12,14 +12,14 @@ import org.springframework.web.socket.WebSocketSession;
 import reactor.core.Disposable;
 
 /**
- * 前端 ↔ CLI 双向消息路由器。
+ * Bidirectional message router between frontend and CLI.
  *
- * <p>从 HiCodingWebSocketHandler 中提取消息转发逻辑，职责包括：
+ * <p>Extracts message forwarding logic from HiCodingWebSocketHandler. Responsibilities include:
  *
  * <ul>
- *   <li>订阅 CLI stdout 流并转发到前端 WebSocket
- *   <li>将前端消息转发到 CLI 进程
- *   <li>回放初始化期间缓存的待转发消息
+ *   <li>subscribing to the CLI stdout stream and forwarding it to the frontend WebSocket
+ *   <li>forwarding frontend messages to the CLI process
+ *   <li>replaying messages queued during initialization
  * </ul>
  */
 @Component
@@ -28,14 +28,14 @@ public class HiCodingMessageRouter {
     private static final Logger logger = LoggerFactory.getLogger(HiCodingMessageRouter.class);
 
     /**
-     * 订阅 CLI stdout 并转发到前端 WebSocket。
+     * Subscribes to CLI stdout and forwards it to the frontend WebSocket.
      *
-     * <p>从 HiCodingWebSocketHandler.initSandboxAsync() 中提取的 stdout 订阅逻辑。 当 stdout
-     * 流完成时，会自动关闭对应的 WebSocket session。
+     * <p>Extracted from HiCodingWebSocketHandler.initSandboxAsync(). When the stdout stream
+     * completes, the corresponding WebSocket session is closed automatically.
      *
-     * @param adapter CLI 运行时适配器
-     * @param session 前端 WebSocket session
-     * @return Disposable 订阅句柄（用于取消订阅）
+     * @param adapter CLI runtime adapter
+     * @param session frontend WebSocket session
+     * @return Disposable subscription handle used for cancellation
      */
     public Disposable subscribeAndForward(RuntimeAdapter adapter, WebSocketSession session) {
         return adapter.stdout()
@@ -43,41 +43,48 @@ public class HiCodingMessageRouter {
                         line -> sendToFrontend(session, line),
                         error ->
                                 logger.error(
-                                        "Stdout stream error for session {}",
+                                        "Stdout stream error, sessionId={}, errorMessage={}",
                                         session.getId(),
+                                        error.getMessage(),
                                         error),
                         () -> {
-                            logger.info("Stdout stream completed for session {}", session.getId());
+                            logger.info("Stdout stream completed, sessionId={}", session.getId());
                             try {
                                 if (session.isOpen()) {
                                     session.close(CloseStatus.NORMAL);
                                 }
                             } catch (IOException e) {
-                                logger.debug("Error closing WebSocket after stdout completion", e);
+                                logger.debug(
+                                        "Failed to close WebSocket after stdout completion,"
+                                                + " sessionId={}, errorMessage={}",
+                                        session.getId(),
+                                        e.getMessage(),
+                                        e);
                             }
                         });
     }
 
     /**
-     * 将前端消息转发到 CLI 进程。
+     * Forwards a frontend message to the CLI process.
      *
-     * @param adapter CLI 运行时适配器
-     * @param message 前端发送的消息内容
-     * @throws IOException 发送失败时抛出
+     * @param adapter CLI runtime adapter
+     * @param message message content sent by the frontend
+     * @throws IOException when sending fails
      */
     public void forwardToCliAgent(RuntimeAdapter adapter, String message) throws IOException {
         adapter.send(message);
     }
 
     /**
-     * 回放初始化期间缓存的待转发消息。
+     * Replays messages queued during initialization.
      *
-     * <p>从 HiCodingWebSocketHandler.replayPendingMessages() 迁移。 注意：本方法直接回放消息，不做消息变换。
-     * 如需对消息进行重写（如 rewriteSessionNewCwd），由调用方在入队前或调用前处理。
+     * <p>Migrated from HiCodingWebSocketHandler.replayPendingMessages(). This method replays
+     * messages directly without transformation. Callers should rewrite messages, such as applying
+     * rewriteSessionNewCwd, before enqueueing or before calling this method.
      *
-     * @param session 前端 WebSocket session（用于日志记录）
-     * @param adapter CLI 运行时适配器
-     * @param pending 待回放的消息队列
+     * @param session frontend WebSocket session used for logging
+     * @param adapter CLI runtime adapter
+     * @param pending queued messages to replay
      */
     public void replayPendingMessages(
             WebSocketSession session, RuntimeAdapter adapter, Queue<String> pending) {
@@ -89,18 +96,22 @@ public class HiCodingMessageRouter {
             try {
                 adapter.send(queued);
             } catch (IOException e) {
-                logger.error("Error replaying queued message for session {}", session.getId(), e);
+                logger.error(
+                        "Failed to replay queued message, sessionId={}, errorMessage={}",
+                        session.getId(),
+                        e.getMessage(),
+                        e);
             }
         }
     }
 
     /**
-     * 将消息发送到前端 WebSocket session。
+     * Sends a message to the frontend WebSocket session.
      *
-     * <p>使用 synchronized 保证同一 session 的消息发送顺序。
+     * <p>Uses synchronized to preserve message ordering for the same session.
      *
-     * @param session 前端 WebSocket session
-     * @param message 要发送的消息内容
+     * @param session frontend WebSocket session
+     * @param message message content to send
      */
     private void sendToFrontend(WebSocketSession session, String message) {
         try {
@@ -110,7 +121,11 @@ public class HiCodingMessageRouter {
                 }
             }
         } catch (IOException e) {
-            logger.error("Error sending message to WebSocket", e);
+            logger.error(
+                    "Failed to send message to WebSocket, sessionId={}, errorMessage={}",
+                    session.getId(),
+                    e.getMessage(),
+                    e);
         }
     }
 }

@@ -33,12 +33,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ImportResult {
 
-    /** Resource type: "skill" or "worker" */
+    /**
+     * Resource type, such as skill or worker.
+     */
     private String resourceType;
 
-    /** Number of successfully imported resources */
+    /**
+     * Number of successfully imported resources.
+     */
     private int successCount;
 
-    /** Number of skipped resources (already exist) */
+    /**
+     * Number of skipped resources.
+     */
     private int skippedCount;
 }

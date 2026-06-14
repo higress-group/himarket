@@ -62,7 +62,7 @@ public class SlsController {
         // Gracefully degrade when SLS is not configured to avoid noisy error logs.
         if (!slsConfig.isConfigured()) {
             log.debug(
-                    "SLS endpoint not configured, returning empty result for scenario: {}",
+                    "SLS endpoint is not configured, returning empty result, scenario={}",
                     request.getScenario());
             return buildEmptyResponse(request.getScenario());
         }
@@ -70,7 +70,7 @@ public class SlsController {
         SlsPresetSqlRegistry.Preset preset = presetRegistry.getPreset(request.getScenario());
         if (preset == null) {
             log.warn(
-                    "Scenario not found, returning empty result. scenario: {}",
+                    "Scenario not found, returning empty result, scenario={}",
                     request.getScenario());
             return buildEmptyResponse(request.getScenario());
         }
@@ -125,7 +125,9 @@ public class SlsController {
         }
     }
 
-    /** Builds an empty response for graceful degradation when SLS is unavailable. */
+    /**
+     * Builds an empty response for graceful degradation when SLS is unavailable.
+     */
     private ScenarioQueryResponse buildEmptyResponse(String scenario) {
         SlsPresetSqlRegistry.Preset preset = presetRegistry.getPreset(scenario);
         if (preset == null) {

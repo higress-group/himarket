@@ -28,25 +28,25 @@ import java.util.List;
 public interface IdpService {
 
     /**
-     * 验证OIDC配置
+     * Validates OIDC configurations.
      *
-     * @param oidcConfigs
+     * @param oidcConfigs OIDC configurations
      */
     void validateOidcConfigs(List<OidcConfig> oidcConfigs);
 
     /**
-     * 验证OAuth2配置
+     * Validates OAuth2 configurations.
      *
-     * @param oauth2Configs
+     * @param oauth2Configs OAuth2 configurations
      */
     void validateOAuth2Configs(List<OAuth2Config> oauth2Configs);
 
     /**
-     * 加载JWT公钥
+     * Loads a JWT public key.
      *
-     * @param format
-     * @param publicKey
-     * @return
+     * @param format public key format
+     * @param publicKey public key content
+     * @return loaded public key
      */
     PublicKey loadPublicKey(PublicKeyFormat format, String publicKey);
 }

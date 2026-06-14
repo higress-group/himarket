@@ -6,16 +6,16 @@ import com.alibaba.himarket.service.gateway.ModelEndpointResolver;
 import java.util.List;
 
 /**
- * 从 MODEL_API 产品的路由配置中提取 baseUrl 的工具类。
+ * Extracts baseUrl from MODEL_API product route configuration.
  *
- * <p>提取规则：
+ * <p>Extraction rules:
  * <ul>
- *   <li>从 routes[0].domains[0] 中获取 protocol、domain、port</li>
- *   <li>从 routes[0].match.path 中获取 pathPrefix（通过 ModelEndpointResolver 归一化）</li>
- *   <li>端口处理：null 或标准端口（http:80, https:443）时省略，非标准端口时包含</li>
+ *   <li>Read protocol, domain, and port from routes[0].domains[0].</li>
+ *   <li>Read pathPrefix from routes[0].match.path and normalize it through ModelEndpointResolver.</li>
+ *   <li>Omit null or standard ports (http:80, https:443); include non-standard ports.</li>
  * </ul>
  *
- * <p>输出格式：{protocol}://{domain}[:{port}]{pathPrefix}
+ * <p>Output format: {protocol}://{domain}[:{port}]{pathPrefix}
  */
 public class BaseUrlExtractor {
 
@@ -23,11 +23,11 @@ public class BaseUrlExtractor {
     private static final int HTTPS_DEFAULT_PORT = 443;
 
     /**
-     * 从产品的路由配置中提取 baseUrl。
+     * Extracts baseUrl from product route configuration.
      *
-     * @param routes      产品的路由列表
-     * @param aiProtocols AI 协议列表
-     * @return 提取的 baseUrl，如果路由数据不完整则返回 null
+     * @param routes product routes
+     * @param aiProtocols AI protocol list
+     * @return extracted baseUrl, or null when route data is incomplete
      */
     public static String extract(List<HttpRouteResult> routes, List<String> aiProtocols) {
         if (routes == null || routes.isEmpty()) {
@@ -36,7 +36,7 @@ public class BaseUrlExtractor {
 
         HttpRouteResult firstRoute = routes.get(0);
 
-        // 提取 domain 信息
+        // Extract domain details.
         List<DomainResult> domains = firstRoute.getDomains();
         if (domains == null || domains.isEmpty()) {
             return null;
@@ -47,7 +47,7 @@ public class BaseUrlExtractor {
             return null;
         }
 
-        // 提取 path
+        // Extract path.
         if (firstRoute.getMatch() == null
                 || firstRoute.getMatch().getPath() == null
                 || firstRoute.getMatch().getPath().getValue() == null) {
@@ -60,16 +60,16 @@ public class BaseUrlExtractor {
         String pathValue = firstRoute.getMatch().getPath().getValue();
         String pathType = firstRoute.getMatch().getPath().getType();
 
-        // 拼接 baseUrl
+        // Build baseUrl.
         StringBuilder sb = new StringBuilder();
         sb.append(protocol).append("://").append(host);
 
-        // 端口处理：null 或标准端口时省略
+        // Omit null or standard ports.
         if (port != null && !isStandardPort(protocol, port)) {
             sb.append(":").append(port);
         }
 
-        // path 处理：通过 ModelEndpointResolver 归一化
+        // Normalize the path through ModelEndpointResolver.
         String pathPrefix =
                 ModelEndpointResolver.resolveBaseUrlPath(pathValue, pathType, aiProtocols);
         sb.append(pathPrefix);

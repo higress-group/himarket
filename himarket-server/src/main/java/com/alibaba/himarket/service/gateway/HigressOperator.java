@@ -150,7 +150,15 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
             return PageResult.of(modelAPIs, page, size, response.getTotal());
         } catch (Exception e) {
-            log.warn("Failed to fetch model APIs from Higress, returning empty result", e);
+            log.warn(
+                    "Failed to fetch model APIs from gateway, returning empty result,"
+                            + " dependency=Higress, operation=listModelApis, page={}, size={},"
+                            + " errorType={}, errorMessage={}",
+                    page,
+                    size,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             return PageResult.of(Collections.emptyList(), page, size, 0);
         }
     }
@@ -424,7 +432,7 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
     @Override
     public boolean isConsumerExists(String consumerId, GatewayConfig config) {
-        // TODO: 实现Higress网关消费者存在性检查
+        // TODO: Implement Higress gateway consumer existence checks.
         return true;
     }
 
@@ -571,7 +579,12 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
 
             return Collections.singletonList(uri);
         } catch (URISyntaxException e) {
-            log.warn("Invalid gateway address: {}, error: {}", address, e.getMessage());
+            log.warn(
+                    "Invalid gateway address, dependency=Higress, operation=fetchGatewayUris,"
+                            + " address={}, errorType={}, errorMessage={}",
+                    address,
+                    e.getClass().getSimpleName(),
+                    e.getMessage());
             return Collections.emptyList();
         }
     }

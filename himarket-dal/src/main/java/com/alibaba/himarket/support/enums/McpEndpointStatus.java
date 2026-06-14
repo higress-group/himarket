@@ -20,12 +20,14 @@
 package com.alibaba.himarket.support.enums;
 
 /**
- * MCP Server Endpoint 状态。
+ * MCP Server endpoint status.
  */
 public enum McpEndpointStatus {
     ACTIVE,
     INACTIVE;
 
-    /** 公共 endpoint 的 userId 占位符 */
+    /**
+     * Placeholder userId for public endpoints.
+     */
     public static final String PUBLIC_USER_ID = "*";
 }

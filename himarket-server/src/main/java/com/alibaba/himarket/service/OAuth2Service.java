@@ -24,11 +24,11 @@ import com.alibaba.himarket.dto.result.common.AuthResult;
 public interface OAuth2Service {
 
     /**
-     * JWT Bearer认证
+     * Authenticates a JWT bearer request.
      *
-     * @param grantType
-     * @param jwtToken
-     * @return
+     * @param grantType grant type
+     * @param jwtToken JWT token
+     * @return authentication result
      */
     AuthResult authenticate(String grantType, String jwtToken);
 }

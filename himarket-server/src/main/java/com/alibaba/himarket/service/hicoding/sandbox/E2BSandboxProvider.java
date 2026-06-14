@@ -7,10 +7,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * E2B 云沙箱提供者（空实现）。
+ * E2B cloud sandbox provider placeholder.
  *
- * <p>预留 E2B 对接接口，当前所有操作方法抛出 {@link UnsupportedOperationException}。
- * 仅在 {@code acp.e2b.enabled=true} 时注册到 Spring 容器。
+ * <p>Reserves the E2B integration surface. Current operations throw
+ * {@link UnsupportedOperationException}. Registered in the Spring container only when
+ * {@code acp.e2b.enabled=true}.
  */
 @Component
 @ConditionalOnProperty(name = "acp.e2b.enabled", havingValue = "true")
@@ -23,12 +24,12 @@ public class E2BSandboxProvider implements SandboxProvider {
 
     @Override
     public SandboxInfo acquire(SandboxConfig config) {
-        throw new UnsupportedOperationException("E2B 尚未实现");
+        throw new UnsupportedOperationException("E2B is not implemented yet");
     }
 
     @Override
     public void release(SandboxInfo info) {
-        // 空实现
+        // No-op placeholder.
     }
 
     @Override
@@ -39,16 +40,16 @@ public class E2BSandboxProvider implements SandboxProvider {
     @Override
     public void writeFile(SandboxInfo info, String relativePath, String content)
             throws IOException {
-        throw new UnsupportedOperationException("E2B 尚未实现");
+        throw new UnsupportedOperationException("E2B is not implemented yet");
     }
 
     @Override
     public String readFile(SandboxInfo info, String relativePath) throws IOException {
-        throw new UnsupportedOperationException("E2B 尚未实现");
+        throw new UnsupportedOperationException("E2B is not implemented yet");
     }
 
     @Override
     public RuntimeAdapter connectSidecar(SandboxInfo info, RuntimeConfig config) {
-        throw new UnsupportedOperationException("E2B 尚未实现");
+        throw new UnsupportedOperationException("E2B is not implemented yet");
     }
 }

@@ -20,23 +20,34 @@
 package com.alibaba.himarket.support.gateway;
 
 import cn.hutool.core.util.StrUtil;
+import java.util.List;
 import lombok.Data;
 
-/** ADP网关配置 继承自APIGConfig，支持ADP网关特有的配置 */
+/**
+ * ADP AI gateway configuration.
+ */
 @Data
 public class AdpAIGatewayConfig {
 
-    /** ADP网关的baseUrl，如果为空则使用默认的region构建 */
+    /**
+     * ADP AI gateway base URL.
+     */
     private String baseUrl;
 
-    /** ADP网关的端口 */
+    /**
+     * ADP AI gateway port.
+     */
     private Integer port;
 
-    /** ADP网关的认证种子 */
+    /**
+     * Authentication seed for seed-based authorization.
+     */
     private String authSeed;
 
-    /** ADP网关的认证头列表 */
-    private java.util.List<AuthHeader> authHeaders;
+    /**
+     * Authentication headers for header-based authorization.
+     */
+    private List<AuthHeader> authHeaders;
 
     @Data
     public static class AuthHeader {
@@ -56,9 +67,9 @@ public class AdpAIGatewayConfig {
             return false;
         }
 
-        // 验证认证配置，支持两种认证方式：Seed 或 Header
-        return (StrUtil.isNotBlank(authSeed)
-                        && (authHeaders == null || authHeaders.isEmpty())) // Seed 方式
-                || (authSeed == null && authHeaders != null && !authHeaders.isEmpty()); // Header 方式
+        boolean hasSeedAuth =
+                StrUtil.isNotBlank(authSeed) && (authHeaders == null || authHeaders.isEmpty());
+        boolean hasHeaderAuth = authSeed == null && authHeaders != null && !authHeaders.isEmpty();
+        return hasSeedAuth || hasHeaderAuth;
     }
 }

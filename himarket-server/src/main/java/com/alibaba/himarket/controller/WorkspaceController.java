@@ -55,10 +55,11 @@ public class WorkspaceController {
             @Parameter(description = "File to upload", required = true) @RequestParam("file")
                     MultipartFile file) {
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "文件不能为空"));
+            return ResponseEntity.badRequest().body(Map.of("error", "File must not be empty"));
         }
         if (file.getSize() > 5 * 1024 * 1024) {
-            return ResponseEntity.badRequest().body(Map.of("error", "文件大小不能超过 5MB"));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "File size must not exceed 5 MB"));
         }
         String userId = getCurrentUserId();
         try {
@@ -67,8 +68,14 @@ public class WorkspaceController {
                             userId, file.getOriginalFilename(), file.getBytes());
             return ResponseEntity.ok(Map.of("filePath", filePath));
         } catch (IOException e) {
-            log.error("Failed to upload file to sandbox: user={}", userId, e);
-            return ResponseEntity.internalServerError().body(Map.of("error", "文件上传失败"));
+            log.error(
+                    "Failed to upload file to sandbox, userId={}, fileName={}, errorMessage={}",
+                    userId,
+                    file.getOriginalFilename(),
+                    e.getMessage(),
+                    e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to upload file to sandbox"));
         }
     }
 
@@ -97,7 +104,12 @@ public class WorkspaceController {
                             "content", result.get("content"),
                             "encoding", result.get("encoding")));
         } catch (IOException e) {
-            log.error("Failed to read file from sandbox: user={}, path={}", userId, path, e);
+            log.error(
+                    "Failed to read file from sandbox, userId={}, path={}, errorMessage={}",
+                    userId,
+                    path,
+                    e.getMessage(),
+                    e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to read file from sandbox"));
         }
@@ -129,7 +141,12 @@ public class WorkspaceController {
                     .contentLength(bytes.length)
                     .body(bytes);
         } catch (IOException e) {
-            log.error("Failed to download file {} for user {}", path, userId, e);
+            log.error(
+                    "Failed to download file from sandbox, userId={}, path={}, errorMessage={}",
+                    userId,
+                    path,
+                    e.getMessage(),
+                    e);
             return ResponseEntity.internalServerError().build();
         }
     }
@@ -169,13 +186,16 @@ public class WorkspaceController {
                     remoteWorkspaceService.getChanges(userId, cwd, since);
             return ResponseEntity.ok(Map.of("changes", changes));
         } catch (IOException e) {
-            log.error("Failed to get changes from sandbox: user={}, cwd={}", userId, cwd, e);
+            log.error(
+                    "Failed to get changes from sandbox, userId={}, cwd={}, errorMessage={}",
+                    userId,
+                    cwd,
+                    e.getMessage(),
+                    e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to get changes from sandbox"));
         }
     }
-
-    // ======================== Directory Tree API ========================
 
     @Operation(
             summary = "Get workspace directory tree",
@@ -192,7 +212,8 @@ public class WorkspaceController {
             Map<String, Object> tree = remoteWorkspaceService.getDirectoryTree(userId, cwd, depth);
             return ResponseEntity.ok(tree);
         } catch (IOException e) {
-            log.error("Failed to get directory tree from sandbox: user={}, cwd={}", userId, cwd, e);
+            log.error(
+                    "Failed to get directory tree from sandbox, userId={}, cwd={}", userId, cwd, e);
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Failed to get directory tree from sandbox"));
         }
@@ -203,7 +224,7 @@ public class WorkspaceController {
         if (auth != null && auth.getPrincipal() instanceof String principal) {
             return principal;
         }
-        throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
+        throw new BusinessException(ErrorCode.UNAUTHORIZED, "User is not authenticated");
     }
 
     private static String getExtension(String fileName) {

@@ -27,17 +27,17 @@ import lombok.EqualsAndHashCode;
 public class ListModelApisRequest extends ApsaraGatewayBaseRequest {
 
     /**
-     * 当前页码
+     * Current page number.
      */
     private Integer current;
 
     /**
-     * 每页数量
+     * Page size.
      */
     private Integer size;
 
     private String gwInstanceId;
-    // 支持模糊检索
+    // Supports fuzzy search.
     private String apiName;
 
     private String protocol;

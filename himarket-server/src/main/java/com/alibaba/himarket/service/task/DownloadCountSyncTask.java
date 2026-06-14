@@ -43,7 +43,10 @@ public class DownloadCountSyncTask {
             syncSkillDownloadCounts();
             syncWorkerDownloadCounts();
         } catch (Exception e) {
-            log.error("Unexpected error during download count sync", e);
+            log.error(
+                    "Unexpected error during download count sync, errorMessage={}",
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -167,22 +170,25 @@ public class DownloadCountSyncTask {
                         config.setDownloadCount(count);
                         productRepository.save(product);
                         log.info(
-                                "Synced download count for skill product {}: {}",
+                                "Synced download count for skill product, productId={},"
+                                        + " downloadCount={}",
                                 product.getProductId(),
                                 count);
                     }
                 } catch (Exception e) {
                     log.warn(
-                            "Failed to sync download count for skill product {}",
+                            "Failed to sync download count for skill product, productId={}",
                             product.getProductId(),
                             e);
                 }
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync download counts for skill products from Nacos {}: {}",
+                    "Failed to sync download counts for skill products from Nacos, nacosId={},"
+                            + " errorMessage={}",
                     nacosId,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -203,22 +209,26 @@ public class DownloadCountSyncTask {
                         config.setDownloadCount(count);
                         productRepository.save(product);
                         log.info(
-                                "Synced download count for AIRegistry skill product {}: {}",
+                                "Synced download count for AIRegistry skill product, productId={},"
+                                        + " downloadCount={}",
                                 product.getProductId(),
                                 count);
                     }
                 } catch (Exception e) {
                     log.warn(
-                            "Failed to sync download count for AIRegistry skill product {}",
+                            "Failed to sync download count for AIRegistry skill product,"
+                                    + " productId={}",
                             product.getProductId(),
                             e);
                 }
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync download counts for skill products from AIRegistry {}: {}",
+                    "Failed to sync download counts for skill products from AIRegistry,"
+                            + " aiRegistryId={}, errorMessage={}",
                     aiRegistryId,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -258,22 +268,25 @@ public class DownloadCountSyncTask {
                         config.setDownloadCount(count);
                         productRepository.save(product);
                         log.info(
-                                "Synced download count for worker product {}: {}",
+                                "Synced download count for worker product, productId={},"
+                                        + " downloadCount={}",
                                 product.getProductId(),
                                 count);
                     }
                 } catch (Exception e) {
                     log.warn(
-                            "Failed to sync download count for worker product {}",
+                            "Failed to sync download count for worker product, productId={}",
                             product.getProductId(),
                             e);
                 }
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync download counts for worker products from Nacos {}: {}",
+                    "Failed to sync download counts for worker products from Nacos, nacosId={},"
+                            + " errorMessage={}",
                     nacosId,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 }

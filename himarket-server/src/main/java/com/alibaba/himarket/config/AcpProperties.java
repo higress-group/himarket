@@ -10,31 +10,27 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AcpProperties {
 
     /**
-     * 是否启用终端功能。
-     * 设为 false 时后端拒绝 Terminal WebSocket 连接，前端隐藏终端面板。
+     * Whether terminal features are enabled.
      */
     private boolean terminalEnabled = true;
 
     /**
-     * 默认使用的 CLI provider key（对应 providers map 中的 key）
+     * Default CLI provider key in the providers map.
      */
     private String defaultProvider = "qwen-code";
 
     /**
-     * 默认运行时类型。
-     * 当用户未主动选择运行时方案时使用此默认值。
+     * Default runtime type used when the user does not select one explicitly.
      */
     private String defaultRuntime = "remote";
 
     /**
-     * CLI provider 注册表，支持多种 ACP 兼容的 CLI 工具。
-     * 每个 provider 定义了命令、参数和可选的环境变量。
+     * CLI provider registry for ACP-compatible tools.
      */
     private Map<String, CliProviderConfig> providers = new LinkedHashMap<>();
 
     /**
-     * 远程沙箱运行时配置。
-     * 支持 K8s Service、Docker 容器、裸机部署等任意可达的 Sidecar 服务。
+     * Remote sandbox runtime configuration.
      */
     private RemoteConfig remote = new RemoteConfig();
 
@@ -79,21 +75,21 @@ public class AcpProperties {
     }
 
     /**
-     * 根据 provider key 获取配置，找不到则返回 null。
+     * Gets a provider configuration by key.
      */
     public CliProviderConfig getProvider(String key) {
         return providers.get(key);
     }
 
     /**
-     * 获取默认 provider 配置。
+     * Gets the default provider configuration.
      */
     public CliProviderConfig getDefaultProviderConfig() {
         return providers.get(defaultProvider);
     }
 
     /**
-     * 单个 CLI provider 的配置。
+     * Configuration for a single CLI provider.
      */
     public static class CliProviderConfig {
 
@@ -190,24 +186,17 @@ public class AcpProperties {
     }
 
     /**
-     * 远程沙箱运行时配置。
-     * 不依赖 K8s API，只需 Sidecar 服务地址可达即可。
+     * Remote sandbox runtime configuration.
      */
     public static class RemoteConfig {
 
         /**
-         * Sidecar 服务地址。
-         * 可以是：
-         * - K8s Service DNS: sandbox-shared.default.svc.cluster.local
-         * - Docker 容器名: sandbox
-         * - IP 地址: 192.168.1.100
-         * - localhost（本地 Docker 部署）
-         * 留空表示未配置远程沙箱。
+         * Sidecar service host. Leave it empty when remote sandbox is not configured.
          */
         private String host = "";
 
         /**
-         * Sidecar 服务端口，默认 8080。
+         * Sidecar service port.
          */
         private int port = 8080;
 
@@ -228,7 +217,7 @@ public class AcpProperties {
         }
 
         /**
-         * 判断远程沙箱是否已配置（host 非空）。
+         * Checks whether a remote sandbox host is configured.
          */
         public boolean isConfigured() {
             return host != null && !host.isBlank();

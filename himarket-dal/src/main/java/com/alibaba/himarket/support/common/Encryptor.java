@@ -44,14 +44,18 @@ public class Encryptor {
         return ROOT_KEY.getBytes(CharsetUtil.CHARSET_UTF_8);
     }
 
-    /** CBC 模式（新数据加密使用），IV 由密钥 MD5 派生。 */
+    /**
+     * CBC mode for new encrypted data. The IV is derived from the key MD5 digest.
+     */
     private static AES getCbcAes() {
         byte[] keyBytes = getRootKeyBytes();
         byte[] iv = Arrays.copyOf(SecureUtil.md5().digest(keyBytes), 16);
         return new AES(Mode.CBC, Padding.PKCS5Padding, keyBytes, iv);
     }
 
-    /** ECB 模式（兼容旧数据解密）。 */
+    /**
+     * ECB mode for legacy data decryption.
+     */
     private static AES getEcbAes() {
         return SecureUtil.aes(getRootKeyBytes());
     }
@@ -71,16 +75,19 @@ public class Encryptor {
         if (StrUtil.isBlank(value)) {
             return value;
         }
-        // 优先尝试 CBC 解密（新格式）
+        // Prefer CBC decryption for the new format.
         try {
             return getCbcAes().decryptStr(value);
         } catch (Exception ignored) {
-            // CBC 解密失败，尝试 ECB 兼容旧数据
+            // Fall back to ECB for legacy data when CBC decryption fails.
         }
         try {
             return getEcbAes().decryptStr(value);
         } catch (Exception e) {
-            log.warn("Decrypt failed (data may be legacy plaintext): {}", e.getMessage());
+            log.warn(
+                    "Decrypt failed, returning original value for possible legacy plaintext,"
+                            + " errorMessage={}",
+                    e.getMessage());
             return value;
         }
     }

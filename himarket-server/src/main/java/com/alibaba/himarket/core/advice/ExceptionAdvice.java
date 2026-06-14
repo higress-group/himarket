@@ -46,7 +46,11 @@ public class ExceptionAdvice {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Response<Void>> handleBusinessException(BusinessException e) {
-        log.warn("[Business Exception] code: {}, message: {}", e.getCode(), e.getMessage());
+        log.warn(
+                "Handled business exception, code={}, status={}, message={}",
+                e.getCode(),
+                e.getStatus().value(),
+                e.getMessage());
         return ResponseEntity.status(e.getStatus())
                 .body(Response.fail(e.getCode(), e.getMessage()));
     }
@@ -63,7 +67,10 @@ public class ExceptionAdvice {
                                                 + fieldError.getDefaultMessage())
                         .collect(Collectors.joining("; "));
         // Validation error is user behavior, no stack trace needed
-        log.warn("[Validation Exception] invalid parameters: {}", message);
+        log.warn(
+                "Validation failed, code={}, invalidParameters={}",
+                ErrorCode.INVALID_PARAMETER.name(),
+                message);
         return ResponseEntity.status(ErrorCode.INVALID_PARAMETER.getStatus())
                 .body(Response.fail(ErrorCode.INVALID_PARAMETER.name(), message));
     }
@@ -72,7 +79,7 @@ public class ExceptionAdvice {
     public ResponseEntity<Response<Void>> handleSystemException(Exception e) {
         // Log full stack trace for system errors
         log.error(
-                "[System Exception] type: {}, message: {}",
+                "Unhandled system exception, errorType={}, errorMessage={}",
                 e.getClass().getSimpleName(),
                 e.getMessage(),
                 e);

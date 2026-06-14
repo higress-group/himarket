@@ -25,46 +25,72 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** 适配器统一输出格式，表示从供应商 API 查询返回的单条 MCP Server 信息。 */
+/**
+ * Unified adapter output for one MCP server returned by a vendor API.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class RemoteMcpItem {
 
-    /** 供应商侧唯一标识 */
+    /**
+     * Vendor-side unique ID.
+     */
     private String remoteId;
 
-    /** 转换后的 mcpName（符合平台规范） */
+    /**
+     * Converted MCP name that follows platform naming rules.
+     */
     private String mcpName;
 
-    /** 展示名称 */
+    /**
+     * Display name.
+     */
     private String displayName;
 
-    /** 描述 */
+    /**
+     * Description.
+     */
     private String description;
 
-    /** 协议类型：sse / streamable-http / stdio */
+    /**
+     * Protocol type, such as sse, streamable-http, or stdio.
+     */
     private String protocolType;
 
-    /** JSON 格式连接配置 */
+    /**
+     * Connection configuration in JSON format.
+     */
     private String connectionConfig;
 
-    /** 平台标准 MCP 连接配置，由供应商适配器从 connectionConfig 转换得到。 */
+    /**
+     * Platform-standard MCP connection converted from connectionConfig by the vendor adapter.
+     */
     private McpConnection connection;
 
-    /** JSON 数组格式标签 */
+    /**
+     * Tags in JSON array format.
+     */
     private String tags;
 
-    /** JSON 格式图标 */
+    /**
+     * Icon in JSON format.
+     */
     private String icon;
 
-    /** 源码仓库地址 */
+    /**
+     * Source repository URL.
+     */
     private String repoUrl;
 
-    /** JSON 格式额外参数定义（如 env_schema / configSchema） */
+    /**
+     * Extra parameter definitions in JSON format, such as env_schema or configSchema.
+     */
     private String extraParams;
 
-    /** Markdown 格式的服务介绍（readme） */
+    /**
+     * Service introduction in Markdown format.
+     */
     private String serviceIntro;
 }

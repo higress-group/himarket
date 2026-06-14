@@ -77,7 +77,7 @@ public class McpConfigSyncHelper {
     private final GatewayService gatewayService;
     private final NacosService nacosService;
 
-    // ==================== ProductRef Sync ====================
+    // ProductRef sync.
 
     /**
      * Sync MCP meta to ProductRef table, making the product association visible.
@@ -132,7 +132,10 @@ public class McpConfigSyncHelper {
             meta.setConnectionConfig(
                     StrUtil.isNotBlank(standardConfig) ? standardConfig : mcpConfigStr);
         } catch (Exception e) {
-            log.warn("解析远端配置失败，保留原始格式: {}", e.getMessage());
+            log.warn(
+                    "Failed to parse remote config, keeping the original format, errorMessage={}",
+                    e.getMessage(),
+                    e);
             meta.setConnectionConfig(mcpConfigStr);
         }
         metaRepository.save(meta);
@@ -235,29 +238,37 @@ public class McpConfigSyncHelper {
                         });
     }
 
-    // ==================== Endpoint Operations ====================
+    // Endpoint operations.
 
-    /** Find all endpoints for a given mcpServerId. */
+    /**
+     * Finds all endpoints for a given mcpServerId.
+     */
     public List<McpServerEndpoint> findEndpointsByMcpServerId(String mcpServerId) {
         return endpointRepository.findByMcpServerId(mcpServerId);
     }
 
-    /** Delete an endpoint and flush immediately (for unique constraint safety). */
+    /**
+     * Deletes an endpoint.
+     */
     public void deleteEndpoint(McpServerEndpoint endpoint) {
         endpointRepository.delete(endpoint);
     }
 
-    /** Flush pending deletes to avoid unique constraint conflicts on subsequent inserts. */
+    /**
+     * Flushes pending deletes to avoid unique constraint conflicts on subsequent inserts.
+     */
     public void flushEndpoints() {
         endpointRepository.flush();
     }
 
-    /** Save a new endpoint (for sandbox pre-create). */
+    /**
+     * Saves a new endpoint for sandbox pre-create.
+     */
     public McpServerEndpoint saveEndpoint(McpServerEndpoint endpoint) {
         return endpointRepository.save(endpoint);
     }
 
-    // ==================== Public Endpoint Sync ====================
+    // Public endpoint sync.
 
     /**
      * For non-sandbox MCP: extract endpoint URL from connectionConfig and create/update
@@ -279,8 +290,8 @@ public class McpConfigSyncHelper {
                         extractEndpointUrl(connJson, meta.getMcpName(), meta.getProtocolType());
             } catch (Exception e2) {
                 log.debug(
-                        "[syncPublicEndpoint] 无法从 connectionConfig 提取 URL，跳过:"
-                                + " mcpServerId={}, error={}",
+                        "Unable to extract endpoint URL from connection config, mcpServerId={},"
+                                + " errorMessage={}",
                         meta.getMcpServerId(),
                         e2.getMessage());
                 return;
@@ -315,7 +326,7 @@ public class McpConfigSyncHelper {
                 null);
 
         log.info(
-                "[syncPublicEndpoint] 公共 endpoint 已同步: mcpServerId={}, protocol={}, url={}",
+                "Public MCP endpoint synced, mcpServerId={}, protocol={}, endpoint={}",
                 meta.getMcpServerId(),
                 protocol,
                 endpointUrl);
@@ -365,7 +376,7 @@ public class McpConfigSyncHelper {
         return endpointRepository.save(endpoint);
     }
 
-    // ==================== Product Display Field Enrichment ====================
+    // Product display field enrichment.
 
     public void syncDisplayFieldsToProduct(String productId, SaveMcpMetaParam param) {
         productRepository
@@ -392,7 +403,9 @@ public class McpConfigSyncHelper {
                                                             .class));
                                     changed = true;
                                 } catch (Exception e) {
-                                    log.warn("解析 icon JSON 失败: {}", e.getMessage());
+                                    log.warn(
+                                            "Failed to parse icon JSON, errorMessage={}",
+                                            e.getMessage());
                                 }
                             }
                             if (StrUtil.isNotBlank(param.getServiceIntro())
@@ -438,7 +451,7 @@ public class McpConfigSyncHelper {
         return result;
     }
 
-    // ==================== Endpoint URL Extraction ====================
+    // Endpoint URL extraction.
 
     public String extractEndpointUrlTyped(String connectionConfigJson, String mcpName)
             throws Exception {
@@ -461,7 +474,7 @@ public class McpConfigSyncHelper {
                 return extractEndpointUrlTyped(rawJson, mcpName);
             }
         }
-        throw new IllegalStateException("McpConnectionConfig 无法提取 URL");
+        throw new IllegalStateException("Unable to extract URL from McpConnectionConfig");
     }
 
     public String extractEndpointUrl(ObjectNode connJson, String mcpName, String protocolType) {
@@ -500,10 +513,11 @@ public class McpConfigSyncHelper {
             }
         }
 
-        throw new BusinessException(ErrorCode.INVALID_REQUEST, "无法从连接配置中提取 endpoint URL");
+        throw new BusinessException(
+                ErrorCode.INVALID_REQUEST, "Unable to extract endpoint URL from connection config");
     }
 
-    // ==================== Config Format Conversion ====================
+    // Config format conversion.
 
     public String convertToStandardConnectionConfig(
             ObjectNode mcpJson, String mcpName, String protocol) {
@@ -589,7 +603,7 @@ public class McpConfigSyncHelper {
         return null;
     }
 
-    // ==================== ResolvedConfig Fill ====================
+    // ResolvedConfig fill.
 
     public void fillResolvedConfig(
             McpMetaResult result, McpServerMeta meta, McpServerEndpoint endpoint) {
@@ -636,7 +650,7 @@ public class McpConfigSyncHelper {
             }
         } catch (Exception e) {
             log.debug(
-                    "[fillResolvedConfig] 解析失败 mcpServerId={}: {}",
+                    "Failed to resolve MCP config, mcpServerId={}, errorMessage={}",
                     meta.getMcpServerId(),
                     e.getMessage());
         }

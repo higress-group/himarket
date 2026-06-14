@@ -36,7 +36,7 @@ public class CreateCredentialParam implements InputConverter<ConsumerCredential>
 
     private JwtConfig jwtConfig;
 
-    @AssertTrue(message = "凭证信息不能为空")
+    @AssertTrue(message = "Credential information is required")
     private boolean isValid() {
         return apiKeyConfig != null || hmacConfig != null || jwtConfig != null;
     }

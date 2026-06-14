@@ -31,6 +31,7 @@ import com.alibaba.nacos.maintainer.client.ai.AgentSpecMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -77,14 +78,16 @@ public class WorkerServiceImpl implements WorkerService {
                     execute(
                             ref.getNacosId(),
                             s -> s.uploadAgentSpecFromZip(ref.getNamespace(), zipBytes, true));
-            log.info("Uploaded new AgentSpec draft: {}", agentSpecName);
+            log.info("Uploaded new AgentSpec draft, agentSpecName={}", agentSpecName);
             config.setAgentSpecName(agentSpecName);
         } else {
             // Subsequent upload: use overwrite mode to bypass reviewing version blocking
             execute(
                     ref.getNacosId(),
                     s -> s.uploadAgentSpecFromZip(ref.getNamespace(), zipBytes, true));
-            log.info("Uploaded (overwrite) for AgentSpec {}", ref.getAgentSpecName());
+            log.info(
+                    "Uploaded AgentSpec draft with overwrite, agentSpecName={}",
+                    ref.getAgentSpecName());
         }
 
         productRepository.save(product);
@@ -121,7 +124,9 @@ public class WorkerServiceImpl implements WorkerService {
             AgentSpec agentSpec = fetchAgentSpec(ref, version);
             return buildFileTree(agentSpec);
         } catch (Exception e) {
-            log.warn("Failed to fetch file tree for AgentSpec {}", ref.getAgentSpecName());
+            log.warn(
+                    "Failed to fetch file tree for AgentSpec, agentSpecName={}",
+                    ref.getAgentSpecName());
             return Collections.emptyList();
         }
     }
@@ -154,7 +159,7 @@ public class WorkerServiceImpl implements WorkerService {
                                             ref.getNamespace(), ref.getAgentSpecName()));
         } catch (Exception e) {
             log.warn(
-                    "AgentSpec {} not found in Nacos, returning empty versions",
+                    "AgentSpec not found in Nacos, returning empty versions, agentSpecName={}",
                     ref.getAgentSpecName());
             return Collections.emptyList();
         }
@@ -230,7 +235,10 @@ public class WorkerServiceImpl implements WorkerService {
                 execute(
                         ref.getNacosId(),
                         s -> s.submit(ref.getNamespace(), ref.getAgentSpecName(), version));
-        log.info("Submitted AgentSpec {}, version {}", ref.getAgentSpecName(), submittedVersion);
+        log.info(
+                "Submitted AgentSpec, agentSpecName={}, version={}",
+                ref.getAgentSpecName(),
+                submittedVersion);
     }
 
     @Override
@@ -238,25 +246,26 @@ public class WorkerServiceImpl implements WorkerService {
             throws IOException {
         AgentSpecRef ref = getAgentSpecRef(productId, true);
 
-        // 先调用 Nacos HTTP API 下载，让 Nacos 增加下载计数
+        // Download through the Nacos HTTP API first so Nacos can update its download count.
         downloadFromNacos(ref, version, response);
     }
 
     /**
-     * 通过调用 Nacos HTTP API 下载 Worker ZIP 包，使 Nacos 自动增加下载计数
+     * Downloads the Worker ZIP package through the Nacos HTTP API so Nacos can update its download
+     * count.
      * API: GET /v3/console/ai/agentspecs/version/download?namespaceId=xxx&agentSpecName=xxx&version=xxx
      */
     private void downloadFromNacos(AgentSpecRef ref, String version, HttpServletResponse response)
             throws IOException {
         try {
             NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
-            // 优先使用展示地址，不存在则使用 serverUrl
+            // Prefer the display URL and fall back to serverUrl.
             String nacosBaseUrl =
                     StrUtil.isNotBlank(nacosInstance.getDisplayServerUrl())
                             ? nacosInstance.getDisplayServerUrl()
                             : nacosInstance.getServerUrl();
 
-            // 构建 Nacos 下载 URL:
+            // Build the Nacos download URL:
             // /v3/console/ai/agentspecs/version/download?namespaceId=xxx&agentSpecName=xxx&version=xxx
             StringBuilder urlBuilder = new StringBuilder();
             urlBuilder.append(nacosBaseUrl);
@@ -269,45 +278,50 @@ public class WorkerServiceImpl implements WorkerService {
                     .append("&agentSpecName=")
                     .append(
                             java.net.URLEncoder.encode(
-                                    ref.getAgentSpecName(), StandardCharsets.UTF_8.name()));
+                                    ref.getAgentSpecName(), StandardCharsets.UTF_8));
             if (StrUtil.isNotBlank(version)) {
                 urlBuilder
                         .append("&version=")
-                        .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8.name()));
+                        .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8));
             }
 
-            // 添加认证参数（如果 Nacos 有用户名密码）
+            // Add authentication parameters when Nacos username and password are configured.
             if (StrUtil.isNotBlank(nacosInstance.getUsername())
                     && StrUtil.isNotBlank(nacosInstance.getPassword())) {
                 urlBuilder
                         .append("&username=")
                         .append(
                                 java.net.URLEncoder.encode(
-                                        nacosInstance.getUsername(),
-                                        StandardCharsets.UTF_8.name()));
+                                        nacosInstance.getUsername(), StandardCharsets.UTF_8));
                 urlBuilder
                         .append("&password=")
                         .append(
                                 java.net.URLEncoder.encode(
-                                        nacosInstance.getPassword(),
-                                        StandardCharsets.UTF_8.name()));
+                                        nacosInstance.getPassword(), StandardCharsets.UTF_8));
             }
 
             String downloadUrl = urlBuilder.toString();
-            // 日志中密码脱敏
-            String loggedUrl = downloadUrl.replaceAll("password=[^&]+", "password=***");
-            log.info("Calling Nacos download API: {}", loggedUrl);
+            log.info(
+                    "Calling Nacos worker download API, dependency=Nacos,"
+                            + " operation=downloadWorkerZip, nacosId={}, namespace={},"
+                            + " agentSpecName={}, version={}, serverUrl={}, username={}",
+                    ref.getNacosId(),
+                    ref.getNamespace(),
+                    ref.getAgentSpecName(),
+                    version,
+                    nacosInstance.getServerUrl(),
+                    nacosInstance.getUsername());
 
-            // 创建 HTTP 连接
-            java.net.URL url = new java.net.URL(downloadUrl);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            // Create the HTTP connection.
+            URL url = new URL(downloadUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(30000);
             conn.setReadTimeout(60000);
 
             int responseCode = conn.getResponseCode();
             if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                // 设置响应头
+                // Set response headers.
                 response.setContentType("application/zip");
                 String encodedName =
                         java.net.URLEncoder.encode(
@@ -316,26 +330,49 @@ public class WorkerServiceImpl implements WorkerService {
                 response.setHeader(
                         "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
 
-                // 流式传输 ZIP 文件
+                // Stream the ZIP file.
                 try (var input = conn.getInputStream();
                         var output = response.getOutputStream()) {
                     input.transferTo(output);
                 }
-                log.info("Downloaded worker {} from Nacos successfully", ref.getAgentSpecName());
+                log.info(
+                        "Downloaded worker ZIP from Nacos, dependency=Nacos,"
+                                + " operation=downloadWorkerZip, nacosId={}, namespace={},"
+                                + " agentSpecName={}, version={}",
+                        ref.getNacosId(),
+                        ref.getNamespace(),
+                        ref.getAgentSpecName(),
+                        version);
             } else {
-                log.warn("Nacos download API returned non-OK status: {}", responseCode);
-                // 降级为本地生成 ZIP
+                log.warn(
+                        "Nacos worker download API returned non-OK status, dependency=Nacos,"
+                                + " operation=downloadWorkerZip, nacosId={}, namespace={},"
+                                + " agentSpecName={}, status={}",
+                        ref.getNacosId(),
+                        ref.getNamespace(),
+                        ref.getAgentSpecName(),
+                        responseCode);
+                // Fall back to local ZIP generation.
                 fallbackToLocalDownload(ref, version, response);
             }
         } catch (Exception e) {
-            log.warn("Failed to download from Nacos, fallback to local generation", e);
-            // 降级为本地生成 ZIP
+            log.warn(
+                    "Failed to download worker ZIP from Nacos, falling back to local generation,"
+                            + " dependency=Nacos, operation=downloadWorkerZip, nacosId={},"
+                            + " namespace={}, agentSpecName={}, errorType={}, errorMessage={}",
+                    ref.getNacosId(),
+                    ref.getNamespace(),
+                    ref.getAgentSpecName(),
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
+            // Fall back to local ZIP generation.
             fallbackToLocalDownload(ref, version, response);
         }
     }
 
     /**
-     * 降级方案：本地生成 ZIP 包（不增加 Nacos 下载计数）
+     * Fallback path: generates the ZIP package locally without increasing the Nacos download count.
      */
     private void fallbackToLocalDownload(
             AgentSpecRef ref, String version, HttpServletResponse response) throws IOException {
@@ -393,10 +430,10 @@ public class WorkerServiceImpl implements WorkerService {
                     return null;
                 });
         log.info(
-                "{}: AgentSpec {}, version {}",
-                online ? "Online" : "Offline",
+                "Changed AgentSpec version status, agentSpecName={}, version={}, online={}",
                 ref.getAgentSpecName(),
-                version);
+                version,
+                online);
 
         syncProductStatusAfterVersionChange(product, ref);
     }
@@ -441,9 +478,9 @@ public class WorkerServiceImpl implements WorkerService {
      *
      * <p>Rules:
      * <ul>
-     *   <li>Has online version + non-PUBLISHED → set to READY</li>
-     *   <li>No online version + non-PUBLISHED → set to PENDING</li>
-     *   <li>No online version + PUBLISHED → downgrade to READY</li>
+     *   <li>Has online version + non-PUBLISHED -> set to READY</li>
+     *   <li>No online version + non-PUBLISHED -> set to PENDING</li>
+     *   <li>No online version + PUBLISHED -> downgrade to READY</li>
      * </ul>
      *
      * <p>Wrapped in try-catch so failures don't break the main operation.
@@ -486,14 +523,15 @@ public class WorkerServiceImpl implements WorkerService {
                 product.setStatus(target);
                 productRepository.save(product);
                 log.info(
-                        "Synced product {} status: {} → {}",
+                        "Synced product status, productId={}, previousStatus={}, currentStatus={}",
                         product.getProductId(),
                         current,
                         target);
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync product status after version change for AgentSpec {}",
+                    "Failed to sync product status after version change for AgentSpec,"
+                            + " agentSpecName={}",
                     ref.getAgentSpecName(),
                     e);
         }
@@ -510,9 +548,10 @@ public class WorkerServiceImpl implements WorkerService {
                         s -> s.deleteDraft(ref.getNamespace(), ref.getAgentSpecName()));
         if (!deleted) {
             log.warn(
-                    "Nacos returned false for deleteDraft of AgentSpec {}", ref.getAgentSpecName());
+                    "Nacos returned false for AgentSpec draft deletion, agentSpecName={}",
+                    ref.getAgentSpecName());
         }
-        log.info("Deleted draft for AgentSpec {}", ref.getAgentSpecName());
+        log.info("Deleted AgentSpec draft, agentSpecName={}", ref.getAgentSpecName());
 
         // Clear agentSpecName if no versions remain after deletion
         try {
@@ -540,14 +579,15 @@ public class WorkerServiceImpl implements WorkerService {
                 config.setAgentSpecName(null);
                 productRepository.save(product);
             } else {
-                // Versions still remain — sync Product status
+                // Versions still remain, so sync Product status.
                 // (auto-publish may have created a new online version)
                 syncProductStatusAfterVersionChange(product, ref);
             }
         } catch (Exception e) {
             // AgentSpec no longer exists in Nacos
             log.info(
-                    "AgentSpec {} not found after draft deletion, clearing reference",
+                    "AgentSpec not found after draft deletion, clearing reference,"
+                            + " agentSpecName={}",
                     ref.getAgentSpecName());
             WorkerConfig config = product.getFeature().getWorkerConfig();
             config.setAgentSpecName(null);
@@ -579,7 +619,10 @@ public class WorkerServiceImpl implements WorkerService {
                                 ref.getAgentSpecName(),
                                 JsonUtil.toJson(labels)));
 
-        log.info("Set latest: AgentSpec {}, version {}", ref.getAgentSpecName(), version);
+        log.info(
+                "Set latest AgentSpec version, agentSpecName={}, version={}",
+                ref.getAgentSpecName(),
+                version);
     }
 
     private void ensurePublished(AgentSpecRef ref, String version) {
@@ -602,7 +645,8 @@ public class WorkerServiceImpl implements WorkerService {
                     ref.getNacosId(),
                     s -> s.publish(ref.getNamespace(), ref.getAgentSpecName(), version, false));
             log.info(
-                    "Auto-published AgentSpec {} version {} to clear reviewing state",
+                    "Auto-published AgentSpec version to clear reviewing state,"
+                            + " agentSpecName={}, version={}",
                     ref.getAgentSpecName(),
                     version);
         }
@@ -843,16 +887,18 @@ public class WorkerServiceImpl implements WorkerService {
                     ref.getNacosId(),
                     s -> s.publish(ref.getNamespace(), ref.getAgentSpecName(), reviewing, true));
             log.info(
-                    "Auto-published reviewing version {} for AgentSpec {} to unblock draft"
-                            + " operations",
+                    "Auto-published reviewing AgentSpec version to unblock draft operations,"
+                            + " version={}, agentSpecName={}",
                     reviewing,
                     ref.getAgentSpecName());
         } catch (Exception e) {
             log.warn(
-                    "Failed to auto-publish reviewing version {} for AgentSpec {}: {}",
+                    "Failed to auto-publish reviewing AgentSpec version, version={},"
+                            + " agentSpecName={}, errorMessage={}",
                     reviewing,
                     ref.getAgentSpecName(),
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -861,7 +907,11 @@ public class WorkerServiceImpl implements WorkerService {
             AiMaintainerService service = nacosService.getAiMaintainerService(nacosId);
             return operation.execute(service.agentSpec());
         } catch (NacosException e) {
-            log.error("Nacos operation failed", e);
+            log.error(
+                    "Nacos AgentSpec operation failed, nacosId={}, errorMessage={}",
+                    nacosId,
+                    e.getMessage(),
+                    e);
             throw toBusinessException(e);
         }
     }
@@ -927,7 +977,10 @@ public class WorkerServiceImpl implements WorkerService {
                     .resourceType("worker")
                     .build();
         } catch (Exception e) {
-            log.warn("Failed to get CLI download info for worker product {}", productId, e);
+            log.warn(
+                    "Failed to get CLI download info for worker product, productId={}",
+                    productId,
+                    e);
             return null;
         }
     }
@@ -960,7 +1013,7 @@ public class WorkerServiceImpl implements WorkerService {
 
                 // Skip if product already exists
                 if (productRepository.findByNameAndAdminId(name, adminId).isPresent()) {
-                    log.info("Worker product '{}' already exists, skipping", name);
+                    log.info("Worker product already exists, skipping import, name={}", name);
                     skippedCount++;
                     continue;
                 }
@@ -993,15 +1046,18 @@ public class WorkerServiceImpl implements WorkerService {
 
                 productRepository.save(product);
                 successCount++;
-                log.info("Imported worker product '{}' from Nacos", name);
+                log.info("Imported worker product from Nacos, name={}", name);
             }
         } catch (Exception e) {
-            log.error("Failed to import workers from Nacos", e);
+            log.error("Failed to import workers from Nacos, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "Failed to import workers: " + e.getMessage());
         }
 
-        log.info("Imported {} worker products from Nacos, skipped {}", successCount, skippedCount);
+        log.info(
+                "Imported worker products from Nacos, successCount={}, skippedCount={}",
+                successCount,
+                skippedCount);
 
         return ImportResult.builder()
                 .resourceType("worker")

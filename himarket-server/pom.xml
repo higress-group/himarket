@@ -114,7 +114,7 @@
             <version>0.3.10</version>
         </dependency>
 
-        <!-- Aliyun Credentials - 新增依赖 -->
+        <!-- Aliyun Credentials -->
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>credentials-java</artifactId>

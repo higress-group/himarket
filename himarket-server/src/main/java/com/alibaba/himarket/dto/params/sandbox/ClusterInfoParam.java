@@ -25,6 +25,6 @@ import lombok.Data;
 @Data
 public class ClusterInfoParam {
 
-    @NotBlank(message = "KubeConfig不能为空")
+    @NotBlank(message = "KubeConfig must not be blank")
     private String kubeConfig;
 }

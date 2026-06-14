@@ -52,7 +52,8 @@ public class HiCodingHandshakeInterceptor implements HandshakeInterceptor {
                 attributes.put("sandboxMode", sandboxMode);
             }
         } catch (Exception e) {
-            logger.debug("Failed to parse token from query param", e);
+            logger.debug(
+                    "Failed to parse token from query param, errorMessage={}", e.getMessage(), e);
         }
 
         // 2. Fallback to Authorization header / cookie (via TokenUtil)
@@ -61,17 +62,20 @@ public class HiCodingHandshakeInterceptor implements HandshakeInterceptor {
         }
 
         if (StrUtil.isBlank(token)) {
-            logger.warn("WebSocket handshake rejected: missing token");
+            logger.warn("WebSocket handshake rejected, reason=missing_token");
             return false;
         }
 
         try {
             User user = TokenUtil.parseUser(token);
             attributes.put("userId", user.getUserId());
-            logger.info("WebSocket handshake authenticated: userId={}", user.getUserId());
+            logger.info("WebSocket handshake authenticated, userId={}", user.getUserId());
             return true;
         } catch (Exception e) {
-            logger.warn("WebSocket handshake rejected: invalid token - {}", e.getMessage());
+            logger.warn(
+                    "WebSocket handshake rejected, reason=invalid_token, errorMessage={}",
+                    e.getMessage(),
+                    e);
             return false;
         }
     }

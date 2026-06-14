@@ -67,8 +67,19 @@ public class ApsaraGatewayClient extends GatewayClient {
             }
             return new Client(clientConfig);
         } catch (Exception e) {
-            log.error("Error creating client", e);
-            throw new BusinessException(ErrorCode.GATEWAY_ERROR, "Error creating client");
+            log.error(
+                    "Failed to create gateway client, dependency=ApsaraGateway,"
+                            + " operation=createClient, regionId={}, endpoint={},"
+                            + " errorType={}, errorMessage={}",
+                    config.getRegionId(),
+                    config.getDomain(),
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    ErrorCode.GATEWAY_ERROR,
+                    e,
+                    "Failed to create Apsara gateway client: " + e.getMessage());
         }
     }
 
@@ -77,10 +88,10 @@ public class ApsaraGatewayClient extends GatewayClient {
         // Client doesn't need explicit closing
     }
 
-    // ==================== 网关实例管理 ====================
+    // Gateway instance operations.
 
     /**
-     * 获取网关实例列表
+     * Lists gateway instances.
      */
     public ListInstancesResponse listInstances(int current, int size, String brokerEngineType) {
         try {
@@ -97,13 +108,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, ListInstancesResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error listing instances", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("ListInstances", e);
         }
     }
 
     /**
-     * 获取网关实例详情
+     * Gets gateway instance details.
      */
     public GetInstanceInfoResponse getInstance(String gwInstanceId) {
         try {
@@ -119,15 +129,14 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, GetInstanceInfoResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error getting instance info", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("GetInstanceInfo", e);
         }
     }
 
-    // ==================== MCP Server 管理 ====================
+    // MCP Server operations.
 
     /**
-     * 获取 MCP Server 列表
+     * Lists MCP Servers.
      */
     public ListMcpServersResponse listMcpServers(String gwInstanceId, int current, int size) {
         try {
@@ -145,13 +154,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, ListMcpServersResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error listing MCP servers", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("ListMcpServers", e);
         }
     }
 
     /**
-     * 获取 MCP Server 详情
+     * Gets MCP Server details.
      */
     public GetMcpServerResponse getMcpServer(String gwInstanceId, String mcpServerName) {
         try {
@@ -168,13 +176,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, GetMcpServerResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error getting MCP server details", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("GetMcpServer", e);
         }
     }
 
     /**
-     * 为 MCP Server 添加授权的消费者
+     * Adds authorized consumers to an MCP Server.
      */
     public AddMcpServerConsumersResponse addMcpServerConsumers(
             String gwInstanceId, String mcpServerName, List<String> consumerNames) {
@@ -193,13 +200,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, AddMcpServerConsumersResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error adding MCP server consumers", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("AddMcpServerConsumers", e);
         }
     }
 
     /**
-     * 删除 MCP Server 的授权消费者
+     * Deletes authorized consumers from an MCP Server.
      */
     public DeleteMcpServerConsumersResponse deleteMcpServerConsumers(
             String gwInstanceId, String mcpServerName, List<String> consumerNames) {
@@ -218,15 +224,14 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, DeleteMcpServerConsumersResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error deleting MCP server consumers", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("DeleteMcpServerConsumers", e);
         }
     }
 
-    // ==================== Model API 管理 ====================
+    // Model API operations.
 
     /**
-     * 获取 Model API 列表
+     * Lists Model APIs.
      */
     public ListModelApisResponse listModelApis(String gwInstanceId, int current, int size) {
         try {
@@ -244,13 +249,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, ListModelApisResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error listing Model APIs", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("ListModelApis", e);
         }
     }
 
     /**
-     * 获取 Model API 详情
+     * Gets Model API details.
      */
     public GetModelApiResponse getModelApi(String gwInstanceId, String modelApiId) {
         try {
@@ -267,15 +271,14 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, GetModelApiResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error getting Model API details", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("GetModelApi", e);
         }
     }
 
-    // ==================== 应用（Consumer）管理 ====================
+    // Application and consumer operations.
 
     /**
-     * 创建应用（Consumer）
+     * Creates an application consumer.
      */
     public CreateAppResponse createApp(CreateAppRequest request) {
         try {
@@ -288,13 +291,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, CreateAppResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error creating app", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("CreateApp", e);
         }
     }
 
     /**
-     * 更新应用（Consumer）
+     * Updates an application consumer.
      */
     public ModifyAppResponse modifyApp(ModifyAppRequest request) {
         try {
@@ -307,13 +309,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, ModifyAppResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error modifying app", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("ModifyApp", e);
         }
     }
 
     /**
-     * 删除应用（Consumer）
+     * Deletes an application consumer.
      */
     public BatchDeleteAppResponse deleteApp(String gwInstanceId, String appId) {
         try {
@@ -330,13 +331,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, BatchDeleteAppResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error deleting app", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("BatchDeleteApp", e);
         }
     }
 
     /**
-     * 查询应用列表（用于检查 Consumer 是否存在）
+     * Lists applications, used to check whether a consumer exists.
      */
     public ListAppsByGwInstanceIdResponse listAppsByGwInstanceId(
             String gwInstanceId, Integer serviceType) {
@@ -354,15 +354,14 @@ public class ApsaraGatewayClient extends GatewayClient {
                         return BeanUtil.toBean(data, ListAppsByGwInstanceIdResponse.class);
                     });
         } catch (Exception e) {
-            log.error("Error listing apps", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("ListAppsByGwInstanceId", e);
         }
     }
 
-    // ==================== Model API 授权管理 ====================
+    // Model API authorization operations.
 
     /**
-     * 批量授权消费者到 Model API
+     * Grants consumers to a Model API in batch.
      */
     public BatchGrantModelApiResponse batchGrantModelApi(
             String gwInstanceId, String modelApiId, List<String> consumerIds) {
@@ -379,13 +378,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                     request.toJsonObject(),
                     data -> BeanUtil.toBean(data, BatchGrantModelApiResponse.class));
         } catch (Exception e) {
-            log.error("Error granting model API consumers", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("BatchGrantModelApi", e);
         }
     }
 
     /**
-     * 撤销消费者对 Model API 的授权
+     * Revokes a consumer grant from a Model API.
      */
     public RevokeModelApiGrantResponse revokeModelApiGrant(String gwInstanceId, String authId) {
         try {
@@ -400,13 +398,12 @@ public class ApsaraGatewayClient extends GatewayClient {
                     request.toJsonObject(),
                     data -> BeanUtil.toBean(data, RevokeModelApiGrantResponse.class));
         } catch (Exception e) {
-            log.error("Error revoking model API grant", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("RevokeModelApiGrant", e);
         }
     }
 
     /**
-     * 查询 Model API 的消费者授权列表
+     * Lists consumer grants for a Model API.
      */
     public ListModelApiConsumersResponse listModelApiConsumers(
             String gwInstanceId, String modelApiId, int current, int size) {
@@ -425,22 +422,21 @@ public class ApsaraGatewayClient extends GatewayClient {
                     request.toJsonObject(),
                     data -> BeanUtil.toBean(data, ListModelApiConsumersResponse.class));
         } catch (Exception e) {
-            log.error("Error listing model API consumers", e);
-            throw new RuntimeException(e);
+            throw toApsaraClientException("ListModelApiConsumers", e);
         }
     }
 
-    // ==================== 通用执行方法 ====================
+    // Common execution.
 
     /**
-     * 执行 Apsara API 请求
+     * Executes an Apsara API request.
      *
-     * @param action API 动作名称
-     * @param pathName API 资源路径
-     * @param methodType HTTP 方法类型
-     * @param body 请求体
-     * @param converter 响应转换器
-     * @return 转换后的结果
+     * @param action API action name
+     * @param pathName API resource path
+     * @param methodType HTTP method
+     * @param body request body
+     * @param converter response converter
+     * @return converted result
      */
     public <E> E execute(
             String action,
@@ -450,11 +446,11 @@ public class ApsaraGatewayClient extends GatewayClient {
             Function<Map<String, Object>, E> converter) {
         Params params =
                 new Params()
-                        .setStyle("ROA") // API 风格
-                        .setVersion(config.getVersion()) // API 版本号
-                        .setAction(action) // API 名称
-                        .setPathname(pathName) // API 资源路径
-                        .setMethod(methodType.name()) // 请求方法
+                        .setStyle("ROA")
+                        .setVersion(config.getVersion())
+                        .setAction(action)
+                        .setPathname(pathName)
+                        .setMethod(methodType.name())
                         .setProtocol("HTTPS")
                         .setAuthType("AK")
                         .setReqBodyType("json")
@@ -486,11 +482,38 @@ public class ApsaraGatewayClient extends GatewayClient {
             Map<String, Object> data = (Map<String, Object>) (Map<?, ?>) response;
             return converter.apply(data);
         } catch (Exception e) {
-            log.error("Error executing Apsara request", e);
+            log.error(
+                    "Failed to execute gateway request, dependency=ApsaraGateway,"
+                            + " operation=execute, action={}, path={}, method={},"
+                            + " body={}, errorType={}, errorMessage={}",
+                    action,
+                    pathName,
+                    methodType,
+                    body,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.GATEWAY_ERROR,
                     e,
                     "Failed to communicate with Apsara gateway: " + e.getMessage());
         }
+    }
+
+    private void logApsaraClientError(String operation, Exception e) {
+        log.error(
+                "Failed to execute gateway client operation, dependency=ApsaraGateway,"
+                        + " operation={}, errorType={}, errorMessage={}",
+                operation,
+                e.getClass().getSimpleName(),
+                e.getMessage(),
+                e);
+    }
+
+    private RuntimeException toApsaraClientException(String operation, Exception e) {
+        logApsaraClientError(operation, e);
+        return new RuntimeException(
+                "Failed to execute Apsara gateway operation " + operation + ": " + e.getMessage(),
+                e);
     }
 }

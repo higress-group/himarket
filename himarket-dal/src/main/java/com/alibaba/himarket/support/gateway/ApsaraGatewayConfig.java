@@ -33,16 +33,22 @@ public class ApsaraGatewayConfig {
 
     @Encrypted private String accessKeySecret;
 
-    /** 可选：STS 临时凭证 */
+    /**
+     * Optional STS session token.
+     */
     @Encrypted private String securityToken;
 
-    /** POP 路由相关 */
+    /**
+     * POP routing domain.
+     */
     private String domain;
 
     private String product;
     private String version;
 
-    /** 业务头 */
+    /**
+     * Organization header for Apsara requests.
+     */
     @JsonProperty("xAcsOrganizationId")
     private String xAcsOrganizationId;
 
@@ -59,7 +65,6 @@ public class ApsaraGatewayConfig {
     private String xAcsRoleId;
 
     public String buildUniqueKey() {
-        // 包含所有影响身份识别和路由的字段，确保配置唯一性准确
         return String.format(
                 "%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
                 accessKeyId,

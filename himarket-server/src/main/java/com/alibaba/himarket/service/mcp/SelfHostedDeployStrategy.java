@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * SELF_HOSTED 类型沙箱的部署策略 — 预留接口，暂不实现。
+ * Deployment strategy reserved for SELF_HOSTED sandboxes.
  */
 @Component
 @Slf4j
@@ -31,15 +31,17 @@ public class SelfHostedDeployStrategy implements McpSandboxDeployStrategy {
             String extraParamsDef,
             String namespace,
             String resourceSpec) {
-        // TODO: 实现 SELF_HOSTED 类型沙箱的部署逻辑
+        // TODO: Implement deployment for SELF_HOSTED sandboxes.
         throw new UnsupportedOperationException(
-                "SELF_HOSTED 类型沙箱暂不支持 MCP 部署，请使用 AGENT_RUNTIME 类型沙箱");
+                "SELF_HOSTED sandboxes do not support MCP deployment yet. Use AGENT_RUNTIME"
+                        + " sandboxes instead.");
     }
 
     @Override
     public void undeploy(SandboxInstance sandbox, String mcpName, String userId, String namespace) {
-        // TODO: 实现 SELF_HOSTED 类型沙箱的卸载逻辑
+        // TODO: Implement undeploy for SELF_HOSTED sandboxes.
         throw new UnsupportedOperationException(
-                "SELF_HOSTED 类型沙箱暂不支持 undeploy，请使用 AGENT_RUNTIME 类型沙箱");
+                "SELF_HOSTED sandboxes do not support undeploy yet. Use AGENT_RUNTIME sandboxes"
+                        + " instead.");
     }
 }

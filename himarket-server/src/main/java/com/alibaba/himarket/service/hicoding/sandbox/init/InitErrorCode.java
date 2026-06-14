@@ -1,21 +1,21 @@
 package com.alibaba.himarket.service.hicoding.sandbox.init;
 
 /**
- * 初始化错误码枚举。
- * 提供细粒度的错误分类，便于前端展示和运维排查。
+ * Initialization error code enum.
  *
- * 每个错误码对应 {@link SandboxInitPipeline} 中某个阶段的失败场景，
- * 可通过 {@link #fromPhaseName(String)} 从 Pipeline 失败阶段名称自动映射。
+ * <p>Provides fine-grained error categories for frontend display and operational diagnostics. Each
+ * code maps to a failure scenario in {@link SandboxInitPipeline} and can be derived from the
+ * failed phase name through {@link #fromPhaseName(String)}.
  */
 public enum InitErrorCode {
-    SANDBOX_ACQUIRE_FAILED("SANDBOX_ACQUIRE_FAILED", "沙箱获取失败"),
-    FILESYSTEM_NOT_READY("FILESYSTEM_NOT_READY", "文件系统未就绪"),
-    CONFIG_RESOLVE_FAILED("CONFIG_RESOLVE_FAILED", "配置解析失败"),
-    CONFIG_INJECTION_FAILED("CONFIG_INJECTION_FAILED", "配置注入失败"),
-    SIDECAR_CONNECT_FAILED("SIDECAR_CONNECT_FAILED", "Sidecar 连接失败"),
-    CLI_NOT_READY("CLI_NOT_READY", "CLI 工具未就绪"),
-    PIPELINE_TIMEOUT("PIPELINE_TIMEOUT", "初始化超时"),
-    UNKNOWN_ERROR("UNKNOWN_ERROR", "未知错误");
+    SANDBOX_ACQUIRE_FAILED("SANDBOX_ACQUIRE_FAILED", "Failed to acquire sandbox"),
+    FILESYSTEM_NOT_READY("FILESYSTEM_NOT_READY", "Filesystem is not ready"),
+    CONFIG_RESOLVE_FAILED("CONFIG_RESOLVE_FAILED", "Failed to resolve configuration"),
+    CONFIG_INJECTION_FAILED("CONFIG_INJECTION_FAILED", "Failed to inject configuration"),
+    SIDECAR_CONNECT_FAILED("SIDECAR_CONNECT_FAILED", "Failed to connect to Sidecar"),
+    CLI_NOT_READY("CLI_NOT_READY", "CLI tool is not ready"),
+    PIPELINE_TIMEOUT("PIPELINE_TIMEOUT", "Initialization timed out"),
+    UNKNOWN_ERROR("UNKNOWN_ERROR", "Unknown error");
 
     private final String code;
     private final String defaultMessage;
@@ -34,11 +34,11 @@ public enum InitErrorCode {
     }
 
     /**
-     * 根据 Pipeline 失败阶段名称映射到错误码。
+     * Maps a failed Pipeline phase name to an error code.
      *
-     * @param phaseName Pipeline 阶段名称（如 "sandbox-acquire"、"cli-ready"），
-     *                  参见各 {@link InitPhase#name()} 实现
-     * @return 对应的错误码，无法匹配时返回 {@link #UNKNOWN_ERROR}
+     * @param phaseName Pipeline phase name, such as {@code "sandbox-acquire"} or
+     *     {@code "cli-ready"}; see {@link InitPhase#name()} implementations
+     * @return matching error code, or {@link #UNKNOWN_ERROR} when no match exists
      */
     public static InitErrorCode fromPhaseName(String phaseName) {
         if (phaseName == null) {

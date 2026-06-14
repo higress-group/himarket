@@ -25,72 +25,110 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
 
-/** 通用SLS日志查询请求 */
+/**
+ * Generic SLS log query request.
+ */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GenericSlsQueryRequest {
 
-    /** 用户ID（仅当配置为STS认证时需要） 此字段由Controller层从上下文获取并设置，前端不应传入 */
+    /**
+     * User ID populated by the controller when STS authentication is enabled.
+     */
     @JsonIgnore private String userId;
 
-    /** 开始时间（Unix时间戳，秒） */
+    /**
+     * Start time as a Unix timestamp in seconds.
+     */
     private Integer fromTime;
 
-    /** 结束时间（Unix时间戳，秒） */
+    /**
+     * End time as a Unix timestamp in seconds.
+     */
     private Integer toTime;
 
-    /** 开始时间（字符串：yyyy-MM-dd HH:mm:ss，可选） */
+    /**
+     * Optional start time string in yyyy-MM-dd HH:mm:ss format.
+     */
     private String startTime;
 
-    /** 结束时间（字符串：yyyy-MM-dd HH:mm:ss，可选） */
+    /**
+     * Optional end time string in yyyy-MM-dd HH:mm:ss format.
+     */
     private String endTime;
 
-    /** Model API（过滤参数，支持多个值OR查询） */
+    /**
+     * Model API filter values, combined with OR semantics.
+     */
     private String[] api;
 
-    /** Model（过滤参数，支持多个值OR查询） */
+    /**
+     * Model filter values, combined with OR semantics.
+     */
     private String[] model;
 
-    /** 消费者（过滤参数，支持多个值OR查询） */
+    /**
+     * Consumer filter values, combined with OR semantics.
+     */
     private String[] consumer;
 
-    /** 实例ID，对应 instanceId（过滤参数，支持多个值OR查询） */
+    /**
+     * Instance ID filter values, mapped to instanceId and combined with OR semantics.
+     */
     private String[] clusterId;
 
-    /** 路由名称（过滤参数，支持多个值OR查询） */
+    /**
+     * Route name filter values, combined with OR semantics.
+     */
     private String[] route;
 
-    /** 服务名（过滤参数，对 upstream_cluster 进行包含匹配，支持多个值OR查询） */
+    /**
+     * Service name filter values, matched against upstream_cluster with contains semantics.
+     */
     private String[] service;
 
     /**
-     * 路由名称（MCP监控侧字段，兼容前端使用 route_name 传参）
+     * Route name filter used by MCP monitoring requests.
      *
-     * <p>说明：历史上模型大盘使用 {@link #route}，MCP 大盘使用 route_name；两者在后端都映射到
-     * access_logs.route_name / SLS 的 route_name。
+     * <p>Historically, the model dashboard used {@link #route} while the MCP dashboard passed
+     * route_name. Both are mapped to access_logs.route_name or the SLS route_name field.
      */
     private String[] routeName;
 
-    /** 上游服务（MCP监控侧字段，兼容前端使用 upstream_cluster 传参） */
+    /**
+     * Upstream service filter used by MCP monitoring requests.
+     */
     private String[] upstreamCluster;
 
-    /** MCP 工具名称（MCP监控侧字段，兼容前端使用 mcp_tool_name 传参） */
+    /**
+     * MCP tool name filter used by MCP monitoring requests.
+     */
     private String[] mcpToolName;
 
-    /** 场景名（如: pv, uv, qps_total 等） */
+    /**
+     * Scenario name, such as pv, uv, or qps_total.
+     */
     private String scenario;
 
-    /** SQL查询语句 */
+    /**
+     * SQL query text.
+     */
     private String sql;
 
-    /** 单页返回条数（默认1000，上镐5000） */
+    /**
+     * Page size, defaulting to 1000 with a maximum of 5000.
+     */
     @Min(1)
     @Max(5000)
     private Integer pageSize;
 
-    /** 时间间隔（秒，用于时序图表聚合） */
+    /**
+     * Aggregation interval in seconds for time-series charts.
+     */
     private Integer interval;
 
-    /** 业务类型，用于区分不同的产品类型（如 MCP_SERVER, MODEL_API 等） */
+    /**
+     * Business type used to distinguish product families, such as MCP_SERVER or MODEL_API.
+     */
     private String bizType;
 }

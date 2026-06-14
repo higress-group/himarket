@@ -30,13 +30,13 @@ import java.util.Map;
 import lombok.Data;
 
 /**
- * MCP connectionConfig JSON 的类型化解析。
+ * Typed parser for MCP connectionConfig JSON.
  *
- * <p>支持三种格式：
+ * <p>Supported formats:
  * <ol>
- *   <li>mcpServers 格式：{ "mcpServers": { "name": { "command": "...", "env": {...} } } }</li>
- *   <li>单 server 格式：{ "command": "...", "args": [...], "env": {...} }</li>
- *   <li>包装格式：{ "mcpServerConfig": { "rawConfig": { ... } } }</li>
+ *   <li>mcpServers format: { "mcpServers": { "name": { "command": "...", "env": {...} } } }</li>
+ *   <li>single server format: { "command": "...", "args": [...], "env": {...} }</li>
+ *   <li>wrapper format: { "mcpServerConfig": { "rawConfig": { ... } } }</li>
  * </ol>
  */
 @Data
@@ -44,19 +44,27 @@ public class McpConnectionConfig {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /** 格式1: mcpServers 包装 */
+    /**
+     * Format 1: mcpServers wrapper.
+     */
     private Map<String, McpServerEntry> mcpServers;
 
-    /** 格式2: 单 server（有 command 字段） */
+    /**
+     * Format 2: single server with command.
+     */
     private String command;
 
     private List<String> args;
     private Map<String, Object> env;
 
-    /** 格式3: mcpServerConfig 包装 */
+    /**
+     * Format 3: mcpServerConfig wrapper.
+     */
     private McpServerConfigWrapper mcpServerConfig;
 
-    /** 保留其他未知字段（单 server 格式下可能有 url, type 等） */
+    /**
+     * Extra unknown fields, such as url or type in single server format.
+     */
     private Map<String, Object> extra = new LinkedHashMap<>();
 
     @JsonAnySetter
@@ -71,7 +79,9 @@ public class McpConnectionConfig {
         private List<String> args;
         private Map<String, Object> env;
 
-        /** 保留其他未知字段（如 url, type 等） */
+        /**
+         * Extra unknown fields, such as url or type.
+         */
         private Map<String, Object> extra = new LinkedHashMap<>();
 
         @JsonAnySetter
@@ -81,7 +91,9 @@ public class McpConnectionConfig {
             }
         }
 
-        /** 转为不含 env 的 Map（用于序列化到 mcpServers JSON） */
+        /**
+         * Converts this entry to a map without env for mcpServers JSON serialization.
+         */
         public Map<String, Object> toMapWithoutEnv() {
             Map<String, Object> map = new LinkedHashMap<>(extra);
             if (command != null) map.put("command", command);
@@ -98,14 +110,14 @@ public class McpConnectionConfig {
     }
 
     /**
-     * 从 JSON 字符串解析。
+     * Parses a JSON string.
      */
     public static McpConnectionConfig parse(String json) throws JsonProcessingException {
         return MAPPER.readValue(json, McpConnectionConfig.class);
     }
 
     /**
-     * 判断是哪种格式。
+     * Returns whether this config uses mcpServers format.
      */
     public boolean isMcpServersFormat() {
         return mcpServers != null && !mcpServers.isEmpty();
@@ -120,7 +132,7 @@ public class McpConnectionConfig {
     }
 
     /**
-     * 提取所有 env 并返回合并结果（value 统一转为 String）。
+     * Extracts all env entries and converts values to strings.
      */
     public Map<String, String> extractAllEnv() {
         Map<String, String> result = new LinkedHashMap<>();
@@ -137,9 +149,9 @@ public class McpConnectionConfig {
     }
 
     /**
-     * 构建不含 env 的 mcpServers JSON。
+     * Builds mcpServers JSON without env values.
      *
-     * @param defaultName 当格式为单 server 时使用的 server 名称
+     * @param defaultName server name used when the source format is single server
      */
     public String toMcpServersJsonWithoutEnv(String defaultName) throws JsonProcessingException {
         Map<String, Object> root = new LinkedHashMap<>();
@@ -163,7 +175,7 @@ public class McpConnectionConfig {
     }
 
     /**
-     * 获取包装格式中的 rawConfig JSON 字符串。
+     * Gets the rawConfig JSON string from wrapper format.
      */
     public String getRawConfigJson() throws JsonProcessingException {
         if (!isWrappedFormat()) return null;

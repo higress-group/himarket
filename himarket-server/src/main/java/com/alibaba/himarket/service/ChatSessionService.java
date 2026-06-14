@@ -32,74 +32,73 @@ import org.springframework.data.domain.Pageable;
 public interface ChatSessionService {
 
     /**
-     * Create a new chat session
+     * Creates a chat session.
      *
-     * @param param
-     * @return
+     * @param param chat session creation parameters
+     * @return created chat session information
      */
     ChatSessionResult createSession(CreateChatSessionParam param);
 
     /**
-     * Get a chat session
+     * Gets a chat session.
      *
-     * @param sessionId
-     * @return
+     * @param sessionId chat session ID
+     * @return chat session information
      */
     ChatSessionResult getSession(String sessionId);
 
     /**
-     * Check if a chat session exists
+     * Checks whether a chat session exists.
      *
-     * @param sessionId
+     * @param sessionId chat session ID
      */
     void existsSession(String sessionId);
 
     /**
-     * List all chat sessions for the current user
+     * Lists chat sessions for the current user.
      *
-     * @param pageable
-     * @return
+     * @param pageable pagination parameters
+     * @return paged chat session results
      */
     PageResult<ChatSessionResult> listSessions(Pageable pageable);
 
     /**
-     * Update a chat session
+     * Updates a chat session.
      *
-     * @param sessionId
-     * @param param
-     * @return
+     * @param sessionId chat session ID
+     * @param param chat session update parameters
+     * @return updated chat session information
      */
     ChatSessionResult updateSession(String sessionId, UpdateChatSessionParam param);
 
     /**
-     * Delete a chat session
+     * Deletes a chat session.
      *
-     * @param sessionId
+     * @param sessionId chat session ID
      */
     void deleteSession(String sessionId);
 
     /**
-     * List all conversations for a chat session
+     * Lists conversations for a chat session.
      *
-     * @param sessionId
-     * @return
+     * @param sessionId chat session ID
+     * @return conversation results
      */
     List<ConversationResult_V1> listConversations(String sessionId);
 
     /**
-     * List conversations grouped by product for a chat session Structure: Product[] ->
-     * Conversations[] -> Questions[] -> Answers[]
+     * Lists conversations grouped by product for a chat session.
      *
-     * @param sessionId
-     * @return List of ProductConversationResult
+     * @param sessionId chat session ID
+     * @return product conversation results
      */
     List<ProductConversationResult> listConversationsV2(String sessionId);
 
     /**
-     * Get a chat session for the current user
+     * Gets a chat session for the current user.
      *
-     * @param sessionId
-     * @return
+     * @param sessionId chat session ID
+     * @return chat session entity
      */
     ChatSession findUserSession(String sessionId);
 }
