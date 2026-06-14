@@ -57,7 +57,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
@@ -296,7 +295,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                                             Comparator.nullsLast(Long::compareTo))
                                     .reversed())
                     .map(version -> toVersionResult(version, latestVersion))
-                    .collect(Collectors.toList());
+                    .toList();
         } catch (Exception e) {
             throw toAiRegistryException("Failed to list AIRegistry Skill versions", e);
         }
@@ -365,7 +364,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                                                     .description(item.getDescription())
                                                     .downloadCount(item.getDownloadCount())
                                                     .build())
-                            .collect(Collectors.toList());
+                            .toList();
             long total =
                     data.getTotalCount() == null ? items.size() : data.getTotalCount().longValue();
             return PageResult.of(items, pageNo, pageSize, total);

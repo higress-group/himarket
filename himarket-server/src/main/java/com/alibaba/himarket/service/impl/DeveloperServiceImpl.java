@@ -299,7 +299,9 @@ public class DeveloperServiceImpl implements DeveloperService {
     public void onPortalDeletion(PortalDeletingEvent event) {
         String portalId = event.getPortalId();
         List<Developer> developers = developerRepository.findByPortalId(portalId);
-        developers.forEach(developer -> deleteDeveloper(developer.getDeveloperId()));
+        for (Developer developer : developers) {
+            deleteDeveloper(developer.getDeveloperId());
+        }
     }
 
     private String generateToken(String developerId) {

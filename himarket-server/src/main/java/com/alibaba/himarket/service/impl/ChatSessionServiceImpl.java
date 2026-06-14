@@ -39,8 +39,14 @@ import com.alibaba.himarket.repository.ChatRepository;
 import com.alibaba.himarket.repository.ChatSessionRepository;
 import com.alibaba.himarket.service.ChatSessionService;
 import com.alibaba.himarket.service.ProductService;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -181,49 +187,49 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             return Collections.emptyList();
         }
 
-        // Group by conversation ID
-        Map<String, List<Chat>> conversationMap =
-                chats.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        Chat::getConversationId,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<String, List<Chat>> conversationMap = new LinkedHashMap<>();
+        for (Chat chat : chats) {
+            String conversationId =
+                    Objects.requireNonNull(
+                            chat.getConversationId(), "element cannot be mapped to a null key");
+            conversationMap.computeIfAbsent(conversationId, key -> new ArrayList<>()).add(chat);
+        }
 
-        return conversationMap.entrySet().stream()
-                .map(
-                        entry ->
-                                ConversationResult_V1.builder()
-                                        .conversationId(entry.getKey())
-                                        .questions(buildQuestions(entry.getValue()))
-                                        .build())
-                .collect(Collectors.toList());
+        List<ConversationResult_V1> conversations = new ArrayList<>();
+        for (Map.Entry<String, List<Chat>> entry : conversationMap.entrySet()) {
+            conversations.add(
+                    ConversationResult_V1.builder()
+                            .conversationId(entry.getKey())
+                            .questions(buildQuestions(entry.getValue()))
+                            .build());
+        }
+        return conversations;
     }
 
     private List<ConversationResult_V1.QuestionResult> buildQuestions(
             List<Chat> conversationChats) {
-        // Group by question ID
-        Map<String, List<Chat>> questionGroups =
-                conversationChats.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        Chat::getQuestionId,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<String, List<Chat>> questionGroups = new LinkedHashMap<>();
+        for (Chat chat : conversationChats) {
+            String questionId =
+                    Objects.requireNonNull(
+                            chat.getQuestionId(), "element cannot be mapped to a null key");
+            questionGroups.computeIfAbsent(questionId, key -> new ArrayList<>()).add(chat);
+        }
 
-        // Build question results
         List<ConversationResult_V1.QuestionResult> questions = new ArrayList<>();
         for (Map.Entry<String, List<Chat>> e : questionGroups.entrySet()) {
             Chat firstChat = e.getValue().get(0);
+            List<ChatAttachmentConfig> attachments = firstChat.getAttachments();
+            if (attachments == null) {
+                attachments = Collections.emptyList();
+            }
 
             ConversationResult_V1.QuestionResult question =
                     ConversationResult_V1.QuestionResult.builder()
                             .questionId(e.getKey())
                             .content(firstChat.getQuestion())
                             .createdAt(firstChat.getCreateAt())
-                            .attachments(
-                                    Optional.ofNullable(firstChat.getAttachments())
-                                            .orElse(Collections.emptyList()))
+                            .attachments(attachments)
                             .answers(buildAnswerGroups(e.getValue()))
                             .build();
 
@@ -235,41 +241,34 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     private List<ConversationResult_V1.AnswerGroupResult> buildAnswerGroups(
             List<Chat> questionChats) {
-        // Group by sequence
-        Map<Integer, List<Chat>> sequenceGroups =
-                questionChats.stream()
-                        .filter(chat -> chat.getSequence() != null)
-                        .collect(
-                                Collectors.groupingBy(
-                                        Chat::getSequence,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<Integer, List<Chat>> sequenceGroups = new TreeMap<>();
+        for (Chat chat : questionChats) {
+            if (chat.getSequence() == null) {
+                continue;
+            }
+            sequenceGroups.computeIfAbsent(chat.getSequence(), key -> new ArrayList<>()).add(chat);
+        }
 
-        // Build answer groups sorted by sequence
-        return sequenceGroups.keySet().stream()
-                .sorted()
-                .map(
-                        sequence -> {
-                            // Build answers for current sequence
-                            List<ConversationResult_V1.AnswerResult> answers =
-                                    sequenceGroups.get(sequence).stream()
-                                            .map(
-                                                    chat ->
-                                                            ConversationResult_V1.AnswerResult
-                                                                    .builder()
-                                                                    .answerId(chat.getAnswerId())
-                                                                    .productId(chat.getProductId())
-                                                                    .content(chat.getAnswer())
-                                                                    .usage(chat.getChatUsage())
-                                                                    .build())
-                                            .collect(Collectors.toList());
+        List<ConversationResult_V1.AnswerGroupResult> answerGroups = new ArrayList<>();
+        for (Map.Entry<Integer, List<Chat>> entry : sequenceGroups.entrySet()) {
+            List<ConversationResult_V1.AnswerResult> answers = new ArrayList<>();
+            for (Chat chat : entry.getValue()) {
+                answers.add(
+                        ConversationResult_V1.AnswerResult.builder()
+                                .answerId(chat.getAnswerId())
+                                .productId(chat.getProductId())
+                                .content(chat.getAnswer())
+                                .usage(chat.getChatUsage())
+                                .build());
+            }
 
-                            return ConversationResult_V1.AnswerGroupResult.builder()
-                                    .sequence(sequence)
-                                    .results(answers)
-                                    .build();
-                        })
-                .collect(Collectors.toList());
+            answerGroups.add(
+                    ConversationResult_V1.AnswerGroupResult.builder()
+                            .sequence(entry.getKey())
+                            .results(answers)
+                            .build());
+        }
+        return answerGroups;
     }
 
     @Override
@@ -285,74 +284,70 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             return Collections.emptyList();
         }
 
-        // 2. Group by productId
-        Map<String, List<Chat>> productGroups =
-                chats.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        Chat::getProductId,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<String, List<Chat>> productGroups = new LinkedHashMap<>();
+        for (Chat chat : chats) {
+            String productId =
+                    Objects.requireNonNull(
+                            chat.getProductId(), "element cannot be mapped to a null key");
+            productGroups.computeIfAbsent(productId, key -> new ArrayList<>()).add(chat);
+        }
 
-        // 3. Build result list for each product
-        return productGroups.entrySet().stream()
-                .map(
-                        entry -> {
-                            String productId = entry.getKey();
-                            List<Chat> productChats = entry.getValue();
-
-                            return ProductConversationResult.builder()
-                                    .productId(productId)
-                                    .conversations(buildProductConversations(productChats))
-                                    .build();
-                        })
-                .collect(Collectors.toList());
+        List<ProductConversationResult> results = new ArrayList<>();
+        for (Map.Entry<String, List<Chat>> entry : productGroups.entrySet()) {
+            results.add(
+                    ProductConversationResult.builder()
+                            .productId(entry.getKey())
+                            .conversations(buildProductConversations(entry.getValue()))
+                            .build());
+        }
+        return results;
     }
 
     private List<ProductConversationResult.ConversationResult> buildProductConversations(
             List<Chat> productChats) {
-        // Group by conversationId
-        Map<String, List<Chat>> conversationGroups =
-                productChats.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        Chat::getConversationId,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<String, List<Chat>> conversationGroups = new LinkedHashMap<>();
+        for (Chat chat : productChats) {
+            String conversationId =
+                    Objects.requireNonNull(
+                            chat.getConversationId(), "element cannot be mapped to a null key");
+            conversationGroups.computeIfAbsent(conversationId, key -> new ArrayList<>()).add(chat);
+        }
 
-        return conversationGroups.entrySet().stream()
-                .map(
-                        entry ->
-                                ProductConversationResult.ConversationResult.builder()
-                                        .conversationId(entry.getKey())
-                                        .questions(buildProductQuestions(entry.getValue()))
-                                        .build())
-                .collect(Collectors.toList());
+        List<ProductConversationResult.ConversationResult> conversations = new ArrayList<>();
+        for (Map.Entry<String, List<Chat>> entry : conversationGroups.entrySet()) {
+            conversations.add(
+                    ProductConversationResult.ConversationResult.builder()
+                            .conversationId(entry.getKey())
+                            .questions(buildProductQuestions(entry.getValue()))
+                            .build());
+        }
+        return conversations;
     }
 
     private List<ProductConversationResult.QuestionResult> buildProductQuestions(
             List<Chat> conversationChats) {
-        // Group by questionId
-        Map<String, List<Chat>> questionGroups =
-                conversationChats.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        Chat::getQuestionId,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<String, List<Chat>> questionGroups = new LinkedHashMap<>();
+        for (Chat chat : conversationChats) {
+            String questionId =
+                    Objects.requireNonNull(
+                            chat.getQuestionId(), "element cannot be mapped to a null key");
+            questionGroups.computeIfAbsent(questionId, key -> new ArrayList<>()).add(chat);
+        }
 
         List<ProductConversationResult.QuestionResult> questions = new ArrayList<>();
         for (Map.Entry<String, List<Chat>> entry : questionGroups.entrySet()) {
             Chat firstChat = entry.getValue().get(0);
+            List<ChatAttachmentConfig> attachments = firstChat.getAttachments();
+            if (attachments == null) {
+                attachments = Collections.emptyList();
+            }
 
             ProductConversationResult.QuestionResult question =
                     ProductConversationResult.QuestionResult.builder()
                             .questionId(entry.getKey())
                             .content(firstChat.getQuestion())
                             .createdAt(firstChat.getCreateAt())
-                            .attachments(
-                                    Optional.ofNullable(firstChat.getAttachments())
-                                            .orElse(Collections.emptyList()))
+                            .attachments(attachments)
                             .answers(buildProductAnswers(entry.getValue()))
                             .build();
 
@@ -364,33 +359,26 @@ public class ChatSessionServiceImpl implements ChatSessionService {
 
     private List<ProductConversationResult.AnswerResult> buildProductAnswers(
             List<Chat> questionChats) {
-        // Group by sequence
-        Map<Integer, List<Chat>> sequenceGroups =
-                questionChats.stream()
-                        .filter(chat -> chat.getSequence() != null)
-                        .collect(
-                                Collectors.groupingBy(
-                                        Chat::getSequence,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+        Map<Integer, Chat> firstChatBySequence = new TreeMap<>();
+        for (Chat chat : questionChats) {
+            if (chat.getSequence() == null) {
+                continue;
+            }
+            firstChatBySequence.putIfAbsent(chat.getSequence(), chat);
+        }
 
-        // Build answers sorted by sequence
-        return sequenceGroups.keySet().stream()
-                .sorted()
-                .map(
-                        sequence -> {
-                            // Since we're grouping by product already, there should be only one
-                            // chat per sequence
-                            Chat chat = sequenceGroups.get(sequence).get(0);
-
-                            return ProductConversationResult.AnswerResult.builder()
-                                    .sequence(sequence)
-                                    .answerId(chat.getAnswerId())
-                                    .content(chat.getAnswer())
-                                    .usage(chat.getChatUsage())
-                                    .toolCalls(chat.getToolCalls())
-                                    .build();
-                        })
-                .collect(Collectors.toList());
+        List<ProductConversationResult.AnswerResult> answers = new ArrayList<>();
+        for (Map.Entry<Integer, Chat> entry : firstChatBySequence.entrySet()) {
+            Chat chat = entry.getValue();
+            answers.add(
+                    ProductConversationResult.AnswerResult.builder()
+                            .sequence(entry.getKey())
+                            .answerId(chat.getAnswerId())
+                            .content(chat.getAnswer())
+                            .usage(chat.getChatUsage())
+                            .toolCalls(chat.getToolCalls())
+                            .build());
+        }
+        return answers;
     }
 }

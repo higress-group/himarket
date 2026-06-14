@@ -67,7 +67,6 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -350,13 +349,13 @@ public class ConsumerServiceImpl implements ConsumerService {
                 GatewayConfig gatewayConfig =
                         gatewayService.getGatewayConfig(productRef.getGatewayId());
                 // Revoke the consumer's authorization configuration from the gateway
-                Optional.ofNullable(matchConsumerRef(consumerId, gatewayConfig))
-                        .ifPresent(
-                                consumerRef ->
-                                        gatewayService.revokeConsumerAuthorization(
-                                                productRef.getGatewayId(),
-                                                consumerRef.getGwConsumerId(),
-                                                subscription.getConsumerAuthConfig()));
+                ConsumerRef consumerRef = matchConsumerRef(consumerId, gatewayConfig);
+                if (consumerRef != null) {
+                    gatewayService.revokeConsumerAuthorization(
+                            productRef.getGatewayId(),
+                            consumerRef.getGwConsumerId(),
+                            subscription.getConsumerAuthConfig());
+                }
             }
         }
 
@@ -387,9 +386,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 subscriptionRepository.findAll(buildCredentialSpec(consumerId, param), pageable);
 
         List<String> productIds =
-                subscriptions.getContent().stream()
-                        .map(ProductSubscription::getProductId)
-                        .collect(Collectors.toList());
+                subscriptions.getContent().stream().map(ProductSubscription::getProductId).toList();
         Map<String, ProductResult> products = productService.getProducts(productIds);
         return new PageResult<SubscriptionResult>()
                 .convertFrom(
@@ -411,7 +408,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 subscriptionRepository.findAllByConsumerId(consumerId);
         return subscriptions.stream()
                 .map(subscription -> new SubscriptionResult().convertFrom(subscription))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -663,14 +660,13 @@ public class ConsumerServiceImpl implements ConsumerService {
         log.info("Cleaning consumers for developer {}", developerId);
 
         List<Consumer> consumers = consumerRepository.findAllByDeveloperId(developerId);
-        consumers.forEach(
-                consumer -> {
-                    try {
-                        deleteConsumer(consumer.getConsumerId());
-                    } catch (Exception e) {
-                        log.error("Failed to delete consumer {}", consumer.getConsumerId(), e);
-                    }
-                });
+        for (Consumer consumer : consumers) {
+            try {
+                deleteConsumer(consumer.getConsumerId());
+            } catch (Exception e) {
+                log.error("Failed to delete consumer {}", consumer.getConsumerId(), e);
+            }
+        }
     }
 
     @EventListener
@@ -684,19 +680,17 @@ public class ConsumerServiceImpl implements ConsumerService {
         List<ProductSubscription> subscriptions =
                 subscriptionRepository.findAllByProductId(productId);
 
-        subscriptions.forEach(
-                subscription -> {
-                    try {
-                        unsubscribeProduct(
-                                subscription.getConsumerId(), subscription.getProductId());
-                    } catch (Exception e) {
-                        log.error(
-                                "Failed to unsubscribe product {} for consumer {}",
-                                productId,
-                                subscription.getConsumerId(),
-                                e);
-                    }
-                });
+        for (ProductSubscription subscription : subscriptions) {
+            try {
+                unsubscribeProduct(subscription.getConsumerId(), subscription.getProductId());
+            } catch (Exception e) {
+                log.error(
+                        "Failed to unsubscribe product {} for consumer {}",
+                        productId,
+                        subscription.getConsumerId(),
+                        e);
+            }
+        }
     }
 
     private ConsumerRef matchConsumerRef(String consumerId, GatewayConfig gatewayConfig) {

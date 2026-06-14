@@ -33,7 +33,6 @@ import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.security.SecureRandom;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -86,7 +85,7 @@ public class McpSandboxOrchestrator {
                                         McpHostingType.SANDBOX
                                                 .name()
                                                 .equalsIgnoreCase(ep.getHostingType()))
-                        .collect(Collectors.toList());
+                        .toList();
         for (McpServerEndpoint existing : existingPublic) {
             if (StrUtil.isNotBlank(existing.getHostingInstanceId())) {
                 eventPublisher.publishEvent(

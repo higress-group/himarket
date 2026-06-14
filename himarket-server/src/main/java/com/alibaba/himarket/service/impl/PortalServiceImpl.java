@@ -61,7 +61,6 @@ import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -157,22 +156,17 @@ public class PortalServiceImpl implements PortalService {
         // Fill domain
         if (portals.hasContent()) {
             List<String> portalIds =
-                    portals.getContent().stream()
-                            .map(Portal::getPortalId)
-                            .collect(Collectors.toList());
+                    portals.getContent().stream().map(Portal::getPortalId).toList();
 
             List<PortalDomain> allDomains = portalDomainRepository.findAllByPortalIdIn(portalIds);
             Map<String, List<PortalDomain>> portalDomains =
                     allDomains.stream().collect(Collectors.groupingBy(PortalDomain::getPortalId));
 
-            portals.getContent()
-                    .forEach(
-                            portal -> {
-                                List<PortalDomain> domains =
-                                        portalDomains.getOrDefault(
-                                                portal.getPortalId(), new ArrayList<>());
-                                portal.setPortalDomains(domains);
-                            });
+            for (Portal portal : portals.getContent()) {
+                List<PortalDomain> domains =
+                        portalDomains.getOrDefault(portal.getPortalId(), new ArrayList<>());
+                portal.setPortalDomains(domains);
+            }
         }
 
         return new PageResult<PortalResult>()
@@ -183,17 +177,15 @@ public class PortalServiceImpl implements PortalService {
     public PortalResult updatePortal(String portalId, UpdatePortalParam param) {
         Portal portal = findPortal(portalId);
 
-        Optional.ofNullable(param.getName())
-                .filter(name -> !name.equals(portal.getName()))
-                .flatMap(portalRepository::findByName)
-                .ifPresent(
-                        p -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Portal with name `{}` already exists",
-                                            portal.getName()));
-                        });
+        String requestedName = param.getName();
+        if (requestedName != null && !requestedName.equals(portal.getName())) {
+            Portal existingPortal = portalRepository.findByName(requestedName).orElse(null);
+            if (existingPortal != null) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT,
+                        StrUtil.format("Portal with name `{}` already exists", requestedName));
+            }
+        }
 
         param.update(portal);
 
@@ -216,11 +208,16 @@ public class PortalServiceImpl implements PortalService {
 
         // At least keep one authentication method
         if (BooleanUtil.isFalse(setting.getBuiltinAuthEnabled())) {
-            boolean enabledOidc =
-                    Optional.ofNullable(setting.getOidcConfigs())
-                            .filter(CollUtil::isNotEmpty)
-                            .map(configs -> configs.stream().anyMatch(OidcConfig::isEnabled))
-                            .orElse(false);
+            boolean enabledOidc = false;
+            List<OidcConfig> oidcConfigs = setting.getOidcConfigs();
+            if (CollUtil.isNotEmpty(oidcConfigs)) {
+                for (OidcConfig oidcConfig : oidcConfigs) {
+                    if (oidcConfig.isEnabled()) {
+                        enabledOidc = true;
+                        break;
+                    }
+                }
+            }
 
             if (!enabledOidc) {
                 throw new BusinessException(

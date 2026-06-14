@@ -105,7 +105,7 @@ public class McpTransportResolver {
                                     return sub != null
                                             && sub.getStatus() == SubscriptionStatus.APPROVED;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
         if (approvedProductIds.isEmpty()) {
             return List.of();
         }
@@ -120,9 +120,7 @@ public class McpTransportResolver {
         }
 
         List<String> mcpServerIds =
-                metaByProduct.values().stream()
-                        .map(McpServerMeta::getMcpServerId)
-                        .collect(Collectors.toList());
+                metaByProduct.values().stream().map(McpServerMeta::getMcpServerId).toList();
         Map<String, List<McpServerEndpoint>> endpointsByServer =
                 endpointRepository
                         .findByMcpServerIdInAndUserIdInAndStatus(

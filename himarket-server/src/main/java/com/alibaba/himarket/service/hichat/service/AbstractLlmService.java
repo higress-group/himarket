@@ -25,13 +25,13 @@ import com.alibaba.himarket.core.exception.ChatError;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
+import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.hichat.manager.ChatBotManager;
 import com.alibaba.himarket.service.hichat.support.*;
 import com.alibaba.himarket.support.product.ModelFeature;
-import com.alibaba.himarket.support.product.ProductFeature;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.model.Model;
 import java.net.URI;
@@ -168,11 +168,13 @@ public abstract class AbstractLlmService implements LlmService {
     }
 
     protected ModelFeature getOrDefaultModelFeature(ProductResult product) {
-        ModelFeature modelFeature =
-                Optional.ofNullable(product)
-                        .map(ProductResult::getFeature)
-                        .map(ProductFeature::getModelFeature)
-                        .orElseGet(() -> ModelFeature.builder().build());
+        ModelFeature modelFeature = null;
+        if (product != null && product.getFeature() != null) {
+            modelFeature = product.getFeature().getModelFeature();
+        }
+        if (modelFeature == null) {
+            modelFeature = ModelFeature.builder().build();
+        }
 
         return ModelFeature.builder()
                 .model(modelFeature.getModel())
@@ -211,40 +213,18 @@ public abstract class AbstractLlmService implements LlmService {
         }
 
         // Find matching route by keyword
-        com.alibaba.himarket.dto.result.httpapi.HttpRouteResult route =
+        HttpRouteResult route =
                 modelAPIConfig.getRoutes().stream()
-                        .filter(
-                                r ->
-                                        java.util.Optional.ofNullable(r.getMatch())
-                                                .map(
-                                                        com.alibaba.himarket.dto.result.httpapi
-                                                                        .HttpRouteResult
-                                                                        .RouteMatchResult
-                                                                ::getPath)
-                                                .map(
-                                                        com.alibaba.himarket.dto.result.httpapi
-                                                                        .HttpRouteResult
-                                                                        .RouteMatchPath
-                                                                ::getValue)
-                                                .filter(path -> path.contains(routeKeyword))
-                                                .isPresent())
+                        .filter(routeCandidate -> routeMatches(routeCandidate, routeKeyword))
                         .findFirst()
                         .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
 
         // Get and process path
-        String path =
-                java.util.Optional.ofNullable(route.getMatch())
-                        .map(
-                                com.alibaba.himarket.dto.result.httpapi.HttpRouteResult
-                                                .RouteMatchResult
-                                        ::getPath)
-                        .map(
-                                routeMatchPath -> {
-                                    String pathValue = routeMatchPath.getValue();
-                                    String pathType = routeMatchPath.getType();
-                                    return pathProcessor.apply(pathValue, pathType);
-                                })
-                        .orElse(routeKeyword);
+        String path = routeKeyword;
+        if (route.getMatch() != null && route.getMatch().getPath() != null) {
+            HttpRouteResult.RouteMatchPath routeMatchPath = route.getMatch().getPath();
+            path = pathProcessor.apply(routeMatchPath.getValue(), routeMatchPath.getType());
+        }
 
         org.springframework.web.util.UriComponentsBuilder builder =
                 org.springframework.web.util.UriComponentsBuilder.newInstance();
@@ -284,6 +264,15 @@ public abstract class AbstractLlmService implements LlmService {
         URI uri = builder.build().toUri();
         log.debug("Successfully built URI: {}", uri);
         return uri;
+    }
+
+    private boolean routeMatches(HttpRouteResult route, String routeKeyword) {
+        if (route.getMatch() == null || route.getMatch().getPath() == null) {
+            return false;
+        }
+
+        String path = route.getMatch().getPath().getValue();
+        return path != null && path.contains(routeKeyword);
     }
 
     /**

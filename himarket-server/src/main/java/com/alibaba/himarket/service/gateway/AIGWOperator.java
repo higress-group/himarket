@@ -50,10 +50,7 @@ import com.aliyun.sdk.service.apig20240327.models.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -81,26 +78,18 @@ public class AIGWOperator extends APIGOperator {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, result.getBody().getMessage());
         }
 
-        List<APIGMcpServerResult> mcpServers =
-                Optional.ofNullable(result.getBody().getData().getItems())
-                        .map(
-                                items ->
-                                        items.stream()
-                                                .map(
-                                                        item -> {
-                                                            APIGMcpServerResult mcpServer =
-                                                                    new APIGMcpServerResult();
-                                                            mcpServer.setMcpServerId(
-                                                                    item.getMcpServerId());
-                                                            mcpServer.setMcpServerName(
-                                                                    item.getName());
-                                                            mcpServer.setApiId(item.getApiId());
-                                                            mcpServer.setMcpRouteId(
-                                                                    item.getRouteId());
-                                                            return mcpServer;
-                                                        })
-                                                .collect(Collectors.toList()))
-                        .orElse(new ArrayList<>());
+        var items = result.getBody().getData().getItems();
+        List<APIGMcpServerResult> mcpServers = new ArrayList<>();
+        if (items != null) {
+            for (var item : items) {
+                APIGMcpServerResult mcpServer = new APIGMcpServerResult();
+                mcpServer.setMcpServerId(item.getMcpServerId());
+                mcpServer.setMcpServerName(item.getName());
+                mcpServer.setApiId(item.getApiId());
+                mcpServer.setMcpRouteId(item.getRouteId());
+                mcpServers.add(mcpServer);
+            }
+        }
 
         return PageResult.of(mcpServers, page, size, result.getBody().getData().getTotalSize());
     }
@@ -138,22 +127,22 @@ public class AIGWOperator extends APIGOperator {
 
         // default domains in gateway
         List<DomainResult> defaultDomains = fetchDefaultDomains(gateway);
-        List<DomainResult> mcpDomains =
-                Optional.ofNullable(resp.getDomainInfos()).orElse(Collections.emptyList()).stream()
-                        .map(
-                                d ->
-                                        DomainResult.builder()
-                                                .domain(d.getName())
-                                                .protocol(
-                                                        Optional.ofNullable(d.getProtocol())
-                                                                .map(String::toLowerCase)
-                                                                .orElse(null))
-                                                .build())
-                        .toList();
-
-        serverConfig.setDomains(
-                Stream.concat(mcpDomains.stream(), defaultDomains.stream())
-                        .collect(Collectors.toList()));
+        List<DomainResult> domains = new ArrayList<>();
+        if (resp.getDomainInfos() != null) {
+            for (var domainInfo : resp.getDomainInfos()) {
+                String protocol =
+                        domainInfo.getProtocol() == null
+                                ? null
+                                : domainInfo.getProtocol().toLowerCase();
+                domains.add(
+                        DomainResult.builder()
+                                .domain(domainInfo.getName())
+                                .protocol(protocol)
+                                .build());
+            }
+        }
+        domains.addAll(defaultDomains);
+        serverConfig.setDomains(domains);
         mcpConfig.setMcpServerConfig(serverConfig);
 
         mcpConfig.setProtocol(
@@ -225,14 +214,17 @@ public class AIGWOperator extends APIGOperator {
             throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
         }
 
-        return Optional.ofNullable(response.getBody())
-                .map(QueryConsumerAuthorizationRulesResponseBody::getData)
-                .map(QueryConsumerAuthorizationRulesResponseBody.Data::getItems)
-                .filter(items -> !items.isEmpty())
-                .map(items -> items.get(0).getConsumerId())
-                .filter(StrUtil::isNotBlank)
-                .map(consumerId -> fetchConsumerCredential(gateway, consumerId))
-                .orElseGet(() -> CredentialContext.builder().build());
+        QueryConsumerAuthorizationRulesResponseBody body = response.getBody();
+        if (body == null || body.getData() == null || body.getData().getItems() == null) {
+            return CredentialContext.builder().build();
+        }
+
+        var items = body.getData().getItems();
+        if (items.isEmpty() || StrUtil.isBlank(items.get(0).getConsumerId())) {
+            return CredentialContext.builder().build();
+        }
+
+        return fetchConsumerCredential(gateway, items.get(0).getConsumerId());
     }
 
     @Override
@@ -278,7 +270,7 @@ public class AIGWOperator extends APIGOperator {
         List<HttpRouteResult> routeResults =
                 httpRoutes.getContent().stream()
                         .map(httpRoute -> new HttpRouteResult().convertFrom(httpRoute, apiDomains))
-                        .collect(Collectors.toList());
+                        .toList();
 
         AgentConfigResult.AgentAPIConfig agentAPIConfig =
                 AgentConfigResult.AgentAPIConfig.builder()
@@ -311,7 +303,7 @@ public class AIGWOperator extends APIGOperator {
         List<HttpRouteResult> routeResults =
                 httpRoutes.getContent().stream()
                         .map(httpRoute -> new HttpRouteResult().convertFrom(httpRoute, apiDomains))
-                        .collect(Collectors.toList());
+                        .toList();
 
         ModelConfigResult.ModelAPIConfig apiConfig =
                 ModelConfigResult.ModelAPIConfig.builder()

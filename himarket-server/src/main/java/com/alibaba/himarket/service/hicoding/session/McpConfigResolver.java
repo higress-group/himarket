@@ -46,9 +46,7 @@ public class McpConfigResolver {
 
         // 1. 提取 productId 列表，构建 name 映射
         List<String> productIds =
-                mcpEntries.stream()
-                        .map(CliSessionConfig.McpServerEntry::getProductId)
-                        .collect(Collectors.toList());
+                mcpEntries.stream().map(CliSessionConfig.McpServerEntry::getProductId).toList();
         Map<String, String> nameByProductId =
                 mcpEntries.stream()
                         .collect(

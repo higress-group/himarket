@@ -60,7 +60,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -113,8 +112,11 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
             if (data.getRecords() != null) {
                 items =
                         data.getRecords().stream()
-                                .map(AdpMcpServerResult::fromSdkRecord)
-                                .collect(Collectors.toList());
+                                .map(
+                                        record ->
+                                                (GatewayMcpServerResult)
+                                                        AdpMcpServerResult.fromSdkRecord(record))
+                                .toList();
             }
 
             return PageResult.of(items, page, size, total);
@@ -267,7 +269,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
                                                     .domain(domain)
                                                     .protocol("http") // 默认使用http协议
                                                     .build())
-                            .collect(Collectors.toList());
+                            .toList();
         } else {
             // 降级方案：使用网关入口信息
             domains = getGatewayAccessDomains(gateway.getGatewayId(), config);

@@ -358,10 +358,7 @@ public class McpServerServiceImpl implements McpServerService {
         }
 
         List<String> pageProductIds =
-                metaPage.getContent().stream()
-                        .map(McpServerMeta::getProductId)
-                        .distinct()
-                        .collect(Collectors.toList());
+                metaPage.getContent().stream().map(McpServerMeta::getProductId).distinct().toList();
         Map<String, Product> productMap =
                 productRepository.findByProductIdIn(pageProductIds).stream()
                         .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
@@ -375,7 +372,7 @@ public class McpServerServiceImpl implements McpServerService {
                                             r, productMap.get(m.getProductId()));
                                     return r;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
         return PageResult.of(
                 results, metaPage.getNumber() + 1, metaPage.getSize(), metaPage.getTotalElements());
     }
@@ -429,7 +426,7 @@ public class McpServerServiceImpl implements McpServerService {
                             configSyncHelper.fillResolvedConfig(result, m, ep);
                             return result;
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -446,8 +443,7 @@ public class McpServerServiceImpl implements McpServerService {
                 productRepository.findByProductIdIn(productIds).stream()
                         .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
 
-        List<String> mcpServerIds =
-                metas.stream().map(McpServerMeta::getMcpServerId).collect(Collectors.toList());
+        List<String> mcpServerIds = metas.stream().map(McpServerMeta::getMcpServerId).toList();
         Map<String, McpServerEndpoint> endpointMap =
                 endpointRepository
                         .findByMcpServerIdInAndUserIdInAndStatus(
@@ -476,7 +472,7 @@ public class McpServerServiceImpl implements McpServerService {
                             configSyncHelper.fillResolvedConfig(result, m, ep);
                             return result;
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -704,7 +700,7 @@ public class McpServerServiceImpl implements McpServerService {
     public List<McpEndpointResult> listEndpoints(String mcpServerId) {
         return endpointRepository.findByMcpServerId(mcpServerId).stream()
                 .map(e -> new McpEndpointResult().convertFrom(e))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -730,9 +726,7 @@ public class McpServerServiceImpl implements McpServerService {
                         ProductStatus.PUBLISHED,
                         pageable);
         List<String> productIds =
-                productPage.getContent().stream()
-                        .map(Product::getProductId)
-                        .collect(Collectors.toList());
+                productPage.getContent().stream().map(Product::getProductId).toList();
         if (productIds.isEmpty()) {
             return PageResult.of(List.of(), productPage.getNumber() + 1, productPage.getSize(), 0);
         }
@@ -751,7 +745,7 @@ public class McpServerServiceImpl implements McpServerService {
                                     r.setVisibility("PUBLIC");
                                     return r;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
         return PageResult.of(
                 results,
                 productPage.getNumber() + 1,
@@ -765,10 +759,7 @@ public class McpServerServiceImpl implements McpServerService {
         List<McpServerEndpoint> endpoints = endpointRepository.findByUserIdIn(List.of(userId, "*"));
 
         List<String> mcpServerIds =
-                endpoints.stream()
-                        .map(McpServerEndpoint::getMcpServerId)
-                        .distinct()
-                        .collect(Collectors.toList());
+                endpoints.stream().map(McpServerEndpoint::getMcpServerId).distinct().toList();
 
         Map<String, McpServerMeta> metaMap =
                 metaRepository.findByMcpServerIdIn(mcpServerIds).stream()
@@ -777,10 +768,7 @@ public class McpServerServiceImpl implements McpServerService {
                                         McpServerMeta::getMcpServerId, m -> m, (a, b) -> a));
 
         List<String> productIds =
-                metaMap.values().stream()
-                        .map(McpServerMeta::getProductId)
-                        .distinct()
-                        .collect(Collectors.toList());
+                metaMap.values().stream().map(McpServerMeta::getProductId).distinct().toList();
         Map<String, Product> productMap =
                 productRepository.findByProductIdIn(productIds).stream()
                         .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
@@ -821,7 +809,7 @@ public class McpServerServiceImpl implements McpServerService {
                                     .toolsConfig(meta != null ? meta.getToolsConfig() : null)
                                     .build();
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // ==================== Transport Config Resolution ====================

@@ -39,6 +39,7 @@ import com.alibaba.himarket.dto.result.developer.DeveloperResult;
 import com.alibaba.himarket.dto.result.idp.IdpResult;
 import com.alibaba.himarket.dto.result.idp.IdpState;
 import com.alibaba.himarket.dto.result.idp.IdpTokenResult;
+import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.service.DeveloperService;
 import com.alibaba.himarket.service.OidcService;
 import com.alibaba.himarket.service.PortalService;
@@ -52,11 +53,10 @@ import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -136,23 +136,29 @@ public class OidcServiceImpl implements OidcService {
 
     @Override
     public List<IdpResult> getAvailableProviders() {
-        return Optional.ofNullable(portalService.getPortal(contextHolder.getPortal()))
-                .filter(portal -> portal.getPortalSettingConfig() != null)
-                .filter(portal -> portal.getPortalSettingConfig().getOidcConfigs() != null)
-                .map(portal -> portal.getPortalSettingConfig().getOidcConfigs())
-                // Get enabled OIDC configs for current portal
-                .map(
-                        configs ->
-                                configs.stream()
-                                        .filter(OidcConfig::isEnabled)
-                                        .map(
-                                                config ->
-                                                        IdpResult.builder()
-                                                                .provider(config.getProvider())
-                                                                .displayName(config.getName())
-                                                                .build())
-                                        .collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
+        PortalResult portal = portalService.getPortal(contextHolder.getPortal());
+        if (portal == null || portal.getPortalSettingConfig() == null) {
+            return Collections.emptyList();
+        }
+
+        List<OidcConfig> oidcConfigs = portal.getPortalSettingConfig().getOidcConfigs();
+        if (oidcConfigs == null) {
+            return Collections.emptyList();
+        }
+
+        List<IdpResult> providers = new ArrayList<>();
+        for (OidcConfig config : oidcConfigs) {
+            if (!config.isEnabled()) {
+                continue;
+            }
+
+            providers.add(
+                    IdpResult.builder()
+                            .provider(config.getProvider())
+                            .displayName(config.getName())
+                            .build());
+        }
+        return providers;
     }
 
     private String buildRedirectUri(HttpServletRequest request, AuthCodeConfig authCodeConfig) {
@@ -176,22 +182,19 @@ public class OidcServiceImpl implements OidcService {
     }
 
     private OidcConfig findOidcConfig(String provider) {
-        return Optional.ofNullable(portalService.getPortal(contextHolder.getPortal()))
-                .filter(portal -> portal.getPortalSettingConfig() != null)
-                .filter(portal -> portal.getPortalSettingConfig().getOidcConfigs() != null)
-                // Filter by provider
-                .flatMap(
-                        portal ->
-                                portal.getPortalSettingConfig().getOidcConfigs().stream()
-                                        .filter(
-                                                config ->
-                                                        provider.equals(config.getProvider())
-                                                                && config.isEnabled())
-                                        .findFirst())
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        ErrorCode.NOT_FOUND, Resources.OIDC_CONFIG, provider));
+        PortalResult portal = portalService.getPortal(contextHolder.getPortal());
+        if (portal != null && portal.getPortalSettingConfig() != null) {
+            List<OidcConfig> oidcConfigs = portal.getPortalSettingConfig().getOidcConfigs();
+            if (oidcConfigs != null) {
+                for (OidcConfig config : oidcConfigs) {
+                    if (provider.equals(config.getProvider()) && config.isEnabled()) {
+                        return config;
+                    }
+                }
+            }
+        }
+
+        throw new BusinessException(ErrorCode.NOT_FOUND, Resources.OIDC_CONFIG, provider);
     }
 
     private String buildState(String provider, String apiPrefix) {

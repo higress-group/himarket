@@ -125,7 +125,7 @@ public class McpServerController {
             @RequestParam List<String> productIds) {
         return mcpServerService.listMetaByProductIds(productIds).stream()
                 .map(McpMetaPublicResult::fromFull)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
     }
 
     @Operation(

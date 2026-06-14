@@ -24,6 +24,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.entity.ApiDefinition;
 import com.alibaba.himarket.support.api.meta.ApiDefinitionMeta;
+import com.alibaba.himarket.support.api.meta.ApiDefinitionSource;
 import com.alibaba.himarket.support.api.spec.HttpConnection;
 import com.alibaba.himarket.support.api.spec.McpServerSpec;
 import com.alibaba.himarket.support.api.spec.SseConnection;
@@ -38,7 +39,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.URI;
 import java.util.List;
-import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -80,19 +80,17 @@ public class McpConfigResult {
                         .scheme(StrUtil.blankToDefault(domain.getProtocol(), "http"))
                         .host(domain.getDomain())
                         .port(
-                                Optional.ofNullable(domain.getPort())
-                                        .filter(port -> port > 0)
-                                        .map(String::valueOf)
-                                        .orElse(null))
+                                domain.getPort() != null && domain.getPort() > 0
+                                        ? String.valueOf(domain.getPort())
+                                        : null)
                         .build()
                         .toUriString();
 
-        String url =
-                Optional.ofNullable(mcpServerConfig.getPath())
-                        .filter(StrUtil::isNotBlank)
-                        .map(path -> path.startsWith("/") ? path : "/" + path)
-                        .map(path -> baseUrl + path)
-                        .orElse(baseUrl);
+        String url = baseUrl;
+        String path = mcpServerConfig.getPath();
+        if (StrUtil.isNotBlank(path)) {
+            url = baseUrl + (path.startsWith("/") ? path : "/" + path);
+        }
 
         String protocolStr =
                 this.protocol != null
@@ -243,19 +241,17 @@ public class McpConfigResult {
     }
 
     private static McpOriginMetadata buildOriginMetadata(ApiDefinition definition) {
-        return Optional.ofNullable(definition.getMeta())
-                .map(ApiDefinitionMeta::getSource)
-                .map(
-                        source ->
-                                McpOriginMetadata.builder()
-                                        .type(
-                                                source.getType() == null
-                                                        ? null
-                                                        : source.getType().name())
-                                        .provider(source.getProvider())
-                                        .repo(source.getRepo())
-                                        .build())
-                .orElse(null);
+        ApiDefinitionMeta meta = definition.getMeta();
+        if (meta == null || meta.getSource() == null) {
+            return null;
+        }
+
+        ApiDefinitionSource source = meta.getSource();
+        return McpOriginMetadata.builder()
+                .type(source.getType() == null ? null : source.getType().name())
+                .provider(source.getProvider())
+                .repo(source.getRepo())
+                .build();
     }
 
     private static void parseUrlToServerConfig(String url, McpServerConfig serverConfig) {

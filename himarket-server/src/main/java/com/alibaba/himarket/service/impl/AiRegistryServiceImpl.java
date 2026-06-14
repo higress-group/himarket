@@ -36,7 +36,6 @@ import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.AiRegistrySkillService;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -112,21 +111,18 @@ public class AiRegistryServiceImpl implements AiRegistryService {
     public void updateAiRegistryInstance(String airegistryId, UpdateAiRegistryParam param) {
         normalize(param);
         AiRegistryInstance instance = findAiRegistryInstance(airegistryId);
-        Optional.ofNullable(param.getName())
-                .filter(name -> !name.equals(instance.getName()))
-                .flatMap(
-                        name ->
-                                aiRegistryInstanceRepository.findByNameAndAdminId(
-                                        name, currentAdmin()))
-                .ifPresent(
-                        conflict -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{}:{} already exists",
-                                            AIREGISTRY_RESOURCE,
-                                            param.getName()));
-                        });
+        String requestedName = param.getName();
+        if (requestedName != null && !requestedName.equals(instance.getName())) {
+            AiRegistryInstance existingInstance =
+                    aiRegistryInstanceRepository
+                            .findByNameAndAdminId(requestedName, currentAdmin())
+                            .orElse(null);
+            if (existingInstance != null) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT,
+                        StrUtil.format("{}:{} already exists", AIREGISTRY_RESOURCE, requestedName));
+            }
+        }
         param.update(instance);
         aiRegistryInstanceRepository.saveAndFlush(instance);
     }

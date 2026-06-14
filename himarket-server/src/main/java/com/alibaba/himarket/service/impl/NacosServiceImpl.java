@@ -70,10 +70,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -163,18 +161,20 @@ public class NacosServiceImpl implements NacosService {
     public void updateNacosInstance(String nacosId, UpdateNacosParam param) {
         NacosInstance instance = findNacosInstance(nacosId);
 
-        Optional.ofNullable(param.getNacosName())
-                .filter(name -> !name.equals(instance.getNacosName()))
-                .flatMap(nacosInstanceRepository::findByNacosName)
-                .ifPresent(
-                        nacos -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{}:{}已存在",
-                                            Resources.NACOS_INSTANCE,
-                                            param.getNacosName()));
-                        });
+        String requestedName = param.getNacosName();
+        if (requestedName != null && !requestedName.equals(instance.getNacosName())) {
+            nacosInstanceRepository
+                    .findByNacosName(requestedName)
+                    .ifPresent(
+                            nacos -> {
+                                throw new BusinessException(
+                                        ErrorCode.CONFLICT,
+                                        StrUtil.format(
+                                                "{}:{}已存在",
+                                                Resources.NACOS_INSTANCE,
+                                                requestedName));
+                            });
+        }
 
         param.update(instance);
         nacosInstanceRepository.saveAndFlush(instance);
@@ -195,10 +195,10 @@ public class NacosServiceImpl implements NacosService {
     @Override
     public PageResult<MseNacosResult> fetchNacos(QueryNacosParam param, Pageable pageable) {
         try {
-            // 创建MSE客户端
+            // Create MSE client.
             Client client = new Client(param.toClientConfig());
 
-            // 构建请求
+            // Build request.
             ListClustersRequest request =
                     new ListClustersRequest()
                             .setRegionId(param.getRegionId())
@@ -207,46 +207,28 @@ public class NacosServiceImpl implements NacosService {
 
             RuntimeOptions runtime = new RuntimeOptions();
 
-            // 调用MSE API获取集群列表
+            // Fetch cluster list from MSE.
             ListClustersResponse response = client.listClustersWithOptions(request, runtime);
-
-            // 转换响应结果，并过滤掉 clusterType 为 "Nacos-Ans" 的实例
-            Optional<List<MseNacosResult>> nacosResults =
-                    Optional.ofNullable(response.getBody())
-                            .map(ListClustersResponseBody::getData)
-                            .map(
-                                    clusters ->
-                                            clusters.stream()
-                                                    .filter(
-                                                            cluster -> {
-                                                                String type =
-                                                                        cluster.getClusterType();
-                                                                return (type == null
-                                                                                || "Nacos-Ans"
-                                                                                        .equalsIgnoreCase(
-                                                                                                type))
-                                                                        && cluster.getVersionCode()
-                                                                                .startsWith(
-                                                                                        "NACOS_3");
-                                                            })
-                                                    .map(
-                                                            MseNacosResult
-                                                                    ::fromListClustersResponseBodyData)
-                                                    .collect(Collectors.toList()));
-
-            if (nacosResults.isPresent()) {
-                // 返回分页结果
-                int total =
-                        response.getBody() != null && response.getBody().getTotalCount() != null
-                                ? response.getBody().getTotalCount().intValue()
-                                : 0;
-                return PageResult.of(
-                        nacosResults.get(),
-                        pageable.getPageNumber(),
-                        pageable.getPageSize(),
-                        total);
+            ListClustersResponseBody body = response.getBody();
+            if (body == null || body.getData() == null) {
+                return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
             }
-            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+
+            // Convert response and filter Nacos 3 clusters.
+            List<MseNacosResult> nacosResults =
+                    body.getData().stream()
+                            .filter(
+                                    cluster -> {
+                                        String type = cluster.getClusterType();
+                                        return (type == null || "Nacos-Ans".equalsIgnoreCase(type))
+                                                && cluster.getVersionCode().startsWith("NACOS_3");
+                                    })
+                            .map(MseNacosResult::fromListClustersResponseBodyData)
+                            .toList();
+
+            int total = body.getTotalCount() == null ? 0 : body.getTotalCount().intValue();
+            return PageResult.of(
+                    nacosResults, pageable.getPageNumber(), pageable.getPageSize(), total);
         } catch (Exception e) {
             log.error("Error fetching Nacos clusters from MSE", e);
             throw new BusinessException(
@@ -266,26 +248,24 @@ public class NacosServiceImpl implements NacosService {
         if (page == null || page.getPageItems() == null) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
-        return page.getPageItems().stream()
-                .map(basicInfo -> new NacosMCPServerResult().convertFrom(basicInfo))
-                .skip(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .collect(
-                        Collectors.collectingAndThen(
-                                Collectors.toList(),
-                                list ->
-                                        PageResult.of(
-                                                list,
-                                                pageable.getPageNumber(),
-                                                pageable.getPageSize(),
-                                                page.getPageItems().size())));
+        List<NacosMCPServerResult> results =
+                page.getPageItems().stream()
+                        .map(basicInfo -> new NacosMCPServerResult().convertFrom(basicInfo))
+                        .skip(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .toList();
+        return PageResult.of(
+                results,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                page.getPageItems().size());
     }
 
     @Override
     public PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable)
             throws Exception {
         NacosInstance nacosInstance = findNacosInstance(nacosId);
-        // 使用空 namespace 构建 (列出全部命名空间)
+        // Use an empty namespace to list all namespaces.
         NamingMaintainerService namingService = buildDynamicNamingService(nacosInstance, "");
         List<?> namespaces;
         try {
@@ -305,7 +285,7 @@ public class NacosServiceImpl implements NacosService {
                         .map(o -> new NacosNamespaceResult().convertFrom(o))
                         .skip(pageable.getOffset())
                         .limit(pageable.getPageSize())
-                        .collect(Collectors.toList());
+                        .toList();
 
         return PageResult.of(
                 list, pageable.getPageNumber(), pageable.getPageSize(), namespaces.size());
@@ -722,25 +702,23 @@ public class NacosServiceImpl implements NacosService {
         if (page == null || page.getPageItems() == null) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
-        return page.getPageItems().stream()
-                .map(
-                        skill ->
-                                NacosSkillResult.builder()
-                                        .name(skill.getName())
-                                        .description(skill.getDescription())
-                                        .downloadCount(skill.getDownloadCount())
-                                        .build())
-                .skip(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .collect(
-                        Collectors.collectingAndThen(
-                                Collectors.toList(),
-                                list ->
-                                        PageResult.of(
-                                                list,
-                                                pageable.getPageNumber(),
-                                                pageable.getPageSize(),
-                                                page.getPageItems().size())));
+        List<NacosSkillResult> results =
+                page.getPageItems().stream()
+                        .map(
+                                skill ->
+                                        NacosSkillResult.builder()
+                                                .name(skill.getName())
+                                                .description(skill.getDescription())
+                                                .downloadCount(skill.getDownloadCount())
+                                                .build())
+                        .skip(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .toList();
+        return PageResult.of(
+                results,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                page.getPageItems().size());
     }
 
     /**

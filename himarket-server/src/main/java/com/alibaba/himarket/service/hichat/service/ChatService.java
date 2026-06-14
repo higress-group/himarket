@@ -290,7 +290,7 @@ public class ChatService {
                     attachmentConfigs.stream()
                             .map(ChatAttachmentConfig::getAttachmentId)
                             .filter(StrUtil::isNotBlank)
-                            .collect(Collectors.toList());
+                            .toList();
 
             if (CollUtil.isNotEmpty(attachmentIds)) {
                 List<ChatAttachment> attachments =
@@ -392,23 +392,18 @@ public class ChatService {
             return CollUtil.empty(List.class);
         }
 
-        return productService.getProducts(param.getMcpProducts()).values().stream()
-                .filter(
-                        product ->
-                                product.getType() == ProductType.MCP_SERVER
-                                        || product.getMcpConfig() != null)
-                .map(
-                        product -> {
-                            McpTransportConfig transportConfig =
-                                    product.getMcpConfig().toTransportConfig();
+        List<McpTransportConfig> configs = new ArrayList<>();
+        for (ProductResult product : productService.getProducts(param.getMcpProducts()).values()) {
+            if (product.getType() != ProductType.MCP_SERVER && product.getMcpConfig() == null) {
+                continue;
+            }
 
-                            // Add authentication credentials
-                            transportConfig.setHeaders(credentialContext.copyHeaders());
-                            transportConfig.setQueryParams(credentialContext.copyQueryParams());
-
-                            return transportConfig;
-                        })
-                .collect(Collectors.toList());
+            McpTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
+            transportConfig.setHeaders(credentialContext.copyHeaders());
+            transportConfig.setQueryParams(credentialContext.copyQueryParams());
+            configs.add(transportConfig);
+        }
+        return configs;
     }
 
     private LlmService getLlmService(InvokeModelParam param) {

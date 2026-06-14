@@ -34,10 +34,8 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
-import java.util.Optional;
 
 public class TokenUtil {
 
@@ -149,21 +147,15 @@ public class TokenUtil {
 
         // Get token from cookie
         if (StrUtil.isBlank(token)) {
-            token =
-                    Optional.ofNullable(request.getCookies())
-                            .flatMap(
-                                    cookies ->
-                                            Arrays.stream(cookies)
-                                                    .filter(
-                                                            cookie ->
-                                                                    CommonConstants
-                                                                            .AUTH_TOKEN_COOKIE
-                                                                            .equals(
-                                                                                    cookie
-                                                                                            .getName()))
-                                                    .map(Cookie::getValue)
-                                                    .findFirst())
-                            .orElse(null);
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                for (Cookie cookie : cookies) {
+                    if (CommonConstants.AUTH_TOKEN_COOKIE.equals(cookie.getName())) {
+                        token = cookie.getValue();
+                        break;
+                    }
+                }
+            }
         }
         if (StrUtil.isBlank(token) || isTokenRevoked(token)) {
             return null;

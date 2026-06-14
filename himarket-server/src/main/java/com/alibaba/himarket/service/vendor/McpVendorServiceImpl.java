@@ -65,7 +65,7 @@ public class McpVendorServiceImpl implements McpVendorService {
         List<RemoteMcpItemResult> results =
                 remotePage.getContent().stream()
                         .map(item -> toResult(item, existingNames))
-                        .collect(Collectors.toList());
+                        .toList();
 
         return PageResult.of(
                 results,

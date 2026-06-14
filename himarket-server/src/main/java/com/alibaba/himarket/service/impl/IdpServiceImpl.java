@@ -68,45 +68,42 @@ public class IdpServiceImpl implements IdpService {
                     ErrorCode.CONFLICT, "Empty or duplicate provider in OIDC config");
         }
 
-        oidcConfigs.forEach(
-                config -> {
-                    AuthCodeConfig authConfig =
-                            Optional.ofNullable(config.getAuthCodeConfig())
-                                    .orElseThrow(
-                                            () ->
-                                                    new BusinessException(
-                                                            ErrorCode.INVALID_PARAMETER,
-                                                            StrUtil.format(
-                                                                    "OIDC config {} missing auth"
-                                                                            + " code config",
-                                                                    config.getProvider())));
-                    // Basic parameters
-                    if (StrUtil.isBlank(authConfig.getClientId())
-                            || StrUtil.isBlank(authConfig.getClientSecret())
-                            || StrUtil.isBlank(authConfig.getScopes())) {
-                        throw new BusinessException(
-                                ErrorCode.INVALID_PARAMETER,
-                                StrUtil.format(
-                                        "OIDC config {} missing required params: Client ID, Client"
-                                                + " Secret or Scopes",
-                                        config.getProvider()));
-                    }
+        for (OidcConfig config : oidcConfigs) {
+            AuthCodeConfig authConfig = config.getAuthCodeConfig();
+            if (authConfig == null) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        StrUtil.format(
+                                "OIDC config {} missing auth code config", config.getProvider()));
+            }
 
-                    // Endpoint configuration
-                    if (StrUtil.isNotBlank(authConfig.getIssuer())) {
-                        discoverAndSetEndpoints(config.getProvider(), authConfig);
-                    } else {
-                        if (StrUtil.isBlank(authConfig.getAuthorizationEndpoint())
-                                || StrUtil.isBlank(authConfig.getTokenEndpoint())
-                                || StrUtil.isBlank(authConfig.getUserInfoEndpoint())) {
-                            throw new BusinessException(
-                                    ErrorCode.INVALID_PARAMETER,
-                                    StrUtil.format(
-                                            "OIDC config {} missing required endpoint config",
-                                            config.getProvider()));
-                        }
-                    }
-                });
+            // Basic parameters
+            if (StrUtil.isBlank(authConfig.getClientId())
+                    || StrUtil.isBlank(authConfig.getClientSecret())
+                    || StrUtil.isBlank(authConfig.getScopes())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        StrUtil.format(
+                                "OIDC config {} missing required params: Client ID, Client"
+                                        + " Secret or Scopes",
+                                config.getProvider()));
+            }
+
+            // Endpoint configuration
+            if (StrUtil.isNotBlank(authConfig.getIssuer())) {
+                discoverAndSetEndpoints(config.getProvider(), authConfig);
+            } else {
+                if (StrUtil.isBlank(authConfig.getAuthorizationEndpoint())
+                        || StrUtil.isBlank(authConfig.getTokenEndpoint())
+                        || StrUtil.isBlank(authConfig.getUserInfoEndpoint())) {
+                    throw new BusinessException(
+                            ErrorCode.INVALID_PARAMETER,
+                            StrUtil.format(
+                                    "OIDC config {} missing required endpoint config",
+                                    config.getProvider()));
+                }
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -136,14 +133,13 @@ public class IdpServiceImpl implements IdpService {
     }
 
     private String getRequiredEndpoint(Map<String, Object> discovery, String name) {
-        return Optional.ofNullable(discovery.get(name))
-                .map(Object::toString)
-                .filter(StrUtil::isNotBlank)
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        ErrorCode.INVALID_PARAMETER,
-                                        "Missing endpoint in OIDC discovery config: " + name));
+        Object endpoint = discovery.get(name);
+        if (endpoint == null || StrUtil.isBlank(endpoint.toString())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
+                    "Missing endpoint in OIDC discovery config: " + name);
+        }
+        return endpoint.toString();
     }
 
     @Override
@@ -163,12 +159,11 @@ public class IdpServiceImpl implements IdpService {
                     ErrorCode.CONFLICT, "Empty or duplicate provider in OAuth2 config");
         }
 
-        oauth2Configs.forEach(
-                config -> {
-                    if (GrantType.JWT_BEARER.equals(config.getGrantType())) {
-                        validateJwtBearerConfig(config);
-                    }
-                });
+        for (OAuth2Config config : oauth2Configs) {
+            if (GrantType.JWT_BEARER.equals(config.getGrantType())) {
+                validateJwtBearerConfig(config);
+            }
+        }
     }
 
     private void validateJwtBearerConfig(OAuth2Config config) {

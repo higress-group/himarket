@@ -156,8 +156,10 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        ProductFeature feature =
-                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            feature = ProductFeature.builder().build();
+        }
         if (productType == ProductType.AGENT_SKILL && feature.getSkillConfig() != null) {
             product.setFeature(feature);
             return;
@@ -276,9 +278,7 @@ public class ProductServiceImpl implements ProductService {
             Page<Product> page =
                     productRepository.findAll(buildSpecification(param), sortedPageable);
             List<ProductResult> results =
-                    page.stream()
-                            .map(product -> new ProductResult().convertFrom(product))
-                            .collect(Collectors.toList());
+                    page.stream().map(product -> new ProductResult().convertFrom(product)).toList();
             fillProducts(results);
             return PageResult.of(
                     results, page.getNumber() + 1, page.getSize(), page.getTotalElements());
@@ -286,9 +286,7 @@ public class ProductServiceImpl implements ProductService {
 
         Page<Product> page = productRepository.findAll(buildSpecification(param), pageable);
         List<ProductResult> results =
-                page.stream()
-                        .map(product -> new ProductResult().convertFrom(product))
-                        .collect(Collectors.toList());
+                page.stream().map(product -> new ProductResult().convertFrom(product)).toList();
 
         // Fill product information
         fillProducts(results);
@@ -588,7 +586,7 @@ public class ProductServiceImpl implements ProductService {
         List<String> consumerIds =
                 subscriptions.getContent().stream()
                         .map(ProductSubscription::getConsumerId)
-                        .collect(Collectors.toList());
+                        .toList();
         if (CollUtil.isEmpty(consumerIds)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
@@ -630,7 +628,7 @@ public class ProductServiceImpl implements ProductService {
         List<String> notFoundProductIds =
                 productIds.stream()
                         .filter(productId -> !existedProductIds.contains(productId))
-                        .collect(Collectors.toList());
+                        .toList();
 
         if (!notFoundProductIds.isEmpty()) {
             throw new BusinessException(
@@ -720,9 +718,10 @@ public class ProductServiceImpl implements ProductService {
                         ErrorCode.INVALID_PARAMETER, "AIRegistry ID and namespace are required");
             }
             aiRegistryService.getAiRegistryInstance(param.getAiRegistryId());
-            ProductFeature feature =
-                    Optional.ofNullable(product.getFeature())
-                            .orElse(ProductFeature.builder().build());
+            ProductFeature feature = product.getFeature();
+            if (feature == null) {
+                feature = ProductFeature.builder().build();
+            }
             feature.setSkillConfig(
                     SkillConfig.builder()
                             .registryType(SkillRegistryType.AIREGISTRY)
@@ -745,8 +744,10 @@ public class ProductServiceImpl implements ProductService {
 
         nacosService.getNacosInstance(param.getNacosId());
 
-        ProductFeature feature =
-                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            feature = ProductFeature.builder().build();
+        }
 
         if (product.getType() == ProductType.AGENT_SKILL) {
             feature.setSkillConfig(
@@ -847,11 +848,11 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        McpConfigResult mcpConfig =
-                Optional.ofNullable(productRef.getMcpConfig())
-                        .map(config -> JsonUtil.parse(config, McpConfigResult.class))
-                        .orElse(null);
-
+        String mcpConfigJson = productRef.getMcpConfig();
+        if (mcpConfigJson == null) {
+            return;
+        }
+        McpConfigResult mcpConfig = JsonUtil.parse(mcpConfigJson, McpConfigResult.class);
         if (mcpConfig == null) {
             return;
         }
@@ -900,8 +901,7 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        List<String> productIds =
-                products.stream().map(ProductResult::getProductId).collect(Collectors.toList());
+        List<String> productIds = products.stream().map(ProductResult::getProductId).toList();
 
         Map<String, ProductRef> productRefMap =
                 productRefRepository.findByProductIdIn(productIds).stream()
@@ -1130,7 +1130,7 @@ public class ProductServiceImpl implements ProductService {
         List<ProductResult> results =
                 pageContent.stream()
                         .map(product -> new ProductResult().convertFrom(product))
-                        .collect(Collectors.toList());
+                        .toList();
 
         fillProducts(results);
 
@@ -1164,7 +1164,7 @@ public class ProductServiceImpl implements ProductService {
      */
     private PageResult<ProductResult> listProductsWithFilter(
             QueryProductParam param, Pageable pageable) {
-        List<Product> allProducts = productRepository.findAllByType(param.getType());
+        List<Product> allProducts = productRepository.findAll(buildSpecification(param));
 
         if (CollUtil.isEmpty(allProducts)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
@@ -1172,28 +1172,19 @@ public class ProductServiceImpl implements ProductService {
 
         Map<String, ProductRef> productRefMap =
                 productRefRepository
-                        .findByProductIdIn(
-                                allProducts.stream()
-                                        .map(Product::getProductId)
-                                        .collect(Collectors.toList()))
+                        .findByProductIdIn(allProducts.stream().map(Product::getProductId).toList())
                         .stream()
                         .collect(Collectors.toMap(ProductRef::getProductId, ref -> ref));
 
-        List<Product> targetProducts =
-                allProducts.stream()
-                        .filter(p -> matchesFilter(productRefMap.get(p.getProductId()), param))
-                        // Filter by Product fields (status, name)
-                        .filter(
-                                p ->
-                                        param.getStatus() == null
-                                                || p.getStatus().equals(param.getStatus()))
-                        .filter(
-                                p ->
-                                        StrUtil.isBlank(param.getName())
-                                                || Optional.ofNullable(p.getName())
-                                                        .orElse("")
-                                                        .contains(param.getName()))
-                        .collect(Collectors.toList());
+        List<Product> targetProducts = new ArrayList<>();
+        for (Product product : allProducts) {
+            ProductRef productRef = productRefMap.get(product.getProductId());
+            if (!matchesFilter(productRef, param)) {
+                continue;
+            }
+
+            targetProducts.add(product);
+        }
 
         // Manual pagination
         int start = (int) pageable.getOffset();
@@ -1206,7 +1197,7 @@ public class ProductServiceImpl implements ProductService {
         List<ProductResult> results =
                 pageContent.stream()
                         .map(product -> new ProductResult().convertFrom(product))
-                        .collect(Collectors.toList());
+                        .toList();
 
         fillProducts(results);
 

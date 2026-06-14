@@ -47,7 +47,6 @@ import com.alibaba.himarket.support.enums.JwtAlgorithm;
 import com.alibaba.himarket.support.portal.*;
 import java.security.PublicKey;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -89,15 +88,15 @@ public class OAuth2ServiceImpl implements OAuth2Service {
 
         // Get OAuth2 config by provider
         PortalResult portal = portalService.getPortal(portalId);
-        List<OAuth2Config> oauth2Configs =
-                Optional.ofNullable(portal.getPortalSettingConfig())
-                        .map(PortalSettingConfig::getOauth2Configs)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                ErrorCode.NOT_FOUND,
-                                                Resources.OAUTH2_CONFIG,
-                                                portalId));
+        PortalSettingConfig portalSettingConfig = portal.getPortalSettingConfig();
+        if (portalSettingConfig == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.OAUTH2_CONFIG, portalId);
+        }
+
+        List<OAuth2Config> oauth2Configs = portalSettingConfig.getOauth2Configs();
+        if (oauth2Configs == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.OAUTH2_CONFIG, portalId);
+        }
 
         OAuth2Config oAuth2Config =
                 oauth2Configs.stream()

@@ -43,10 +43,9 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -112,17 +111,17 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             String categoryId, UpdateProductCategoryParam param) {
         ProductCategory category = findCategory(categoryId);
 
-        Optional.ofNullable(param.getName())
-                .filter(name -> !name.equals(category.getName()))
-                .flatMap(categoryRepository::findByName)
-                .ifPresent(
-                        p -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Product category with name `{}` already exists",
-                                            category.getName()));
-                        });
+        String requestedName = param.getName();
+        if (requestedName != null && !requestedName.equals(category.getName())) {
+            ProductCategory existingCategory =
+                    categoryRepository.findByName(requestedName).orElse(null);
+            if (existingCategory != null) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT,
+                        StrUtil.format(
+                                "Product category with name `{}` already exists", requestedName));
+            }
+        }
 
         param.update(category);
         categoryRepository.saveAndFlush(category);
@@ -152,64 +151,49 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         }
 
         List<String> categoryIds =
-                relations.stream()
-                        .map(ProductCategoryRelation::getCategoryId)
-                        .collect(Collectors.toList());
+                relations.stream().map(ProductCategoryRelation::getCategoryId).toList();
 
         return categoryRepository.findByCategoryIdIn(categoryIds).stream()
                 .map(category -> new ProductCategoryResult().convertFrom(category))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public Map<String, List<ProductCategoryResult>> listCategoriesForProducts(
             List<String> productIds) {
-        // Return empty map if no product ids provided
         if (CollUtil.isEmpty(productIds)) {
             return Collections.emptyMap();
         }
 
-        // Get all category relations for these products
         List<ProductCategoryRelation> relations =
                 categoryRelationRepository.findByProductIdIn(productIds);
         if (CollUtil.isEmpty(relations)) {
             return Collections.emptyMap();
         }
 
-        // Build categoryId to category mapping
-        Map<String, ProductCategory> categoryMap =
-                relations.stream()
-                        .map(ProductCategoryRelation::getCategoryId)
-                        .distinct()
+        // Resolve existing categories once; stale relations are skipped below.
+        List<String> categoryIds =
+                relations.stream().map(ProductCategoryRelation::getCategoryId).distinct().toList();
+        Map<String, ProductCategory> categoriesById =
+                categoryRepository.findByCategoryIdIn(categoryIds).stream()
                         .collect(
-                                Collectors.collectingAndThen(
-                                        Collectors.toList(),
-                                        ids ->
-                                                categoryRepository.findByCategoryIdIn(ids).stream()
-                                                        .collect(
-                                                                Collectors.toMap(
-                                                                        ProductCategory
-                                                                                ::getCategoryId,
-                                                                        c -> c))));
+                                Collectors.toMap(
+                                        ProductCategory::getCategoryId, category -> category));
 
-        // Build final result: product id -> list of categories
-        return relations.stream()
-                .collect(
-                        Collectors.groupingBy(
-                                ProductCategoryRelation::getProductId,
-                                Collectors.mapping(
-                                        relation ->
-                                                Optional.ofNullable(
-                                                                categoryMap.get(
-                                                                        relation.getCategoryId()))
-                                                        .map(
-                                                                category ->
-                                                                        new ProductCategoryResult()
-                                                                                .convertFrom(
-                                                                                        category))
-                                                        .orElse(null),
-                                        Collectors.filtering(
-                                                Objects::nonNull, Collectors.toList()))));
+        // Preserve relation order while grouping category results by product.
+        Map<String, List<ProductCategoryResult>> result = new HashMap<>();
+        for (ProductCategoryRelation relation : relations) {
+            ProductCategory category = categoriesById.get(relation.getCategoryId());
+            if (category == null) {
+                continue;
+            }
+
+            ProductCategoryResult categoryResult =
+                    new ProductCategoryResult().convertFrom(category);
+            result.computeIfAbsent(relation.getProductId(), productId -> new ArrayList<>())
+                    .add(categoryResult);
+        }
+        return result;
     }
 
     @Override
@@ -221,7 +205,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         categoryIds =
                 categoryRepository.findByCategoryIdIn(categoryIds).stream()
                         .map(ProductCategory::getCategoryId)
-                        .collect(Collectors.toList());
+                        .toList();
 
         Set<String> existedRelations =
                 categoryRelationRepository.findByProductId(productId).stream()
@@ -240,7 +224,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                                     relation.setCategoryId(categoryId);
                                     return relation;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
 
         if (CollUtil.isNotEmpty(relations)) {
             categoryRelationRepository.saveAll(relations);
@@ -286,7 +270,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                                     relation.setCategoryId(categoryId);
                                     return relation;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
 
         if (CollUtil.isNotEmpty(newRelations)) {
             categoryRelationRepository.saveAll(newRelations);

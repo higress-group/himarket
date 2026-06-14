@@ -63,7 +63,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -189,7 +188,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                         items =
                                 result.getData().getRecords().stream()
                                         .map(this::convertToModelAPIResult)
-                                        .collect(Collectors.toList());
+                                        .toList();
                     }
 
                     int total =
@@ -360,7 +359,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                                                         .port(service.getPort())
                                                         .protocol("http")
                                                         .build())
-                                .collect(Collectors.toList());
+                                .toList();
                 serverConfig.setDomains(fallbackDomains);
             }
         }
@@ -541,7 +540,7 @@ public class AdpAIGatewayOperator extends GatewayOperator {
                                                     .domain(domain)
                                                     .protocol("http") // 默认使用http协议
                                                     .build())
-                            .collect(Collectors.toList());
+                            .toList();
         } else {
             // 降级方案：使用网关入口信息
             domains = getGatewayAccessDomains(gateway.getGatewayId(), config);

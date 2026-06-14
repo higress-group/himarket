@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +79,7 @@ public class CliProviderController {
         List<SubscriptionResult> approvedSubscriptions =
                 subscriptions.stream()
                         .filter(s -> SubscriptionStatus.APPROVED.name().equals(s.getStatus()))
-                        .collect(Collectors.toList());
+                        .toList();
 
         // 3. Extract the API key.
         String apiKey = extractApiKey(consumerId);
@@ -94,9 +93,7 @@ public class CliProviderController {
 
         // 4. Batch load product details and filter by MODEL_API.
         List<String> productIds =
-                approvedSubscriptions.stream()
-                        .map(SubscriptionResult::getProductId)
-                        .collect(Collectors.toList());
+                approvedSubscriptions.stream().map(SubscriptionResult::getProductId).toList();
         Map<String, ProductResult> productMap = productService.getProducts(productIds);
 
         // 5. Extract metadata from MODEL_API products.
@@ -149,7 +146,7 @@ public class CliProviderController {
         List<SubscriptionResult> approvedSubscriptions =
                 subscriptions.stream()
                         .filter(s -> SubscriptionStatus.APPROVED.name().equals(s.getStatus()))
-                        .collect(Collectors.toList());
+                        .toList();
 
         if (approvedSubscriptions.isEmpty()) {
             return MarketMcpsResponse.builder()
@@ -160,9 +157,7 @@ public class CliProviderController {
 
         // 3. Batch load product details and filter by MCP_SERVER.
         List<String> productIds =
-                approvedSubscriptions.stream()
-                        .map(SubscriptionResult::getProductId)
-                        .collect(Collectors.toList());
+                approvedSubscriptions.stream().map(SubscriptionResult::getProductId).toList();
         Map<String, ProductResult> productMap = productService.getProducts(productIds);
 
         // 4. Extract MCP metadata from each product.
@@ -219,7 +214,7 @@ public class CliProviderController {
                                     .skillTags(skillTags)
                                     .build();
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private Map<String, String> extractAuthHeaders() {

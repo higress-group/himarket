@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.Data;
@@ -213,10 +212,7 @@ public class WorkerServiceImpl implements WorkerService {
 
         // Non-admin users can only see online versions
         if (!contextHolder.isAdministrator()) {
-            results =
-                    results.stream()
-                            .filter(v -> "online".equals(v.getStatus()))
-                            .collect(Collectors.toList());
+            results = results.stream().filter(v -> "online".equals(v.getStatus())).toList();
         }
 
         return results;
@@ -421,9 +417,7 @@ public class WorkerServiceImpl implements WorkerService {
 
         List<VersionResult> versions = listVersions(productId);
         List<VersionResult> onlineVersions =
-                versions.stream()
-                        .filter(v -> "online".equals(v.getStatus()))
-                        .collect(Collectors.toList());
+                versions.stream().filter(v -> "online".equals(v.getStatus())).toList();
 
         if (onlineVersions.isEmpty()) {
             throw new BusinessException(

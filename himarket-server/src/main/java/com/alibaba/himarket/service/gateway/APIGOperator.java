@@ -57,7 +57,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -359,11 +358,11 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
         }
 
-        ApiKeyIdentityConfig apiKeyConfig =
-                Optional.ofNullable(response.getBody())
-                        .map(GetConsumerResponseBody::getData)
-                        .map(GetConsumerResponseBody.Data::getApiKeyIdentityConfig)
-                        .orElse(null);
+        ApiKeyIdentityConfig apiKeyConfig = null;
+        GetConsumerResponseBody body = response.getBody();
+        if (body != null && body.getData() != null) {
+            apiKeyConfig = body.getData().getApiKeyIdentityConfig();
+        }
         if (apiKeyConfig == null || CollUtil.isEmpty(apiKeyConfig.getCredentials())) {
             return CredentialContext.builder().build();
         }
@@ -380,16 +379,16 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         CredentialContext context = CredentialContext.builder().apiKey(apiKey).build();
         ApiKeyIdentityConfig.ApikeySource sourceConfig = apiKeyConfig.getApikeySource();
-        String source =
-                Optional.ofNullable(sourceConfig)
-                        .map(ApiKeyIdentityConfig.ApikeySource::getSource)
-                        .filter(StrUtil::isNotBlank)
-                        .orElse("Default");
-        String key =
-                Optional.ofNullable(sourceConfig)
-                        .map(ApiKeyIdentityConfig.ApikeySource::getValue)
-                        .filter(StrUtil::isNotBlank)
-                        .orElse("Authorization");
+        String source = "Default";
+        String key = "Authorization";
+        if (sourceConfig != null) {
+            if (StrUtil.isNotBlank(sourceConfig.getSource())) {
+                source = sourceConfig.getSource();
+            }
+            if (StrUtil.isNotBlank(sourceConfig.getValue())) {
+                key = sourceConfig.getValue();
+            }
+        }
 
         switch (source.toUpperCase()) {
             case "DEFAULT", "BEARER" ->
@@ -532,7 +531,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                             }
                         })
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {
@@ -648,7 +647,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                                 .apikey(cred.getApiKey())
                                                 .generateMode("Custom")
                                                 .build())
-                        .collect(Collectors.toList());
+                        .toList();
 
         return ApiKeyIdentityConfig.builder()
                 .apikeySource(apikeySource)
@@ -671,7 +670,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                         .generateMode("Custom")
                                         .type("AkSk")
                                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     protected List<DomainResult> extractAPIDomains(HttpApiApiInfo apiInfo) {
@@ -706,7 +705,10 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                                 .build())
                         .filter(result -> result.getDomain() != null);
 
-        return Stream.concat(customDomains, subDomains).collect(Collectors.toList());
+        List<DomainResult> domains = new ArrayList<>();
+        customDomains.forEach(domains::add);
+        subDomains.forEach(domains::add);
+        return domains;
     }
 
     protected List<DomainResult> fetchDefaultDomains(Gateway gateway) {
@@ -733,17 +735,21 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         // Default Environment
         EnvironmentInfo env = items.get(0);
 
-        return Optional.ofNullable(env.getSubDomainInfos()).orElse(Collections.emptyList()).stream()
-                .map(
-                        domain ->
-                                DomainResult.builder()
-                                        .domain(domain.getName())
-                                        .protocol(
-                                                Optional.ofNullable(domain.getProtocol())
-                                                        .map(String::toLowerCase)
-                                                        .orElse(null))
-                                        .networkType(domain.getNetworkType())
-                                        .build())
-                .collect(Collectors.toList());
+        if (env.getSubDomainInfos() == null) {
+            return Collections.emptyList();
+        }
+
+        List<DomainResult> domains = new ArrayList<>();
+        for (SubDomainInfo domain : env.getSubDomainInfos()) {
+            String protocol =
+                    domain.getProtocol() == null ? null : domain.getProtocol().toLowerCase();
+            domains.add(
+                    DomainResult.builder()
+                            .domain(domain.getName())
+                            .protocol(protocol)
+                            .networkType(domain.getNetworkType())
+                            .build());
+        }
+        return domains;
     }
 }

@@ -370,7 +370,7 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     @Override
     public List<URI> fetchGatewayUris(String gatewayId) {
         Gateway gateway = findGateway(gatewayId);
-        List<URI> gatewayUris = getOperator(gateway).fetchGatewayUris(gateway);
+        List<URI> gatewayUris = new ArrayList<URI>(getOperator(gateway).fetchGatewayUris(gateway));
 
         // Shuffle the list
         Collections.shuffle(gatewayUris);

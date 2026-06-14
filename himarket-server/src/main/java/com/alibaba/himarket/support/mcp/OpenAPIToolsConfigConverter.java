@@ -31,7 +31,6 @@ import com.alibaba.nacos.api.ai.model.mcp.McpToolSpecification;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.*;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -58,16 +57,14 @@ public final class OpenAPIToolsConfigConverter {
                         .allowTools(Collections.singletonList(mcpServerDetailInfo.getName()))
                         .build());
 
-        Optional.ofNullable(mcpServerDetailInfo.getToolSpec())
-                .map(McpToolSpecification::getTools)
-                .filter(CollUtil::isNotEmpty)
-                .ifPresent(
-                        tools ->
-                                config.setTools(
-                                        tools.stream()
-                                                .map(OpenAPIToolsConfigConverter::convertNacosTool)
-                                                .filter(Objects::nonNull)
-                                                .collect(Collectors.toList())));
+        McpToolSpecification toolSpec = mcpServerDetailInfo.getToolSpec();
+        if (toolSpec != null && CollUtil.isNotEmpty(toolSpec.getTools())) {
+            config.setTools(
+                    toolSpec.getTools().stream()
+                            .map(OpenAPIToolsConfigConverter::convertNacosTool)
+                            .filter(Objects::nonNull)
+                            .toList());
+        }
 
         return config;
     }
@@ -91,7 +88,7 @@ public final class OpenAPIToolsConfigConverter {
                 toolList.stream()
                         .map(OpenAPIToolsConfigConverter::convertMcpSchemaTool)
                         .filter(Objects::nonNull)
-                        .collect(Collectors.toList()));
+                        .toList());
         return config;
     }
 
@@ -146,59 +143,57 @@ public final class OpenAPIToolsConfigConverter {
     }
 
     private static OpenAPIToolsConfig.OpenAPITool convertNacosTool(McpTool mcpTool) {
-        return Optional.ofNullable(mcpTool)
-                .filter(tool -> StrUtil.isNotBlank(tool.getName()))
-                .map(
-                        tool ->
-                                OpenAPIToolsConfig.OpenAPITool.builder()
-                                        .name(tool.getName())
-                                        .description(tool.getDescription())
-                                        .args(convertArgs(tool.getInputSchema()))
-                                        .build())
-                .orElse(null);
+        if (mcpTool == null || StrUtil.isBlank(mcpTool.getName())) {
+            return null;
+        }
+
+        return OpenAPIToolsConfig.OpenAPITool.builder()
+                .name(mcpTool.getName())
+                .description(mcpTool.getDescription())
+                .args(convertArgs(mcpTool.getInputSchema()))
+                .build();
     }
 
     private static OpenAPIToolsConfig.OpenAPITool convertMcpSchemaTool(McpSchema.Tool mcpTool) {
-        return Optional.ofNullable(mcpTool)
-                .filter(tool -> StrUtil.isNotBlank(tool.name()))
-                .map(
-                        tool -> {
-                            Map<String, Object> inputSchemaMap =
-                                    MapUtil.builder(new HashMap<String, Object>())
-                                            .put("type", tool.inputSchema().type())
-                                            .put("properties", tool.inputSchema().properties())
-                                            .put("required", tool.inputSchema().required())
-                                            .put(
-                                                    "additionalProperties",
-                                                    tool.inputSchema().additionalProperties())
-                                            .put("definitions", tool.inputSchema().definitions())
-                                            .build();
-                            List<OpenAPIToolsConfig.Arg> args = convertArgs(inputSchemaMap);
+        if (mcpTool == null || StrUtil.isBlank(mcpTool.name())) {
+            return null;
+        }
 
-                            return OpenAPIToolsConfig.OpenAPITool.builder()
-                                    .name(tool.name())
-                                    .description(tool.description())
-                                    .args(args)
-                                    .build();
-                        })
-                .orElse(null);
+        Map<String, Object> inputSchemaMap =
+                MapUtil.builder(new HashMap<String, Object>())
+                        .put("type", mcpTool.inputSchema().type())
+                        .put("properties", mcpTool.inputSchema().properties())
+                        .put("required", mcpTool.inputSchema().required())
+                        .put("additionalProperties", mcpTool.inputSchema().additionalProperties())
+                        .put("definitions", mcpTool.inputSchema().definitions())
+                        .build();
+        List<OpenAPIToolsConfig.Arg> args = convertArgs(inputSchemaMap);
+
+        return OpenAPIToolsConfig.OpenAPITool.builder()
+                .name(mcpTool.name())
+                .description(mcpTool.description())
+                .args(args)
+                .build();
     }
 
     @SuppressWarnings("unchecked")
     private static List<OpenAPIToolsConfig.Arg> convertArgs(Map<String, Object> inputSchema) {
-        Map<String, Object> properties =
-                Optional.ofNullable(inputSchema)
-                        .map(schema -> MapUtil.get(schema, "properties", Map.class))
-                        .filter(props -> !props.isEmpty())
-                        .orElse(null);
+        Map<String, Object> properties = null;
+        if (inputSchema != null) {
+            Map<String, Object> schemaProperties =
+                    MapUtil.get(inputSchema, "properties", Map.class);
+            if (CollUtil.isNotEmpty(schemaProperties)) {
+                properties = schemaProperties;
+            }
+        }
 
         if (MapUtil.isEmpty(properties)) {
             return new ArrayList<>();
         }
 
+        List<String> rawRequiredFields = MapUtil.get(inputSchema, "required", List.class);
         List<String> requiredFields =
-                Optional.ofNullable(MapUtil.get(inputSchema, "required", List.class))
-                        .orElse(new ArrayList<>());
+                rawRequiredFields == null ? new ArrayList<>() : rawRequiredFields;
 
         return properties.entrySet().stream()
                 .map(
@@ -215,6 +210,6 @@ public final class OpenAPIToolsConfigConverter {
 
                             return BeanUtil.fillBeanWithMap(propertyMap, arg, true);
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 }

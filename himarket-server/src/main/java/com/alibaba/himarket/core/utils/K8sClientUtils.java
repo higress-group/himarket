@@ -29,7 +29,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import java.time.Duration;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -136,6 +135,6 @@ public class K8sClientUtils {
     public static List<String> listNamespaces(KubernetesClient client) {
         return client.namespaces().list().getItems().stream()
                 .map(ns -> ns.getMetadata().getName())
-                .collect(Collectors.toList());
+                .toList();
     }
 }

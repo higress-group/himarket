@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,12 +63,13 @@ public class SkillDownloadPhase implements InitPhase {
 
         // 按 nacosId 分组
         Map<String, List<ResolvedSessionConfig.ResolvedSkillEntry>> byNacosId =
-                skills.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        ResolvedSessionConfig.ResolvedSkillEntry::getNacosId,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+                new LinkedHashMap<>();
+        for (ResolvedSessionConfig.ResolvedSkillEntry skill : skills) {
+            String nacosId =
+                    Objects.requireNonNull(
+                            skill.getNacosId(), "element cannot be mapped to a null key");
+            byNacosId.computeIfAbsent(nacosId, key -> new ArrayList<>()).add(skill);
+        }
 
         logger.info(
                 "[SkillDownload] 开始下载 {} 个 Skill ({} 个 Nacos 实例), provider={}, skillsDir={}",

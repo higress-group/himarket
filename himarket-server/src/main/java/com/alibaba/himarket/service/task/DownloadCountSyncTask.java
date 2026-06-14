@@ -13,11 +13,11 @@ import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecSummary;
 import com.alibaba.nacos.api.ai.model.skills.SkillSummary;
 import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -60,40 +60,38 @@ public class DownloadCountSyncTask {
                         .toList();
 
         if (!nacosProducts.isEmpty()) {
-            nacosProducts.stream()
-                    .collect(
-                            Collectors.groupingBy(
-                                    p -> {
-                                        SkillConfig c = p.getFeature().getSkillConfig();
-                                        return c.getNacosId() + ":" + c.getNamespace();
-                                    }))
-                    .forEach(
-                            (key, group) -> {
-                                Product first = group.get(0);
-                                SkillConfig config = first.getFeature().getSkillConfig();
-                                syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
-                            });
+            Map<String, List<Product>> productsByNacos = new HashMap<>();
+            for (Product product : nacosProducts) {
+                SkillConfig config = product.getFeature().getSkillConfig();
+                String groupKey = config.getNacosId() + ":" + config.getNamespace();
+                productsByNacos.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(product);
+            }
+
+            for (List<Product> group : productsByNacos.values()) {
+                SkillConfig config = group.get(0).getFeature().getSkillConfig();
+                syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
+            }
         }
 
-        skillProducts.stream()
-                .filter(
-                        p ->
-                                p.getFeature() != null
-                                        && p.getFeature().getSkillConfig() != null
-                                        && isAiRegistrySkillConfig(p.getFeature().getSkillConfig()))
-                .collect(
-                        Collectors.groupingBy(
-                                p -> {
-                                    SkillConfig c = p.getFeature().getSkillConfig();
-                                    return c.getAiRegistryId() + ":" + c.getNamespace();
-                                }))
-                .forEach(
-                        (key, group) -> {
-                            Product first = group.get(0);
-                            SkillConfig config = first.getFeature().getSkillConfig();
-                            syncAiRegistrySkillGroup(
-                                    config.getAiRegistryId(), config.getNamespace(), group);
-                        });
+        Map<String, List<Product>> productsByAiRegistry = new HashMap<>();
+        for (Product product : skillProducts) {
+            if (product.getFeature() == null || product.getFeature().getSkillConfig() == null) {
+                continue;
+            }
+
+            SkillConfig config = product.getFeature().getSkillConfig();
+            if (!isAiRegistrySkillConfig(config)) {
+                continue;
+            }
+
+            String groupKey = config.getAiRegistryId() + ":" + config.getNamespace();
+            productsByAiRegistry.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(product);
+        }
+
+        for (List<Product> group : productsByAiRegistry.values()) {
+            SkillConfig config = group.get(0).getFeature().getSkillConfig();
+            syncAiRegistrySkillGroup(config.getAiRegistryId(), config.getNamespace(), group);
+        }
     }
 
     private boolean isNacosSkillConfig(SkillConfig config) {
@@ -122,19 +120,17 @@ public class DownloadCountSyncTask {
             return;
         }
 
-        products.stream()
-                .collect(
-                        Collectors.groupingBy(
-                                p -> {
-                                    WorkerConfig c = p.getFeature().getWorkerConfig();
-                                    return c.getNacosId() + ":" + c.getNamespace();
-                                }))
-                .forEach(
-                        (key, group) -> {
-                            Product first = group.get(0);
-                            WorkerConfig config = first.getFeature().getWorkerConfig();
-                            syncWorkerGroup(config.getNacosId(), config.getNamespace(), group);
-                        });
+        Map<String, List<Product>> productsByNacos = new HashMap<>();
+        for (Product product : products) {
+            WorkerConfig config = product.getFeature().getWorkerConfig();
+            String groupKey = config.getNacosId() + ":" + config.getNamespace();
+            productsByNacos.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(product);
+        }
+
+        for (List<Product> group : productsByNacos.values()) {
+            WorkerConfig config = group.get(0).getFeature().getWorkerConfig();
+            syncWorkerGroup(config.getNacosId(), config.getNamespace(), group);
+        }
     }
 
     private void syncSkillGroup(String nacosId, String namespace, List<Product> products) {

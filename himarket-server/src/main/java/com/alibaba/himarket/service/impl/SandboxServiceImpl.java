@@ -44,7 +44,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -78,7 +77,7 @@ public class SandboxServiceImpl implements SandboxService {
                                         .sandboxId(s.getSandboxId())
                                         .sandboxName(s.getSandboxName())
                                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override

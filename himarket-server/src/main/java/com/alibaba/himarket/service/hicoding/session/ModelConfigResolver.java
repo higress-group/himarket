@@ -13,7 +13,6 @@ import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.enums.SubscriptionStatus;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -69,7 +68,7 @@ public class ModelConfigResolver {
                 subscriptions.stream()
                         .filter(s -> SubscriptionStatus.APPROVED.name().equals(s.getStatus()))
                         .map(SubscriptionResult::getProductId)
-                        .collect(Collectors.toList());
+                        .toList();
 
         log.info(
                 "[ModelConfigResolver] 订阅列表: total={}, approved={}",
