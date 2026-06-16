@@ -35,9 +35,9 @@ import lombok.NoArgsConstructor;
  * org.springframework.context.PayloadApplicationEvent}.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class McpSandboxUndeployEvent {
 
     /**

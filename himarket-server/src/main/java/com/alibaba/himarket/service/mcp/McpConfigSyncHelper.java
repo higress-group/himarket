@@ -66,8 +66,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpConfigSyncHelper {
 
     private final McpServerMetaRepository metaRepository;

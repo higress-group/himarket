@@ -65,8 +65,8 @@ import org.springframework.stereotype.Component;
  * <p>LobeHub uses OAuth2 with JWT client assertion instead of plain client credentials. The flow is:
  * register client => sign JWT => exchange access token => call API.
  */
-@Slf4j
 @Component
+@Slf4j
 public class LobeHubAdapter implements McpVendorAdapter {
 
     private static final String BASE_URL = "https://market.lobehub.com";

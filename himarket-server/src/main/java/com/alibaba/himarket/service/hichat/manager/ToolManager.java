@@ -36,7 +36,9 @@ import io.agentscope.core.tool.mcp.McpClientBuilder;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.time.Duration;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -48,8 +50,8 @@ import reactor.core.publisher.Mono;
  *
  * <p>Handles client creation, caching and initialization.
  */
-@Slf4j
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ToolManager {
 

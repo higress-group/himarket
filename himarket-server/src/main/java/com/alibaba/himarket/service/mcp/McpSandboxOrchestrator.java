@@ -50,8 +50,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpSandboxOrchestrator {
 
     private final McpConfigSyncHelper configSyncHelper;

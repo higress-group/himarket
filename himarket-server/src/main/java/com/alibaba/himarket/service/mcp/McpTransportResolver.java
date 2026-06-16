@@ -60,8 +60,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpTransportResolver {
 
     private final McpServerMetaRepository metaRepository;

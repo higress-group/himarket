@@ -19,7 +19,12 @@
 
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.dto.params.gateway.*;
+import com.alibaba.himarket.dto.params.gateway.ImportGatewayParam;
+import com.alibaba.himarket.dto.params.gateway.QueryAPIGParam;
+import com.alibaba.himarket.dto.params.gateway.QueryAdpAIGatewayParam;
+import com.alibaba.himarket.dto.params.gateway.QueryApsaraGatewayParam;
+import com.alibaba.himarket.dto.params.gateway.QueryGatewayParam;
+import com.alibaba.himarket.dto.params.gateway.UpdateGatewayParam;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;

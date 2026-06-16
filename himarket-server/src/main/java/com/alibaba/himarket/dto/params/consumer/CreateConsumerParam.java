@@ -29,9 +29,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class CreateConsumerParam implements InputConverter<Consumer> {
 
     @NotBlank(message = "Consumer name is required")

@@ -42,7 +42,11 @@ import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
-import com.alibaba.himarket.entity.*;
+import com.alibaba.himarket.entity.Consumer;
+import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.entity.ConsumerRef;
+import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.entity.ProductSubscription;
 import com.alibaba.himarket.repository.ConsumerCredentialRepository;
 import com.alibaba.himarket.repository.ConsumerRefRepository;
 import com.alibaba.himarket.repository.ConsumerRepository;
@@ -65,8 +69,11 @@ import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
-import jakarta.transaction.Transactional;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -76,6 +83,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor

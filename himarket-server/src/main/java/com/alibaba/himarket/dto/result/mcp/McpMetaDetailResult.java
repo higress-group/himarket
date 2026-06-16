@@ -15,8 +15,8 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class McpMetaDetailResult {
 
     private String mcpServerId;

@@ -27,9 +27,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class MarketMcpsResponse {
 
     private List<MarketMcpInfo> mcpServers;

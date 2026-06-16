@@ -22,8 +22,8 @@ import org.springframework.stereotype.Service;
  * subscription checks stay in one place. Products without approved subscriptions are skipped.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpConfigResolver {
 
     private final ConsumerService consumerService;

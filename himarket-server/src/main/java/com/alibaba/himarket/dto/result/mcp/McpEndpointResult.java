@@ -13,8 +13,8 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class McpEndpointResult implements OutputConverter<McpEndpointResult, McpServerEndpoint> {
 
     private String endpointId;

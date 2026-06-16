@@ -33,8 +33,8 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class GatewayResult implements OutputConverter<GatewayResult, Gateway> {
 
     private String gatewayId;

@@ -25,8 +25,8 @@ import java.util.List;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
+@EqualsAndHashCode(callSuper = true)
 public class AdpMcpServerResult extends GatewayMcpServerResult {
 
     private String gwInstanceId;

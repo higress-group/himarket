@@ -50,8 +50,8 @@ import org.springframework.stereotype.Component;
 /**
  * Vendor adapter for the official MCP Registry public API.
  */
-@Slf4j
 @Component
+@Slf4j
 public class McpRegistryAdapter implements McpVendorAdapter {
 
     private static final String BASE_URL = "https://registry.modelcontextprotocol.io/v0.1/servers";

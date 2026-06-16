@@ -19,10 +19,15 @@
 
 package com.alibaba.himarket.core.utils;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.alibaba.himarket.repository.RevokedTokenRepository;
 import com.alibaba.himarket.service.RevokedTokenService;
@@ -33,7 +38,11 @@ import com.github.benmanes.caffeine.cache.Cache;
 import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Set;
-import net.jqwik.api.*;
+import net.jqwik.api.Arbitraries;
+import net.jqwik.api.Arbitrary;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
+import net.jqwik.api.Provide;
 
 /**
  * Property-based tests for token revocation persistence.

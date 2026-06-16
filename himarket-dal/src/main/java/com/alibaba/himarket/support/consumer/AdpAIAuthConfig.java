@@ -28,9 +28,9 @@ import lombok.NoArgsConstructor;
  * ADP AI Gateway authorization configuration.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class AdpAIAuthConfig {
 
     /**

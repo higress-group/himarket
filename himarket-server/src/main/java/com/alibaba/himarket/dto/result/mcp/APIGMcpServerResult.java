@@ -24,8 +24,8 @@ import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
+@EqualsAndHashCode(callSuper = true)
 public class APIGMcpServerResult extends GatewayMcpServerResult
         implements OutputConverter<APIGMcpServerResult, HttpRoute> {
 

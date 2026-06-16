@@ -24,7 +24,15 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.apidefinition.CreateApiDefinitionParam;
-import com.alibaba.himarket.dto.params.product.*;
+import com.alibaba.himarket.dto.params.product.AddProductRefParam;
+import com.alibaba.himarket.dto.params.product.AiRegistryImportConfigParam;
+import com.alibaba.himarket.dto.params.product.CreateProductParam;
+import com.alibaba.himarket.dto.params.product.ExternalImportConfigParam;
+import com.alibaba.himarket.dto.params.product.GatewayImportConfigParam;
+import com.alibaba.himarket.dto.params.product.ImportProductsParam;
+import com.alibaba.himarket.dto.params.product.NacosImportConfigParam;
+import com.alibaba.himarket.dto.params.product.ProductImportItemParam;
+import com.alibaba.himarket.dto.params.product.ProductImportSourceConfigParam;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.mcp.APIGMcpServerResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
@@ -50,7 +58,12 @@ import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.enums.SourceType;
-import com.alibaba.himarket.support.product.*;
+import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.support.product.HigressRefConfig;
+import com.alibaba.himarket.support.product.Icon;
+import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,8 +71,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ProductImporter {
 

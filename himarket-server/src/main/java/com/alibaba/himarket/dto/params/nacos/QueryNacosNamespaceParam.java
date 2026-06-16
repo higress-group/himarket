@@ -22,8 +22,8 @@ package com.alibaba.himarket.dto.params.nacos;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
+@EqualsAndHashCode(callSuper = true)
 public class QueryNacosNamespaceParam extends CreateNacosParam {
     private String namespace;
 }

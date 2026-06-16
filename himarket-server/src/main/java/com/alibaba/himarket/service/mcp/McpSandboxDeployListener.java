@@ -38,8 +38,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
  * resource leaks when the transaction rolls back.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpSandboxDeployListener {
 
     private final McpSandboxDeployService mcpSandboxDeployService;

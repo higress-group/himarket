@@ -44,7 +44,11 @@ import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.enums.JwtAlgorithm;
-import com.alibaba.himarket.support.portal.*;
+import com.alibaba.himarket.support.portal.IdentityMapping;
+import com.alibaba.himarket.support.portal.JwtBearerConfig;
+import com.alibaba.himarket.support.portal.OAuth2Config;
+import com.alibaba.himarket.support.portal.PortalSettingConfig;
+import com.alibaba.himarket.support.portal.PublicKeyConfig;
 import java.security.PublicKey;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -52,8 +56,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class OAuth2ServiceImpl implements OAuth2Service {
 
     private final PortalService portalService;

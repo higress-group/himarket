@@ -23,8 +23,8 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = false)
 @Data
+@EqualsAndHashCode(callSuper = false)
 public class NacosNamespaceResult implements OutputConverter<NacosNamespaceResult, Object> {
 
     private String namespaceId;

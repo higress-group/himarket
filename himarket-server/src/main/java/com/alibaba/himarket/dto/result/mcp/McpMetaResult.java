@@ -23,8 +23,8 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class McpMetaResult implements OutputConverter<McpMetaResult, McpServerMeta> {
 
     // Cold data from McpServerMeta.

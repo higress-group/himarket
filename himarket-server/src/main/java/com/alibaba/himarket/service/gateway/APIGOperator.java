@@ -50,12 +50,58 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
-import com.aliyun.sdk.service.apig20240327.models.*;
+import com.aliyun.sdk.service.apig20240327.models.AkSkIdentityConfig;
+import com.aliyun.sdk.service.apig20240327.models.ApiKeyIdentityConfig;
+import com.aliyun.sdk.service.apig20240327.models.BatchDeleteConsumerAuthorizationRuleRequest;
+import com.aliyun.sdk.service.apig20240327.models.BatchDeleteConsumerAuthorizationRuleResponse;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.AuthorizationRules;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.ResourceIdentifier;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesResponse;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerResponse;
+import com.aliyun.sdk.service.apig20240327.models.DeleteConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.EnvironmentInfo;
+import com.aliyun.sdk.service.apig20240327.models.ExportHttpApiRequest;
+import com.aliyun.sdk.service.apig20240327.models.ExportHttpApiResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetConsumerResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetConsumerResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.GetGatewayRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetGatewayResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetGatewayResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiRouteRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiRouteResponse;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiInfoByName;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiOperationInfo;
+import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
+import com.aliyun.sdk.service.apig20240327.models.ListConsumersRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListConsumersResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListConsumersResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.ListEnvironmentsRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListEnvironmentsResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListGatewaysRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListGatewaysResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListGatewaysResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiOperationsRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiOperationsResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiRoutesRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiRoutesResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApisRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApisResponse;
+import com.aliyun.sdk.service.apig20240327.models.SubDomainInfo;
+import com.aliyun.sdk.service.apig20240327.models.UpdateConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.UpdateConsumerResponse;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -63,9 +109,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
-@RequiredArgsConstructor
 @Service
 @Slf4j
+@RequiredArgsConstructor
 @Primary
 public class APIGOperator extends GatewayOperator<APIGClient> {
 

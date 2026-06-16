@@ -22,8 +22,8 @@ package com.alibaba.himarket.support.enums;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
 @Getter
+@RequiredArgsConstructor
 public enum HigressAPIType {
     ROUTE("Route"),
 

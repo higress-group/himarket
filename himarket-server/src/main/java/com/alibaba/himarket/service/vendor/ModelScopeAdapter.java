@@ -49,8 +49,8 @@ import org.springframework.stereotype.Component;
 /**
  * Vendor adapter for querying MCP servers through the ModelScope REST API.
  */
-@Slf4j
 @Component
+@Slf4j
 public class ModelScopeAdapter implements McpVendorAdapter {
 
     private static final String LIST_URL = "https://www.modelscope.cn/openapi/v1/mcp/servers";

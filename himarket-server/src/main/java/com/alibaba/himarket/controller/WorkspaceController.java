@@ -32,8 +32,8 @@ import org.springframework.web.multipart.MultipartFile;
         description = "Workspace file upload, read, download, and change APIs")
 @RestController
 @RequestMapping("/workspace")
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 @AdminOrDeveloperAuth
 public class WorkspaceController {
 

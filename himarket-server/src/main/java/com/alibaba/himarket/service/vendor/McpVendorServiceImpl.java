@@ -36,8 +36,8 @@ import org.springframework.stereotype.Service;
 /**
  * Default {@link McpVendorService} implementation.
  */
-@Slf4j
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class McpVendorServiceImpl implements McpVendorService {
 

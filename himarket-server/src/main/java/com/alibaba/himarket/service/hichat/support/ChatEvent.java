@@ -40,9 +40,9 @@ import lombok.NoArgsConstructor;
  * </pre>
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class ChatEvent {
 
     /**

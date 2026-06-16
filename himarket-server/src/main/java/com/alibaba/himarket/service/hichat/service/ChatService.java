@@ -38,9 +38,9 @@ import com.alibaba.himarket.entity.ChatAttachment;
 import com.alibaba.himarket.entity.ChatSession;
 import com.alibaba.himarket.repository.ChatAttachmentRepository;
 import com.alibaba.himarket.repository.ChatRepository;
-import com.alibaba.himarket.repository.McpServerEndpointRepository;
-import com.alibaba.himarket.repository.McpServerMetaRepository;
-import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.service.ChatSessionService;
+import com.alibaba.himarket.service.ConsumerService;
+import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
@@ -48,9 +48,21 @@ import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.ProductType;
-import io.agentscope.core.message.*;
+import io.agentscope.core.message.AudioBlock;
+import io.agentscope.core.message.Base64Source;
+import io.agentscope.core.message.ContentBlock;
+import io.agentscope.core.message.ImageBlock;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.message.VideoBlock;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,8 +73,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 
-@Slf4j
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ChatService {
 

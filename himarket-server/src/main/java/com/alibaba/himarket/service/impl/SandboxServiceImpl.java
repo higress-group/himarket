@@ -54,8 +54,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class SandboxServiceImpl implements SandboxService {
 
     private final SandboxInstanceRepository sandboxInstanceRepository;

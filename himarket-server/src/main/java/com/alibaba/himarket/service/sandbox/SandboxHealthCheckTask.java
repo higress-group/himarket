@@ -36,8 +36,8 @@ import org.springframework.stereotype.Component;
  * <p>Every 10 minutes, checks K8s connectivity for all sandbox instances and updates their status.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class SandboxHealthCheckTask {
 
     private final SandboxInstanceRepository sandboxInstanceRepository;

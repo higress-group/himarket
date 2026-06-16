@@ -30,8 +30,8 @@ import org.springframework.stereotype.Service;
  * </ol>
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class ModelConfigResolver {
 
     private final ConsumerService consumerService;

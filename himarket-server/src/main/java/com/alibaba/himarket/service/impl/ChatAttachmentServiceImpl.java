@@ -37,8 +37,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class ChatAttachmentServiceImpl implements ChatAttachmentService {
 
     private final ContextHolder contextHolder;

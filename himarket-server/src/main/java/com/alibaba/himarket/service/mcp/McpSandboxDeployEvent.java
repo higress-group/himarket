@@ -36,9 +36,9 @@ import lombok.NoArgsConstructor;
  * @TransactionalEventListener}.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class McpSandboxDeployEvent {
 
     private String sandboxId;

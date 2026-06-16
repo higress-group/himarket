@@ -28,7 +28,11 @@ import com.alibaba.himarket.service.IdpService;
 import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
-import com.alibaba.himarket.support.portal.*;
+import com.alibaba.himarket.support.portal.AuthCodeConfig;
+import com.alibaba.himarket.support.portal.JwtBearerConfig;
+import com.alibaba.himarket.support.portal.OAuth2Config;
+import com.alibaba.himarket.support.portal.OidcConfig;
+import com.alibaba.himarket.support.portal.PublicKeyConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigInteger;
@@ -36,7 +40,10 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,8 +52,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class IdpServiceImpl implements IdpService {
 
     private final RestTemplate restTemplate = HTTPClientFactory.createRestTemplate();
