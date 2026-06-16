@@ -26,6 +26,7 @@ import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.Data;
 
@@ -46,7 +47,7 @@ public class UpdateProductParam implements InputConverter<Product> {
 
     private Boolean autoApprove;
 
-    private List<String> categories;
+    private List<@NotBlank(message = "Category ID cannot be blank") String> categories;
 
     private ProductFeature feature;
 

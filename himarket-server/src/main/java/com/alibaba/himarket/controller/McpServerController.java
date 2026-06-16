@@ -36,9 +36,11 @@ import com.alibaba.himarket.service.McpServerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -55,6 +57,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/mcp-servers")
 @RequiredArgsConstructor
+@Validated
 public class McpServerController {
 
     private final McpServerService mcpServerService;
@@ -114,7 +117,9 @@ public class McpServerController {
 
     @Operation(summary = "Batch get MCP metadata for products")
     @GetMapping("/meta/batch")
-    public List<McpMetaResult> listMetaByProductIds(@RequestParam List<String> productIds) {
+    public List<McpMetaResult> listMetaByProductIds(
+            @RequestParam
+                    List<@NotBlank(message = "Product ID cannot be blank") String> productIds) {
         List<McpMetaResult> results = mcpServerService.listMetaByProductIds(productIds);
         if (!contextHolder.isAdministrator()) {
             results.forEach(McpMetaResult::sanitize);
@@ -126,7 +131,8 @@ public class McpServerController {
     @GetMapping("/meta/batch/public")
     @PublicAccess
     public List<McpMetaPublicResult> listMetaByProductIdsPublic(
-            @RequestParam List<String> productIds) {
+            @RequestParam
+                    List<@NotBlank(message = "Product ID cannot be blank") String> productIds) {
         return mcpServerService.listMetaByProductIds(productIds).stream()
                 .map(McpMetaPublicResult::fromFull)
                 .toList();

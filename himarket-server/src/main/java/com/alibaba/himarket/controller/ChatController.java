@@ -50,10 +50,6 @@ public class ChatController {
 
     private final ChatService chatService;
 
-    @Operation(
-            summary = "Start AI chat",
-            description =
-                    "Returns text/event-stream events without the unified JSON response wrapper")
     @ApiResponse(
             responseCode = "200",
             description = "Streaming chat events",
@@ -61,6 +57,10 @@ public class ChatController {
                     @Content(
                             mediaType = MediaType.TEXT_EVENT_STREAM_VALUE,
                             schema = @Schema(implementation = String.class)))
+    @Operation(
+            summary = "Start AI chat",
+            description =
+                    "Returns text/event-stream events without the unified JSON response wrapper")
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody CreateChatParam param) {
         // Use SseEmitter for streaming

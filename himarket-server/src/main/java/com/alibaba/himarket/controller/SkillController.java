@@ -145,9 +145,6 @@ public class SkillController {
         skillService.deleteDraft(productId);
     }
 
-    @Operation(
-            summary = "Download Skill ZIP package",
-            description = "Return the Skill package as binary ZIP content")
     @ApiResponse(
             responseCode = "200",
             description = "Skill ZIP package",
@@ -155,6 +152,9 @@ public class SkillController {
                     @Content(
                             mediaType = "application/zip",
                             schema = @Schema(type = "string", format = "binary")))
+    @Operation(
+            summary = "Download Skill ZIP package",
+            description = "Return the Skill package as binary ZIP content")
     @GetMapping("/{productId}/download")
     public void downloadPackage(
             @PathVariable String productId,

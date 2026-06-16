@@ -1439,3 +1439,36 @@ Verification:
 - `git diff --check` passed.
 - `./mvnw -q spotless:check -DskipTests` passed.
 - `./mvnw -q -DskipTests test-compile` passed.
+
+## 2026-06-17 - Controller Request Validation Follow-up
+
+Background:
+
+- A follow-up review of the completed Controller/API cleanup found a few remaining list inputs that
+  validated the collection itself but not blank string elements.
+- The commercial backend already validates the matching chat product ID lists with element-level
+  `@NotBlank` constraints.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/chat/CreateChatParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/chat/CreateChatSessionParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/controller/McpServerController.java`
+
+Changes:
+
+- Added element-level `@NotBlank` validation for chat product ID lists.
+- Added method validation to `McpServerController` and element-level `@NotBlank` validation for
+  batch product ID request parameters.
+
+Compatibility:
+
+- No endpoint path, request field name, response shape, repository call, or business flow changed.
+- The only behavior change is rejecting blank product ID values earlier through standard request
+  validation.
+
+Verification:
+
+- `git diff --check` passed.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests test-compile` passed.

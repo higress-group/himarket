@@ -57,7 +57,7 @@ public class CreateProductParam implements InputConverter<Product> {
 
     private Boolean autoApprove;
 
-    private List<String> categories;
+    private List<@NotBlank(message = "Category ID cannot be blank") String> categories;
 
     private ProductFeature feature;
 

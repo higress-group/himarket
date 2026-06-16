@@ -72,7 +72,7 @@ public class CreateChatParam implements InputConverter<Chat> {
     /**
      * MCP servers to use in chat
      */
-    private List<String> mcpProducts;
+    private List<@NotBlank(message = "MCP product ID cannot be blank") String> mcpProducts;
 
     /**
      * If need stream

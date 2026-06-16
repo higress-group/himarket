@@ -124,9 +124,6 @@ public class WorkerController {
         workerService.deleteDraft(productId);
     }
 
-    @Operation(
-            summary = "Download Worker ZIP package",
-            description = "Return the Worker package as binary ZIP content")
     @ApiResponse(
             responseCode = "200",
             description = "Worker ZIP package",
@@ -134,6 +131,9 @@ public class WorkerController {
                     @Content(
                             mediaType = "application/zip",
                             schema = @Schema(type = "string", format = "binary")))
+    @Operation(
+            summary = "Download Worker ZIP package",
+            description = "Return the Worker package as binary ZIP content")
     @GetMapping("/{productId}/download")
     public void downloadPackage(
             @PathVariable String productId,

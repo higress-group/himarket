@@ -47,6 +47,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -179,7 +180,9 @@ public class ProductController {
     @PutMapping("/{productId}/categories")
     @AdminAuth
     public void setProductCategories(
-            @PathVariable String productId, @RequestBody List<String> categoryIds) {
+            @PathVariable String productId,
+            @RequestBody @Valid
+                    List<@NotBlank(message = "Category ID cannot be blank") String> categoryIds) {
         productService.setProductCategories(productId, categoryIds);
     }
 

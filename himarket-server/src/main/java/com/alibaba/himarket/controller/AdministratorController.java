@@ -89,7 +89,7 @@ public class AdministratorController {
             description = "Change the password of the current administrator")
     @PatchMapping("/password")
     @AdminAuth
-    public void resetPassword(@RequestBody ResetPasswordParam param) {
+    public void resetPassword(@Valid @RequestBody ResetPasswordParam param) {
         administratorService.resetPassword(param.getOldPassword(), param.getNewPassword());
     }
 

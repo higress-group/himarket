@@ -101,7 +101,7 @@ public class DeveloperController {
             description = "Change the password of the current developer")
     @PatchMapping("/password")
     @DeveloperAuth
-    public void changePassword(@RequestBody ResetPasswordParam param) {
+    public void changePassword(@Valid @RequestBody ResetPasswordParam param) {
         developerService.resetDeveloperPassword(param.getOldPassword(), param.getNewPassword());
     }
 
@@ -121,7 +121,7 @@ public class DeveloperController {
     @AdminAuth
     public void setDeveloperStatus(
             @PathVariable("developerId") String developerId,
-            @RequestBody UpdateDeveloperStatusParam param) {
+            @Valid @RequestBody UpdateDeveloperStatusParam param) {
         developerService.setDeveloperStatus(developerId, param.getStatus());
     }
 

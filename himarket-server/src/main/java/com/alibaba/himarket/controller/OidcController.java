@@ -45,12 +45,12 @@ public class OidcController {
 
     private final OidcService oidcService;
 
-    @Operation(
-            summary = "Start OIDC authorization",
-            description = "Redirect the browser to the selected OIDC provider")
     @ApiResponse(
             responseCode = "302",
             description = "Redirects to the OIDC provider authorization page")
+    @Operation(
+            summary = "Start OIDC authorization",
+            description = "Redirect the browser to the selected OIDC provider")
     @GetMapping("/authorize")
     public void authorize(
             @RequestParam String provider,

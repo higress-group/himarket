@@ -35,7 +35,7 @@ public class CreateChatSessionParam implements InputConverter<ChatSession> {
      * Products to use
      */
     @NotEmpty(message = "Products cannot be empty")
-    private List<String> products;
+    private List<@NotBlank(message = "Product ID cannot be blank") String> products;
 
     /**
      * Model or Agent
