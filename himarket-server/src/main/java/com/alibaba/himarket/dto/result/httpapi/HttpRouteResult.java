@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.dto.result.httpapi;
 
-import cn.hutool.core.util.BooleanUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.service.gateway.HigressOperator;
@@ -106,7 +105,7 @@ public class HttpRouteResult implements OutputConverter<HttpRouteResult, HttpRou
         setMatch(routeMatchResult);
         setBackend(backendResult);
         setDescription(route.getDescription());
-        setBuiltin(BooleanUtil.toBooleanObject(route.getBuiltin()));
+        setBuiltin(route.getBuiltin() == null ? null : Boolean.valueOf(route.getBuiltin()));
 
         return this;
     }

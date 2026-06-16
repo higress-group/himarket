@@ -19,19 +19,18 @@
 
 package com.alibaba.himarket.converter;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.ClassUtil;
-import cn.hutool.core.util.ReflectUtil;
 import com.alibaba.himarket.support.common.Encrypted;
 import com.alibaba.himarket.support.common.Encryptor;
 import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.persistence.AttributeConverter;
-import java.lang.reflect.Field;
+import java.lang.reflect.Array;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.util.ReflectionUtils;
 
 @Slf4j
 public abstract class JsonConverter<T> implements AttributeConverter<T, String> {
@@ -108,39 +107,44 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
     }
 
     private void handleEncryption(Object obj, boolean isEncrypt) {
-        if (obj == null) {
+        if (obj == null || BeanUtils.isSimpleValueType(obj.getClass())) {
             return;
         }
 
-        // Process Collection elements directly to avoid StackOverflowError caused by
-        // circular references in JDK collection internals (e.g. LinkedHashMap.Entry.before/after)
-        if (obj instanceof Collection<?>) {
-            for (Object element : (Collection<?>) obj) {
-                if (element != null && !ClassUtil.isSimpleValueType(element.getClass())) {
-                    handleEncryption(element, isEncrypt);
-                }
+        if (obj instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                handleEncryption(item, isEncrypt);
             }
             return;
         }
 
-        if (obj instanceof Map<?, ?>) {
-            for (Object value : ((Map<?, ?>) obj).values()) {
-                if (value != null && !ClassUtil.isSimpleValueType(value.getClass())) {
-                    handleEncryption(value, isEncrypt);
-                }
+        if (obj instanceof Map<?, ?> map) {
+            for (Object value : map.values()) {
+                handleEncryption(value, isEncrypt);
             }
             return;
         }
 
-        BeanUtil.descForEach(
+        if (obj.getClass().isArray()) {
+            int length = Array.getLength(obj);
+            for (int i = 0; i < length; i++) {
+                handleEncryption(Array.get(obj, i), isEncrypt);
+            }
+            return;
+        }
+
+        ReflectionUtils.doWithFields(
                 obj.getClass(),
-                pd -> {
-                    Field field = pd.getField();
-                    if (field == null) {
+                field -> {
+                    int modifiers = field.getModifiers();
+                    if (Modifier.isStatic(modifiers)
+                            || Modifier.isTransient(modifiers)
+                            || field.isSynthetic()) {
                         return;
                     }
 
-                    Object value = ReflectUtil.getFieldValue(obj, field);
+                    ReflectionUtils.makeAccessible(field);
+                    Object value = ReflectionUtils.getField(field, obj);
                     if (value == null) {
                         return;
                     }
@@ -151,8 +155,8 @@ public abstract class JsonConverter<T> implements AttributeConverter<T, String> 
                                 isEncrypt
                                         ? Encryptor.encrypt((String) value)
                                         : Encryptor.decrypt((String) value);
-                        ReflectUtil.setFieldValue(obj, field, result);
-                    } else if (!ClassUtil.isSimpleValueType(value.getClass())) {
+                        ReflectionUtils.setField(field, obj, result);
+                    } else {
                         handleEncryption(value, isEncrypt);
                     }
                 });

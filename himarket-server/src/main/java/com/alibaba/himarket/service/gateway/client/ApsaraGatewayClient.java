@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.gateway.client;
 
-import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.apsara.AddMcpServerConsumersRequest;
@@ -53,6 +52,7 @@ import com.alibaba.himarket.dto.result.apsara.ListModelApisResponse;
 import com.alibaba.himarket.dto.result.apsara.ModifyAppResponse;
 import com.alibaba.himarket.dto.result.apsara.RevokeModelApiGrantResponse;
 import com.alibaba.himarket.support.gateway.ApsaraGatewayConfig;
+import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.teaopenapi.Client;
 import com.aliyun.teaopenapi.models.Config;
 import com.aliyun.teaopenapi.models.OpenApiRequest;
@@ -132,9 +132,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/gatewayInstance/listInstances",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, ListInstancesResponse.class);
-                    });
+                    data -> toResponse(data, ListInstancesResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("ListInstances", e);
         }
@@ -153,9 +151,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/gatewayInstance/getInstanceInfo",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, GetInstanceInfoResponse.class);
-                    });
+                    data -> toResponse(data, GetInstanceInfoResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("GetInstanceInfo", e);
         }
@@ -178,9 +174,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/mcpServer/listMcpServers",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, ListMcpServersResponse.class);
-                    });
+                    data -> toResponse(data, ListMcpServersResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("ListMcpServers", e);
         }
@@ -200,9 +194,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/mcpServer/getMcpServer",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, GetMcpServerResponse.class);
-                    });
+                    data -> toResponse(data, GetMcpServerResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("GetMcpServer", e);
         }
@@ -224,9 +216,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/mcpServer/addMcpServerConsumers",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, AddMcpServerConsumersResponse.class);
-                    });
+                    data -> toResponse(data, AddMcpServerConsumersResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("AddMcpServerConsumers", e);
         }
@@ -248,9 +238,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/mcpServer/deleteMcpServerConsumers",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, DeleteMcpServerConsumersResponse.class);
-                    });
+                    data -> toResponse(data, DeleteMcpServerConsumersResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("DeleteMcpServerConsumers", e);
         }
@@ -273,9 +261,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/modelapi/listModelApis",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, ListModelApisResponse.class);
-                    });
+                    data -> toResponse(data, ListModelApisResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("ListModelApis", e);
         }
@@ -295,9 +281,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/modelapi/getModelApi",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, GetModelApiResponse.class);
-                    });
+                    data -> toResponse(data, GetModelApiResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("GetModelApi", e);
         }
@@ -315,9 +299,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/application/createApp",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, CreateAppResponse.class);
-                    });
+                    data -> toResponse(data, CreateAppResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("CreateApp", e);
         }
@@ -333,9 +315,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/application/modifyApp",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, ModifyAppResponse.class);
-                    });
+                    data -> toResponse(data, ModifyAppResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("ModifyApp", e);
         }
@@ -355,9 +335,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/application/batchDeleteApp",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, BatchDeleteAppResponse.class);
-                    });
+                    data -> toResponse(data, BatchDeleteAppResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("BatchDeleteApp", e);
         }
@@ -378,9 +356,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/application/listAppsByGwInstanceId",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> {
-                        return BeanUtil.toBean(data, ListAppsByGwInstanceIdResponse.class);
-                    });
+                    data -> toResponse(data, ListAppsByGwInstanceIdResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("ListAppsByGwInstanceId", e);
         }
@@ -404,7 +380,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/modelapi/batchGrantModelApi",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> BeanUtil.toBean(data, BatchGrantModelApiResponse.class));
+                    data -> toResponse(data, BatchGrantModelApiResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("BatchGrantModelApi", e);
         }
@@ -424,7 +400,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/modelapi/revokeModelApiGrant",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> BeanUtil.toBean(data, RevokeModelApiGrantResponse.class));
+                    data -> toResponse(data, RevokeModelApiGrantResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("RevokeModelApiGrant", e);
         }
@@ -448,7 +424,7 @@ public class ApsaraGatewayClient extends GatewayClient {
                     "/modelapi/listModelApiConsumers",
                     MethodType.POST,
                     request.toJsonObject(),
-                    data -> BeanUtil.toBean(data, ListModelApiConsumersResponse.class));
+                    data -> toResponse(data, ListModelApiConsumersResponse.class));
         } catch (Exception e) {
             throw toApsaraClientException("ListModelApiConsumers", e);
         }
@@ -526,6 +502,10 @@ public class ApsaraGatewayClient extends GatewayClient {
                     e,
                     "Failed to communicate with Apsara gateway: " + e.getMessage());
         }
+    }
+
+    private <E> E toResponse(Map<String, Object> data, Class<E> responseType) {
+        return JsonUtil.convert(data, responseType);
     }
 
     private void logApsaraClientError(String operation, Exception e) {

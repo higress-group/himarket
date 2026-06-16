@@ -19,9 +19,9 @@
 
 package com.alibaba.himarket.dto.params.gateway;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Gateway;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.gateway.APIGConfig;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
@@ -55,15 +55,15 @@ public class ImportGatewayParam implements InputConverter<Gateway> {
     private boolean isGatewayConfigValid() {
         return gatewayType.isAPIG()
                         && apigConfig != null
-                        && StrUtil.isNotBlank(gatewayId)
+                        && Strings.isNotBlank(gatewayId)
                         && apigConfig.validate()
                 || gatewayType.isAdpAIGateway()
                         && adpAIGatewayConfig != null
-                        && StrUtil.isNotBlank(gatewayId)
+                        && Strings.isNotBlank(gatewayId)
                         && adpAIGatewayConfig.validate()
                 || gatewayType.isApsaraGateway()
                         && apsaraGatewayConfig != null
-                        && StrUtil.isNotBlank(gatewayId)
+                        && Strings.isNotBlank(gatewayId)
                         && apsaraGatewayConfig.validate()
                 || gatewayType.isHigress() && higressConfig != null && higressConfig.validate();
     }

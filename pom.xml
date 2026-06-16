@@ -53,7 +53,6 @@
         <spring-boot.version>3.2.11</spring-boot.version>
         <mariadb.version>3.4.1</mariadb.version>
         <mysql.version>8.0.33</mysql.version>
-        <hutool.version>5.8.33</hutool.version>
         <bouncycastle.version>1.78</bouncycastle.version>
         <springdoc.version>2.5.0</springdoc.version>
         <apigsdk.version>5.0.6</apigsdk.version>
@@ -61,21 +60,27 @@
         <msesdk.version>7.21.0</msesdk.version>
         <aliyunsdk.version>4.4.6</aliyunsdk.version>
         <aliyun-sts.version>3.1.3</aliyun-sts.version>
+        <aliyun-credentials.version>1.0.1</aliyun-credentials.version>
         <aliyun-log.version>0.6.142</aliyun-log.version>
+        <aliyun-tea-openapi.version>0.3.10</aliyun-tea-openapi.version>
+        <aliyun-tea-util.version>0.2.23</aliyun-tea-util.version>
+        <aliyun-tea-xml.version>0.1.6</aliyun-tea-xml.version>
+        <aliyun-openapiutil.version>0.2.2</aliyun-openapiutil.version>
         <okhttp.version>4.12.0</okhttp.version>
         <flyway.version>10.15.0</flyway.version>
         <higressadminsdk.version>0.0.2</higressadminsdk.version>
         <nacos.client.version>3.2.1-2026.03.30</nacos.client.version>
         <nacos.api.version>3.2.1-2026.03.30</nacos.api.version>
         <caffeine.version>3.2.3</caffeine.version>
-        <guava-retrying.version>2.0.0</guava-retrying.version>
         <snakeyaml.version>2.0</snakeyaml.version>
         <fabric8.version>6.1.1</fabric8.version>
         <agentscope.version>1.0.10</agentscope.version>
         <jackson-databind.version>2.17.2</jackson-databind.version>
+        <nimbus-jose-jwt.version>9.37.3</nimbus-jose-jwt.version>
         <openai.java.version>4.6.1</openai.java.version>
         <dashscope.java.version>2.22.4</dashscope.java.version>
         <google-genai.version>1.34.0</google-genai.version>
+        <pty4j.version>0.12.13</pty4j.version>
         <jqwik.version>1.9.2</jqwik.version>
 
         <!-- Plugins Versions -->
@@ -111,6 +116,18 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- HiMarket Modules -->
+            <dependency>
+                <groupId>com.alibaba.himarket</groupId>
+                <artifactId>himarket-dal</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.himarket</groupId>
+                <artifactId>himarket-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- MariaDB Driver -->
             <dependency>
                 <groupId>org.mariadb.jdbc</groupId>
@@ -125,13 +142,6 @@
                 <version>${mysql.version}</version>
             </dependency>
 
-            <!-- Hutool -->
-            <dependency>
-                <groupId>cn.hutool</groupId>
-                <artifactId>hutool-all</artifactId>
-                <version>${hutool.version}</version>
-            </dependency>
-
             <!-- Spring Boot Starter Security -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
@@ -143,12 +153,19 @@
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-oauth2-client</artifactId>
+                <version>${spring-boot.version}</version>
             </dependency>
 
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
                 <version>${springdoc.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>${nimbus-jose-jwt.version}</version>
             </dependency>
 
             <dependency>
@@ -174,6 +191,36 @@
                 <groupId>com.aliyun</groupId>
                 <artifactId>aliyun-java-sdk-core</artifactId>
                 <version>${aliyunsdk.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>credentials-java</artifactId>
+                <version>${aliyun-credentials.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>tea-openapi</artifactId>
+                <version>${aliyun-tea-openapi.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>tea-util</artifactId>
+                <version>${aliyun-tea-util.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>tea-xml</artifactId>
+                <version>${aliyun-tea-xml.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>openapiutil</artifactId>
+                <version>${aliyun-openapiutil.version}</version>
             </dependency>
 
             <dependency>
@@ -224,13 +271,6 @@
                 <groupId>com.github.ben-manes.caffeine</groupId>
                 <artifactId>caffeine</artifactId>
                 <version>${caffeine.version}</version>
-            </dependency>
-
-            <!-- Guava Retrying -->
-            <dependency>
-                <groupId>com.github.rholder</groupId>
-                <artifactId>guava-retrying</artifactId>
-                <version>${guava-retrying.version}</version>
             </dependency>
 
             <!-- SnakeYAML -->
@@ -287,6 +327,12 @@
                 <groupId>com.google.genai</groupId>
                 <artifactId>google-genai</artifactId>
                 <version>${google-genai.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.jetbrains.pty4j</groupId>
+                <artifactId>pty4j</artifactId>
+                <version>${pty4j.version}</version>
             </dependency>
 
             <!-- jqwik Property-Based Testing -->

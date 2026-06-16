@@ -1,6 +1,6 @@
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 
 /**
@@ -24,7 +24,9 @@ public final class McpProtocolUtils {
      * @return normalized protocol type; blank values are returned as-is, unknown values are trimmed
      */
     public static String normalize(String raw) {
-        if (StrUtil.isBlank(raw)) return raw;
+        if (Strings.isBlank(raw)) {
+            return raw;
+        }
         return McpProtocolType.normalize(raw);
     }
 
@@ -75,7 +77,9 @@ public final class McpProtocolUtils {
      * @return normalized URL
      */
     public static String normalizeEndpointUrl(String url, String protocol) {
-        if (StrUtil.isBlank(url)) return url;
+        if (Strings.isBlank(url)) {
+            return url;
+        }
         String normalized = url.replaceAll("/+$", "");
         McpProtocolType type = McpProtocolType.fromString(protocol);
         if (type != null && type.isStreamableHttp()) {

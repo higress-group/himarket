@@ -18,7 +18,6 @@
  */
 package com.alibaba.himarket.service.hichat.service.dashscope;
 
-import cn.hutool.core.util.BooleanUtil;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeMessage;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeRequest;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeResponse;
@@ -156,7 +155,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
                         tools,
                         toolChoice);
 
-        if (BooleanUtil.isTrue(enableSearch)) {
+        if (Boolean.TRUE.equals(enableSearch)) {
             request.getParameters().setEnableSearch(true);
         }
 

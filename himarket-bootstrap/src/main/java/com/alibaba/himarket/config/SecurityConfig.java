@@ -22,6 +22,7 @@ package com.alibaba.himarket.config;
 import com.alibaba.himarket.core.security.JwtAuthenticationFilter;
 import com.alibaba.himarket.core.security.PublicAccessPathScanner;
 import com.alibaba.himarket.core.security.PublicAccessPathScanner.PublicAccessEndpoint;
+import com.alibaba.himarket.service.TokenService;
 import jakarta.servlet.DispatcherType;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +51,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final PublicAccessPathScanner publicAccessPathScanner;
+
+    private final TokenService tokenService;
 
     // Auth endpoints
     private static final String[] AUTH_WHITELIST = {
@@ -128,7 +131,8 @@ public class SecurityConfig {
                             auth.anyRequest().authenticated();
                         })
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                        new JwtAuthenticationFilter(tokenService),
+                        UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

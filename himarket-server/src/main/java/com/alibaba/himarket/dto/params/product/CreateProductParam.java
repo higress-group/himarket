@@ -19,9 +19,9 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
@@ -63,7 +63,7 @@ public class CreateProductParam implements InputConverter<Product> {
 
     @AssertTrue(message = "Icon size cannot exceed 16KB")
     public boolean checkIcon() {
-        if (icon == null || StrUtil.isBlank(icon.getValue())) {
+        if (icon == null || Strings.isBlank(icon.getValue())) {
             return true;
         }
         return icon.getValue().length() < 16 * 1024;

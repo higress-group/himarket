@@ -19,10 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -61,11 +57,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -89,6 +87,8 @@ public class PortalServiceImpl implements PortalService {
 
     private final ProductRepository productRepository;
 
+    private final ApplicationEventPublisher eventPublisher;
+
     public PortalResult createPortal(CreatePortalParam param) {
         portalRepository
                 .findByName(param.getName())
@@ -96,9 +96,7 @@ public class PortalServiceImpl implements PortalService {
                         portal -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Portal with name `{}` already exists",
-                                            portal.getName()));
+                                    "Portal with name `" + portal.getName() + "` already exists");
                         });
 
         String portalId = IdGenerator.genPortalId();
@@ -181,7 +179,7 @@ public class PortalServiceImpl implements PortalService {
             if (existingPortal != null) {
                 throw new BusinessException(
                         ErrorCode.CONFLICT,
-                        StrUtil.format("Portal with name `{}` already exists", requestedName));
+                        "Portal with name `" + requestedName + "` already exists");
             }
         }
 
@@ -190,20 +188,20 @@ public class PortalServiceImpl implements PortalService {
         PortalSettingConfig setting = portal.getPortalSettingConfig();
 
         // Verify OIDC configs
-        if (CollUtil.isNotEmpty(setting.getOidcConfigs())) {
+        if (!CollectionUtils.isEmpty(setting.getOidcConfigs())) {
             idpService.validateOidcConfigs(setting.getOidcConfigs());
         }
 
         // Verify OAuth2 configs
-        if (CollUtil.isNotEmpty(setting.getOauth2Configs())) {
+        if (!CollectionUtils.isEmpty(setting.getOauth2Configs())) {
             idpService.validateOAuth2Configs(setting.getOauth2Configs());
         }
 
         // At least keep one authentication method
-        if (BooleanUtil.isFalse(setting.getBuiltinAuthEnabled())) {
+        if (Boolean.FALSE.equals(setting.getBuiltinAuthEnabled())) {
             boolean enabledOidc = false;
             List<OidcConfig> oidcConfigs = setting.getOidcConfigs();
-            if (CollUtil.isNotEmpty(oidcConfigs)) {
+            if (!CollectionUtils.isEmpty(oidcConfigs)) {
                 for (OidcConfig oidcConfig : oidcConfigs) {
                     if (oidcConfig.isEnabled()) {
                         enabledOidc = true;
@@ -231,7 +229,7 @@ public class PortalServiceImpl implements PortalService {
         portalDomainRepository.deleteAllByPortalId(portalId);
 
         // Asynchronously clean up portal resources
-        SpringUtil.getApplicationContext().publishEvent(new PortalDeletingEvent(portalId));
+        eventPublisher.publishEvent(new PortalDeletingEvent(portalId));
         portalRepository.delete(portal);
     }
 
@@ -252,9 +250,7 @@ public class PortalServiceImpl implements PortalService {
                         portalDomain -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Portal domain `{}` already exists",
-                                            param.getDomain()));
+                                    "Portal domain `" + param.getDomain() + "` already exists");
                         });
 
         PortalDomain portalDomain = param.convertTo();

@@ -1,7 +1,7 @@
 package com.alibaba.himarket.service.hicoding.websocket;
 
-import cn.hutool.core.util.StrUtil;
-import com.alibaba.himarket.core.utils.TokenUtil;
+import com.alibaba.himarket.service.TokenService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.common.User;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -20,6 +20,12 @@ public class HiCodingHandshakeInterceptor implements HandshakeInterceptor {
     private static final Logger logger =
             LoggerFactory.getLogger(HiCodingHandshakeInterceptor.class);
 
+    private final TokenService tokenService;
+
+    public HiCodingHandshakeInterceptor(TokenService tokenService) {
+        this.tokenService = tokenService;
+    }
+
     @Override
     public boolean beforeHandshake(
             ServerHttpRequest request,
@@ -36,19 +42,19 @@ public class HiCodingHandshakeInterceptor implements HandshakeInterceptor {
 
             // Extract CLI provider selection from query param: ?provider=kiro-cli
             String provider = params.getFirst("provider");
-            if (StrUtil.isNotBlank(provider)) {
+            if (Strings.isNotBlank(provider)) {
                 attributes.put("provider", provider);
             }
 
             // Extract runtime type from query param: ?runtime=local|k8s
             String runtime = params.getFirst("runtime");
-            if (StrUtil.isNotBlank(runtime)) {
+            if (Strings.isNotBlank(runtime)) {
                 attributes.put("runtime", runtime);
             }
 
             // Extract sandbox mode from query param: ?sandboxMode=user|session
             String sandboxMode = params.getFirst("sandboxMode");
-            if (StrUtil.isNotBlank(sandboxMode)) {
+            if (Strings.isNotBlank(sandboxMode)) {
                 attributes.put("sandboxMode", sandboxMode);
             }
         } catch (Exception e) {
@@ -56,18 +62,23 @@ public class HiCodingHandshakeInterceptor implements HandshakeInterceptor {
                     "Failed to parse token from query param, errorMessage={}", e.getMessage(), e);
         }
 
-        // 2. Fallback to Authorization header / cookie (via TokenUtil)
-        if (StrUtil.isBlank(token) && request instanceof ServletServerHttpRequest servletRequest) {
-            token = TokenUtil.getTokenFromRequest(servletRequest.getServletRequest());
+        // 2. Fallback to Authorization header / cookie
+        if (Strings.isBlank(token) && request instanceof ServletServerHttpRequest servletRequest) {
+            token = tokenService.getTokenFromRequest(servletRequest.getServletRequest());
         }
 
-        if (StrUtil.isBlank(token)) {
+        if (Strings.isBlank(token)) {
             logger.warn("WebSocket handshake rejected, reason=missing_token");
             return false;
         }
 
+        if (tokenService.isTokenRevoked(token)) {
+            logger.warn("WebSocket handshake rejected, reason=revoked_token");
+            return false;
+        }
+
         try {
-            User user = TokenUtil.parseUser(token);
+            User user = tokenService.parseUser(token);
             attributes.put("userId", user.getUserId());
             logger.info("WebSocket handshake authenticated, userId={}", user.getUserId());
             return true;

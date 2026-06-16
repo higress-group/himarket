@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.dto.result.common;
 
-import cn.hutool.core.annotation.Alias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,16 +31,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AuthResult {
 
-    @Alias("access_token")
     @JsonProperty("access_token")
     private String accessToken;
 
-    @Alias("token_type")
     @JsonProperty("token_type")
     @Builder.Default
     private String tokenType = "Bearer";
 
-    @Alias("expires_in")
     @JsonProperty("expires_in")
     private Long expiresIn;
 

@@ -42,6 +42,8 @@ public class SandboxHealthCheckTask {
 
     private final SandboxInstanceRepository sandboxInstanceRepository;
 
+    private final K8sClientUtils k8sClientUtils;
+
     @Scheduled(fixedDelay = 10 * 60 * 1000, initialDelay = 30 * 1000)
     public void checkAll() {
         List<SandboxInstance> sandboxes = sandboxInstanceRepository.findAll();
@@ -65,7 +67,7 @@ public class SandboxHealthCheckTask {
             return;
         }
         try {
-            KubernetesClient client = K8sClientUtils.getClient(kubeConfig);
+            KubernetesClient client = k8sClientUtils.getClient(kubeConfig);
             // List namespaces to verify connectivity.
             client.namespaces().list();
 
@@ -80,7 +82,7 @@ public class SandboxHealthCheckTask {
                 msg = msg.substring(0, 500);
             }
             // Evict failed clients so the next check creates a fresh connection.
-            K8sClientUtils.evictClient(kubeConfig);
+            k8sClientUtils.evictClient(kubeConfig);
             updateStatus(sandbox, "ERROR", msg);
         }
     }

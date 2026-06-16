@@ -17,23 +17,28 @@
  * under the License.
  */
 
-package com.alibaba.himarket;
+package com.alibaba.himarket.core.utils;
 
-import com.alibaba.himarket.config.AcpProperties;
-import com.alibaba.himarket.config.JwtProperties;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 
-@SpringBootApplication
-@EnableJpaAuditing
-@EnableScheduling
-@EnableConfigurationProperties({AcpProperties.class, JwtProperties.class})
-public class HiMarketApplication {
+public final class HashUtils {
 
-    public static void main(String[] args) {
-        SpringApplication.run(HiMarketApplication.class, args);
+    private static final String SHA_256 = "SHA-256";
+
+    private HashUtils() {}
+
+    /**
+     * Computes the SHA-256 hash as a lowercase hexadecimal string.
+     */
+    public static String sha256Hex(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance(SHA_256);
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 }

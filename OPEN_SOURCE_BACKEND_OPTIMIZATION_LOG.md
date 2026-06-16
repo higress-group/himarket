@@ -1363,3 +1363,79 @@ Verification:
 - `git diff --check` passed for the touched files.
 - `./mvnw -q spotless:check -DskipTests` passed.
 - `./mvnw -q -DskipTests compile` passed.
+
+## 2026-06-17 - Controller Request Validation Cleanup
+
+Background:
+
+- The wider Controller/API review found that OpenAPI annotation coverage was already clean, but a
+  few request bodies still bypassed Jakarta Validation.
+- Commercial `apigw-himarket` uses `@Valid @RequestBody` for the matching developer password and
+  status APIs, and validates ID collection elements rather than accepting raw `List<String>` IDs.
+
+Scope:
+
+- `himarket-server/src/main/java/com/alibaba/himarket/controller/AdministratorController.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/controller/DeveloperController.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/controller/ProductCategoryController.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/controller/ProductController.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/admin/ResetPasswordParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/developer/UpdateDeveloperStatusParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/product/CreateProductParam.java`
+- `himarket-server/src/main/java/com/alibaba/himarket/dto/params/product/UpdateProductParam.java`
+
+Changes:
+
+- Added `@Valid` to administrator/developer password update bodies and developer status update
+  bodies.
+- Added password and developer status field constraints with English validation messages.
+- Added element-level `@NotBlank` validation for category/product ID collections in request bodies.
+
+Compatibility:
+
+- No controller path, HTTP method, JSON field name, service call, product/category binding behavior,
+  or authentication rule changed.
+- The only behavior change is rejecting blank password/status/category/product ID input earlier via
+  standard request validation.
+
+Verification:
+
+- Targeted `rg` scan returned no remaining raw `@RequestBody List<String>` category/product ID
+  parameters, raw product category DTO `List<String> categories`, or password/status request bodies
+  without `@Valid`.
+- `git diff --check` passed.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests test-compile` passed.
+
+## 2026-06-17 - Internal Module Dependency Management Cleanup
+
+Background:
+
+- The POM dependency governance pass centralized third-party dependency versions in the parent
+  `dependencyManagement`, but internal module dependencies still carried fixed `1.0-SNAPSHOT`
+  versions in child modules.
+- The commercial backend already manages internal HiMarket module versions from the parent POM
+  using `${project.version}`.
+
+Scope:
+
+- `pom.xml`
+- `himarket-server/pom.xml`
+- `himarket-bootstrap/pom.xml`
+
+Changes:
+
+- Added `himarket-dal` and `himarket-server` to the parent POM `dependencyManagement` with
+  `${project.version}`.
+- Removed fixed internal module dependency versions from child module POMs.
+
+Compatibility:
+
+- No third-party dependency, plugin, source code, packaging, or runtime behavior changed.
+- Internal module resolution remains tied to the current reactor project version.
+
+Verification:
+
+- `git diff --check` passed.
+- `./mvnw -q spotless:check -DskipTests` passed.
+- `./mvnw -q -DskipTests test-compile` passed.

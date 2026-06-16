@@ -19,8 +19,10 @@
 
 package com.alibaba.himarket.dto.converter;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.bean.copier.CopyOptions;
+import java.beans.PropertyDescriptor;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
+import org.springframework.core.convert.support.DefaultConversionService;
 
 public interface OutputConverter<Target extends OutputConverter<Target, Source>, Source> {
 
@@ -32,11 +34,36 @@ public interface OutputConverter<Target extends OutputConverter<Target, Source>,
      */
     @SuppressWarnings("unchecked")
     default Target convertFrom(Source source) {
-        BeanUtil.copyProperties(source, this, configOptions());
+        if (source == null) {
+            return (Target) this;
+        }
+        copyProperties(source, this);
         return (Target) this;
     }
 
-    default CopyOptions configOptions() {
-        return CopyOptions.create().ignoreNullValue().ignoreError();
+    private static void copyProperties(Object source, Object target) {
+        BeanWrapper sourceWrapper = new BeanWrapperImpl(source);
+        BeanWrapper targetWrapper = new BeanWrapperImpl(target);
+        targetWrapper.setConversionService(DefaultConversionService.getSharedInstance());
+
+        for (PropertyDescriptor targetProperty : targetWrapper.getPropertyDescriptors()) {
+            String propertyName = targetProperty.getName();
+            if ("class".equals(propertyName)
+                    || !sourceWrapper.isReadableProperty(propertyName)
+                    || !targetWrapper.isWritableProperty(propertyName)) {
+                continue;
+            }
+
+            Object value = sourceWrapper.getPropertyValue(propertyName);
+            if (value == null) {
+                continue;
+            }
+
+            try {
+                targetWrapper.setPropertyValue(propertyName, value);
+            } catch (RuntimeException ignored) {
+                // Keep the previous ignore-error behavior for result conversion.
+            }
+        }
     }
 }

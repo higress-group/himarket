@@ -19,10 +19,11 @@
 
 package com.alibaba.himarket.service.gateway.client;
 
-import cn.hutool.crypto.digest.DigestUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.core.utils.HashUtils;
 import com.alibaba.himarket.support.gateway.AdpAIGatewayConfig;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
@@ -106,9 +107,10 @@ public class AdpAIGatewayClient extends GatewayClient {
      * Creates the Basic authentication header from the configured seed.
      */
     private String createBasicAuthHeader() {
-        String hashedAuthSeed = DigestUtil.sha256Hex(config.getAuthSeed());
+        String hashedAuthSeed = HashUtils.sha256Hex(config.getAuthSeed());
         String credentials = "admin:" + hashedAuthSeed;
-        String base64Credentials = Base64.getEncoder().encodeToString(credentials.getBytes());
+        String base64Credentials =
+                Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
         return "Basic " + base64Credentials;
     }
 

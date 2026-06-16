@@ -15,7 +15,6 @@
         <dependency>
             <groupId>com.alibaba.himarket</groupId>
             <artifactId>himarket-dal</artifactId>
-            <version>1.0-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <artifactId>checker-qual</artifactId>
@@ -37,7 +36,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
-            <version>${spring-boot.version}</version>
         </dependency>
 
         <dependency>
@@ -48,6 +46,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -111,35 +110,30 @@
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>tea-openapi</artifactId>
-            <version>0.3.10</version>
         </dependency>
 
         <!-- Aliyun Credentials -->
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>credentials-java</artifactId>
-            <version>1.0.1</version>
         </dependency>
 
         <!-- Aliyun Tea Common -->
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>tea-util</artifactId>
-            <version>0.2.23</version>
         </dependency>
 
         <!-- Aliyun Tea XML -->
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>tea-xml</artifactId>
-            <version>0.1.6</version>
         </dependency>
 
         <!-- Aliyun OpenAPI Util -->
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>openapiutil</artifactId>
-            <version>0.2.2</version>
         </dependency>
 
         <dependency>
@@ -188,30 +182,10 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk15to18</artifactId>
         </dependency>
+
         <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bcprov-jdk16</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        
-        <dependency>
-            <groupId>com.github.rholder</groupId>
-            <artifactId>guava-retrying</artifactId>
-            <exclusions>
-                <exclusion>
-                    <artifactId>jsr305</artifactId>
-                    <groupId>com.google.code.findbugs</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>guava</artifactId>
-                    <groupId>com.google.guava</groupId>
-                </exclusion>
-            </exclusions>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
         </dependency>
 
         <!-- SnakeYAML for JSON to YAML conversion -->
@@ -239,7 +213,6 @@
         <dependency>
             <groupId>org.jetbrains.pty4j</groupId>
             <artifactId>pty4j</artifactId>
-            <version>0.12.13</version>
         </dependency>
 
         <dependency>
@@ -321,13 +294,6 @@
             <groupId>net.jqwik</groupId>
             <artifactId>jqwik</artifactId>
             <scope>test</scope>
-        </dependency>
-
-        <!-- Apache Commons Compress for TAR.GZ parsing -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-compress</artifactId>
-            <version>1.26.1</version>
         </dependency>
 
     </dependencies>

@@ -21,12 +21,12 @@ package com.alibaba.himarket.dto.converter;
 
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
 import com.alibaba.himarket.dto.params.sls.TimeSeriesChartResponse;
+import com.alibaba.himarket.support.common.Strings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.StringUtils;
 
 /**
  * Converts generic SLS query responses into frontend-friendly shapes.
@@ -76,7 +76,7 @@ public class SlsResponseConverter {
             String time = record.get(timeField);
             String value = record.get(valueField);
 
-            if (!StringUtils.hasText(time) || !StringUtils.hasText(value)) {
+            if (Strings.isBlank(time) || Strings.isBlank(value)) {
                 continue;
             }
 
@@ -208,7 +208,7 @@ public class SlsResponseConverter {
             String label = record.get(labelField);
             String value = record.get(valueField);
 
-            if (!StringUtils.hasText(label) || !StringUtils.hasText(value)) {
+            if (Strings.isBlank(label) || Strings.isBlank(value)) {
                 continue;
             }
 

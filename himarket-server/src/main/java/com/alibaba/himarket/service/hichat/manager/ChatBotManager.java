@@ -18,9 +18,6 @@
  */
 package com.alibaba.himarket.service.hichat.manager;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.SecureUtil;
 import com.alibaba.himarket.core.event.McpClientRemovedEvent;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.product.ProductResult;
@@ -28,6 +25,7 @@ import com.alibaba.himarket.service.hichat.support.ChatBot;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.service.hichat.support.ToolMeta;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.InMemoryMemory;
@@ -39,6 +37,7 @@ import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.agentscope.core.tool.mcp.McpTool;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +49,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.DigestUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -83,7 +84,7 @@ public class ChatBotManager {
         String sessionId = request.getSessionId();
         String productId = request.getProduct().getProductId();
 
-        if (StrUtil.isBlank(sessionId) || StrUtil.isBlank(productId)) {
+        if (Strings.isBlank(sessionId) || Strings.isBlank(productId)) {
             log.error("Invalid request: sessionId and productId required");
             return null;
         }
@@ -143,7 +144,7 @@ public class ChatBotManager {
 
         // Initialize and register mcp tools
         List<McpTransportConfig> mcpConfigs = request.getMcpConfigs();
-        int expectedMcpCount = CollUtil.isEmpty(mcpConfigs) ? 0 : mcpConfigs.size();
+        int expectedMcpCount = CollectionUtils.isEmpty(mcpConfigs) ? 0 : mcpConfigs.size();
 
         List<McpClientWrapper> mcpClients = loadMcpClients(request);
         Toolkit toolkit = new Toolkit();
@@ -191,7 +192,7 @@ public class ChatBotManager {
      */
     private List<McpClientWrapper> loadMcpClients(LlmChatRequest request) {
         List<McpTransportConfig> mcpConfigs = request.getMcpConfigs();
-        if (CollUtil.isEmpty(mcpConfigs)) {
+        if (CollectionUtils.isEmpty(mcpConfigs)) {
             log.debug("No MCP configs found for chat, chatId={}", request.getChatId());
             return List.of();
         }
@@ -316,7 +317,8 @@ public class ChatBotManager {
 
             // Create tool group if not exists
             if (toolkit.getToolGroup(groupName) == null) {
-                toolkit.createToolGroup(groupName, "Tools from MCP server: " + groupName, true);
+                toolkit.createToolGroup(
+                        groupName, String.format("Tools from MCP server: %s", groupName), true);
             }
 
             // Register tool with group
@@ -341,7 +343,7 @@ public class ChatBotManager {
     private Memory createMemory(List<Msg> historyMessages) {
         Memory memory = new InMemoryMemory();
 
-        if (CollUtil.isNotEmpty(historyMessages)) {
+        if (!CollectionUtils.isEmpty(historyMessages)) {
             // Limit initial memory to 20 messages
             int maxInitMessages = 20;
             List<Msg> messagesToLoad = historyMessages;
@@ -387,7 +389,7 @@ public class ChatBotManager {
      */
     private int registerToolDependencies(
             String chatBotCacheKey, List<McpTransportConfig> mcpConfigs) {
-        if (CollUtil.isEmpty(mcpConfigs)) {
+        if (CollectionUtils.isEmpty(mcpConfigs)) {
             return 0;
         }
 
@@ -428,7 +430,7 @@ public class ChatBotManager {
         // Get all ChatBot cache keys that depend on this MCP
         Set<String> chatBotKeys = toolDependencies.remove(mcpCacheKey);
 
-        if (CollUtil.isEmpty(chatBotKeys)) {
+        if (CollectionUtils.isEmpty(chatBotKeys)) {
             log.debug("No ChatBots depend on MCP key, cacheKey={}", mcpCacheKey);
             return;
         }
@@ -470,7 +472,7 @@ public class ChatBotManager {
                 sb.append(":").append(request.getUri().getPort());
             }
 
-            if (StrUtil.isNotBlank(request.getUri().getPath())) {
+            if (Strings.isNotBlank(request.getUri().getPath())) {
                 sb.append(request.getUri().getPath());
             }
 
@@ -483,7 +485,7 @@ public class ChatBotManager {
         sb.append("cred:");
 
         // API Key
-        if (StrUtil.isNotBlank(request.getApiKey())) {
+        if (Strings.isNotBlank(request.getApiKey())) {
             sb.append("apiKey=").append(request.getApiKey()).append(",");
         }
 
@@ -533,11 +535,11 @@ public class ChatBotManager {
 
         // MCP Tool URLs (sorted)
         sb.append("mcp:");
-        if (CollUtil.isNotEmpty(request.getMcpConfigs())) {
+        if (!CollectionUtils.isEmpty(request.getMcpConfigs())) {
             String mcpUrls =
                     request.getMcpConfigs().stream()
                             .map(McpTransportConfig::getUrl)
-                            .filter(StrUtil::isNotBlank)
+                            .filter(Strings::isNotBlank)
                             .sorted()
                             .collect(Collectors.joining(","));
             sb.append(mcpUrls);
@@ -548,6 +550,6 @@ public class ChatBotManager {
         // Hash the final string for fixed-length cache key
         String rawKey = sb.toString();
 
-        return "chatBot:" + SecureUtil.md5(rawKey);
+        return "chatBot:" + DigestUtils.md5DigestAsHex(rawKey.getBytes(StandardCharsets.UTF_8));
     }
 }

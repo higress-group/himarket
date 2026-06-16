@@ -23,6 +23,7 @@ import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
 import com.alibaba.himarket.service.DBCollectorService;
 import com.alibaba.himarket.service.gateway.factory.DBCollectorPresetSqlRegistry;
+import com.alibaba.himarket.support.common.Strings;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -39,7 +40,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 /**
  * access_logs query implementation backed by MariaDB or MySQL.
@@ -60,7 +60,7 @@ public class DBCollectorServiceImpl implements DBCollectorService {
         String originalSql = request != null ? request.getSql() : null;
 
         try {
-            if (request == null || !StringUtils.hasText(request.getSql())) {
+            if (request == null || Strings.isBlank(request.getSql())) {
                 return buildErrorResponse(originalSql, "sql is empty", start);
             }
 
@@ -159,7 +159,7 @@ public class DBCollectorServiceImpl implements DBCollectorService {
     }
 
     private String applyInterval(String sql, int interval) {
-        if (!StringUtils.hasText(sql)) return sql;
+        if (Strings.isBlank(sql)) return sql;
         return sql.replace("{interval}", String.valueOf(interval));
     }
 
@@ -223,7 +223,7 @@ public class DBCollectorServiceImpl implements DBCollectorService {
         }
         List<String> normalized = new ArrayList<>();
         for (String v : values) {
-            if (StringUtils.hasText(v)) {
+            if (Strings.isNotBlank(v)) {
                 normalized.add(v.trim());
             }
         }
@@ -243,7 +243,7 @@ public class DBCollectorServiceImpl implements DBCollectorService {
 
     private Timestamp resolveStartTime(GenericSlsQueryRequest request) {
         if (request == null) return null;
-        if (StringUtils.hasText(request.getStartTime())) {
+        if (Strings.isNotBlank(request.getStartTime())) {
             return toTimestamp(parseTime(request.getStartTime().trim()));
         }
         if (request.getFromTime() != null) {
@@ -254,7 +254,7 @@ public class DBCollectorServiceImpl implements DBCollectorService {
 
     private Timestamp resolveEndTime(GenericSlsQueryRequest request) {
         if (request == null) return null;
-        if (StringUtils.hasText(request.getEndTime())) {
+        if (Strings.isNotBlank(request.getEndTime())) {
             return toTimestamp(parseTime(request.getEndTime().trim()));
         }
         if (request.getToTime() != null) {

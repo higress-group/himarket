@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.utils.IdGenerator;
@@ -35,6 +34,7 @@ import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.NacosService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.McpHostingType;
 import com.alibaba.himarket.support.enums.McpOrigin;
@@ -97,9 +97,9 @@ public class McpConfigSyncHelper {
 
     SourceType determineSourceType(SaveMcpMetaParam param) {
         McpOrigin originEnum = McpOrigin.fromString(param.getOrigin());
-        if (originEnum == McpOrigin.GATEWAY && StrUtil.isNotBlank(param.getGatewayId())) {
+        if (originEnum == McpOrigin.GATEWAY && Strings.isNotBlank(param.getGatewayId())) {
             return SourceType.GATEWAY;
-        } else if (originEnum == McpOrigin.NACOS && StrUtil.isNotBlank(param.getNacosId())) {
+        } else if (originEnum == McpOrigin.NACOS && Strings.isNotBlank(param.getNacosId())) {
             return SourceType.NACOS;
         }
         return SourceType.CUSTOM;
@@ -112,7 +112,7 @@ public class McpConfigSyncHelper {
                         ? fetchGatewayConfig(param)
                         : fetchNacosConfig(param);
 
-        if (StrUtil.isBlank(mcpConfigStr)) {
+        if (Strings.isBlank(mcpConfigStr)) {
             return;
         }
 
@@ -123,14 +123,14 @@ public class McpConfigSyncHelper {
                 meta.setProtocolType(McpProtocolUtils.normalize(protocolNode.asText()));
             }
             String tools = mcpJson.path("tools").asText();
-            if (StrUtil.isNotBlank(tools) && StrUtil.isBlank(meta.getToolsConfig())) {
+            if (Strings.isNotBlank(tools) && Strings.isBlank(meta.getToolsConfig())) {
                 meta.setToolsConfig(McpToolsConfigParser.normalize(tools));
             }
             String standardConfig =
                     convertToStandardConnectionConfig(
                             mcpJson, meta.getMcpName(), protocolNode.asText());
             meta.setConnectionConfig(
-                    StrUtil.isNotBlank(standardConfig) ? standardConfig : mcpConfigStr);
+                    Strings.isNotBlank(standardConfig) ? standardConfig : mcpConfigStr);
         } catch (Exception e) {
             log.warn(
                     "Failed to parse remote config, keeping the original format, errorMessage={}",
@@ -143,7 +143,7 @@ public class McpConfigSyncHelper {
 
     private String fetchGatewayConfig(SaveMcpMetaParam param) {
         Object refConfigObj = null;
-        if (StrUtil.isNotBlank(param.getRefConfig())) {
+        if (Strings.isNotBlank(param.getRefConfig())) {
             ObjectNode refJson = JsonUtil.readObjectNode(param.getRefConfig());
             String fromGatewayType = refJson.path("fromGatewayType").asText();
             if ("HIGRESS".equals(fromGatewayType)) {
@@ -163,7 +163,7 @@ public class McpConfigSyncHelper {
 
     private String fetchNacosConfig(SaveMcpMetaParam param) {
         NacosRefConfig nacosRef =
-                StrUtil.isNotBlank(param.getRefConfig())
+                Strings.isNotBlank(param.getRefConfig())
                         ? JsonUtil.parse(param.getRefConfig(), NacosRefConfig.class)
                         : null;
         return nacosService.fetchMcpConfig(param.getNacosId(), nacosRef);
@@ -190,7 +190,7 @@ public class McpConfigSyncHelper {
             applyGatewayRefConfig(ref, param.getRefConfig());
         } else if (refSourceType == SourceType.NACOS) {
             ref.setNacosId(param.getNacosId());
-            if (StrUtil.isNotBlank(param.getRefConfig())) {
+            if (Strings.isNotBlank(param.getRefConfig())) {
                 ref.setNacosRefConfig(JsonUtil.parse(param.getRefConfig(), NacosRefConfig.class));
             }
         }
@@ -199,7 +199,9 @@ public class McpConfigSyncHelper {
     }
 
     private void applyGatewayRefConfig(ProductRef ref, String refConfig) {
-        if (StrUtil.isBlank(refConfig)) return;
+        if (Strings.isBlank(refConfig)) {
+            return;
+        }
         ObjectNode refJson = JsonUtil.readObjectNode(refConfig);
         String fromGatewayType = refJson.path("fromGatewayType").asText();
         if ("HIGRESS".equals(fromGatewayType)) {
@@ -276,7 +278,7 @@ public class McpConfigSyncHelper {
      */
     public void syncPublicEndpoint(McpServerMeta meta) {
         String connectionConfig = meta.getConnectionConfig();
-        if (StrUtil.isBlank(connectionConfig)) {
+        if (Strings.isBlank(connectionConfig)) {
             return;
         }
 
@@ -298,7 +300,7 @@ public class McpConfigSyncHelper {
             }
         }
 
-        if (StrUtil.isBlank(endpointUrl)) {
+        if (Strings.isBlank(endpointUrl)) {
             return;
         }
 
@@ -384,7 +386,7 @@ public class McpConfigSyncHelper {
                 .ifPresent(
                         product -> {
                             boolean changed = false;
-                            if (StrUtil.isNotBlank(param.getDisplayName())
+                            if (Strings.isNotBlank(param.getDisplayName())
                                     && !param.getDisplayName().equals(product.getName())) {
                                 product.setName(param.getDisplayName());
                                 changed = true;
@@ -394,7 +396,7 @@ public class McpConfigSyncHelper {
                                 product.setDescription(param.getDescription());
                                 changed = true;
                             }
-                            if (StrUtil.isNotBlank(param.getIcon())) {
+                            if (Strings.isNotBlank(param.getIcon())) {
                                 try {
                                     product.setIcon(
                                             JsonUtil.parse(
@@ -408,7 +410,7 @@ public class McpConfigSyncHelper {
                                             e.getMessage());
                                 }
                             }
-                            if (StrUtil.isNotBlank(param.getServiceIntro())
+                            if (Strings.isNotBlank(param.getServiceIntro())
                                     && !param.getServiceIntro().equals(product.getDocument())) {
                                 product.setDocument(param.getServiceIntro());
                                 changed = true;
@@ -459,13 +461,13 @@ public class McpConfigSyncHelper {
         if (cfg.isMcpServersFormat()) {
             for (McpConnectionConfig.McpServerEntry entry : cfg.getMcpServers().values()) {
                 Object url = entry.getExtra().get("url");
-                if (url != null && StrUtil.isNotBlank(url.toString())) {
+                if (url != null && Strings.isNotBlank(url.toString())) {
                     return url.toString();
                 }
             }
         } else if (cfg.isSingleServerFormat()) {
             Object url = cfg.getExtra().get("url");
-            if (url != null && StrUtil.isNotBlank(url.toString())) {
+            if (url != null && Strings.isNotBlank(url.toString())) {
                 return url.toString();
             }
         } else if (cfg.isWrappedFormat()) {
@@ -479,7 +481,9 @@ public class McpConfigSyncHelper {
 
     public String extractEndpointUrl(ObjectNode connJson, String mcpName, String protocolType) {
         String url = connJson.path("url").asText();
-        if (StrUtil.isNotBlank(url)) return url;
+        if (Strings.isNotBlank(url)) {
+            return url;
+        }
 
         JsonNode mcpServersNode = connJson.get("mcpServers");
         if (mcpServersNode != null && mcpServersNode.isObject()) {
@@ -491,7 +495,7 @@ public class McpConfigSyncHelper {
                 if (serverNode != null && serverNode.isObject()) {
                     ObjectNode server = (ObjectNode) serverNode;
                     String serverUrl = server.path("url").asText();
-                    if (StrUtil.isNotBlank(serverUrl)) {
+                    if (Strings.isNotBlank(serverUrl)) {
                         return serverUrl;
                     }
                 }
@@ -522,7 +526,7 @@ public class McpConfigSyncHelper {
     public String convertToStandardConnectionConfig(
             ObjectNode mcpJson, String mcpName, String protocol) {
         String serverName =
-                StrUtil.blankToDefault(mcpName, "mcp-server")
+                Strings.blankToDefault(mcpName, "mcp-server")
                         .toLowerCase()
                         .replaceAll("[^a-z0-9-]", "-");
 
@@ -565,18 +569,20 @@ public class McpConfigSyncHelper {
                 }
                 if (domain == null) domain = (ObjectNode) domains.get(0);
 
-                String scheme = StrUtil.blankToDefault(domain.path("protocol").asText(), "https");
+                String scheme = Strings.blankToDefault(domain.path("protocol").asText(), "https");
                 String host = domain.path("domain").asText();
                 int port = domain.has("port") ? domain.get("port").asInt() : 0;
                 String path = serverConfig.path("path").asText("");
 
-                if (StrUtil.isBlank(host)) return null;
+                if (Strings.isBlank(host)) {
+                    return null;
+                }
 
                 StringBuilder urlBuilder = new StringBuilder(scheme).append("://").append(host);
                 if (port != 0 && port != 443 && port != 80) {
                     urlBuilder.append(":").append(port);
                 }
-                if (StrUtil.isNotBlank(path)) {
+                if (Strings.isNotBlank(path)) {
                     if (!path.startsWith("/")) urlBuilder.append("/");
                     urlBuilder.append(path);
                 }
@@ -609,14 +615,14 @@ public class McpConfigSyncHelper {
             McpMetaResult result, McpServerMeta meta, McpServerEndpoint endpoint) {
         try {
             String serverName =
-                    StrUtil.blankToDefault(meta.getMcpName(), "mcp-server")
+                    Strings.blankToDefault(meta.getMcpName(), "mcp-server")
                             .toLowerCase()
                             .replaceAll("[^a-z0-9-]", "-");
 
-            if (endpoint != null && StrUtil.isNotBlank(endpoint.getEndpointUrl())) {
+            if (endpoint != null && Strings.isNotBlank(endpoint.getEndpointUrl())) {
                 McpProtocolType proto =
                         McpProtocolType.fromString(
-                                StrUtil.blankToDefault(endpoint.getProtocol(), "sse"));
+                                Strings.blankToDefault(endpoint.getProtocol(), "sse"));
                 boolean isSse = proto == null || proto.isSse();
 
                 ObjectNode serverEntry = JsonUtil.createObjectNode();
@@ -630,7 +636,9 @@ public class McpConfigSyncHelper {
                 return;
             }
 
-            if (StrUtil.isBlank(meta.getConnectionConfig())) return;
+            if (Strings.isBlank(meta.getConnectionConfig())) {
+                return;
+            }
 
             try {
                 McpConnectionConfig cfg = McpConnectionConfig.parse(meta.getConnectionConfig());
@@ -645,7 +653,7 @@ public class McpConfigSyncHelper {
             String resolved =
                     convertToStandardConnectionConfig(
                             connJson, meta.getMcpName(), meta.getProtocolType());
-            if (StrUtil.isNotBlank(resolved)) {
+            if (Strings.isNotBlank(resolved)) {
                 result.setResolvedConfig(resolved);
             }
         } catch (Exception e) {

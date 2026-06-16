@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.entity;
 
-import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.support.common.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -109,8 +109,14 @@ public class McpServerMeta extends BaseEntity {
     @PrePersist
     @PreUpdate
     private void sanitizeJsonFields() {
-        if (StrUtil.isBlank(toolsConfig)) toolsConfig = null;
-        if (StrUtil.isBlank(tags)) tags = null;
-        if (StrUtil.isBlank(extraParams)) extraParams = null;
+        if (Strings.isBlank(toolsConfig)) {
+            toolsConfig = null;
+        }
+        if (Strings.isBlank(tags)) {
+            tags = null;
+        }
+        if (Strings.isBlank(extraParams)) {
+            extraParams = null;
+        }
     }
 }

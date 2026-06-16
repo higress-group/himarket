@@ -1,8 +1,5 @@
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.core.util.URLUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -19,6 +16,7 @@ import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.WorkerService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.ProductFeature;
@@ -52,6 +50,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -81,7 +80,7 @@ public class WorkerServiceImpl implements WorkerService {
 
         WorkerConfig config = product.getFeature().getWorkerConfig();
 
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
+        if (Strings.isBlank(ref.getAgentSpecName())) {
             // First upload: use overwrite mode in case Nacos already has an agent spec with the
             // same name
             String agentSpecName =
@@ -107,7 +106,7 @@ public class WorkerServiceImpl implements WorkerService {
     public void deleteAgentSpec(String productId) {
         Product product = findProduct(productId);
         AgentSpecRef ref = getAgentSpecRef(productId, false);
-        if (ref == null || StrUtil.isBlank(ref.getAgentSpecName())) {
+        if (ref == null || Strings.isBlank(ref.getAgentSpecName())) {
             return;
         }
         execute(
@@ -124,7 +123,7 @@ public class WorkerServiceImpl implements WorkerService {
     @Override
     public List<FileTreeNode> getFileTree(String productId, String version) {
         AgentSpecRef ref = getAgentSpecRef(productId, false);
-        if (ref == null || StrUtil.isBlank(ref.getAgentSpecName())) {
+        if (ref == null || Strings.isBlank(ref.getAgentSpecName())) {
             return Collections.emptyList();
         }
 
@@ -155,7 +154,7 @@ public class WorkerServiceImpl implements WorkerService {
         Product product = findProduct(productId);
         AgentSpecRef ref = getAgentSpecRef(productId, false);
 
-        if (ref == null || StrUtil.isBlank(ref.getAgentSpecName())) {
+        if (ref == null || Strings.isBlank(ref.getAgentSpecName())) {
             return Collections.emptyList();
         }
 
@@ -174,7 +173,7 @@ public class WorkerServiceImpl implements WorkerService {
             return Collections.emptyList();
         }
 
-        if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
+        if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
             return Collections.emptyList();
         }
 
@@ -236,7 +235,7 @@ public class WorkerServiceImpl implements WorkerService {
     @Override
     public void publishVersion(String productId, String version) {
         AgentSpecRef ref = getAgentSpecRef(productId, true);
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
+        if (Strings.isBlank(ref.getAgentSpecName())) {
             throw new BusinessException(
                     ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, ref.getAgentSpecName());
         }
@@ -271,7 +270,7 @@ public class WorkerServiceImpl implements WorkerService {
             NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
             // Prefer the display URL and fall back to serverUrl.
             String nacosBaseUrl =
-                    StrUtil.isNotBlank(nacosInstance.getDisplayServerUrl())
+                    Strings.isNotBlank(nacosInstance.getDisplayServerUrl())
                             ? nacosInstance.getDisplayServerUrl()
                             : nacosInstance.getServerUrl();
 
@@ -289,15 +288,15 @@ public class WorkerServiceImpl implements WorkerService {
                     .append(
                             java.net.URLEncoder.encode(
                                     ref.getAgentSpecName(), StandardCharsets.UTF_8));
-            if (StrUtil.isNotBlank(version)) {
+            if (Strings.isNotBlank(version)) {
                 urlBuilder
                         .append("&version=")
                         .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8));
             }
 
             // Add authentication parameters when Nacos username and password are configured.
-            if (StrUtil.isNotBlank(nacosInstance.getUsername())
-                    && StrUtil.isNotBlank(nacosInstance.getPassword())) {
+            if (Strings.isNotBlank(nacosInstance.getUsername())
+                    && Strings.isNotBlank(nacosInstance.getPassword())) {
                 urlBuilder
                         .append("&username=")
                         .append(
@@ -412,7 +411,7 @@ public class WorkerServiceImpl implements WorkerService {
                         continue;
                     }
                     String path =
-                            StrUtil.isNotBlank(resource.getType())
+                            Strings.isNotBlank(resource.getType())
                                     ? resource.getType() + "/" + resource.getName()
                                     : resource.getName();
                     Map<String, Object> meta = resource.getMetadata();
@@ -471,7 +470,7 @@ public class WorkerServiceImpl implements WorkerService {
                     ErrorCode.NOT_FOUND, "version", "No online version available");
         }
 
-        if (StrUtil.isBlank(version)) {
+        if (Strings.isBlank(version)) {
             return onlineVersions.get(onlineVersions.size() - 1).getVersion();
         }
 
@@ -505,7 +504,7 @@ public class WorkerServiceImpl implements WorkerService {
                                             ref.getNamespace(), ref.getAgentSpecName()));
 
             boolean hasOnline = false;
-            if (meta != null && CollUtil.isNotEmpty(meta.getVersions())) {
+            if (meta != null && !CollectionUtils.isEmpty(meta.getVersions())) {
                 hasOnline =
                         meta.getVersions().stream()
                                 .anyMatch(
@@ -575,7 +574,7 @@ public class WorkerServiceImpl implements WorkerService {
             // Auto-publish approved reviewing version to clear the blocking state
             autoPublishReviewingVersion(ref, meta);
 
-            if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
+            if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
                 // If no versions remain, delete the AgentSpec
                 execute(
                         ref.getNacosId(),
@@ -670,7 +669,7 @@ public class WorkerServiceImpl implements WorkerService {
      * @return AgentSpec
      */
     private AgentSpec fetchAgentSpec(AgentSpecRef ref, String version) {
-        if (StrUtil.isBlank(ref.getAgentSpecName())) {
+        if (Strings.isBlank(ref.getAgentSpecName())) {
             throw new BusinessException(
                     ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, ref.getAgentSpecName());
         }
@@ -678,7 +677,7 @@ public class WorkerServiceImpl implements WorkerService {
         return execute(
                 ref.getNacosId(),
                 s ->
-                        StrUtil.isBlank(version)
+                        Strings.isBlank(version)
                                 ? s.getAgentSpecDetail(ref.getNamespace(), ref.getAgentSpecName())
                                 : s.getAgentSpecVersionDetail(
                                         ref.getNamespace(), ref.getAgentSpecName(), version));
@@ -688,7 +687,7 @@ public class WorkerServiceImpl implements WorkerService {
         AgentSpec spec = fetchAgentSpec(ref, version);
 
         if ("manifest.json".equals(path)) {
-            String content = StrUtil.nullToDefault(spec.getContent(), "");
+            String content = spec.getContent() == null ? "" : spec.getContent();
             return FileContentResult.builder()
                     .path("manifest.json")
                     .content(content)
@@ -697,12 +696,12 @@ public class WorkerServiceImpl implements WorkerService {
                     .build();
         }
 
-        String specNamePrefix = StrUtil.isNotBlank(spec.getName()) ? spec.getName() + "/" : "";
+        String specNamePrefix = Strings.isNotBlank(spec.getName()) ? spec.getName() + "/" : "";
 
         if (spec.getResource() != null) {
             for (AgentSpecResource resource : spec.getResource().values()) {
                 String resourcePath =
-                        StrUtil.isNotBlank(resource.getType())
+                        Strings.isNotBlank(resource.getType())
                                 ? resource.getType() + "/" + resource.getName()
                                 : resource.getName();
 
@@ -717,7 +716,7 @@ public class WorkerServiceImpl implements WorkerService {
                             meta != null && meta.containsKey("encoding")
                                     ? java.lang.String.valueOf(meta.get("encoding"))
                                     : "text";
-                    String content = StrUtil.nullToDefault(resource.getContent(), "");
+                    String content = resource.getContent() == null ? "" : resource.getContent();
                     return FileContentResult.builder()
                             .path(resourcePath)
                             .content(content)
@@ -740,13 +739,13 @@ public class WorkerServiceImpl implements WorkerService {
                 createFileNode("manifest.json", "manifest.json", spec.getContent(), "text"));
 
         // Strip spec name prefix from resource paths if Nacos prepends it.
-        String specNamePrefix = StrUtil.isNotBlank(spec.getName()) ? spec.getName() + "/" : "";
+        String specNamePrefix = Strings.isNotBlank(spec.getName()) ? spec.getName() + "/" : "";
 
         // Add resources
         if (spec.getResource() != null) {
             for (AgentSpecResource resource : spec.getResource().values()) {
                 String resourcePath =
-                        StrUtil.isNotBlank(resource.getType())
+                        Strings.isNotBlank(resource.getType())
                                 ? resource.getType() + "/" + resource.getName()
                                 : resource.getName();
 
@@ -808,7 +807,7 @@ public class WorkerServiceImpl implements WorkerService {
         sortNodes(rootChildren);
 
         // Wrap children under a root directory node named after the AgentSpec
-        String rootName = StrUtil.isNotBlank(spec.getName()) ? spec.getName() : "worker";
+        String rootName = Strings.isNotBlank(spec.getName()) ? spec.getName() : "worker";
         FileTreeNode rootNode = new FileTreeNode();
         rootNode.setName(rootName);
         rootNode.setPath("__root__");
@@ -863,13 +862,14 @@ public class WorkerServiceImpl implements WorkerService {
                         .findByProductId(productId)
                         .map(Product::getFeature)
                         .map(ProductFeature::getWorkerConfig)
-                        .filter(wc -> StrUtil.isNotBlank(wc.getNacosId()))
+                        .filter(wc -> Strings.isNotBlank(wc.getNacosId()))
                         .map(wc -> new AgentSpecRef().convertFrom(wc))
                         .orElse(null);
 
         if (force && result == null) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Worker config not found for product: " + productId);
+                    ErrorCode.INVALID_REQUEST,
+                    String.format("Worker config not found for product: %s", productId));
         }
         return result;
     }
@@ -889,7 +889,7 @@ public class WorkerServiceImpl implements WorkerService {
             return;
         }
         String reviewing = meta.getReviewingVersion();
-        if (StrUtil.isBlank(reviewing)) {
+        if (Strings.isBlank(reviewing)) {
             return;
         }
         try {
@@ -959,24 +959,24 @@ public class WorkerServiceImpl implements WorkerService {
         WorkerConfig config = product.getFeature().getWorkerConfig();
 
         if (config == null
-                || StrUtil.isBlank(config.getNacosId())
-                || StrUtil.isBlank(config.getAgentSpecName())) {
+                || Strings.isBlank(config.getNacosId())
+                || Strings.isBlank(config.getAgentSpecName())) {
             return null;
         }
 
         try {
             var nacos = nacosService.getNacosInstance(config.getNacosId());
-            if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
+            if (nacos == null || Strings.isBlank(nacos.getServerUrl())) {
                 return null;
             }
             URL nacosUrl =
-                    URLUtil.url(
-                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                    new URL(
+                            Strings.isNotBlank(nacos.getDisplayServerUrl())
                                     ? nacos.getDisplayServerUrl()
                                     : nacos.getServerUrl());
             int port = nacosUrl.getPort();
             String namespace =
-                    StrUtil.isNotBlank(config.getNamespace())
+                    Strings.isNotBlank(config.getNamespace())
                             ? config.getNamespace()
                             : nacos.getDefaultNamespace();
             return CliDownloadInfo.builder()
@@ -1061,7 +1061,8 @@ public class WorkerServiceImpl implements WorkerService {
         } catch (Exception e) {
             log.error("Failed to import workers from Nacos, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to import workers: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to import workers: %s", e.getMessage()));
         }
 
         log.info(

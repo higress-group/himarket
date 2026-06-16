@@ -22,6 +22,7 @@ package com.alibaba.himarket.service.gateway.factory;
 import com.alibaba.himarket.config.SlsConfig;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.SlsAuthType;
 import com.aliyun.openservices.log.Client;
 import com.aliyun.openservices.log.common.auth.Credentials;
@@ -32,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 /**
  * Factory for creating SLS clients from the configured authentication mode.
@@ -85,7 +85,7 @@ public class SlsClientFactory {
         String accessKeyId = slsConfig.getAccessKeyId();
         String accessKeySecret = slsConfig.getAccessKeySecret();
 
-        if (!StringUtils.hasText(accessKeyId) || !StringUtils.hasText(accessKeySecret)) {
+        if (Strings.isBlank(accessKeyId) || Strings.isBlank(accessKeySecret)) {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
                     "AccessKeyId and AccessKeySecret must be configured in application.yaml when"
@@ -117,7 +117,7 @@ public class SlsClientFactory {
      */
     private String getEffectiveEndpoint() {
         String endpoint = slsConfig.getEndpoint();
-        if (!StringUtils.hasText(endpoint)) {
+        if (Strings.isBlank(endpoint)) {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "SLS endpoint must be configured in application.yml");
         }

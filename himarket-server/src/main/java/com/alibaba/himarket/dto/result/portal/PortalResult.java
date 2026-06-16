@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.dto.result.portal;
 
-import cn.hutool.core.collection.CollUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.Portal;
 import com.alibaba.himarket.entity.PortalDomain;
@@ -50,7 +49,7 @@ public class PortalResult implements OutputConverter<PortalResult, Portal> {
     @Override
     public PortalResult convertFrom(Portal source) {
         OutputConverter.super.convertFrom(source);
-        if (CollUtil.isNotEmpty(source.getPortalDomains())) {
+        if (source.getPortalDomains() != null && !source.getPortalDomains().isEmpty()) {
             portalDomainConfig =
                     source.getPortalDomains().stream()
                             .map(domain -> new PortalDomainConfig().convertFrom(domain))

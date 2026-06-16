@@ -18,9 +18,6 @@
  */
 package com.alibaba.himarket.service.hichat.service;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.ChatError;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
@@ -32,6 +29,7 @@ import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.AIProtocol;
 import com.alibaba.himarket.support.product.ModelFeature;
 import io.agentscope.core.message.ContentBlock;
@@ -48,6 +46,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 @Service
@@ -108,7 +107,8 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                     e);
             ChatError chatError = ChatError.from(e);
             chatContext.fail();
-            chatContext.appendAnswer("[Image generation failed. Reason: " + e.getMessage() + "]");
+            chatContext.appendAnswer(
+                    String.format("[Image generation failed. Reason: %s]", e.getMessage()));
             resultHandler.accept(chatContext.toResult());
 
             return Flux.just(
@@ -116,7 +116,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                     ChatEvent.error(
                             param.getChatId(),
                             chatError.name(),
-                            StrUtil.blankToDefault(e.getMessage(), chatError.getDescription())),
+                            Strings.blankToDefault(e.getMessage(), chatError.getDescription())),
                     ChatEvent.done(param.getChatId(), null));
         }
     }
@@ -138,7 +138,8 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                                     error);
                             chatContext.fail();
                             chatContext.appendAnswer(
-                                    "\n[Image generation error: " + error.getMessage() + "]");
+                                    String.format(
+                                            "\n[Image generation error: %s]", error.getMessage()));
                         })
                 .onErrorResume(
                         error -> {
@@ -155,7 +156,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                                     ChatEvent.error(
                                             chatId,
                                             chatError.name(),
-                                            StrUtil.blankToDefault(
+                                            Strings.blankToDefault(
                                                     error.getMessage(),
                                                     chatError.getDescription())));
                         });
@@ -184,11 +185,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
         if (bodyParams != null && !bodyParams.containsKey("parameters")) {
             // Add default parameters for image generation if not provided
             Map<String, Object> defaultParams =
-                    MapUtil.<String, Object>builder()
-                            .put("n", 1)
-                            .put("prompt_extend", true)
-                            .put("watermark", false)
-                            .build();
+                    Map.of("n", 1, "prompt_extend", true, "watermark", false);
             bodyParams.put("parameters", defaultParams);
 
             log.debug(
@@ -256,7 +253,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
 
         // Process content (text and images)
         List<ContentBlock> content = response.getContent();
-        if (CollUtil.isEmpty(content)) {
+        if (CollectionUtils.isEmpty(content)) {
             return Flux.just(ChatEvent.text(chatId, "[No content generated]"));
         }
 

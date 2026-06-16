@@ -19,11 +19,11 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.utils.K8sClientUtils;
 import com.alibaba.himarket.entity.SandboxInstance;
+import com.alibaba.himarket.support.common.Strings;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -85,6 +85,12 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
+    private final K8sClientUtils k8sClientUtils;
+
+    public AgentRuntimeDeployStrategy(K8sClientUtils k8sClientUtils) {
+        this.k8sClientUtils = k8sClientUtils;
+    }
+
     /**
      * Scheduler for non-blocking polling. Daemon threads do not block JVM shutdown.
      */
@@ -125,13 +131,14 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             String extraParamsDef,
             String namespace,
             String resourceSpec) {
-        if (StrUtil.isBlank(sandbox.getKubeConfig())) {
+        if (Strings.isBlank(sandbox.getKubeConfig())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    "Sandbox instance has no KubeConfig: " + sandbox.getSandboxId());
+                    String.format(
+                            "Sandbox instance has no KubeConfig: %s", sandbox.getSandboxId()));
         }
 
-        String ns = StrUtil.blankToDefault(namespace, "default");
+        String ns = Strings.blankToDefault(namespace, "default");
         String resourceName = buildResourceName(mcpName, userId);
         String accessName = "himarket-" + userId;
         boolean isStdio = "stdio".equalsIgnoreCase(metaProtocolType);
@@ -147,7 +154,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         // For non-stdio, route user params to headers/query/env based on extraParams.position.
         // For stdio, all user params are treated as env values.
         String envParamsJson = userParams;
-        if (!isStdio && StrUtil.isNotBlank(extraParamsDef) && StrUtil.isNotBlank(userParams)) {
+        if (!isStdio && Strings.isNotBlank(extraParamsDef) && Strings.isNotBlank(userParams)) {
             try {
                 Map<String, String> headerParams = new LinkedHashMap<>();
                 Map<String, String> queryParams = new LinkedHashMap<>();
@@ -163,7 +170,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                     String paramName = (String) def.get("name");
                     String position = (String) def.getOrDefault("position", "env");
                     String value = userValues.get(paramName);
-                    if (StrUtil.isBlank(value)) continue;
+                    if (Strings.isBlank(value)) {
+                        continue;
+                    }
 
                     switch (position.toLowerCase()) {
                         case "header":
@@ -199,7 +208,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         // Merge env values from connectionConfig and user-submitted env params.
         String mergedEnvJson = mergeEnvJson(configEnvJson, envParamsJson);
         String envYaml = "";
-        if (StrUtil.isNotBlank(mergedEnvJson)) {
+        if (Strings.isNotBlank(mergedEnvJson)) {
             envYaml = buildEnvYaml(mergedEnvJson);
         }
 
@@ -214,7 +223,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                 "http".equalsIgnoreCase(metaProtocolType) ? "streamableHttp" : metaProtocolType);
         vars.put("MCP_SERVERS_JSON", mcpServersJson);
         // Generate a Secret name when authType is "apikey" and apiKey is present.
-        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+        if ("apikey".equalsIgnoreCase(authType) && Strings.isNotBlank(apiKey)) {
             secretName = buildSecretName(mcpName);
         }
         vars.put("ACCESSES_YAML", buildAccessesYaml(isApiKeyAuth, accessName, secretName));
@@ -242,7 +251,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
                     e,
-                    "Failed to deserialize CRD YAML: " + e.getMessage());
+                    String.format("Failed to deserialize CRD YAML: %s", e.getMessage()));
         }
 
         if (crd.getMetadata().getLabels() == null) {
@@ -256,9 +265,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         }
 
         // Create Secret first, then CRD. Roll back the Secret if CRD creation fails.
-        KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
+        KubernetesClient client = k8sClientUtils.getClient(sandbox.getKubeConfig());
 
-        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+        if ("apikey".equalsIgnoreCase(authType) && Strings.isNotBlank(apiKey)) {
             Secret k8sSecret =
                     new SecretBuilder()
                             .withNewMetadata()
@@ -356,20 +365,21 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             String namespace,
             String resourceName,
             String secretName) {
-        if (StrUtil.isBlank(sandbox.getKubeConfig())) {
+        if (Strings.isBlank(sandbox.getKubeConfig())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    "Sandbox instance has no KubeConfig: " + sandbox.getSandboxId());
+                    String.format(
+                            "Sandbox instance has no KubeConfig: %s", sandbox.getSandboxId()));
         }
 
-        String ns = StrUtil.blankToDefault(namespace, "default");
-        KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
+        String ns = Strings.blankToDefault(namespace, "default");
+        KubernetesClient client = k8sClientUtils.getClient(sandbox.getKubeConfig());
 
-        if (StrUtil.isBlank(resourceName)) {
+        if (Strings.isBlank(resourceName)) {
             resourceName = buildResourceName(mcpName, userId);
         }
 
-        if (StrUtil.isNotBlank(secretName)) {
+        if (Strings.isNotBlank(secretName)) {
             try {
                 client.secrets().inNamespace(ns).withName(secretName).delete();
                 log.info(
@@ -485,7 +495,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             if (is == null) {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST,
-                        "CRD template file does not exist: " + templatePath);
+                        String.format("CRD template file does not exist: %s", templatePath));
             }
             String template = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             for (Map.Entry<String, String> entry : variables.entrySet()) {
@@ -496,7 +506,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             throw e;
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, e, "Failed to read CRD template: " + e.getMessage());
+                    ErrorCode.INVALID_REQUEST,
+                    e,
+                    String.format("Failed to read CRD template: %s", e.getMessage()));
         }
     }
 
@@ -509,12 +521,12 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
      * @throws BusinessException when connectionConfig is blank or cannot be parsed
      */
     private String[] buildMcpServersJson(String mcpName, String connectionConfig) {
-        if (StrUtil.isBlank(connectionConfig)) {
+        if (Strings.isBlank(connectionConfig)) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "MCP connectionConfig is empty and cannot deploy");
         }
 
-        String serverName = StrUtil.blankToDefault(mcpName, "mcp-server");
+        String serverName = Strings.blankToDefault(mcpName, "mcp-server");
 
         try {
             McpConnectionConfig config = McpConnectionConfig.parse(connectionConfig);
@@ -544,7 +556,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     e,
-                    "Failed to parse connectionConfig: " + e.getMessage());
+                    String.format("Failed to parse connectionConfig: %s", e.getMessage()));
         }
     }
 
@@ -562,7 +574,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         try {
             Map<String, Object> root = OBJECT_MAPPER.readValue(mcpServersJson, Map.class);
             Map<String, Object> servers = (Map<String, Object>) root.get("mcpServers");
-            if (servers == null) return mcpServersJson;
+            if (servers == null) {
+                return mcpServersJson;
+            }
 
             for (Map.Entry<String, Object> entry : servers.entrySet()) {
                 Map<String, Object> server = (Map<String, Object>) entry.getValue();
@@ -615,7 +629,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                         sb.append("?");
                         boolean first = true;
                         for (Map.Entry<String, String> qp : merged.entrySet()) {
-                            if (!first) sb.append("&");
+                            if (!first) {
+                                sb.append("&");
+                            }
                             sb.append(java.net.URLEncoder.encode(qp.getKey(), "UTF-8"))
                                     .append("=")
                                     .append(java.net.URLEncoder.encode(qp.getValue(), "UTF-8"));
@@ -632,7 +648,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                         sb.append(url.contains("?") ? "&" : "?");
                         boolean first = true;
                         for (Map.Entry<String, String> qp : queryParams.entrySet()) {
-                            if (!first) sb.append("&");
+                            if (!first) {
+                                sb.append("&");
+                            }
                             sb.append(java.net.URLEncoder.encode(qp.getKey(), "UTF-8"))
                                     .append("=")
                                     .append(java.net.URLEncoder.encode(qp.getValue(), "UTF-8"));
@@ -665,7 +683,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
         if (isApiKeyAuth) {
             String resolvedSecretName =
-                    StrUtil.isNotBlank(secretName) ? secretName : accessName + "-secret";
+                    Strings.isNotBlank(secretName) ? secretName : accessName + "-secret";
             Map<String, Object> source = new LinkedHashMap<>();
             source.put("key", "API_KEY");
             source.put("name", resolvedSecretName);
@@ -710,21 +728,23 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
     @SuppressWarnings("unchecked")
     private String mergeEnvJson(String configEnvJson, String userParams) {
         Map<String, Object> merged = new LinkedHashMap<>();
-        if (StrUtil.isNotBlank(configEnvJson)) {
+        if (Strings.isNotBlank(configEnvJson)) {
             try {
                 merged.putAll(OBJECT_MAPPER.readValue(configEnvJson, Map.class));
             } catch (Exception e) {
                 log.warn("Failed to parse configEnvJson, errorMessage={}", e.getMessage(), e);
             }
         }
-        if (StrUtil.isNotBlank(userParams)) {
+        if (Strings.isNotBlank(userParams)) {
             try {
                 merged.putAll(OBJECT_MAPPER.readValue(userParams, Map.class));
             } catch (Exception e) {
                 log.warn("Failed to parse userParams, errorMessage={}", e.getMessage(), e);
             }
         }
-        if (merged.isEmpty()) return null;
+        if (merged.isEmpty()) {
+            return null;
+        }
         try {
             return OBJECT_MAPPER.writeValueAsString(merged);
         } catch (Exception e) {
@@ -781,7 +801,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
      */
     @SuppressWarnings("unchecked")
     private Map<String, String> extractResourceVars(String resourceSpecJson) {
-        if (StrUtil.isBlank(resourceSpecJson)) {
+        if (Strings.isBlank(resourceSpecJson)) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     "Resource spec is required. Set CPU, memory, and related resources in the MCP"
@@ -795,7 +815,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     e,
-                    "Resource spec JSON format is invalid: " + e.getMessage());
+                    String.format("Resource spec JSON format is invalid: %s", e.getMessage()));
         }
 
         String cpuRequest = getOrDefault(spec, "cpuRequest", "250m");
@@ -811,7 +831,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         vars.put("MEMORY_REQUEST", memoryRequest);
         vars.put("MEMORY_LIMIT", memoryLimit);
         vars.put("EPHEMERAL_STORAGE", ephemeralStorage);
-        if (StrUtil.isNotBlank(image)) {
+        if (Strings.isNotBlank(image)) {
             vars.put("IMAGE", image);
         }
         return vars;
@@ -819,7 +839,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
     private String getOrDefault(Map<String, Object> map, String key, String defaultValue) {
         Object val = map.get(key);
-        return (val != null && StrUtil.isNotBlank(val.toString())) ? val.toString() : defaultValue;
+        return (val != null && Strings.isNotBlank(val.toString())) ? val.toString() : defaultValue;
     }
 
     /**
@@ -827,7 +847,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
      */
     @SuppressWarnings("unchecked")
     private String extractClusterId(String clusterAttribute) {
-        if (StrUtil.isBlank(clusterAttribute)) {
+        if (Strings.isBlank(clusterAttribute)) {
             return "";
         }
         try {
@@ -846,7 +866,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
      * <p>Format: himarket-{sanitized-mcp-name}-{first-8-uuid-chars}-secret
      */
     public static String buildSecretName(String mcpName) {
-        String name = StrUtil.blankToDefault(mcpName, "mcp-server");
+        String name = Strings.blankToDefault(mcpName, "mcp-server");
         String sanitized =
                 name.toLowerCase()
                         .replaceAll("[^a-z0-9-]", "-")
@@ -864,11 +884,11 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
      * after deployment.
      */
     public static String buildResourceNameStatic(String mcpName, String userId) {
-        String name = StrUtil.blankToDefault(mcpName, "mcp-server");
+        String name = Strings.blankToDefault(mcpName, "mcp-server");
         String userSuffix =
                 (userId != null && userId.length() >= 8)
                         ? userId.substring(userId.length() - 8)
-                        : StrUtil.blankToDefault(userId, "unknown");
+                        : Strings.blankToDefault(userId, "unknown");
         String raw = name + "-" + userSuffix;
         String sanitized =
                 raw.toLowerCase()
@@ -900,10 +920,10 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                             future.completeExceptionally(
                                     new BusinessException(
                                             ErrorCode.INVALID_REQUEST,
-                                            "Timed out waiting for Endpoint readiness after "
-                                                    + (POLL_TIMEOUT_MS / 1000)
-                                                    + " seconds: "
-                                                    + endpointName));
+                                            String.format(
+                                                    "Timed out waiting for Endpoint readiness"
+                                                            + " after %s seconds: %s",
+                                                    POLL_TIMEOUT_MS / 1000, endpointName)));
                             return;
                         }
                         try {
@@ -934,15 +954,14 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
                     cause,
-                    "Endpoint polling failed: " + cause.getMessage());
+                    String.format("Endpoint polling failed: %s", cause.getMessage()));
         } catch (java.util.concurrent.TimeoutException e) {
             future.cancel(true);
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    "Timed out waiting for Endpoint readiness after "
-                            + (POLL_TIMEOUT_MS / 1000)
-                            + " seconds: "
-                            + endpointName);
+                    String.format(
+                            "Timed out waiting for Endpoint readiness after %s seconds: %s",
+                            POLL_TIMEOUT_MS / 1000, endpointName));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new BusinessException(
@@ -962,15 +981,21 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                         .withName(endpointName)
                         .get();
 
-        if (endpoint == null) return null;
+        if (endpoint == null) {
+            return null;
+        }
 
         Map<String, Object> status =
                 (Map<String, Object>) endpoint.getAdditionalProperties().get("status");
-        if (status == null) return null;
+        if (status == null) {
+            return null;
+        }
 
         // Prefer top-level status.url.
         String url = status.get("url") != null ? status.get("url").toString() : null;
-        if (StrUtil.isNotBlank(url)) return url;
+        if (Strings.isNotBlank(url)) {
+            return url;
+        }
 
         // Fallback to the internet address in status.addresses.
         Object addressesObj = status.get("addresses");

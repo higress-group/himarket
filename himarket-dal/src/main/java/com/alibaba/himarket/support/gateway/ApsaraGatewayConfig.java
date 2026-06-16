@@ -19,8 +19,8 @@
 
 package com.alibaba.himarket.support.gateway;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.common.Encrypted;
+import com.alibaba.himarket.support.common.Strings;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -82,8 +82,8 @@ public class ApsaraGatewayConfig {
     }
 
     public boolean validate() {
-        return StrUtil.isNotBlank(regionId)
-                && StrUtil.isNotBlank(accessKeyId)
-                && StrUtil.isNotBlank(accessKeySecret);
+        return Strings.isNotBlank(regionId)
+                && Strings.isNotBlank(accessKeyId)
+                && Strings.isNotBlank(accessKeySecret);
     }
 }

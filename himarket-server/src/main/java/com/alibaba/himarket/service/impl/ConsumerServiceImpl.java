@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.DeveloperDeletingEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
@@ -55,6 +53,7 @@ import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
@@ -232,9 +231,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                         c -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Credential of consumer `{}` already exists",
-                                            consumerId));
+                                    "Credential of consumer `" + consumerId + "` already exists");
                         });
         ConsumerCredential credential = param.convertTo();
         credential.setConsumerId(consumerId);
@@ -516,15 +513,15 @@ public class ConsumerServiceImpl implements ConsumerService {
                 param.setDeveloperId(contextHolder.getUser());
             }
 
-            if (StrUtil.isNotBlank(param.getDeveloperId())) {
+            if (Strings.isNotBlank(param.getDeveloperId())) {
                 predicates.add(cb.equal(root.get("developerId"), param.getDeveloperId()));
             }
 
-            if (StrUtil.isNotBlank(param.getPortalId())) {
+            if (Strings.isNotBlank(param.getPortalId())) {
                 predicates.add(cb.equal(root.get("portalId"), param.getPortalId()));
             }
 
-            if (StrUtil.isNotBlank(param.getName())) {
+            if (Strings.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName() + "%";
                 predicates.add(cb.like(cb.lower(root.get("name")), likePattern));
             }
@@ -541,7 +538,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             if (param.getStatus() != null) {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
-            if (StrUtil.isNotBlank(param.getProductName())) {
+            if (Strings.isNotBlank(param.getProductName())) {
                 Subquery<String> productSubquery = query.subquery(String.class);
                 Root<Product> productRoot = productSubquery.from(Product.class);
 
@@ -570,7 +567,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             if (apiKeyCredentials != null) {
                 for (ApiKeyConfig.ApiKeyCredential cred : apiKeyCredentials) {
                     if (cred.getMode() == CredentialMode.SYSTEM
-                            && StrUtil.isBlank(cred.getApiKey())) {
+                            && Strings.isBlank(cred.getApiKey())) {
                         cred.setApiKey(generateApiKey());
                     }
                 }
@@ -584,7 +581,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             if (hmacCredentials != null) {
                 for (HmacConfig.HmacCredential cred : hmacCredentials) {
                     if (cred.getMode() == CredentialMode.SYSTEM
-                            && (StrUtil.isBlank(cred.getAk()) || StrUtil.isBlank(cred.getSk()))) {
+                            && (Strings.isBlank(cred.getAk()) || Strings.isBlank(cred.getSk()))) {
                         cred.setAk(IdGenerator.genIdWithPrefix("ak-"));
                         cred.setSk(IdGenerator.genIdWithPrefix("sk-"));
                     }
@@ -739,7 +736,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                                             refGatewayConfig.getHigressConfig());
                         }
                         default ->
-                                StrUtil.equals(
+                                Strings.equals(
                                         JsonUtil.toJson(refGatewayConfig),
                                         JsonUtil.toJson(gatewayConfig));
                     };
@@ -777,7 +774,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         Consumer consumer = findDevConsumer(consumerId);
 
         // Return if consumer is already primary
-        if (BooleanUtil.isTrue(consumer.getIsPrimary())) {
+        if (Boolean.TRUE.equals(consumer.getIsPrimary())) {
             log.debug("Consumer already primary, consumerId={}", consumerId);
             return;
         }
@@ -881,7 +878,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         }
         PortalResult portal = portalService.getPortal(consumer.getPortalId());
         return portal.getPortalSettingConfig() != null
-                && BooleanUtil.isTrue(
+                && Boolean.TRUE.equals(
                         portal.getPortalSettingConfig().getAutoApproveSubscriptions());
     }
 }

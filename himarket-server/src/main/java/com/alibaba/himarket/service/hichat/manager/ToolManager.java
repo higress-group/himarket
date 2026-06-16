@@ -20,28 +20,28 @@ package com.alibaba.himarket.service.hichat.manager;
 
 import static reactor.core.scheduler.Schedulers.boundedElastic;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.SecureUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.event.McpClientRemovedEvent;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.agentscope.core.tool.mcp.McpClientBuilder;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.DigestUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -57,6 +57,8 @@ public class ToolManager {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration INITIALIZE_TIMEOUT = Duration.ofSeconds(30);
+
+    private final ApplicationEventPublisher eventPublisher;
 
     // MCP client cache with removal listener (10 minutes = 600 seconds)
     private final Cache<String, McpClientWrapper> clientCache =
@@ -105,8 +107,8 @@ public class ToolManager {
      * @return List of created MCP client wrappers
      */
     public List<McpClientWrapper> getOrCreateClients(List<McpTransportConfig> configs) {
-        if (CollUtil.isEmpty(configs)) {
-            return CollUtil.empty(List.class);
+        if (CollectionUtils.isEmpty(configs)) {
+            return Collections.emptyList();
         }
 
         long startTime = System.currentTimeMillis();
@@ -143,7 +145,7 @@ public class ToolManager {
         }
 
         McpTransportConfig transportConfig = mcpConfig.toTransportConfig();
-        if (transportConfig == null || StrUtil.isBlank(transportConfig.getUrl())) {
+        if (transportConfig == null || Strings.isBlank(transportConfig.getUrl())) {
             log.warn(
                     "Tool fetch skipped because transport config or URL is blank, serverName={}",
                     mcpConfig.getMcpServerName());
@@ -165,7 +167,7 @@ public class ToolManager {
      */
     public List<McpSchema.Tool> fetchTools(McpTransportConfig transportConfig) {
         String serverName = transportConfig == null ? null : transportConfig.getMcpServerName();
-        if (transportConfig == null || StrUtil.isBlank(transportConfig.getUrl())) {
+        if (transportConfig == null || Strings.isBlank(transportConfig.getUrl())) {
             log.warn(
                     "Tool fetch skipped because transport config or URL is blank,"
                             + " serverName={}",
@@ -184,7 +186,7 @@ public class ToolManager {
 
         try {
             List<McpSchema.Tool> tools = client.listTools().block();
-            if (CollUtil.isEmpty(tools)) {
+            if (CollectionUtils.isEmpty(tools)) {
                 log.info("Tool fetch returned empty list, serverName={}", serverName);
                 return null;
             }
@@ -280,14 +282,14 @@ public class ToolManager {
                 break;
             default:
                 throw new IllegalArgumentException(
-                        "Unsupported transport: " + config.getTransportMode());
+                        String.format("Unsupported transport: %s", config.getTransportMode()));
         }
 
         // Apply authentication headers and query parameters
-        if (MapUtil.isNotEmpty(config.getHeaders())) {
+        if (config.getHeaders() != null && !config.getHeaders().isEmpty()) {
             builder.headers(config.getHeaders());
         }
-        if (MapUtil.isNotEmpty(config.getQueryParams())) {
+        if (config.getQueryParams() != null && !config.getQueryParams().isEmpty()) {
             builder.queryParams(config.getQueryParams());
         }
 
@@ -379,7 +381,7 @@ public class ToolManager {
 
         // Hash the final string for fixed-length cache key
         String rawKey = sb.toString();
-        String key = "tool:" + SecureUtil.md5(rawKey);
+        String key = "tool:" + DigestUtils.md5DigestAsHex(rawKey.getBytes(StandardCharsets.UTF_8));
 
         log.debug("MCP client cache key built, rawKey={}, cacheKey={}", rawKey, key);
 
@@ -401,7 +403,7 @@ public class ToolManager {
         log.info("MCP client removed from cache, clientName={}, cause={}", client.getName(), cause);
 
         // Publish event with cache key to notify dependent components
-        SpringUtil.getApplicationContext().publishEvent(new McpClientRemovedEvent(cacheKey));
+        eventPublisher.publishEvent(new McpClientRemovedEvent(cacheKey));
 
         // Close the MCP client
         try {

@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.dto.result.mcp;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.entity.ApiDefinition;
 import com.alibaba.himarket.support.api.meta.ApiDefinitionMeta;
@@ -31,6 +29,7 @@ import com.alibaba.himarket.support.api.spec.SseConnection;
 import com.alibaba.himarket.support.api.spec.StdioConnection;
 import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpFromType;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.McpTransportMode;
@@ -43,6 +42,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Data
@@ -61,13 +61,13 @@ public class McpConfigResult {
     protected McpMetadata meta;
 
     public McpTransportConfig toTransportConfig() {
-        if (mcpServerConfig == null || CollUtil.isEmpty(mcpServerConfig.getDomains())) {
+        if (mcpServerConfig == null || CollectionUtils.isEmpty(mcpServerConfig.getDomains())) {
             return null;
         }
 
         DomainResult domain =
                 mcpServerConfig.getDomains().stream()
-                        .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
+                        .filter(d -> !Strings.equalsIgnoreCase(d.getNetworkType(), "intranet"))
                         .findFirst()
                         .orElse(null);
 
@@ -77,7 +77,10 @@ public class McpConfigResult {
 
         String baseUrl =
                 UriComponentsBuilder.newInstance()
-                        .scheme(StrUtil.blankToDefault(domain.getProtocol(), "http"))
+                        .scheme(
+                                Strings.isNotBlank(domain.getProtocol())
+                                        ? domain.getProtocol()
+                                        : "http")
                         .host(domain.getDomain())
                         .port(
                                 domain.getPort() != null && domain.getPort() > 0
@@ -88,7 +91,7 @@ public class McpConfigResult {
 
         String url = baseUrl;
         String path = mcpServerConfig.getPath();
-        if (StrUtil.isNotBlank(path)) {
+        if (Strings.isNotBlank(path)) {
             url = baseUrl + (path.startsWith("/") ? path : "/" + path);
         }
 
@@ -255,10 +258,10 @@ public class McpConfigResult {
     }
 
     private static void parseUrlToServerConfig(String url, McpServerConfig serverConfig) {
-        if (StrUtil.isBlank(url)) {
+        if (Strings.isBlank(url)) {
             return;
         }
-        URI uri = URI.create(StrUtil.removeSuffix(url, "/sse"));
+        URI uri = URI.create(removeSuffix(url, "/sse"));
         serverConfig.setDomains(
                 List.of(
                         DomainResult.builder()
@@ -267,5 +270,11 @@ public class McpConfigResult {
                                 .port(uri.getPort() > 0 ? uri.getPort() : null)
                                 .build()));
         serverConfig.setPath(uri.getPath());
+    }
+
+    private static String removeSuffix(String value, String suffix) {
+        return value.endsWith(suffix)
+                ? value.substring(0, value.length() - suffix.length())
+                : value;
     }
 }

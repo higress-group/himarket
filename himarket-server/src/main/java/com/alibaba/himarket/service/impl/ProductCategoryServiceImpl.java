@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -37,6 +35,7 @@ import com.alibaba.himarket.entity.ProductCategoryRelation;
 import com.alibaba.himarket.repository.ProductCategoryRelationRepository;
 import com.alibaba.himarket.repository.ProductCategoryRepository;
 import com.alibaba.himarket.service.ProductCategoryService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -54,6 +53,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -74,9 +74,9 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                         category -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Product category with name `{}` already exists",
-                                            category.getName()));
+                                    "Product category with name `"
+                                            + category.getName()
+                                            + "` already exists");
                         });
 
         String categoryId = IdGenerator.genCategoryId();
@@ -118,8 +118,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             if (existingCategory != null) {
                 throw new BusinessException(
                         ErrorCode.CONFLICT,
-                        StrUtil.format(
-                                "Product category with name `{}` already exists", requestedName));
+                        "Product category with name `" + requestedName + "` already exists");
             }
         }
 
@@ -135,8 +134,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         if (categoryRelationRepository.existsByCategoryId(categoryId)) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    StrUtil.format(
-                            "Product category with name '{}' is in use", category.getName()));
+                    "Product category with name '" + category.getName() + "' is in use");
         }
 
         categoryRepository.delete(category);
@@ -146,8 +144,8 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     public List<ProductCategoryResult> listCategoriesForProduct(String productId) {
         List<ProductCategoryRelation> relations =
                 categoryRelationRepository.findByProductId(productId);
-        if (CollUtil.isEmpty(relations)) {
-            return CollUtil.newArrayList();
+        if (CollectionUtils.isEmpty(relations)) {
+            return Collections.emptyList();
         }
 
         List<String> categoryIds =
@@ -161,13 +159,13 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     @Override
     public Map<String, List<ProductCategoryResult>> listCategoriesForProducts(
             List<String> productIds) {
-        if (CollUtil.isEmpty(productIds)) {
+        if (CollectionUtils.isEmpty(productIds)) {
             return Collections.emptyMap();
         }
 
         List<ProductCategoryRelation> relations =
                 categoryRelationRepository.findByProductIdIn(productIds);
-        if (CollUtil.isEmpty(relations)) {
+        if (CollectionUtils.isEmpty(relations)) {
             return Collections.emptyMap();
         }
 
@@ -198,7 +196,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public void bindProductCategories(String productId, List<String> categoryIds) {
-        if (CollUtil.isEmpty(categoryIds)) {
+        if (CollectionUtils.isEmpty(categoryIds)) {
             return;
         }
 
@@ -226,7 +224,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                                 })
                         .toList();
 
-        if (CollUtil.isNotEmpty(relations)) {
+        if (!CollectionUtils.isEmpty(relations)) {
             categoryRelationRepository.saveAll(relations);
         }
     }
@@ -238,7 +236,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public void unbindProductsFromCategory(List<String> productIds, String categoryId) {
-        if (CollUtil.isEmpty(productIds)) {
+        if (CollectionUtils.isEmpty(productIds)) {
             return;
         }
 
@@ -248,7 +246,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public void bindProductsToCategory(String categoryId, List<String> productIds) {
-        if (CollUtil.isEmpty(productIds)) {
+        if (CollectionUtils.isEmpty(productIds)) {
             return;
         }
 
@@ -272,7 +270,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                                 })
                         .toList();
 
-        if (CollUtil.isNotEmpty(newRelations)) {
+        if (!CollectionUtils.isEmpty(newRelations)) {
             categoryRelationRepository.saveAll(newRelations);
         }
 
@@ -298,12 +296,12 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (StrUtil.isNotBlank(param.getName())) {
+            if (Strings.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(root.get("name")), likePattern));
             }
 
-            if (StrUtil.isNotBlank(param.getProductType())) {
+            if (Strings.isNotBlank(param.getProductType())) {
                 try {
                     ProductType productType = ProductType.valueOf(param.getProductType());
 

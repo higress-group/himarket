@@ -19,11 +19,8 @@
 
 package com.alibaba.himarket.support.mcp;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpTool;
@@ -38,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -64,7 +62,7 @@ public final class OpenAPIToolsConfigConverter {
                         .build());
 
         McpToolSpecification toolSpec = mcpServerDetailInfo.getToolSpec();
-        if (toolSpec != null && CollUtil.isNotEmpty(toolSpec.getTools())) {
+        if (toolSpec != null && !CollectionUtils.isEmpty(toolSpec.getTools())) {
             config.setTools(
                     toolSpec.getTools().stream()
                             .map(OpenAPIToolsConfigConverter::convertNacosTool)
@@ -85,7 +83,7 @@ public final class OpenAPIToolsConfigConverter {
     public static OpenAPIToolsConfig convertFromToolList(
             String mcpServerName, List<McpSchema.Tool> toolList) {
         OpenAPIToolsConfig config = new OpenAPIToolsConfig();
-        if (CollUtil.isEmpty(toolList)) {
+        if (CollectionUtils.isEmpty(toolList)) {
             return config;
         }
 
@@ -116,7 +114,7 @@ public final class OpenAPIToolsConfigConverter {
      * @return tools config, or null when the input cannot be parsed
      */
     public static OpenAPIToolsConfig convertFromRawConfig(String raw) {
-        if (StrUtil.isBlank(raw)) {
+        if (Strings.isBlank(raw)) {
             return null;
         }
 
@@ -151,7 +149,7 @@ public final class OpenAPIToolsConfigConverter {
     }
 
     private static OpenAPIToolsConfig.OpenAPITool convertNacosTool(McpTool mcpTool) {
-        if (mcpTool == null || StrUtil.isBlank(mcpTool.getName())) {
+        if (mcpTool == null || Strings.isBlank(mcpTool.getName())) {
             return null;
         }
 
@@ -163,18 +161,16 @@ public final class OpenAPIToolsConfigConverter {
     }
 
     private static OpenAPIToolsConfig.OpenAPITool convertMcpSchemaTool(McpSchema.Tool mcpTool) {
-        if (mcpTool == null || StrUtil.isBlank(mcpTool.name())) {
+        if (mcpTool == null || Strings.isBlank(mcpTool.name())) {
             return null;
         }
 
-        Map<String, Object> inputSchemaMap =
-                MapUtil.builder(new HashMap<String, Object>())
-                        .put("type", mcpTool.inputSchema().type())
-                        .put("properties", mcpTool.inputSchema().properties())
-                        .put("required", mcpTool.inputSchema().required())
-                        .put("additionalProperties", mcpTool.inputSchema().additionalProperties())
-                        .put("definitions", mcpTool.inputSchema().definitions())
-                        .build();
+        Map<String, Object> inputSchemaMap = new HashMap<>();
+        inputSchemaMap.put("type", mcpTool.inputSchema().type());
+        inputSchemaMap.put("properties", mcpTool.inputSchema().properties());
+        inputSchemaMap.put("required", mcpTool.inputSchema().required());
+        inputSchemaMap.put("additionalProperties", mcpTool.inputSchema().additionalProperties());
+        inputSchemaMap.put("definitions", mcpTool.inputSchema().definitions());
         List<OpenAPIToolsConfig.Arg> args = convertArgs(inputSchemaMap);
 
         return OpenAPIToolsConfig.OpenAPITool.builder()
@@ -188,20 +184,17 @@ public final class OpenAPIToolsConfigConverter {
     private static List<OpenAPIToolsConfig.Arg> convertArgs(Map<String, Object> inputSchema) {
         Map<String, Object> properties = null;
         if (inputSchema != null) {
-            Map<String, Object> schemaProperties =
-                    MapUtil.get(inputSchema, "properties", Map.class);
-            if (CollUtil.isNotEmpty(schemaProperties)) {
-                properties = schemaProperties;
+            Object schemaProperties = inputSchema.get("properties");
+            if (schemaProperties instanceof Map<?, ?> rawProperties && !rawProperties.isEmpty()) {
+                properties = toStringObjectMap(rawProperties);
             }
         }
 
-        if (MapUtil.isEmpty(properties)) {
+        if (CollectionUtils.isEmpty(properties)) {
             return new ArrayList<>();
         }
 
-        List<String> rawRequiredFields = MapUtil.get(inputSchema, "required", List.class);
-        List<String> requiredFields =
-                rawRequiredFields == null ? new ArrayList<>() : rawRequiredFields;
+        List<String> requiredFields = requiredFields(inputSchema);
 
         return properties.entrySet().stream()
                 .map(
@@ -211,13 +204,33 @@ public final class OpenAPIToolsConfigConverter {
                             String name = entry.getKey();
 
                             OpenAPIToolsConfig.Arg arg =
-                                    OpenAPIToolsConfig.Arg.builder()
-                                            .name(name)
-                                            .required(requiredFields.contains(name))
-                                            .build();
+                                    JsonUtil.convert(propertyMap, OpenAPIToolsConfig.Arg.class);
+                            arg.setName(name);
+                            arg.setRequired(requiredFields.contains(name));
 
-                            return BeanUtil.fillBeanWithMap(propertyMap, arg, true);
+                            return arg;
                         })
                 .toList();
+    }
+
+    private static List<String> requiredFields(Map<String, Object> inputSchema) {
+        if (inputSchema == null || !(inputSchema.get("required") instanceof List<?> rawRequired)) {
+            return new ArrayList<>();
+        }
+        return rawRequired.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .toList();
+    }
+
+    private static Map<String, Object> toStringObjectMap(Map<?, ?> rawMap) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        rawMap.forEach(
+                (key, value) -> {
+                    if (key != null) {
+                        result.put(String.valueOf(key), value);
+                    }
+                });
+        return result;
     }
 }

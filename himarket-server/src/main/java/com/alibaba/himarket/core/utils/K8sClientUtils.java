@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.core.utils;
 
-import cn.hutool.extra.spring.SpringUtil;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
@@ -30,8 +29,11 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
 public class K8sClientUtils {
 
     private static final Cache<String, KubernetesClient> CLIENT_CACHE =
@@ -51,11 +53,11 @@ public class K8sClientUtils {
                             })
                     .build();
 
-    private K8sClientUtils() {}
+    @Value("${sandbox.ssl-verify:false}")
+    private boolean sslVerify;
 
-    private static boolean shouldTrustCerts() {
-        String sslVerify = SpringUtil.getProperty("sandbox.ssl-verify", "false");
-        return !"true".equalsIgnoreCase(sslVerify);
+    private boolean shouldTrustCerts() {
+        return !sslVerify;
     }
 
     /**
@@ -64,8 +66,8 @@ public class K8sClientUtils {
      * <p>The cache expires after six hours without access. If a cached client fails connectivity
      * verification, it is evicted and rebuilt automatically.
      */
-    public static KubernetesClient getClient(String kubeConfig) {
-        String cacheKey = cn.hutool.crypto.digest.DigestUtil.sha256Hex(kubeConfig);
+    public KubernetesClient getClient(String kubeConfig) {
+        String cacheKey = HashUtils.sha256Hex(kubeConfig);
         KubernetesClient client =
                 CLIENT_CACHE.get(
                         cacheKey,
@@ -102,8 +104,8 @@ public class K8sClientUtils {
     /**
      * Evicts a cached client when KubeConfig changes or an instance is deleted.
      */
-    public static void evictClient(String kubeConfig) {
-        String cacheKey = cn.hutool.crypto.digest.DigestUtil.sha256Hex(kubeConfig);
+    public void evictClient(String kubeConfig) {
+        String cacheKey = HashUtils.sha256Hex(kubeConfig);
         CLIENT_CACHE.invalidate(cacheKey);
     }
 

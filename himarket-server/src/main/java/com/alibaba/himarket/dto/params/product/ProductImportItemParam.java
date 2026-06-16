@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.support.common.Strings;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import lombok.Data;
@@ -43,6 +43,6 @@ public class ProductImportItemParam {
 
     @AssertTrue(message = "Resource name or resource ID is required")
     public boolean hasResourceIdentifier() {
-        return StrUtil.isNotBlank(resourceName) || StrUtil.isNotBlank(resourceId);
+        return Strings.isNotBlank(resourceName) || Strings.isNotBlank(resourceId);
     }
 }

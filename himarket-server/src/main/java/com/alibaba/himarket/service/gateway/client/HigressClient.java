@@ -19,9 +19,9 @@
 
 package com.alibaba.himarket.service.gateway.client;
 
-import cn.hutool.core.map.MapBuilder;
 import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
 import com.alibaba.himarket.support.gateway.HigressConfig;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -176,11 +176,9 @@ public class HigressClient extends GatewayClient {
     }
 
     private void login() {
-        Map<Object, Object> loginParam =
-                MapBuilder.create()
-                        .put("username", config.getUsername())
-                        .put("password", config.getPassword())
-                        .build();
+        Map<String, String> loginParam = new HashMap<>();
+        loginParam.put("username", config.getUsername());
+        loginParam.put("password", config.getPassword());
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

@@ -1,9 +1,8 @@
 package com.alibaba.himarket.core.agentspec;
 
-import cn.hutool.core.util.ArrayUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpec;
 import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecResource;
@@ -33,7 +32,7 @@ public final class AgentSpecZipParser {
      * @throws BusinessException if the ZIP is empty, missing manifest, or name mismatch
      */
     public static String parse(byte[] zipBytes, String namespace, String fixedName) {
-        if (ArrayUtil.isEmpty(zipBytes)) {
+        if (zipBytes == null || zipBytes.length == 0) {
             throw new BusinessException(ErrorCode.INVALID_PARAMETER, "ZIP file is empty");
         }
 
@@ -46,11 +45,11 @@ public final class AgentSpecZipParser {
             JsonNode manifestNode = JsonUtil.readTree(manifest);
             String suggestedName = manifestNode.path("worker").path("suggested_name").asText();
 
-            if (StrUtil.isBlank(suggestedName)) {
+            if (Strings.isBlank(suggestedName)) {
                 throw new BusinessException(
                         ErrorCode.INVALID_PARAMETER, "manifest.json missing worker.suggested_name");
             }
-            if (StrUtil.isNotBlank(fixedName) && !StrUtil.equals(fixedName, suggestedName)) {
+            if (Strings.isNotBlank(fixedName) && !Strings.equals(fixedName, suggestedName)) {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST,
                         "manifest worker.suggested_name must match existing AgentSpec name");
@@ -59,7 +58,7 @@ public final class AgentSpecZipParser {
             // Build AgentSpec
             AgentSpec spec = new AgentSpec();
             spec.setNamespaceId(namespace);
-            spec.setName(StrUtil.nullToDefault(fixedName, suggestedName));
+            spec.setName(fixedName == null ? suggestedName : fixedName);
             spec.setContent(manifest);
             spec.setResource(buildResources(files));
 

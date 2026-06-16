@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.gateway;
 
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
@@ -39,6 +37,7 @@ import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.consumer.APIGAuthConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
@@ -63,7 +62,9 @@ import com.aliyun.sdk.service.apig20240327.models.ListMcpServersResponse;
 import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesRequest;
 import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesResponse;
 import com.aliyun.sdk.service.apig20240327.models.QueryConsumerAuthorizationRulesResponseBody;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -135,8 +136,8 @@ public class AIGWOperator extends APIGOperator {
         String path = resp.getMcpServerPath();
         String exposedUriPath = resp.getExposedUriPath();
         boolean protocolCompatible =
-                StrUtil.equalsIgnoreCase(resp.getCreateFromType(), "ApiGatewayProxyMcpHosting");
-        if (!protocolCompatible && StrUtil.isNotBlank(exposedUriPath)) {
+                Strings.equalsIgnoreCase(resp.getCreateFromType(), "ApiGatewayProxyMcpHosting");
+        if (!protocolCompatible && Strings.isNotBlank(exposedUriPath)) {
             path += exposedUriPath;
         }
         serverConfig.setPath(path);
@@ -166,7 +167,7 @@ public class AIGWOperator extends APIGOperator {
                         ? McpProtocolType.DUAL_HTTP
                         : McpProtocolType.fromString(resp.getProtocol()));
         mcpConfig.setFromType(
-                !protocolCompatible && StrUtil.equalsIgnoreCase(resp.getProtocol(), "HTTP")
+                !protocolCompatible && Strings.equalsIgnoreCase(resp.getProtocol(), "HTTP")
                         ? McpFromType.HTTP_TO_MCP
                         : McpFromType.NATIVE_MCP);
 
@@ -176,12 +177,25 @@ public class AIGWOperator extends APIGOperator {
 
         // tools
         String tools = resp.getMcpServerConfig();
-        if (StrUtil.isNotBlank(tools)) {
-            String decodedTools = Base64.isBase64(tools) ? Base64.decodeStr(tools) : tools;
+        if (Strings.isNotBlank(tools)) {
+            String decodedTools = decodeBase64IfNeeded(tools);
             mcpConfig.setTools(OpenAPIToolsConfigConverter.convertRawConfigToJson(decodedTools));
         }
 
         return JsonUtil.toJson(mcpConfig);
+    }
+
+    private String decodeBase64IfNeeded(String value) {
+        try {
+            byte[] decoded = Base64.getDecoder().decode(value);
+            if (value.equals(Base64.getEncoder().encodeToString(decoded))
+                    || value.equals(Base64.getEncoder().withoutPadding().encodeToString(decoded))) {
+                return new String(decoded, StandardCharsets.UTF_8);
+            }
+        } catch (IllegalArgumentException ignored) {
+            return value;
+        }
+        return value;
     }
 
     private GetMcpServerResponseBody.Data getMcpServer(Gateway gateway, String mcpServerId) {
@@ -210,7 +224,7 @@ public class AIGWOperator extends APIGOperator {
         }
 
         APIGRefConfig config = productRef.getApigRefConfig();
-        if (config == null || StrUtil.isBlank(config.getMcpRouteId())) {
+        if (config == null || Strings.isBlank(config.getMcpRouteId())) {
             return new CredentialContext();
         }
 
@@ -236,7 +250,7 @@ public class AIGWOperator extends APIGOperator {
         }
 
         var items = body.getData().getItems();
-        if (items.isEmpty() || StrUtil.isBlank(items.get(0).getConsumerId())) {
+        if (items.isEmpty() || Strings.isBlank(items.get(0).getConsumerId())) {
             return CredentialContext.builder().build();
         }
 
@@ -346,10 +360,10 @@ public class AIGWOperator extends APIGOperator {
 
         APIGResourceType resourceType;
         String resourceId;
-        if (StrUtil.isNotBlank(config.getMcpRouteId())) {
+        if (Strings.isNotBlank(config.getMcpRouteId())) {
             resourceType = APIGResourceType.MCP;
             resourceId = config.getMcpRouteId();
-        } else if (StrUtil.isNotBlank(config.getAgentApiId())) {
+        } else if (Strings.isNotBlank(config.getAgentApiId())) {
             resourceType = APIGResourceType.Agent;
             resourceId = config.getAgentApiId();
         } else {
@@ -417,9 +431,9 @@ public class AIGWOperator extends APIGOperator {
                     e);
             throw new BusinessException(
                     ErrorCode.GATEWAY_ERROR,
-                    StrUtil.format(
-                                    "Failed to authorize consumer to {} in AI gateway: ",
-                                    resourceType)
+                    "Failed to authorize consumer to "
+                            + resourceType
+                            + " in AI gateway: "
                             + e.getMessage());
         }
     }

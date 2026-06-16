@@ -20,13 +20,13 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
-import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.dto.params.admin.CreateAdministratorParam;
 import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
 import com.alibaba.himarket.dto.params.login.LoginParam;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.service.AdministratorService;
+import com.alibaba.himarket.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,6 +51,8 @@ public class AdministratorController {
 
     private final AdministratorService administratorService;
 
+    private final TokenService tokenService;
+
     @Operation(
             summary = "Log in as administrator",
             description = "Log in with username and password")
@@ -63,7 +65,7 @@ public class AdministratorController {
     @PostMapping("/logout")
     @AdminAuth
     public void logout(HttpServletRequest request) {
-        TokenUtil.revokeToken(request);
+        tokenService.revokeRequestToken(request);
     }
 
     @Operation(

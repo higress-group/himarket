@@ -1,8 +1,5 @@
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.core.util.URLUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -22,6 +19,7 @@ import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.AiRegistrySkillService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.SkillService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
@@ -55,6 +53,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -83,8 +82,8 @@ public class SkillServiceImpl implements SkillService {
 
         SkillConfig config = resolveSkillConfig(product);
         if (config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
-            if (StrUtil.isBlank(config.getAiRegistryId())
-                    || StrUtil.isBlank(config.getNamespace())) {
+            if (Strings.isBlank(config.getAiRegistryId())
+                    || Strings.isBlank(config.getNamespace())) {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST, "AIRegistry skill config not found");
             }
@@ -95,7 +94,7 @@ public class SkillServiceImpl implements SkillService {
                             zipBytes,
                             file.getOriginalFilename(),
                             true);
-            if (StrUtil.isBlank(config.getSkillName())) {
+            if (Strings.isBlank(config.getSkillName())) {
                 config.setSkillName(skillName);
             }
             productRepository.save(product);
@@ -104,7 +103,7 @@ public class SkillServiceImpl implements SkillService {
 
         SkillRef ref = getSkillRef(productId, true);
 
-        if (StrUtil.isBlank(ref.getSkillName())) {
+        if (Strings.isBlank(ref.getSkillName())) {
             // First upload: use overwrite mode in case Nacos already has a skill with the same name
             String skillName =
                     execute(
@@ -136,7 +135,7 @@ public class SkillServiceImpl implements SkillService {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
-            if (StrUtil.isNotBlank(config.getSkillName())) {
+            if (Strings.isNotBlank(config.getSkillName())) {
                 aiRegistrySkillService.deleteSkill(
                         config.getAiRegistryId(), config.getNamespace(), config.getSkillName());
                 config.setSkillName(null);
@@ -147,7 +146,7 @@ public class SkillServiceImpl implements SkillService {
 
         SkillRef ref = getSkillRef(productId, false);
 
-        if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
+        if (ref == null || Strings.isBlank(ref.getSkillName())) {
             return;
         }
         execute(
@@ -167,7 +166,7 @@ public class SkillServiceImpl implements SkillService {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
-            if (StrUtil.isBlank(config.getSkillName())) {
+            if (Strings.isBlank(config.getSkillName())) {
                 return Collections.emptyList();
             }
             version = validateAndResolveVersion(productId, version);
@@ -181,7 +180,7 @@ public class SkillServiceImpl implements SkillService {
         }
 
         SkillRef ref = getSkillRef(productId, false);
-        if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
+        if (ref == null || Strings.isBlank(ref.getSkillName())) {
             return Collections.emptyList();
         }
 
@@ -234,7 +233,7 @@ public class SkillServiceImpl implements SkillService {
         }
 
         // Strip skill name prefix from resource paths for consistent matching
-        String skillNamePrefix = StrUtil.isNotBlank(skill.getName()) ? skill.getName() + "/" : "";
+        String skillNamePrefix = Strings.isNotBlank(skill.getName()) ? skill.getName() + "/" : "";
 
         if (skill.getResource() != null) {
             for (SkillResource resource : skill.getResource().values()) {
@@ -250,7 +249,7 @@ public class SkillServiceImpl implements SkillService {
                             meta != null && "base64".equals(meta.get("encoding"))
                                     ? "base64"
                                     : "text";
-                    String content = StrUtil.nullToDefault(resource.getContent(), "");
+                    String content = resource.getContent() == null ? "" : resource.getContent();
 
                     return FileContentResult.builder()
                             .path(resourcePath)
@@ -269,7 +268,7 @@ public class SkillServiceImpl implements SkillService {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
-            if (StrUtil.isBlank(config.getSkillName())) {
+            if (Strings.isBlank(config.getSkillName())) {
                 return Collections.emptyList();
             }
             List<VersionResult> results =
@@ -284,7 +283,7 @@ public class SkillServiceImpl implements SkillService {
 
         SkillRef ref = getSkillRef(productId, false);
 
-        if (ref == null || StrUtil.isBlank(ref.getSkillName())) {
+        if (ref == null || Strings.isBlank(ref.getSkillName())) {
             return Collections.emptyList();
         }
 
@@ -301,7 +300,7 @@ public class SkillServiceImpl implements SkillService {
             return Collections.emptyList();
         }
 
-        if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
+        if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
             return Collections.emptyList();
         }
 
@@ -518,7 +517,7 @@ public class SkillServiceImpl implements SkillService {
                     ErrorCode.NOT_FOUND, "version", "No online version available");
         }
 
-        if (StrUtil.isBlank(version)) {
+        if (Strings.isBlank(version)) {
             return onlineVersions.get(onlineVersions.size() - 1).getVersion();
         }
 
@@ -550,7 +549,7 @@ public class SkillServiceImpl implements SkillService {
                             s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
 
             boolean hasOnline = false;
-            if (meta != null && CollUtil.isNotEmpty(meta.getVersions())) {
+            if (meta != null && !CollectionUtils.isEmpty(meta.getVersions())) {
                 hasOnline =
                         meta.getVersions().stream()
                                 .anyMatch(
@@ -623,7 +622,7 @@ public class SkillServiceImpl implements SkillService {
             // Auto-publish approved reviewing version to clear the blocking state
             autoPublishReviewingVersion(ref, meta);
 
-            if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
+            if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
                 // If no versions remain, delete the skill
                 execute(
                         ref.getNacosId(),
@@ -745,7 +744,7 @@ public class SkillServiceImpl implements SkillService {
             NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
             // Prefer the display URL and fall back to serverUrl.
             String nacosBaseUrl =
-                    StrUtil.isNotBlank(nacosInstance.getDisplayServerUrl())
+                    Strings.isNotBlank(nacosInstance.getDisplayServerUrl())
                             ? nacosInstance.getDisplayServerUrl()
                             : nacosInstance.getServerUrl();
 
@@ -763,15 +762,15 @@ public class SkillServiceImpl implements SkillService {
                     .append(
                             java.net.URLEncoder.encode(
                                     ref.getSkillName(), StandardCharsets.UTF_8.name()));
-            if (StrUtil.isNotBlank(version)) {
+            if (Strings.isNotBlank(version)) {
                 urlBuilder
                         .append("&version=")
                         .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8.name()));
             }
 
             // Add authentication parameters when Nacos username and password are configured.
-            if (StrUtil.isNotBlank(nacosInstance.getUsername())
-                    && StrUtil.isNotBlank(nacosInstance.getPassword())) {
+            if (Strings.isNotBlank(nacosInstance.getUsername())
+                    && Strings.isNotBlank(nacosInstance.getPassword())) {
                 urlBuilder
                         .append("&username=")
                         .append(
@@ -902,7 +901,7 @@ public class SkillServiceImpl implements SkillService {
         return execute(
                 nacosId,
                 s ->
-                        StrUtil.isBlank(version)
+                        Strings.isBlank(version)
                                 ? s.getSkillVersionDetail(namespace, skillName, null)
                                 : s.getSkillVersionDetail(namespace, skillName, version));
     }
@@ -930,14 +929,14 @@ public class SkillServiceImpl implements SkillService {
      * @return Skill detail
      */
     private Skill fetchSkill(SkillRef ref, String version) {
-        if (StrUtil.isBlank(ref.getSkillName())) {
+        if (Strings.isBlank(ref.getSkillName())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, ref.getSkillName());
         }
         return execute(
                 ref.getNacosId(),
                 s -> {
                     String targetVersion =
-                            StrUtil.isBlank(version)
+                            Strings.isBlank(version)
                                     ? resolveLatestVersion(
                                             s, ref.getNamespace(), ref.getSkillName())
                                     : version;
@@ -960,11 +959,11 @@ public class SkillServiceImpl implements SkillService {
             SkillMaintainerService service, String namespace, String skillName) {
         try {
             SkillMeta meta = service.getSkillMeta(namespace, skillName);
-            if (meta == null || CollUtil.isEmpty(meta.getVersions())) {
+            if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, skillName);
             }
             // Find latest version from labels
-            if (meta.getLabels() != null && StrUtil.isNotBlank(meta.getLabels().get("latest"))) {
+            if (meta.getLabels() != null && Strings.isNotBlank(meta.getLabels().get("latest"))) {
                 return meta.getLabels().get("latest");
             }
             // Fallback: sort by createTime desc and use the first one
@@ -988,7 +987,7 @@ public class SkillServiceImpl implements SkillService {
     private String buildResourcePath(SkillResource resource) {
         String type = resource.getType();
         String name = resource.getName();
-        if (StrUtil.isNotBlank(type)) {
+        if (Strings.isNotBlank(type)) {
             return type + "/" + name;
         }
         return name;
@@ -1015,13 +1014,14 @@ public class SkillServiceImpl implements SkillService {
                         .findByProductId(productId)
                         .map(Product::getFeature)
                         .map(ProductFeature::getSkillConfig)
-                        .filter(sc -> StrUtil.isNotBlank(sc.getNacosId()))
+                        .filter(sc -> Strings.isNotBlank(sc.getNacosId()))
                         .map(sc -> new SkillRef().convertFrom(sc))
                         .orElse(null);
 
         if (force && result == null) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Skill config not found for product: " + productId);
+                    ErrorCode.INVALID_REQUEST,
+                    String.format("Skill config not found for product: %s", productId));
         }
 
         return result;
@@ -1042,7 +1042,7 @@ public class SkillServiceImpl implements SkillService {
             return;
         }
         String reviewing = meta.getReviewingVersion();
-        if (StrUtil.isBlank(reviewing)) {
+        if (Strings.isBlank(reviewing)) {
             return;
         }
         try {
@@ -1115,19 +1115,19 @@ public class SkillServiceImpl implements SkillService {
 
         if (config == null
                 || config.getRegistryType() == SkillRegistryType.AIREGISTRY
-                || StrUtil.isBlank(config.getNacosId())
-                || StrUtil.isBlank(config.getSkillName())) {
+                || Strings.isBlank(config.getNacosId())
+                || Strings.isBlank(config.getSkillName())) {
             return null;
         }
 
         try {
             var nacos = nacosService.getNacosInstance(config.getNacosId());
-            if (nacos == null || StrUtil.isBlank(nacos.getServerUrl())) {
+            if (nacos == null || Strings.isBlank(nacos.getServerUrl())) {
                 return null;
             }
             URL nacosUrl =
-                    URLUtil.url(
-                            StrUtil.isNotBlank(nacos.getDisplayServerUrl())
+                    new URL(
+                            Strings.isNotBlank(nacos.getDisplayServerUrl())
                                     ? nacos.getDisplayServerUrl()
                                     : nacos.getServerUrl());
             int port = nacosUrl.getPort();
@@ -1211,7 +1211,8 @@ public class SkillServiceImpl implements SkillService {
         } catch (Exception e) {
             log.error("Failed to import skills from Nacos, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to import skills: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to import skills: %s", e.getMessage()));
         }
 
         log.info(

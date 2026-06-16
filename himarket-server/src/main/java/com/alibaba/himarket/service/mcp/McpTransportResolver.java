@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
@@ -34,6 +33,7 @@ import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.McpHostingType;
 import com.alibaba.himarket.support.enums.McpTransportMode;
@@ -159,12 +159,12 @@ public class McpTransportResolver {
                             .findFirst()
                             .orElse(endpoints.get(0));
 
-            if (StrUtil.isBlank(endpoint.getEndpointUrl())) {
+            if (Strings.isBlank(endpoint.getEndpointUrl())) {
                 continue;
             }
 
             String protocol =
-                    StrUtil.blankToDefault(endpoint.getProtocol(), meta.getProtocolType());
+                    Strings.blankToDefault(endpoint.getProtocol(), meta.getProtocolType());
             McpTransportMode transportMode =
                     McpProtocolUtils.isStreamableHttp(protocol)
                             ? McpTransportMode.STREAMABLE_HTTP
@@ -196,7 +196,7 @@ public class McpTransportResolver {
             McpServerEndpoint endpoint, McpServerMeta meta, String userId) {
         McpHostingType hosting =
                 McpHostingType.valueOf(
-                        StrUtil.blankToDefault(
+                        Strings.blankToDefault(
                                 endpoint.getHostingType(), McpHostingType.DIRECT.name()));
         if (hosting == McpHostingType.GATEWAY || hosting == McpHostingType.NACOS) {
             try {
@@ -212,7 +212,7 @@ public class McpTransportResolver {
                         e.getMessage());
             }
         } else if (hosting == McpHostingType.SANDBOX) {
-            if (StrUtil.isNotBlank(endpoint.getSubscribeParams())) {
+            if (Strings.isNotBlank(endpoint.getSubscribeParams())) {
                 try {
                     com.fasterxml.jackson.databind.node.ObjectNode params =
                             com.alibaba.himarket.utils.JsonUtil.readObjectNode(
@@ -220,7 +220,7 @@ public class McpTransportResolver {
                     String authType = params.path("authType").asText();
                     if ("apikey".equalsIgnoreCase(authType)) {
                         String apiKey = params.path("apiKey").asText();
-                        if (StrUtil.isNotBlank(apiKey)) {
+                        if (Strings.isNotBlank(apiKey)) {
                             return Map.of("Authorization", apiKey);
                         }
                         log.error(

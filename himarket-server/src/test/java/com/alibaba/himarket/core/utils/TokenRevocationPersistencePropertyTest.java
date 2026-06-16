@@ -29,13 +29,17 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.alibaba.himarket.config.JwtProperties;
 import com.alibaba.himarket.repository.RevokedTokenRepository;
 import com.alibaba.himarket.service.RevokedTokenService;
+import com.alibaba.himarket.service.TokenService;
 import com.alibaba.himarket.service.impl.RevokedTokenServiceImpl;
+import com.alibaba.himarket.service.impl.TokenServiceImpl;
 import com.alibaba.himarket.support.common.User;
 import com.alibaba.himarket.support.enums.UserType;
 import com.github.benmanes.caffeine.cache.Cache;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import net.jqwik.api.Arbitraries;
@@ -51,27 +55,11 @@ import net.jqwik.api.Provide;
  * directly with a mock repository to verify DB-backed persistence survives cache eviction)
  *
  * <p>Property 2: Preservation — Non-Revoked Token Authentication Unchanged (tests
- * RevokedTokenService for non-revoked and blank tokens, and TokenUtil for parsing)
+ * RevokedTokenService for non-revoked and blank tokens, and TokenService for parsing)
  */
 class TokenRevocationPersistencePropertyTest {
 
-    /**
-     * One-time setup: inject JWT_SECRET and JWT_EXPIRE_MILLIS into TokenUtil via reflection, since
-     * there is no Spring context in this unit test.
-     */
-    static {
-        try {
-            Field secretField = TokenUtil.class.getDeclaredField("JWT_SECRET");
-            secretField.setAccessible(true);
-            secretField.set(null, "YourJWTSecret");
-
-            Field expireField = TokenUtil.class.getDeclaredField("JWT_EXPIRE_MILLIS");
-            expireField.setAccessible(true);
-            expireField.setLong(null, 7L * 24 * 60 * 60 * 1000); // 7 days in millis
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to initialize TokenUtil fields via reflection", e);
-        }
-    }
+    private static final JwtProperties JWT_PROPERTIES = createJwtProperties();
 
     @Provide
     Arbitrary<String> randomUserIds() {
@@ -118,9 +106,10 @@ class TokenRevocationPersistencePropertyTest {
 
         // Create the service under test with the mock repository
         RevokedTokenServiceImpl service = new RevokedTokenServiceImpl(mockRepository);
+        TokenService tokenService = createTokenService(service);
 
         // Generate a valid admin token
-        String token = TokenUtil.generateAdminToken(userId);
+        String token = tokenService.generateAdminToken(userId);
         long expiresAtMillis = System.currentTimeMillis() + 7L * 24 * 60 * 60 * 1000;
 
         // Revoke the token (persists to mock DB + puts in Caffeine cache)
@@ -167,12 +156,13 @@ class TokenRevocationPersistencePropertyTest {
         RevokedTokenRepository mockRepository = mock(RevokedTokenRepository.class);
         when(mockRepository.existsByTokenHash(anyString())).thenReturn(false);
         RevokedTokenService service = new RevokedTokenServiceImpl(mockRepository);
+        TokenService tokenService = createTokenService(service);
 
         // Generate a valid token (admin or developer) but do NOT revoke it
         String token =
                 userType == UserType.ADMIN
-                        ? TokenUtil.generateAdminToken(userId)
-                        : TokenUtil.generateDeveloperToken(userId);
+                        ? tokenService.generateAdminToken(userId)
+                        : tokenService.generateDeveloperToken(userId);
 
         // Assert: non-revoked token must not be reported as revoked
         assertFalse(
@@ -216,16 +206,29 @@ class TokenRevocationPersistencePropertyTest {
     void parseUserExtractsCorrectUserInfo(
             @ForAll("randomUserIds") String userId, @ForAll("randomUserTypes") UserType userType) {
         // Generate a valid token
+        TokenService tokenService =
+                createTokenService(new RevokedTokenServiceImpl(mock(RevokedTokenRepository.class)));
         String token =
                 userType == UserType.ADMIN
-                        ? TokenUtil.generateAdminToken(userId)
-                        : TokenUtil.generateDeveloperToken(userId);
+                        ? tokenService.generateAdminToken(userId)
+                        : tokenService.generateDeveloperToken(userId);
 
         // Parse the token and verify user info is correctly extracted
-        User user = TokenUtil.parseUser(token);
+        User user = tokenService.parseUser(token);
 
         assertNotNull(user, "parseUser should return a non-null User");
         assertEquals(userId, user.getUserId(), "parseUser should extract the correct userId");
         assertEquals(userType, user.getUserType(), "parseUser should extract the correct userType");
+    }
+
+    private static TokenService createTokenService(RevokedTokenService revokedTokenService) {
+        return new TokenServiceImpl(JWT_PROPERTIES, revokedTokenService);
+    }
+
+    private static JwtProperties createJwtProperties() {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret("YourJWTSecret");
+        properties.setExpiration(Duration.ofDays(7));
+        return properties;
     }
 }

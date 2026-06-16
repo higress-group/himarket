@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.support.gateway;
 
-import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.support.common.Strings;
 import java.util.List;
 import lombok.Data;
 
@@ -63,12 +63,12 @@ public class AdpAIGatewayConfig {
     }
 
     public boolean validate() {
-        if (StrUtil.isBlank(baseUrl) || port == null) {
+        if (Strings.isBlank(baseUrl) || port == null) {
             return false;
         }
 
         boolean hasSeedAuth =
-                StrUtil.isNotBlank(authSeed) && (authHeaders == null || authHeaders.isEmpty());
+                Strings.isNotBlank(authSeed) && (authHeaders == null || authHeaders.isEmpty());
         boolean hasHeaderAuth = authSeed == null && authHeaders != null && !authHeaders.isEmpty();
         return hasSeedAuth || hasHeaderAuth;
     }

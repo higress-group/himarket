@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.gateway;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.apsara.CreateAppRequest;
@@ -691,7 +690,7 @@ public class ApsaraGatewayOperator extends GatewayOperator<ApsaraGatewayClient> 
         String mark =
                 consumer.getDeveloperId()
                         .substring(Math.max(0, consumer.getDeveloperId().length() - 8));
-        String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
+        String gwConsumerName = consumer.getName() + "-" + mark;
 
         ApsaraGatewayClient client = new ApsaraGatewayClient(apsaraConfig);
         try {

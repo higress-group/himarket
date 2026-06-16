@@ -19,13 +19,13 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
 import com.alibaba.himarket.support.api.spec.McpConnection;
 import com.alibaba.himarket.support.api.spec.StdioConnection;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -78,7 +78,7 @@ public class ModelScopeAdapter implements McpVendorAdapter {
         ObjectNode config = JsonUtil.readObjectNode(item.getConnectionConfig());
         ObjectNode serverConfig = firstMcpServer(config);
         String command = serverConfig.path("command").asText(null);
-        if (StrUtil.isBlank(command)) {
+        if (Strings.isBlank(command)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "stdio MCP command is required");
         }
 
@@ -98,7 +98,7 @@ public class ModelScopeAdapter implements McpVendorAdapter {
             connection.setEnv(env);
         }
         String cwd = serverConfig.path("cwd").asText(null);
-        if (StrUtil.isNotBlank(cwd)) {
+        if (Strings.isNotBlank(cwd)) {
             connection.setCwd(cwd);
         }
         return connection;

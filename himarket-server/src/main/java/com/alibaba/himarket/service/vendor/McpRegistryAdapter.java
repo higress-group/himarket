@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -28,6 +27,7 @@ import com.alibaba.himarket.support.api.spec.McpConnection;
 import com.alibaba.himarket.support.api.spec.SseConnection;
 import com.alibaba.himarket.support.api.spec.StdioConnection;
 import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -403,7 +403,7 @@ public class McpRegistryAdapter implements McpVendorAdapter {
     }
 
     private McpConnection buildRemoteConnection(McpProtocolType protocol, ObjectNode config) {
-        if (config == null || StrUtil.isBlank(config.path("url").asText(null))) {
+        if (config == null || Strings.isBlank(config.path("url").asText(null))) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "MCP connection URL is required");
         }
@@ -424,13 +424,13 @@ public class McpRegistryAdapter implements McpVendorAdapter {
         }
         String identifier = config.path("identifier").asText(null);
         String registryType = config.path("registryType").asText(null);
-        if (StrUtil.isBlank(identifier)) {
+        if (Strings.isBlank(identifier)) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "MCP package identifier is required");
         }
 
         StdioConnection connection = new StdioConnection();
-        String normalizedRegistryType = StrUtil.blankToDefault(registryType, "").toLowerCase();
+        String normalizedRegistryType = Strings.blankToDefault(registryType, "").toLowerCase();
         if (normalizedRegistryType.contains("npm")) {
             connection.setCommand("npx");
             connection.setArgs(List.of("-y", identifier));

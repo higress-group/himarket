@@ -1,6 +1,5 @@
 package com.alibaba.himarket.service.task;
 
-import cn.hutool.core.collection.CollUtil;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.AiRegistrySkillService;
@@ -145,7 +144,7 @@ public class DownloadCountSyncTask {
             while (true) {
                 Page<SkillSummary> page =
                         aiService.skill().listSkills(namespace, null, null, pageNo, PAGE_SIZE);
-                if (page == null || CollUtil.isEmpty(page.getPageItems())) {
+                if (page == null || page.getPageItems() == null || page.getPageItems().isEmpty()) {
                     break;
                 }
                 for (SkillSummary summary : page.getPageItems()) {
@@ -243,7 +242,7 @@ public class DownloadCountSyncTask {
                         aiService
                                 .agentSpec()
                                 .listAgentSpecAdminItems(namespace, null, null, pageNo, PAGE_SIZE);
-                if (page == null || CollUtil.isEmpty(page.getPageItems())) {
+                if (page == null || page.getPageItems() == null || page.getPageItems().isEmpty()) {
                     break;
                 }
                 for (AgentSpecSummary summary : page.getPageItems()) {

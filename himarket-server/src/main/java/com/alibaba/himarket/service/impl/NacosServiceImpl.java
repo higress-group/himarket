@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.SecureUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -43,6 +41,7 @@ import com.alibaba.himarket.dto.result.nacos.NacosSkillResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -66,6 +65,7 @@ import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +78,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 
 @Service
 @Slf4j
@@ -124,10 +125,9 @@ public class NacosServiceImpl implements NacosService {
                         nacos -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{} already exists, name={}",
-                                            Resources.NACOS_INSTANCE,
-                                            param.getNacosName()));
+                                    String.format(
+                                            "%s already exists, name=%s",
+                                            Resources.NACOS_INSTANCE, param.getNacosName()));
                         });
 
         NacosInstance nacosInstance = param.convertTo();
@@ -140,10 +140,9 @@ public class NacosServiceImpl implements NacosService {
             if (exists) {
                 throw new BusinessException(
                         ErrorCode.CONFLICT,
-                        StrUtil.format(
-                                "{} already exists, nacosId={}",
-                                Resources.NACOS_INSTANCE,
-                                providedId));
+                        String.format(
+                                "%s already exists, nacosId=%s",
+                                Resources.NACOS_INSTANCE, providedId));
             }
             nacosInstance.setNacosId(providedId);
         } else {
@@ -172,10 +171,9 @@ public class NacosServiceImpl implements NacosService {
                             nacos -> {
                                 throw new BusinessException(
                                         ErrorCode.CONFLICT,
-                                        StrUtil.format(
-                                                "{} already exists, name={}",
-                                                Resources.NACOS_INSTANCE,
-                                                requestedName));
+                                        String.format(
+                                                "%s already exists, name=%s",
+                                                Resources.NACOS_INSTANCE, requestedName));
                             });
         }
 
@@ -242,7 +240,7 @@ public class NacosServiceImpl implements NacosService {
                     e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "Failed to fetch Nacos clusters from MSE: " + e.getMessage());
+                    String.format("Failed to fetch Nacos clusters from MSE: %s", e.getMessage()));
         }
     }
 
@@ -286,7 +284,8 @@ public class NacosServiceImpl implements NacosService {
                     nacosId,
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch namespaces: " + e.getErrMsg());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch namespaces: %s", e.getErrMsg()));
         }
 
         if (namespaces == null || namespaces.isEmpty()) {
@@ -619,7 +618,7 @@ public class NacosServiceImpl implements NacosService {
             keyBuilder.append("|").append(nacosInstance.getSecretKey());
         }
 
-        return SecureUtil.md5(keyBuilder.toString());
+        return DigestUtils.md5DigestAsHex(keyBuilder.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     // Build a NamingMaintainerService for the namespace used by the current request.
@@ -667,7 +666,7 @@ public class NacosServiceImpl implements NacosService {
 
         NacosInstance nacosInstance = findNacosInstance(nacosId);
         AiMaintainerService aiService = buildDynamicAiService(nacosInstance);
-        String ns = StrUtil.isBlank(namespaceId) ? "" : namespaceId;
+        String ns = Strings.isBlank(namespaceId) ? "" : namespaceId;
 
         com.alibaba.nacos.api.model.Page<AgentCardVersionInfo> agentPage;
         try {
@@ -684,7 +683,8 @@ public class NacosServiceImpl implements NacosService {
                     namespaceId,
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch agents: " + e.getErrMsg());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch agents: %s", e.getErrMsg()));
         }
 
         if (agentPage == null
@@ -710,7 +710,7 @@ public class NacosServiceImpl implements NacosService {
         com.alibaba.nacos.api.model.Page<SkillSummary> page =
                 service.skill()
                         .listSkills(
-                                StrUtil.blankToDefault(namespaceId, "public"),
+                                Strings.blankToDefault(namespaceId, "public"),
                                 null,
                                 null,
                                 1,
@@ -748,7 +748,7 @@ public class NacosServiceImpl implements NacosService {
 
         NacosInstance nacosInstance = findNacosInstance(nacosId);
         AiMaintainerService aiService = buildDynamicAiService(nacosInstance);
-        String ns = StrUtil.isBlank(namespaceId) ? "" : namespaceId;
+        String ns = Strings.isBlank(namespaceId) ? "" : namespaceId;
 
         AgentCard agentCard;
         try {
@@ -761,11 +761,13 @@ public class NacosServiceImpl implements NacosService {
                     agentName,
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch agent detail: " + e.getErrMsg());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch agent detail: %s", e.getErrMsg()));
         }
 
         if (agentCard == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "Agent not found: " + agentName);
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, String.format("Agent not found: %s", agentName));
         }
 
         return agentCard;
@@ -773,7 +775,7 @@ public class NacosServiceImpl implements NacosService {
 
     @Override
     public String fetchAgentConfig(String nacosId, NacosRefConfig nacosRefConfig) {
-        if (StrUtil.isBlank(nacosRefConfig.getAgentName())) {
+        if (Strings.isBlank(nacosRefConfig.getAgentName())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Agent name is required");
         }
 
@@ -811,7 +813,8 @@ public class NacosServiceImpl implements NacosService {
                     nacosRefConfig.getAgentName(),
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch agent config: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch agent config: %s", e.getMessage()));
         }
     }
 
@@ -850,7 +853,7 @@ public class NacosServiceImpl implements NacosService {
         nacosInstanceRepository.save(newDefault);
 
         // Verify the namespace before storing it as the default namespace.
-        if (StrUtil.isNotBlank(namespaceId)) {
+        if (Strings.isNotBlank(namespaceId)) {
             NamingMaintainerService namingService = buildDynamicNamingService(newDefault, "");
             try {
                 List<Namespace> namespaces = namingService.getNamespaceList();
@@ -859,12 +862,12 @@ public class NacosServiceImpl implements NacosService {
                                 && namespaces.stream()
                                         .anyMatch(
                                                 ns ->
-                                                        StrUtil.equals(
+                                                        Strings.equals(
                                                                         namespaceId,
                                                                         ns.getNamespace())
-                                                                || (StrUtil.isBlank(
+                                                                || (Strings.isBlank(
                                                                                 ns.getNamespace())
-                                                                        && StrUtil.equalsIgnoreCase(
+                                                                        && Strings.equalsIgnoreCase(
                                                                                 namespaceId,
                                                                                 "public")));
                 if (!exists) {
@@ -879,7 +882,7 @@ public class NacosServiceImpl implements NacosService {
                         e);
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR,
-                        "Failed to verify namespace from Nacos: " + e.getErrMsg());
+                        String.format("Failed to verify namespace from Nacos: %s", e.getErrMsg()));
             }
 
             newDefault.setDefaultNamespace(namespaceId);

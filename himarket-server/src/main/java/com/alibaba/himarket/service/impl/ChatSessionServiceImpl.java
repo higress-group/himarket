@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -49,11 +47,13 @@ import java.util.Objects;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -68,6 +68,8 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     private final ProductService productService;
 
     private final ContextHolder contextHolder;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Allowed number of sessions per user
@@ -152,7 +154,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     public void deleteSession(String sessionId) {
         ChatSession session = findUserSession(sessionId);
 
-        SpringUtil.getApplicationContext().publishEvent(new ChatSessionDeletingEvent(sessionId));
+        eventPublisher.publishEvent(new ChatSessionDeletingEvent(sessionId));
         sessionRepository.delete(session);
     }
 
@@ -183,7 +185,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                         sessionId,
                         contextHolder.getUser(),
                         Sort.by(Sort.Direction.ASC, "createAt"));
-        if (CollUtil.isEmpty(chats)) {
+        if (CollectionUtils.isEmpty(chats)) {
             return Collections.emptyList();
         }
 
@@ -280,7 +282,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
                         contextHolder.getUser(),
                         Sort.by(Sort.Direction.ASC, "createAt"));
 
-        if (CollUtil.isEmpty(chats)) {
+        if (CollectionUtils.isEmpty(chats)) {
             return Collections.emptyList();
         }
 

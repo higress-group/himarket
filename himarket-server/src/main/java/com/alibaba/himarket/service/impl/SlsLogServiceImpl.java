@@ -29,6 +29,7 @@ import com.alibaba.himarket.dto.params.sls.SlsCheckProjectRequest;
 import com.alibaba.himarket.dto.params.sls.SlsCommonQueryRequest;
 import com.alibaba.himarket.service.SlsLogService;
 import com.alibaba.himarket.service.gateway.factory.SlsClientFactory;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.SlsAuthType;
 import com.aliyun.openservices.log.Client;
 import com.aliyun.openservices.log.common.Index;
@@ -62,7 +63,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 /**
  * Generic SLS log query service implementation.
@@ -175,7 +175,7 @@ public class SlsLogServiceImpl implements SlsLogService {
         String finalSql = buildSqlWithFilters(request);
         finalSql = replaceSqlInterval(finalSql, request.getInterval());
         String scenario =
-                StringUtils.hasText(request.getScenario()) ? request.getScenario() : "custom";
+                Strings.isNotBlank(request.getScenario()) ? request.getScenario() : "custom";
 
         try {
             if (!isProjectExists(client, project)) {
@@ -249,7 +249,7 @@ public class SlsLogServiceImpl implements SlsLogService {
     public Boolean checkProjectExists(SlsCheckProjectRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
         String project =
-                StringUtils.hasText(request.getProject())
+                Strings.isNotBlank(request.getProject())
                         ? request.getProject()
                         : slsConfig.getDefaultProject();
         return isProjectExists(client, project);
@@ -259,11 +259,11 @@ public class SlsLogServiceImpl implements SlsLogService {
     public Boolean checkLogstoreExists(SlsCheckLogstoreRequest request) {
         Client client = slsClientFactory.createClient(request.getUserId());
         String project =
-                StringUtils.hasText(request.getProject())
+                Strings.isNotBlank(request.getProject())
                         ? request.getProject()
                         : slsConfig.getDefaultProject();
         String logstore =
-                StringUtils.hasText(request.getLogstore())
+                Strings.isNotBlank(request.getLogstore())
                         ? request.getLogstore()
                         : slsConfig.getDefaultLogstore();
         return isLogstoreExists(client, project, logstore);
@@ -318,7 +318,7 @@ public class SlsLogServiceImpl implements SlsLogService {
                 String key = content.mKey;
                 String value = content.mValue;
 
-                if (StringUtils.hasText(value) && !"null".equals(value)) {
+                if (Strings.isNotBlank(value) && !"null".equals(value)) {
                     logMap.put(key, value);
                 }
             }
@@ -390,19 +390,19 @@ public class SlsLogServiceImpl implements SlsLogService {
     private void validateQueryRequest(GenericSlsQueryRequest request) {
 
         if (slsConfig.getAuthType() == SlsAuthType.STS) {
-            if (!StringUtils.hasText(request.getUserId())) {
+            if (Strings.isBlank(request.getUserId())) {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST, "UserId is required when authType is STS");
             }
         }
 
-        if (!StringUtils.hasText(request.getSql())) {
+        if (Strings.isBlank(request.getSql())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "SQL cannot be empty");
         }
 
         if (request.getFromTime() == null || request.getToTime() == null) {
-            if (StringUtils.hasText(request.getStartTime())
-                    && StringUtils.hasText(request.getEndTime())) {
+            if (Strings.isNotBlank(request.getStartTime())
+                    && Strings.isNotBlank(request.getEndTime())) {
                 try {
                     int from = parseToEpochSeconds(request.getStartTime().trim());
                     int to = parseToEpochSeconds(request.getEndTime().trim());
@@ -459,7 +459,7 @@ public class SlsLogServiceImpl implements SlsLogService {
      */
     private String buildSqlWithFilters(GenericSlsQueryRequest request) {
         String sql = request.getSql();
-        if (!StringUtils.hasText(sql)) {
+        if (Strings.isBlank(sql)) {
             return sql;
         }
         String[] parts = sql.split("\\|", 2);
@@ -516,7 +516,7 @@ public class SlsLogServiceImpl implements SlsLogService {
             filters.add(buildOrFilter("ai_log.mcp_tool_name", request.getMcpToolName()));
         }
 
-        String merged = StringUtils.hasText(searchPart) ? searchPart : "(*)";
+        String merged = Strings.isNotBlank(searchPart) ? searchPart : "(*)";
 
         if (!filters.isEmpty()) {
             String allFilters = "(" + String.join(" and ", filters) + ")";
@@ -546,7 +546,7 @@ public class SlsLogServiceImpl implements SlsLogService {
         }
         List<String> conditions = new ArrayList<>();
         for (String value : values) {
-            if (StringUtils.hasText(value)) {
+            if (Strings.isNotBlank(value)) {
                 String v = value.trim();
                 conditions.add(field + ": \"" + v + "\"");
             }
@@ -573,7 +573,7 @@ public class SlsLogServiceImpl implements SlsLogService {
         String project = slsConfig.getDefaultProject();
         String logstore = slsConfig.getDefaultLogstore();
 
-        if (!StringUtils.hasText(project) || !StringUtils.hasText(logstore)) {
+        if (Strings.isBlank(project) || Strings.isBlank(logstore)) {
             log.warn("SLS global log index update skipped because project or logstore is missing");
             return;
         }

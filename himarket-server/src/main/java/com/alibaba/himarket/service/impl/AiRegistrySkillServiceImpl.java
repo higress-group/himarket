@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.airegistry.AiRegistrySkillResult;
@@ -28,6 +27,7 @@ import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.entity.AiRegistryInstance;
 import com.alibaba.himarket.repository.AiRegistryInstanceRepository;
 import com.alibaba.himarket.service.AiRegistrySkillService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillResource;
 import com.aliyun.airegistry20260317.Client;
@@ -55,6 +55,7 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
@@ -73,7 +74,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
 
     private static final String DEFAULT_CONTENT_TYPE = "application/zip";
     private static final int PAGE_SIZE = 100;
-    private static final String DEFAULT_ENDPOINT_TEMPLATE = "airegistry.{}.aliyuncs.com";
+    private static final String DEFAULT_ENDPOINT_TEMPLATE = "airegistry.%s.aliyuncs.com";
 
     private final AiRegistryInstanceRepository aiRegistryInstanceRepository;
 
@@ -239,7 +240,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                             new UpdateSkillLabelsRequest()
                                     .setNamespaceId(namespaceId)
                                     .setSkillName(skillName)
-                                    .setLabels("{\"latest\":\"" + version + "\"}"));
+                                    .setLabels(String.format("{\"latest\":\"%s\"}", version)));
         } catch (Exception e) {
             throw toAiRegistryException("Failed to update AIRegistry Skill labels", e);
         }
@@ -252,7 +253,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
         try {
             Client client = buildClient(instance);
             String targetVersion =
-                    StrUtil.isBlank(version)
+                    Strings.isBlank(version)
                             ? resolveLatestVersion(client, namespaceId, skillName)
                             : version;
             GetSkillVersionDetailResponseBody.GetSkillVersionDetailResponseBodyData data =
@@ -308,7 +309,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
         try {
             Client client = buildClient(instance);
             String targetVersion =
-                    StrUtil.isBlank(version)
+                    Strings.isBlank(version)
                             ? resolveLatestVersion(client, namespaceId, skillName)
                             : version;
             String downloadUrl =
@@ -319,7 +320,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                                             .setSkillVersion(targetVersion))
                             .getBody()
                             .getData();
-            if (StrUtil.isBlank(downloadUrl)) {
+            if (Strings.isBlank(downloadUrl)) {
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR, "AIRegistry download URL is empty");
             }
@@ -445,10 +446,11 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
     }
 
     private String resolveEndpoint(AiRegistryInstance instance) {
-        if (StrUtil.isNotBlank(instance.getEndpoint())) {
-            return StrUtil.trim(instance.getEndpoint());
+        if (Strings.isNotBlank(instance.getEndpoint())) {
+            return instance.getEndpoint().trim();
         }
-        return StrUtil.format(DEFAULT_ENDPOINT_TEMPLATE, StrUtil.trim(instance.getRegionId()));
+        String regionId = instance.getRegionId() == null ? null : instance.getRegionId().trim();
+        return String.format(DEFAULT_ENDPOINT_TEMPLATE, regionId);
     }
 
     private String resolveLatestVersion(Client client, String namespaceId, String skillName)
@@ -463,7 +465,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
         if (data == null || data.getVersions() == null || data.getVersions().isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "Skill", skillName);
         }
-        if (data.getLabels() != null && StrUtil.isNotBlank(data.getLabels().get("latest"))) {
+        if (data.getLabels() != null && Strings.isNotBlank(data.getLabels().get("latest"))) {
             return data.getLabels().get("latest");
         }
         return data.getVersions().stream()
@@ -528,11 +530,11 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
             int fileSize,
             String aiRegistryId) {
         if (uploadInfo == null
-                || StrUtil.isBlank(uploadInfo.getUploadUrl())
-                || StrUtil.isBlank(uploadInfo.getOssObjectName())) {
+                || Strings.isBlank(uploadInfo.getUploadUrl())
+                || Strings.isBlank(uploadInfo.getOssObjectName())) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "AIRegistry upload URL is empty");
         }
-        if (StrUtil.isNotBlank(uploadInfo.getMaxSize())) {
+        if (Strings.isNotBlank(uploadInfo.getMaxSize())) {
             long maxSize = Long.parseLong(uploadInfo.getMaxSize());
             if (fileSize > maxSize) {
                 log.warn(
@@ -551,7 +553,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
     private void putZip(String uploadUrl, String contentType, byte[] zipBytes, String aiRegistryId)
             throws IOException {
         String resolvedContentType =
-                StrUtil.isBlank(contentType) ? DEFAULT_CONTENT_TYPE : contentType;
+                Strings.isBlank(contentType) ? DEFAULT_CONTENT_TYPE : contentType;
         Request request =
                 new Request.Builder()
                         .url(uploadUrl)
@@ -578,7 +580,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
         }
         if (e instanceof TeaException teaException) {
             ErrorCode errorCode = mapTeaErrorCode(teaException);
-            String code = StrUtil.blankToDefault(teaException.getCode(), "Unknown");
+            String code = Strings.blankToDefault(teaException.getCode(), "Unknown");
             log.warn(
                     "AIRegistry request failed, operation={}, errorCode={}, status={},"
                             + " errorMessage={}",
@@ -586,7 +588,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                     code,
                     teaException.getStatusCode(),
                     teaException.getMessage());
-            return new BusinessException(errorCode, message + ": " + code);
+            return new BusinessException(errorCode, String.format("%s: %s", message, code));
         }
         log.warn(
                 "AIRegistry request failed, operation={}, errorType={}, errorMessage={}",
@@ -598,7 +600,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
     }
 
     private ErrorCode mapTeaErrorCode(TeaException e) {
-        String code = StrUtil.blankToDefault(e.getCode(), "").toLowerCase();
+        String code = Strings.blankToDefault(e.getCode(), "").toLowerCase(Locale.ROOT);
         if (code.contains("notfound") || code.contains("not_found")) {
             return ErrorCode.NOT_FOUND;
         }

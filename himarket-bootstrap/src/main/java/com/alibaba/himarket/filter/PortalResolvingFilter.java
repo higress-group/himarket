@@ -19,9 +19,9 @@
 
 package com.alibaba.himarket.filter;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.service.PortalService;
+import com.alibaba.himarket.support.common.Strings;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -85,13 +85,13 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
             }
             String portalId = portalService.resolvePortal(domain);
 
-            if (StrUtil.isNotBlank(portalId)) {
+            if (Strings.isNotBlank(portalId)) {
                 contextHolder.savePortal(portalId);
                 log.debug("Resolved portal for domain: {} with portalId: {}", domain, portalId);
             } else {
                 log.debug("No portal found for domain: {}", domain);
                 String defaultPortalId = portalService.getDefaultPortal();
-                if (StrUtil.isNotBlank(defaultPortalId)) {
+                if (Strings.isNotBlank(defaultPortalId)) {
                     contextHolder.savePortal(defaultPortalId);
                     log.debug("Use default portal: {}", defaultPortalId);
                 }

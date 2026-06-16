@@ -19,9 +19,9 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.repository.McpServerEndpointRepository;
 import com.alibaba.himarket.service.McpSandboxDeployService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import jakarta.annotation.Resource;
 import java.util.concurrent.Executor;
@@ -93,8 +93,8 @@ public class McpSandboxDeployListener {
                             ep -> {
                                 ep.setEndpointUrl(lambdaUrl);
                                 ep.setStatus(McpEndpointStatus.ACTIVE.name());
-                                if (StrUtil.isNotBlank(lambdaSecretName)
-                                        && StrUtil.isNotBlank(ep.getSubscribeParams())) {
+                                if (Strings.isNotBlank(lambdaSecretName)
+                                        && Strings.isNotBlank(ep.getSubscribeParams())) {
                                     try {
                                         com.fasterxml.jackson.databind.node.ObjectNode params =
                                                 com.alibaba.himarket.utils.JsonUtil.readObjectNode(
@@ -143,7 +143,7 @@ public class McpSandboxDeployListener {
                             event.getSandboxId(),
                             event.getMcpName(),
                             event.getAdminUserId(),
-                            StrUtil.blankToDefault(event.getNamespace(), "default"),
+                            Strings.blankToDefault(event.getNamespace(), "default"),
                             rollbackResourceName,
                             null); // Secret already cleaned up in deploy() rollback
                 } catch (Exception re) {
@@ -174,7 +174,7 @@ public class McpSandboxDeployListener {
                                 event.getSandboxId(),
                                 event.getMcpName(),
                                 event.getUserId(),
-                                StrUtil.blankToDefault(event.getNamespace(), "default"),
+                                Strings.blankToDefault(event.getNamespace(), "default"),
                                 event.getResourceName(),
                                 event.getSecretName());
                         log.info(

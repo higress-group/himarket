@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -28,6 +27,7 @@ import com.alibaba.himarket.support.api.spec.McpConnection;
 import com.alibaba.himarket.support.api.spec.SseConnection;
 import com.alibaba.himarket.support.api.spec.StdioConnection;
 import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -456,7 +456,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
                     ErrorCode.INVALID_REQUEST, "MCP connection config is empty");
         }
         String command = config.path("command").asText(null);
-        if (StrUtil.isBlank(command)) {
+        if (Strings.isBlank(command)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "stdio MCP command is required");
         }
 
@@ -474,14 +474,14 @@ public class LobeHubAdapter implements McpVendorAdapter {
                             new TypeReference<Map<String, String>>() {}));
         }
         String cwd = config.path("cwd").asText(null);
-        if (StrUtil.isNotBlank(cwd)) {
+        if (Strings.isNotBlank(cwd)) {
             connection.setCwd(cwd);
         }
         return connection;
     }
 
     private McpConnection buildRemoteConnection(McpProtocolType protocol, ObjectNode config) {
-        if (config == null || StrUtil.isBlank(config.path("url").asText(null))) {
+        if (config == null || Strings.isBlank(config.path("url").asText(null))) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "MCP connection URL is required");
         }

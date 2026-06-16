@@ -17,23 +17,37 @@
  * under the License.
  */
 
-package com.alibaba.himarket;
+package com.alibaba.himarket.config;
 
-import com.alibaba.himarket.config.AcpProperties;
-import com.alibaba.himarket.config.JwtProperties;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@SpringBootApplication
-@EnableJpaAuditing
-@EnableScheduling
-@EnableConfigurationProperties({AcpProperties.class, JwtProperties.class})
-public class HiMarketApplication {
+@ConfigurationProperties(prefix = "jwt")
+public class JwtProperties {
 
-    public static void main(String[] args) {
-        SpringApplication.run(HiMarketApplication.class, args);
+    /**
+     * JWT signing secret.
+     */
+    private String secret;
+
+    /**
+     * JWT validity duration.
+     */
+    private Duration expiration = Duration.ofDays(7);
+
+    public String getSecret() {
+        return secret;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
+
+    public Duration getExpiration() {
+        return expiration;
+    }
+
+    public void setExpiration(Duration expiration) {
+        this.expiration = expiration;
     }
 }

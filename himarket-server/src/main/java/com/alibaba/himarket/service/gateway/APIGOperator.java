@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.service.gateway;
 
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.gateway.QueryAPIGParam;
@@ -39,6 +36,7 @@ import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.consumer.APIGAuthConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
@@ -97,7 +95,9 @@ import com.aliyun.sdk.service.apig20240327.models.UpdateConsumerRequest;
 import com.aliyun.sdk.service.apig20240327.models.UpdateConsumerResponse;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -108,6 +108,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -158,7 +159,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         APIConfigResult configResult = new APIConfigResult();
         // spec
-        String apiSpec = Base64.decodeStr(contentBase64);
+        String apiSpec =
+                new String(Base64.getDecoder().decode(contentBase64), StandardCharsets.UTF_8);
         configResult.setSpec(apiSpec);
 
         // meta
@@ -235,7 +237,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         List<GetGatewayResponseBody.Environments> environments =
                 response.getBody().getData().getEnvironments();
-        if (CollUtil.isEmpty(environments)) {
+        if (CollectionUtils.isEmpty(environments)) {
             return null;
         }
 
@@ -250,7 +252,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         String mark =
                 consumer.getDeveloperId()
                         .substring(Math.max(0, consumer.getDeveloperId().length() - 8));
-        String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
+        String gwConsumerName = consumer.getName() + "-" + mark;
         try {
             // ApiKey
             ApiKeyIdentityConfig apikeyIdentityConfig =
@@ -321,7 +323,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         }
 
         for (ListConsumersResponseBody.Items item : response.getBody().getData().getItems()) {
-            if (StrUtil.equals(item.getName(), name)) {
+            if (Strings.equals(item.getName(), name)) {
                 return item.getConsumerId();
             }
         }
@@ -422,17 +424,17 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         if (body != null && body.getData() != null) {
             apiKeyConfig = body.getData().getApiKeyIdentityConfig();
         }
-        if (apiKeyConfig == null || CollUtil.isEmpty(apiKeyConfig.getCredentials())) {
+        if (apiKeyConfig == null || CollectionUtils.isEmpty(apiKeyConfig.getCredentials())) {
             return CredentialContext.builder().build();
         }
 
         String apiKey =
                 apiKeyConfig.getCredentials().stream()
                         .map(ApiKeyIdentityConfig.Credentials::getApikey)
-                        .filter(StrUtil::isNotBlank)
+                        .filter(Strings::isNotBlank)
                         .findFirst()
                         .orElse(null);
-        if (StrUtil.isBlank(apiKey)) {
+        if (Strings.isBlank(apiKey)) {
             return CredentialContext.builder().build();
         }
 
@@ -441,10 +443,10 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         String source = "Default";
         String key = "Authorization";
         if (sourceConfig != null) {
-            if (StrUtil.isNotBlank(sourceConfig.getSource())) {
+            if (Strings.isNotBlank(sourceConfig.getSource())) {
                 source = sourceConfig.getSource();
             }
-            if (StrUtil.isNotBlank(sourceConfig.getValue())) {
+            if (Strings.isNotBlank(sourceConfig.getValue())) {
                 key = sourceConfig.getValue();
             }
         }
@@ -469,7 +471,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         String apiId = config.getApiId();
 
         List<HttpApiOperationInfo> operations = fetchRESTOperations(gateway, apiId);
-        if (CollUtil.isEmpty(operations)) {
+        if (CollectionUtils.isEmpty(operations)) {
             return null;
         }
 
@@ -520,10 +522,13 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         APIGClient client = getClient(gateway);
 
         try {
+            List<String> authorizationRuleIds = apigAuthConfig.getAuthorizationRuleIds();
             BatchDeleteConsumerAuthorizationRuleRequest request =
                     BatchDeleteConsumerAuthorizationRuleRequest.builder()
                             .consumerAuthorizationRuleIds(
-                                    StrUtil.join(",", apigAuthConfig.getAuthorizationRuleIds()))
+                                    authorizationRuleIds == null
+                                            ? null
+                                            : String.join(",", authorizationRuleIds))
                             .build();
 
             CompletableFuture<BatchDeleteConsumerAuthorizationRuleResponse> f =
@@ -584,7 +589,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 // Only internet load balancer support
                 .filter(
                         loadBalancer ->
-                                StrUtil.equalsIgnoreCase(loadBalancer.getAddressType(), "internet"))
+                                Strings.equalsIgnoreCase(loadBalancer.getAddressType(), "internet"))
                 .map(GetGatewayResponseBody.LoadBalancers::getIpv4Addresses)
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
@@ -803,7 +808,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         }
 
         List<EnvironmentInfo> items = response.getBody().getData().getItems();
-        if (CollUtil.isEmpty(items)) {
+        if (CollectionUtils.isEmpty(items)) {
             return Collections.emptyList();
         }
 

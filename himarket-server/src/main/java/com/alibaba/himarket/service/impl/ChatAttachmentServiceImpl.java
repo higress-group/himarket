@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.codec.Base64;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -31,6 +30,7 @@ import com.alibaba.himarket.entity.ChatAttachment;
 import com.alibaba.himarket.repository.ChatAttachmentRepository;
 import com.alibaba.himarket.service.ChatAttachmentService;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
+import java.util.Base64;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -113,7 +113,7 @@ public class ChatAttachmentServiceImpl implements ChatAttachmentService {
         ChatAttachment attachment = findAttachment(attachmentId);
 
         // Encode data to Base64
-        String base64Data = Base64.encode(attachment.getData());
+        String base64Data = Base64.getEncoder().encodeToString(attachment.getData());
 
         log.debug(
                 "Retrieved attachment detail, attachmentId={}, size={}, base64Data={}",

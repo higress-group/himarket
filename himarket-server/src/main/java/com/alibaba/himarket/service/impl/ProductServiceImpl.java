@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
@@ -70,28 +67,25 @@ import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.AdminSettingService;
 import com.alibaba.himarket.service.AiRegistryService;
-import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.GatewayService;
+import com.alibaba.himarket.service.McpToolService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.service.SkillService;
 import com.alibaba.himarket.service.WorkerService;
-import com.alibaba.himarket.service.hichat.manager.ToolManager;
-import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.enums.SourceType;
-import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.himarket.support.product.WorkerConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.github.benmanes.caffeine.cache.Cache;
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -104,6 +98,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -111,6 +106,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -140,7 +136,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductCategoryService productCategoryService;
 
-    private final ToolManager toolManager;
+    private final McpToolService mcpToolService;
 
     private final WorkerService workerService;
 
@@ -149,6 +145,8 @@ public class ProductServiceImpl implements ProductService {
     private final AdminSettingService adminSettingService;
 
     private final AiRegistryService aiRegistryService;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Cache to prevent duplicate sync within interval (5 minutes default)
@@ -163,8 +161,8 @@ public class ProductServiceImpl implements ProductService {
                         product -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Product with name '{}' already exists",
+                                    String.format(
+                                            "Product with name '%s' already exists",
                                             product.getName()));
                         });
 
@@ -246,7 +244,7 @@ public class ProductServiceImpl implements ProductService {
     private SkillRegistryType defaultSkillRegistryType() {
         AdminSettingResult setting = adminSettingService.getSetting("defaultSkillRegistryType");
         String value = setting == null ? null : setting.getSettingValue();
-        if (StrUtil.isBlank(value)) {
+        if (Strings.isBlank(value)) {
             return SkillRegistryType.NACOS;
         }
         try {
@@ -270,8 +268,8 @@ public class ProductServiceImpl implements ProductService {
                     .ifPresent(
                             o -> {
                                 productSyncCache.put(productId, Boolean.TRUE);
-                                SpringUtil.getApplicationContext()
-                                        .publishEvent(new ProductConfigReloadEvent(productId));
+                                eventPublisher.publishEvent(
+                                        new ProductConfigReloadEvent(productId));
                             });
         }
 
@@ -475,14 +473,14 @@ public class ProductServiceImpl implements ProductService {
         productRefRepository.deleteByProductId(productId);
 
         // Asynchronously clean up product resources
-        SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
+        eventPublisher.publishEvent(new ProductDeletingEvent(productId));
     }
 
     private void deleteLinkedApiDefinition(ProductRef productRef) {
         if (productRef == null
                 || productRef.getSourceType() == null
                 || !productRef.getSourceType().isApiDefinition()
-                || StrUtil.isBlank(productRef.getApiDefinitionId())) {
+                || Strings.isBlank(productRef.getApiDefinitionId())) {
             return;
         }
 
@@ -630,7 +628,7 @@ public class ProductServiceImpl implements ProductService {
                 subscriptions.getContent().stream()
                         .map(ProductSubscription::getConsumerId)
                         .toList();
-        if (CollUtil.isEmpty(consumerIds)) {
+        if (CollectionUtils.isEmpty(consumerIds)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
@@ -714,32 +712,21 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public McpToolListResult listMcpTools(String productId) {
-        ProductResult product = getProduct(productId);
+        Product product =
+                contextHolder.isAdministrator()
+                        ? findProduct(productId)
+                        : findPublishedProduct(contextHolder.getPortal(), productId);
         if (product.getType() != ProductType.MCP_SERVER) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "API product is not a mcp server");
         }
 
-        ConsumerService consumerService =
-                SpringUtil.getApplicationContext().getBean(ConsumerService.class);
-        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
-        // Check subscription status
-        subscriptionRepository
-                .findByConsumerIdAndProductId(consumerId, productId)
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        ErrorCode.INVALID_REQUEST,
-                                        "API product is not subscribed, not allowed to list"
-                                                + " tools"));
-
-        // Initialize client and fetch tools
-        CredentialContext credentialContext =
-                consumerService.getDefaultCredential(contextHolder.getUser());
-        McpToolListResult result = new McpToolListResult();
-
-        result.setTools(toolManager.fetchTools(product.getMcpConfig(), credentialContext));
-        return result;
+        ProductRef productRef = productRefRepository.findFirstByProductId(productId).orElse(null);
+        McpConfigResult mcpConfig =
+                productRef == null
+                        ? null
+                        : JsonUtil.parse(productRef.getMcpConfig(), McpConfigResult.class);
+        return mcpToolService.listMcpTools(productId, mcpConfig);
     }
 
     @Override
@@ -756,7 +743,7 @@ public class ProductServiceImpl implements ProductService {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST, "AIRegistry only supports Agent Skill products");
             }
-            if (StrUtil.isBlank(param.getAiRegistryId()) || StrUtil.isBlank(param.getNamespace())) {
+            if (Strings.isBlank(param.getAiRegistryId()) || Strings.isBlank(param.getNamespace())) {
                 throw new BusinessException(
                         ErrorCode.INVALID_PARAMETER, "AIRegistry ID and namespace are required");
             }
@@ -780,7 +767,7 @@ public class ProductServiceImpl implements ProductService {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "Only Nacos or AIRegistry source is supported");
         }
-        if (StrUtil.isBlank(param.getNacosId()) || StrUtil.isBlank(param.getNamespace())) {
+        if (Strings.isBlank(param.getNacosId()) || Strings.isBlank(param.getNamespace())) {
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER, "Nacos ID and namespace are required");
         }
@@ -881,7 +868,9 @@ public class ProductServiceImpl implements ProductService {
                 default:
                     throw new BusinessException(
                             ErrorCode.INVALID_REQUEST,
-                            "Nacos source does not support product type: " + product.getType());
+                            String.format(
+                                    "Nacos source does not support product type: %s",
+                                    product.getType()));
             }
         }
     }
@@ -915,25 +904,12 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        List<McpSchema.Tool> tools = toolManager.fetchTools(mcpConfig, credential);
-        if (CollUtil.isEmpty(tools)) {
+        String toolsConfig = mcpToolService.fetchToolsConfig(mcpConfig, credential);
+        if (Strings.isBlank(toolsConfig)) {
             return;
         }
-
-        try {
-            OpenAPIToolsConfig toolsConfig =
-                    OpenAPIToolsConfigConverter.convertFromToolList(
-                            mcpConfig.getMcpServerName(), tools);
-            String toolsStr = JsonUtil.toJson(toolsConfig);
-            mcpConfig.setTools(toolsStr);
-            productRef.setMcpConfig(JsonUtil.toJson(mcpConfig));
-        } catch (Exception e) {
-            log.warn(
-                    "Failed to convert MCP tools, mcpServerName={}, errorMessage={}",
-                    mcpConfig.getMcpServerName(),
-                    e.getMessage(),
-                    e);
-        }
+        mcpConfig.setTools(toolsConfig);
+        productRef.setMcpConfig(JsonUtil.toJson(mcpConfig));
     }
 
     /**
@@ -942,7 +918,7 @@ public class ProductServiceImpl implements ProductService {
      * @param products the list of products to fill
      */
     private void fillProducts(List<ProductResult> products) {
-        if (CollUtil.isEmpty(products)) {
+        if (CollectionUtils.isEmpty(products)) {
             return;
         }
 
@@ -991,23 +967,23 @@ public class ProductServiceImpl implements ProductService {
                 productRef.getSourceType() != null && productRef.getSourceType().isGateway());
 
         // API config for REST API
-        if (StrUtil.isNotBlank(productRef.getApiConfig())) {
+        if (Strings.isNotBlank(productRef.getApiConfig())) {
             product.setApiConfig(JsonUtil.parse(productRef.getApiConfig(), APIConfigResult.class));
         }
 
         // MCP config for MCP Server
-        if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
+        if (Strings.isNotBlank(productRef.getMcpConfig())) {
             product.setMcpConfig(JsonUtil.parse(productRef.getMcpConfig(), McpConfigResult.class));
         }
 
         // Agent config for Agent API
-        if (StrUtil.isNotBlank(productRef.getAgentConfig())) {
+        if (Strings.isNotBlank(productRef.getAgentConfig())) {
             product.setAgentConfig(
                     JsonUtil.parse(productRef.getAgentConfig(), AgentConfigResult.class));
         }
 
         // Model config for Model API
-        if (StrUtil.isNotBlank(productRef.getModelConfig())) {
+        if (Strings.isNotBlank(productRef.getModelConfig())) {
             product.setModelConfig(
                     JsonUtil.parse(productRef.getModelConfig(), ModelConfigResult.class));
         }
@@ -1029,7 +1005,7 @@ public class ProductServiceImpl implements ProductService {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (StrUtil.isNotBlank(param.getPortalId())) {
+            if (Strings.isNotBlank(param.getPortalId())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductPublication> publicationRoot = subquery.from(ProductPublication.class);
                 subquery.select(publicationRoot.get("productId"))
@@ -1045,12 +1021,12 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
 
-            if (StrUtil.isNotBlank(param.getName())) {
+            if (Strings.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName() + "%";
                 predicates.add(cb.like(root.get("name"), likePattern));
             }
 
-            if (CollUtil.isNotEmpty(param.getCategoryIds())) {
+            if (!CollectionUtils.isEmpty(param.getCategoryIds())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductCategoryRelation> relationRoot =
                         subquery.from(ProductCategoryRelation.class);
@@ -1059,7 +1035,7 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(root.get("productId").in(subquery));
             }
 
-            if (StrUtil.isNotBlank(param.getExcludeCategoryId())) {
+            if (Strings.isNotBlank(param.getExcludeCategoryId())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductCategoryRelation> relationRoot =
                         subquery.from(ProductCategoryRelation.class);
@@ -1096,7 +1072,7 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
 
-            if (StrUtil.isNotBlank(param.getConsumerName())) {
+            if (Strings.isNotBlank(param.getConsumerName())) {
                 Subquery<String> consumerSubquery = query.subquery(String.class);
                 Root<Consumer> consumerRoot = consumerSubquery.from(Consumer.class);
 
@@ -1159,7 +1135,7 @@ public class ProductServiceImpl implements ProductService {
             QueryProductParam param, Pageable pageable) {
         List<Product> allProducts = productRepository.findAll(buildSpecification(param));
 
-        if (CollUtil.isEmpty(allProducts)) {
+        if (CollectionUtils.isEmpty(allProducts)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
@@ -1215,7 +1191,7 @@ public class ProductServiceImpl implements ProductService {
             QueryProductParam param, Pageable pageable) {
         List<Product> allProducts = productRepository.findAll(buildSpecification(param));
 
-        if (CollUtil.isEmpty(allProducts)) {
+        if (CollectionUtils.isEmpty(allProducts)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
@@ -1265,7 +1241,7 @@ public class ProductServiceImpl implements ProductService {
      * @return true if product matches the filter, false otherwise
      */
     private boolean matchesFilter(ProductRef productRef, QueryProductParam param) {
-        if (productRef == null || StrUtil.isBlank(productRef.getModelConfig())) {
+        if (productRef == null || Strings.isBlank(productRef.getModelConfig())) {
             return false;
         }
 

@@ -18,8 +18,8 @@
  */
 package com.alibaba.himarket.service.hichat.support;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.utils.JsonUtil;
 import io.agentscope.core.agent.Event;
 import io.agentscope.core.agent.EventType;
@@ -105,14 +105,14 @@ public class ChatFormatter {
         // 1. Extract thinking content
         List<ThinkingBlock> thinkingBlocks = msg.getContentBlocks(ThinkingBlock.class);
         for (ThinkingBlock thinking : thinkingBlocks) {
-            if (StrUtil.isNotBlank(thinking.getThinking())) {
+            if (Strings.isNotBlank(thinking.getThinking())) {
                 chunks.add(ChatEvent.thinking(chatId, thinking.getThinking()));
             }
         }
 
         // 2. Extract text content (model's response)
         String textContent = msg.getTextContent();
-        if (StrUtil.isNotBlank(textContent)) {
+        if (Strings.isNotBlank(textContent)) {
             if (isLast) {
                 getUsage(msg, chatContext);
                 if (hasStreamedText) {
@@ -198,7 +198,7 @@ public class ChatFormatter {
         getUsage(msg, chatContext);
 
         // Send summary text if available
-        if (msg != null && StrUtil.isNotBlank(msg.getTextContent())) {
+        if (msg != null && Strings.isNotBlank(msg.getTextContent())) {
             return Flux.just(ChatEvent.text(chatContext.getChatId(), msg.getTextContent()));
         }
         return Flux.empty();

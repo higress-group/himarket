@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -37,6 +36,7 @@ import com.alibaba.himarket.entity.SandboxInstance;
 import com.alibaba.himarket.repository.McpServerEndpointRepository;
 import com.alibaba.himarket.repository.SandboxInstanceRepository;
 import com.alibaba.himarket.service.SandboxService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpHostingType;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -62,6 +62,7 @@ public class SandboxServiceImpl implements SandboxService {
     private final McpServerEndpointRepository mcpServerEndpointRepository;
     private final ContextHolder contextHolder;
     private final com.alibaba.himarket.service.sandbox.SandboxHealthCheckTask healthCheckTask;
+    private final K8sClientUtils k8sClientUtils;
 
     @Override
     public List<SandboxSimpleResult> listMcpCapableSandboxes() {
@@ -106,14 +107,12 @@ public class SandboxServiceImpl implements SandboxService {
                         existing -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Sandbox name '{}' already exists",
-                                            param.getSandboxName()));
+                                    "Sandbox name '" + param.getSandboxName() + "' already exists");
                         });
 
         // Connect with KubeConfig to resolve cluster metadata.
         try {
-            KubernetesClient client = K8sClientUtils.getClient(param.getKubeConfig());
+            KubernetesClient client = k8sClientUtils.getClient(param.getKubeConfig());
             String apiServer = K8sClientUtils.getApiServer(client);
             String clusterAttribute = buildClusterAttribute(client);
 
@@ -145,27 +144,27 @@ public class SandboxServiceImpl implements SandboxService {
         SandboxInstance sandbox = findSandbox(sandboxId);
 
         // When the name changes, keep the global uniqueness check.
-        if (StrUtil.isNotBlank(param.getSandboxName())
-                && !StrUtil.equals(sandbox.getSandboxName(), param.getSandboxName())) {
+        if (Strings.isNotBlank(param.getSandboxName())
+                && !Strings.equals(sandbox.getSandboxName(), param.getSandboxName())) {
             sandboxInstanceRepository
                     .findBySandboxName(param.getSandboxName())
                     .ifPresent(
                             existing -> {
                                 throw new BusinessException(
                                         ErrorCode.CONFLICT,
-                                        StrUtil.format(
-                                                "Sandbox name '{}' already exists",
-                                                param.getSandboxName()));
+                                        "Sandbox name '"
+                                                + param.getSandboxName()
+                                                + "' already exists");
                             });
         }
 
         // Refresh cluster metadata when KubeConfig changes.
-        if (StrUtil.isNotBlank(param.getKubeConfig())) {
-            if (StrUtil.isNotBlank(sandbox.getKubeConfig())) {
-                K8sClientUtils.evictClient(sandbox.getKubeConfig());
+        if (Strings.isNotBlank(param.getKubeConfig())) {
+            if (Strings.isNotBlank(sandbox.getKubeConfig())) {
+                k8sClientUtils.evictClient(sandbox.getKubeConfig());
             }
             try {
-                KubernetesClient client = K8sClientUtils.getClient(param.getKubeConfig());
+                KubernetesClient client = k8sClientUtils.getClient(param.getKubeConfig());
                 sandbox.setApiServer(K8sClientUtils.getApiServer(client));
                 sandbox.setClusterAttribute(buildClusterAttribute(client));
             } catch (BusinessException e) {
@@ -196,16 +195,15 @@ public class SandboxServiceImpl implements SandboxService {
         if (!activeEndpoints.isEmpty()) {
             throw new BusinessException(
                     ErrorCode.CONFLICT,
-                    StrUtil.format(
-                            "This sandbox instance is still used by {} MCP deployments. Cancel the"
-                                    + " related subscriptions or delete the MCP configs before"
-                                    + " deleting the sandbox",
-                            activeEndpoints.size()));
+                    "This sandbox instance is still used by "
+                            + activeEndpoints.size()
+                            + " MCP deployments. Cancel the related subscriptions or delete the"
+                            + " MCP configs before deleting the sandbox");
         }
 
         // Evict the K8s client cache when the sandbox is removed.
-        if (StrUtil.isNotBlank(sandbox.getKubeConfig())) {
-            K8sClientUtils.evictClient(sandbox.getKubeConfig());
+        if (Strings.isNotBlank(sandbox.getKubeConfig())) {
+            k8sClientUtils.evictClient(sandbox.getKubeConfig());
         }
         sandboxInstanceRepository.delete(sandbox);
     }
@@ -222,7 +220,7 @@ public class SandboxServiceImpl implements SandboxService {
     @Override
     public ClusterInfoResult fetchClusterInfo(String kubeConfig) {
         try {
-            KubernetesClient client = K8sClientUtils.getClient(kubeConfig);
+            KubernetesClient client = k8sClientUtils.getClient(kubeConfig);
             return ClusterInfoResult.builder()
                     .ok(true)
                     .clusterAttribute(buildClusterAttribute(client))
@@ -250,12 +248,12 @@ public class SandboxServiceImpl implements SandboxService {
     @Override
     public List<String> listNamespaces(String sandboxId) {
         SandboxInstance sandbox = findSandbox(sandboxId);
-        if (StrUtil.isBlank(sandbox.getKubeConfig())) {
+        if (Strings.isBlank(sandbox.getKubeConfig())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "Sandbox instance has no KubeConfig");
         }
         try {
-            KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
+            KubernetesClient client = k8sClientUtils.getClient(sandbox.getKubeConfig());
             return K8sClientUtils.listNamespaces(client);
         } catch (Exception e) {
             throw new BusinessException(
@@ -292,12 +290,12 @@ public class SandboxServiceImpl implements SandboxService {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (param != null && StrUtil.isNotBlank(param.getSandboxType())) {
+            if (param != null && Strings.isNotBlank(param.getSandboxType())) {
                 predicates.add(cb.equal(root.get("sandboxType"), param.getSandboxType()));
             }
 
             String adminId = contextHolder.getUser();
-            if (StrUtil.isBlank(adminId)) {
+            if (Strings.isBlank(adminId)) {
                 throw new BusinessException(
                         ErrorCode.UNAUTHORIZED, "Current user information is unavailable");
             }

@@ -15,7 +15,6 @@
         <dependency>
             <groupId>com.alibaba.himarket</groupId>
             <artifactId>himarket-server</artifactId>
-            <version>1.0-SNAPSHOT</version>
         </dependency>
 
         <!-- OkHttp for RestTemplate -->

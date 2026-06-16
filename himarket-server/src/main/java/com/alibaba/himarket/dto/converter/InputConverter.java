@@ -19,10 +19,13 @@
 
 package com.alibaba.himarket.dto.converter;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.bean.copier.CopyOptions;
+import java.beans.PropertyDescriptor;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
+import org.springframework.core.convert.support.DefaultConversionService;
 
 /**
  * Generic converter that converts a DTO into a domain object.
@@ -43,7 +46,9 @@ public interface InputConverter<D> {
 
         @SuppressWarnings("unchecked")
         Class<D> clazz = (Class<D>) currentType.getActualTypeArguments()[0];
-        return BeanUtil.copyProperties(this, clazz);
+        D domain = BeanUtils.instantiateClass(clazz);
+        copyProperties(this, domain, false);
+        return domain;
     }
 
     /**
@@ -84,6 +89,27 @@ public interface InputConverter<D> {
      * @param domain target domain object
      */
     default void update(D domain) {
-        BeanUtil.copyProperties(this, domain, CopyOptions.create().setIgnoreNullValue(true));
+        copyProperties(this, domain, true);
+    }
+
+    private static void copyProperties(Object source, Object target, boolean ignoreNull) {
+        BeanWrapper sourceWrapper = new BeanWrapperImpl(source);
+        BeanWrapper targetWrapper = new BeanWrapperImpl(target);
+        targetWrapper.setConversionService(DefaultConversionService.getSharedInstance());
+
+        for (PropertyDescriptor targetProperty : targetWrapper.getPropertyDescriptors()) {
+            String propertyName = targetProperty.getName();
+            if ("class".equals(propertyName)
+                    || !sourceWrapper.isReadableProperty(propertyName)
+                    || !targetWrapper.isWritableProperty(propertyName)) {
+                continue;
+            }
+
+            Object value = sourceWrapper.getPropertyValue(propertyName);
+            if (ignoreNull && value == null) {
+                continue;
+            }
+            targetWrapper.setPropertyValue(propertyName, value);
+        }
     }
 }

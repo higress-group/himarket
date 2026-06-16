@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.EnumUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -48,6 +46,7 @@ import com.alibaba.himarket.repository.GatewayRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.gateway.GatewayOperator;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.enums.APIGAPIType;
 import com.alibaba.himarket.support.enums.GatewayType;
@@ -107,10 +106,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                         gateway -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{} '{}' already exists",
-                                            Resources.GATEWAY,
-                                            param.getGatewayId()));
+                                    String.format(
+                                            "%s '%s' already exists",
+                                            Resources.GATEWAY, param.getGatewayId()));
                         });
 
         gatewayRepository
@@ -119,10 +117,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
                         gateway -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{} '{}' already exists",
-                                            Resources.GATEWAY,
-                                            param.getGatewayName()));
+                                    String.format(
+                                            "%s '%s' already exists",
+                                            Resources.GATEWAY, param.getGatewayName()));
                         });
 
         Gateway gateway = param.convertTo();
@@ -136,15 +133,15 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
     @Override
     public void updateGateway(String gatewayId, UpdateGatewayParam param) {
         Gateway gateway = findGateway(gatewayId);
-        if (!StrUtil.equals(gateway.getGatewayName(), param.getGatewayName())) {
+        if (!Strings.equals(gateway.getGatewayName(), param.getGatewayName())) {
             gatewayRepository
                     .findByGatewayName(param.getGatewayName())
                     .ifPresent(
                             g -> {
                                 throw new BusinessException(
                                         ErrorCode.CONFLICT,
-                                        StrUtil.format(
-                                                "Gateway name '{}' already exists",
+                                        String.format(
+                                                "Gateway name '%s' already exists",
                                                 param.getGatewayName()));
                             });
         }
@@ -186,13 +183,12 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         GatewayType gatewayType = gateway.getGatewayType();
 
         if (gatewayType.isAPIG()) {
-            APIGAPIType type = EnumUtil.fromString(APIGAPIType.class, apiType);
-            switch (type) {
-                case REST:
-                    return fetchRESTAPIs(gatewayId, page, size);
-                case HTTP:
-                    return fetchHTTPAPIs(gatewayId, page, size);
-                default:
+            APIGAPIType type = parseAPIGAPIType(apiType);
+            if (type == APIGAPIType.REST) {
+                return fetchRESTAPIs(gatewayId, page, size);
+            }
+            if (type == APIGAPIType.HTTP) {
+                return fetchHTTPAPIs(gatewayId, page, size);
             }
         }
 
@@ -372,7 +368,9 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
         if (gatewayOperator == null) {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "No gateway operator found for gateway type: " + gateway.getGatewayType());
+                    String.format(
+                            "No gateway operator found for gateway type: %s",
+                            gateway.getGatewayType()));
         }
         return gatewayOperator;
     }
@@ -396,11 +394,26 @@ public class GatewayServiceImpl implements GatewayService, ApplicationContextAwa
             }
 
             String adminId = contextHolder.getUser();
-            if (StrUtil.isNotBlank(adminId)) {
+            if (Strings.isNotBlank(adminId)) {
                 predicates.add(cb.equal(root.get("adminId"), adminId));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private APIGAPIType parseAPIGAPIType(String apiType) {
+        if (Strings.isBlank(apiType)) {
+            return null;
+        }
+
+        String normalizedApiType = apiType.trim();
+        for (APIGAPIType type : APIGAPIType.values()) {
+            if (type.name().equalsIgnoreCase(normalizedApiType)
+                    || type.getType().equalsIgnoreCase(normalizedApiType)) {
+                return type;
+            }
+        }
+        return null;
     }
 }

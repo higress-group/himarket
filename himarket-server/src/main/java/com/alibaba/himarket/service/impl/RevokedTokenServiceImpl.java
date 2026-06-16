@@ -19,11 +19,11 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.digest.DigestUtil;
+import com.alibaba.himarket.core.utils.HashUtils;
 import com.alibaba.himarket.entity.RevokedToken;
 import com.alibaba.himarket.repository.RevokedTokenRepository;
 import com.alibaba.himarket.service.RevokedTokenService;
+import com.alibaba.himarket.support.common.Strings;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Instant;
@@ -50,10 +50,10 @@ public class RevokedTokenServiceImpl implements RevokedTokenService {
 
     @Override
     public void revokeToken(String token, long expiresAtMillis) {
-        if (StrUtil.isBlank(token)) {
+        if (Strings.isBlank(token)) {
             return;
         }
-        String tokenHash = DigestUtil.sha256Hex(token);
+        String tokenHash = HashUtils.sha256Hex(token);
         LocalDateTime expiresAt =
                 LocalDateTime.ofInstant(
                         Instant.ofEpochMilli(expiresAtMillis), ZoneId.systemDefault());
@@ -66,10 +66,10 @@ public class RevokedTokenServiceImpl implements RevokedTokenService {
 
     @Override
     public boolean isTokenRevoked(String token) {
-        if (StrUtil.isBlank(token)) {
+        if (Strings.isBlank(token)) {
             return false;
         }
-        String tokenHash = DigestUtil.sha256Hex(token);
+        String tokenHash = HashUtils.sha256Hex(token);
 
         Boolean cached = revokedTokenCache.getIfPresent(tokenHash);
         if (cached != null) {
