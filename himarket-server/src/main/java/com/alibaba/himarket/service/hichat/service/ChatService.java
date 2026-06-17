@@ -92,10 +92,6 @@ public class ChatService {
 
     private final ConsumerService consumerService;
 
-    private final McpServerMetaRepository mcpServerMetaRepository;
-
-    private final McpServerEndpointRepository mcpServerEndpointRepository;
-
     public Flux<ChatEvent> chat(CreateChatParam param) {
         performAllChecks(param);
 

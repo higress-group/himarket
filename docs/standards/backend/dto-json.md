@@ -32,7 +32,7 @@ ProductResult result = new ProductResult().convertFrom(product);
 // Collection conversion
 List<ProductResult> results = page.stream()
         .map(product -> new ProductResult().convertFrom(product))
-        .collect(Collectors.toList());
+        .toList();
 
 // Optional with map
 return productRefRepository

@@ -88,17 +88,55 @@ private String name;
 Use `@Slf4j` with `{}` placeholders. Place the exception object as the last argument:
 
 ```java
-// Info -- operation completed
-log.info("Auto-sync product ref: {} successfully completed", productId);
-
-// Warn -- non-critical issues
-log.warn("Failed to parse modelConfig for product: {}", productRef.getProductId(), e);
-
-// Error -- failures with exception
-log.error("Failed to get portal: {}", publication.getPortalId(), e);
+log.error(
+        "Failed to update product source, productId={}, errorType={}, errorMessage={}",
+        productId,
+        e.getClass().getSimpleName(),
+        e.getMessage(),
+        e);
 ```
 
-Keep log messages concise and meaningful.
+Keep log messages concise, meaningful, and stable. Use natural English sentences rather than
+message-code style strings.
+
+**Rules:**
+
+- Use SLF4J placeholders; do not build log messages with string concatenation.
+- Include stable identifiers and state that help troubleshooting, such as `productId`, `gatewayId`,
+  `operation`, `status`, `errorType`, and `errorMessage`.
+- For external dependency calls, include `dependency`, `operation`, and status or result fields
+  when available.
+- Keep the exception object as the final argument when logging failures.
+- Use `debug` for detailed diagnostic flow, `info` for important state transitions, `warn` for
+  recoverable failures, and `error` for failed operations that need attention.
+- Do not log secrets or credential payloads. Non-secret values that are useful for troubleshooting
+  should remain visible rather than being replaced with lossy derived values.
+- Do not use `System.out`, `System.err`, or `printStackTrace`.
+
+```java
+log.warn(
+        "Gateway request returned non-success status, dependency=Higress, operation=createRoute,"
+                + " gatewayId={}, status={}, errorMessage={}",
+        gatewayId,
+        response.getStatusCode(),
+        response.getBody());
+```
+
+```java
+log.info(
+        "Product configuration reload requested, productId={}, sourceType={}",
+        productId,
+        sourceType);
+```
+
+Avoid these patterns:
+
+```java
+log.error("Failed to update product source: " + productId, e);
+log.warn("product.config.parse.failed, productId={}", productId);
+log.error("Failed to update product source, productId={}, errorMessage={}",
+        productId, e.getMessage());
+```
 
 ---
 

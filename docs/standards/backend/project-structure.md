@@ -168,6 +168,7 @@ public class ProductServiceImpl implements ProductService {
 @RequestMapping("/products")
 @Slf4j
 @RequiredArgsConstructor
+@Validated
 public class ProductController {
 
     private final ProductService productService;
@@ -187,6 +188,60 @@ public class ProductController {
   framework APIs, or when mutation is clearer than rebuilding the object.
 - Use `@Builder.Default` for fields with default values.
 - Entity classes extending `BaseEntity` add `@EqualsAndHashCode(callSuper = true)`.
+
+---
+
+
+## Annotation Order
+
+Keep class-level annotations grouped in a stable order so the framework role, route or persistence
+metadata, and Lombok-generated behavior are easy to scan.
+
+**Controller classes:**
+
+```java
+@Tag(...)
+@RestController
+@RequestMapping("/products")
+@Slf4j
+@RequiredArgsConstructor
+@Validated
+public class ProductController {
+}
+```
+
+**Service classes:**
+
+```java
+@Service
+@Slf4j
+@RequiredArgsConstructor
+@Transactional
+public class ProductServiceImpl implements ProductService {
+}
+```
+
+**Entity classes:**
+
+```java
+@Entity
+@Table(name = "product")
+@Data
+@EqualsAndHashCode(callSuper = true)
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Product extends BaseEntity {
+}
+```
+
+**Rules:**
+
+- Put framework and domain metadata first, then Lombok annotations.
+- Keep `@Tag` before `@RestController` so OpenAPI grouping is visible before the web role.
+- Put `@Transactional` at the end of service class annotations when using a class-level boundary.
+- Do not repeatedly reorder annotations for style-only reasons once a class follows the project
+  pattern.
 
 ---
 
@@ -214,46 +269,149 @@ public class ProductServiceImpl implements ProductService {
 ---
 
 
+## Imports
+
+Use explicit imports so dependency boundaries remain visible during review.
+
+**Rules:**
+
+- Do not use wildcard imports.
+- Explicitly import third-party SDK model classes instead of hiding them behind wildcard imports.
+- Do not introduce unused imports; run Spotless before submitting backend changes.
+
+---
+
+
 ## Optional and Stream
 
-### Optional patterns
+### Optional rules
+
+Use `Optional` only to express an absent value at a boundary.
+
+**Recommended: Repository lookup boundary**
 
 ```java
-// orElseThrow for mandatory lookups
 Product product = productRepository
         .findByProductIdAndAdminId(productId, contextHolder.getAdmin())
         .orElseThrow(() -> new BusinessException(
                 ErrorCode.NOT_FOUND, Resources.PRODUCT, productId));
-
-// ifPresent for conditional logic
-productRefRepository.findByProductId(productId)
-        .ifPresent(ref -> { ... });
-
-// map for transformation
-return productRefRepository.findFirstByProductId(productId)
-        .map(ref -> new ProductRefResult().convertFrom(ref))
-        .orElse(null);
 ```
 
-### Stream patterns
+**Recommended: short default chain**
 
 ```java
-// map + collect for list transformation
-List<ProductResult> results = page.stream()
-        .map(product -> new ProductResult().convertFrom(product))
-        .collect(Collectors.toList());
-
-// toMap for lookup maps
-Map<String, ProductRef> productRefMap = productRefRepository
-        .findByProductIdIn(productIds).stream()
-        .collect(Collectors.toMap(ProductRef::getProductId, ref -> ref));
-
-// filter for conditional collection
-List<String> notFoundIds = productIds.stream()
-        .filter(id -> !existedIds.contains(id))
-        .collect(Collectors.toList());
+String protocol = Optional.ofNullable(meta)
+        .map(McpMetadata::getProtocol)
+        .orElse("SSE");
 ```
 
-Do not over-chain streams to the point where readability suffers.
+Do not use `Optional` for fields, method parameters, collection wrappers, or multi-step business
+flows.
+
+```java
+// Avoid hiding parsing and side effects inside Optional chains.
+Optional.ofNullable(productRef)
+        .map(ProductRef::getMcpConfig)
+        .map(config -> JsonUtil.parse(config, McpConfigResult.class))
+        .ifPresent(config -> syncTools(config));
+```
+
+Use explicit branches for business flow:
+
+```java
+if (productRef == null || Strings.isBlank(productRef.getMcpConfig())) {
+    return;
+}
+
+McpConfigResult mcpConfig = JsonUtil.parse(productRef.getMcpConfig(), McpConfigResult.class);
+if (mcpConfig == null) {
+    return;
+}
+
+syncTools(mcpConfig);
+```
+
+### Stream rules
+
+Use streams for simple, linear, side-effect-free collection transformations.
+
+```java
+List<ProductResult> results = page.stream()
+        .map(product -> new ProductResult().convertFrom(product))
+        .toList();
+```
+
+```java
+Map<String, ProductRef> productRefMap = productRefs.stream()
+        .collect(Collectors.toMap(ProductRef::getProductId, Function.identity()));
+```
+
+When the collected list must be mutable, make the mutability explicit:
+
+```java
+List<ProductResult> results = new ArrayList<>(page.stream()
+        .map(product -> new ProductResult().convertFrom(product))
+        .toList());
+```
+
+Do not use stream pipelines for business flows that mix lookup, external calls, logging,
+exception handling, or mutable assembly.
+
+```java
+// Avoid mixing database checks, logging, external calls, and mapping in one stream.
+List<Result> results = products.stream()
+        .filter(product -> repository.existsByProductId(product.getProductId()))
+        .map(product -> {
+            log.info("Processing product, productId={}", product.getProductId());
+            return buildResult(product, gatewayClient.fetch(product.getProductId()));
+        })
+        .filter(Objects::nonNull)
+        .toList();
+```
+
+Use an explicit loop instead:
+
+```java
+List<Result> results = new ArrayList<>();
+for (Product product : products) {
+    if (!repository.existsByProductId(product.getProductId())) {
+        continue;
+    }
+
+    GatewayConfig config = gatewayClient.fetch(product.getProductId());
+    Result result = buildResult(product, config);
+    if (result != null) {
+        results.add(result);
+    }
+}
+```
+
+Break complex collectors into named steps and loops when the collector hides conditional mapping or
+intermediate state that may need debugging.
+
+---
+
+
+## Utilities and Readability
+
+Prefer the JDK, Spring utilities, and existing project helpers over adding general-purpose utility
+dependencies.
+
+**Rules:**
+
+- Use `Strings` for common string checks and equality helpers.
+- Keep `Strings` small. Do not add formatting, joining, collection, or business-specific helpers to
+  it.
+- Use JDK `Base64`, `StandardCharsets`, `UUID`, and collection APIs for basic platform features.
+- Use Spring helpers such as `CollectionUtils` and `DigestUtils` when they directly match the need.
+- Use `JsonUtil` as the JSON entry point for application code.
+- Use `IdGenerator` for generated business IDs.
+- Prefer explicit mapping over broad bean-copy helpers unless the copy semantics are well defined.
+- Do not add Hutool, Guava, or Apache Commons as broad replacements for basic JDK or Spring
+  functionality.
+
+Do not extract private methods just to make a method look short. Prefer clear local variables and
+explicit branches first. Extract a method only when the logic is reused, the name adds meaningful
+domain language, or the extraction significantly reduces complexity.
 
 ---
