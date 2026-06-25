@@ -18,8 +18,6 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface SkillService {
 
-    // ==================== Product-based operations ====================
-
     /**
      * Uploads a ZIP package and creates a new draft for the given product.
      * On first upload, creates the Skill from ZIP (draft v1).
@@ -124,8 +122,6 @@ public interface SkillService {
      */
     void downloadPackage(String productId, String version, HttpServletResponse response)
             throws IOException;
-
-    // ==================== Direct Nacos operations ====================
 
     /**
      * Queries Skill detail via SDK getSkillVersionDetail().

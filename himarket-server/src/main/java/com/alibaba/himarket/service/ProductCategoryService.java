@@ -33,17 +33,17 @@ public interface ProductCategoryService {
     /**
      * Create a product category.
      *
-     * @param param
-     * @return
+     * @param param product category creation parameters
+     * @return created product category information
      */
     ProductCategoryResult createProductCategory(CreateProductCategoryParam param);
 
     /**
      * List all product categories.
      *
-     * @param param
-     * @param pageable
-     * @return
+     * @param param product category query parameters
+     * @param pageable pagination parameters
+     * @return paged product category results
      */
     PageResult<ProductCategoryResult> listProductCategories(
             QueryProductCategoryParam param, Pageable pageable);
@@ -51,24 +51,24 @@ public interface ProductCategoryService {
     /**
      * Delete a product category.
      *
-     * @param categoryId
+     * @param categoryId product category ID
      */
     void deleteProductCategory(String categoryId);
 
     /**
      * Get the detailed information of a product category.
      *
-     * @param categoryId
-     * @return
+     * @param categoryId product category ID
+     * @return product category information
      */
     ProductCategoryResult getProductCategory(String categoryId);
 
     /**
      * Update a product category.
      *
-     * @param categoryId
-     * @param param
-     * @return
+     * @param categoryId product category ID
+     * @param param product category update parameters
+     * @return updated product category information
      */
     ProductCategoryResult updateProductCategory(
             String categoryId, UpdateProductCategoryParam param);
@@ -76,47 +76,47 @@ public interface ProductCategoryService {
     /**
      * List all product categories for a product.
      *
-     * @param productId
-     * @return
+     * @param productId product ID
+     * @return product category results
      */
     List<ProductCategoryResult> listCategoriesForProduct(String productId);
 
     /**
      * List all product categories for multiple products.
      *
-     * @param productIds the list of product IDs
-     * @return Map of productId to list of categories
+     * @param productIds product IDs
+     * @return map from product ID to product category results
      */
     Map<String, List<ProductCategoryResult>> listCategoriesForProducts(List<String> productIds);
 
     /**
      * Bind product categories to a product.
      *
-     * @param productId
-     * @param categoryIds
+     * @param productId product ID
+     * @param categoryIds product category IDs
      */
     void bindProductCategories(String productId, List<String> categoryIds);
 
     /**
      * Unbind all product categories from a product.
      *
-     * @param productId
+     * @param productId product ID
      */
     void unbindAllProductCategories(String productId);
 
     /**
      * Unbind products from a category.
      *
-     * @param productIds
-     * @param categoryId
+     * @param productIds product IDs
+     * @param categoryId product category ID
      */
     void unbindProductsFromCategory(List<String> productIds, String categoryId);
 
     /**
      * Bind products to a category.
      *
-     * @param categoryId
-     * @param productIds
+     * @param categoryId product category ID
+     * @param productIds product IDs
      */
     void bindProductsToCategory(String categoryId, List<String> productIds);
 }

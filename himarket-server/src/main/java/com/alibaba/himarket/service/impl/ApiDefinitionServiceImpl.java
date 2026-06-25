@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -37,6 +36,7 @@ import com.alibaba.himarket.repository.ApiDefinitionRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.ApiDefinitionService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ApiStatus;
 import com.alibaba.himarket.support.enums.ApiType;
 import com.alibaba.himarket.support.enums.ProductStatus;
@@ -72,7 +72,7 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
         apiDefinitionRepository.save(definition);
 
         // Bind product if relatedProductId is provided
-        if (StrUtil.isNotBlank(param.getRelatedProductId())) {
+        if (Strings.isNotBlank(param.getRelatedProductId())) {
             bindApiDefinitionToProduct(param.getRelatedProductId(), definition);
         }
 
@@ -133,7 +133,7 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
                 .ifPresent(productRefRepository::delete);
 
         apiDefinitionRepository.delete(definition);
-        log.info("Deleted API Definition: {}", apiDefinitionId);
+        log.info("Deleted API Definition, apiDefinitionId={}", apiDefinitionId);
     }
 
     private ApiDefinition findApiDefinition(String apiDefinitionId) {
@@ -168,7 +168,7 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
 
-            if (StrUtil.isNotBlank(param.getKeyword())) {
+            if (Strings.isNotBlank(param.getKeyword())) {
                 predicates.add(cb.like(root.get("name"), "%" + param.getKeyword() + "%"));
             }
 
@@ -181,8 +181,8 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
         if (definition.getType() != ApiType.MCP_SERVER) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    StrUtil.format(
-                            "Binding product is only supported for MCP_SERVER type, got: {}",
+                    String.format(
+                            "Binding product is only supported for MCP_SERVER type; actualType=%s",
                             definition.getType()));
         }
 
@@ -190,10 +190,9 @@ public class ApiDefinitionServiceImpl implements ApiDefinitionService {
         if (product.getType() != definition.getType().toProductType()) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    StrUtil.format(
-                            "Product type {} does not match API Definition type {}",
-                            product.getType(),
-                            definition.getType()));
+                    String.format(
+                            "Product type %s does not match API Definition type %s",
+                            product.getType(), definition.getType()));
         }
 
         // Make sure product is not already linked to another API

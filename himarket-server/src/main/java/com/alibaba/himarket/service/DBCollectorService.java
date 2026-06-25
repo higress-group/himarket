@@ -22,14 +22,16 @@ package com.alibaba.himarket.service;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryRequest;
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
 
-/** DBCollector 日志查询服务（基于数据库存储的 access_logs） */
+/**
+ * DBCollector log query service backed by the access_logs database table.
+ */
 public interface DBCollectorService {
 
     /**
-     * 执行通用 SQL 查询（面向 access_logs 的场景化统计查询）
+     * Executes a scenario statistics query against access_logs.
      *
-     * @param request 查询请求
-     * @return 查询结果
+     * @param request query request
+     * @return query response
      */
     GenericSlsQueryResponse executeQuery(GenericSlsQueryRequest request);
 }

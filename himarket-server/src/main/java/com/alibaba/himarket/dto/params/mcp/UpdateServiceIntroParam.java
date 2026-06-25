@@ -23,11 +23,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** 更新 MCP Server 服务介绍参数。 */
+/**
+ * Parameters for updating an MCP Server service introduction.
+ */
 @Data
 public class UpdateServiceIntroParam {
 
-    @NotBlank(message = "服务介绍不能为空")
-    @Size(max = 65535, message = "服务介绍内容过长")
+    @NotBlank(message = "Service introduction is required")
+    @Size(max = 65535, message = "Service introduction is too long")
     private String serviceIntro;
 }

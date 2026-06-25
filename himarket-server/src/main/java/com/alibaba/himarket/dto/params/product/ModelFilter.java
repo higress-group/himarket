@@ -19,8 +19,8 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
+import com.alibaba.himarket.support.common.Strings;
 import lombok.Data;
 
 @Data
@@ -42,7 +42,7 @@ public class ModelFilter {
             return false;
         }
 
-        return StrUtil.equalsIgnoreCase(
+        return Strings.equalsIgnoreCase(
                 category, configResult.getModelAPIConfig().getModelCategory());
     }
 }

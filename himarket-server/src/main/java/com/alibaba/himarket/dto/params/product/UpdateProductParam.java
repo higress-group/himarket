@@ -19,13 +19,14 @@
 
 package com.alibaba.himarket.dto.params.product;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.Icon;
 import com.alibaba.himarket.support.product.ProductFeature;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.Data;
 
@@ -46,13 +47,13 @@ public class UpdateProductParam implements InputConverter<Product> {
 
     private Boolean autoApprove;
 
-    private List<String> categories;
+    private List<@NotBlank(message = "Category ID cannot be blank") String> categories;
 
     private ProductFeature feature;
 
     @AssertTrue(message = "Icon size cannot exceed 16KB")
     public boolean checkIcon() {
-        if (icon == null || StrUtil.isBlank(icon.getValue())) {
+        if (icon == null || Strings.isBlank(icon.getValue())) {
             return true;
         }
         return icon.getValue().length() < 16 * 1024;

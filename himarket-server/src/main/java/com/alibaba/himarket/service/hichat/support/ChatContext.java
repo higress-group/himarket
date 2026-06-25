@@ -68,7 +68,7 @@ public class ChatContext {
     public void recordFirstByteTimeout() {
         if (firstByteTimeout == null && startTime != null) {
             firstByteTimeout = System.currentTimeMillis() - startTime;
-            log.debug("First byte received after {} ms", firstByteTimeout);
+            log.debug("First byte received, elapsedMillis={}", firstByteTimeout);
         }
     }
 
@@ -84,7 +84,7 @@ public class ChatContext {
 
         if (usage != null) {
             usage.setElapsedTime(elapsedTime);
-            log.debug("Total elapsed time: {} ms", elapsedTime);
+            log.debug("Chat completed, elapsedMillis={}", elapsedTime);
 
             if (firstByteTimeout != null) {
                 usage.setFirstByteTimeout(firstByteTimeout);
@@ -147,7 +147,10 @@ public class ChatContext {
                 // Mark as failed
                 this.success = false;
                 if (event.getMessage() != null) {
-                    answerContent.append("\n[Error: ").append(event.getMessage()).append("]");
+                    answerContent
+                            .append("\n[Request failed. Reason: ")
+                            .append(event.getMessage())
+                            .append("]");
                 }
                 break;
 

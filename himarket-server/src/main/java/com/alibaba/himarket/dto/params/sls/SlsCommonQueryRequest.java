@@ -26,33 +26,49 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-/** SLS通用SQL查询请求 */
+/**
+ * Common SLS SQL query request.
+ */
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class SlsCommonQueryRequest {
 
-    /** 用户ID（仅当配置为STS认证时需要） 此字段由Controller层从上下文获取并设置，前端不应传入 */
+    /**
+     * User ID populated by the controller when STS authentication is enabled.
+     */
     @JsonIgnore private String userId;
 
-    /** 开始时间（Unix时间戳，秒） */
-    @NotNull(message = "FromTime cannot be null")
+    /**
+     * Start time as a Unix timestamp in seconds.
+     */
+    @NotNull(message = "From time cannot be null")
     private Integer fromTime;
 
-    /** 结束时间（Unix时间戳，秒） */
-    @NotNull(message = "ToTime cannot be null")
+    /**
+     * End time as a Unix timestamp in seconds.
+     */
+    @NotNull(message = "To time cannot be null")
     private Integer toTime;
 
-    /** 开始时间（字符串：yyyy-MM-dd HH:mm:ss，可选） */
+    /**
+     * Optional start time string in yyyy-MM-dd HH:mm:ss format.
+     */
     private String startTime;
 
-    /** 结束时间（字符串：yyyy-MM-dd HH:mm:ss，可选） */
+    /**
+     * Optional end time string in yyyy-MM-dd HH:mm:ss format.
+     */
     private String endTime;
 
-    /** SQL查询语句 */
+    /**
+     * SQL query text.
+     */
     @NotNull(message = "SQL cannot be null")
     private String sql;
 
-    /** 单页返回条数（默认1000，上限5000） */
+    /**
+     * Page size, defaulting to 1000 with a maximum of 5000.
+     */
     @Min(1)
     @Max(5000)
     private Integer pageSize;

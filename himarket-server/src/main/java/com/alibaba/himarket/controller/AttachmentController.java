@@ -40,8 +40,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Tag(name = "Chat Attachment Management", description = "Chat attachment upload and retrieval APIs")
 @RestController
 @RequestMapping("/attachments")
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 @AdminOrDeveloperAuth
 public class AttachmentController {
 

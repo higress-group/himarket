@@ -10,10 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 将配置文件注入到沙箱内部。
+ * Injects configuration files into the sandbox.
  *
- * <p>逐个 writeFile 注入配置文件。Skill 文件改由 nacos-cli 在沙箱内下载，
- * 剩余配置文件数量很少，无需压缩解压。
+ * <p>Injects configuration files one by one through writeFile. Skill files are downloaded inside
+ * the sandbox by nacos-cli, so the remaining configuration files are small enough to avoid archive
+ * packaging.
  */
 public class ConfigInjectionPhase implements InitPhase {
 
@@ -21,12 +22,16 @@ public class ConfigInjectionPhase implements InitPhase {
 
     private final ConfigFileBuilder configFileBuilder;
 
-    /** 无参构造函数，保持向后兼容。 */
+    /**
+     * No-arg constructor kept for backward compatibility.
+     */
     public ConfigInjectionPhase() {
         this.configFileBuilder = null;
     }
 
-    /** 带 ConfigFileBuilder 的构造函数，支持从 ResolvedSessionConfig 动态生成配置文件。 */
+    /**
+     * Constructor with ConfigFileBuilder for dynamic config generation from ResolvedSessionConfig.
+     */
     public ConfigInjectionPhase(ConfigFileBuilder configFileBuilder) {
         this.configFileBuilder = configFileBuilder;
     }
@@ -52,7 +57,7 @@ public class ConfigInjectionPhase implements InitPhase {
     public void execute(InitContext context) throws InitPhaseException {
         List<ConfigFile> pendingConfigs = context.getInjectedConfigs();
 
-        // 如果 injectedConfigs 未被外部预填充，尝试从 resolvedSessionConfig 动态生成
+        // Generate configs from resolvedSessionConfig when injectedConfigs was not prefilled.
         if ((pendingConfigs == null || pendingConfigs.isEmpty())
                 && configFileBuilder != null
                 && context.getResolvedSessionConfig() != null) {
@@ -66,7 +71,7 @@ public class ConfigInjectionPhase implements InitPhase {
         }
 
         if (pendingConfigs == null || pendingConfigs.isEmpty()) {
-            logger.info("[ConfigInjection] 无配置文件需要注入");
+            logger.info("No configuration files to inject");
             return;
         }
 
@@ -77,23 +82,30 @@ public class ConfigInjectionPhase implements InitPhase {
             for (ConfigFile config : pendingConfigs) {
                 provider.writeFile(info, config.relativePath(), config.content());
             }
-            logger.info("[ConfigInjection] 逐个写入完成: {} 个文件已注入", pendingConfigs.size());
+            logger.info(
+                    "Configuration files written individually, fileCount={}",
+                    pendingConfigs.size());
 
-            // 统计各类型文件数量
+            // Count files by type for diagnostics.
             long skillCount = pendingConfigs.stream().filter(c -> "skill".equals(c.type())).count();
             long mcpCount = pendingConfigs.stream().filter(c -> "mcp".equals(c.type())).count();
             long modelCount = pendingConfigs.stream().filter(c -> "model".equals(c.type())).count();
             long otherCount = pendingConfigs.size() - skillCount - mcpCount - modelCount;
 
             logger.info(
-                    "[ConfigInjection] 配置注入完成: 共 {} 个文件 (skill={}, mcp={}, model={}, other={})",
+                    "Configuration injection completed, totalFileCount={}, skillCount={},"
+                            + " mcpCount={}, modelCount={}, otherCount={}",
                     pendingConfigs.size(),
                     skillCount,
                     mcpCount,
                     modelCount,
                     otherCount);
         } catch (IOException e) {
-            throw new InitPhaseException("config-injection", "配置注入失败: " + e.getMessage(), e, true);
+            throw new InitPhaseException(
+                    "config-injection",
+                    "Failed to inject configuration: " + e.getMessage(),
+                    e,
+                    true);
         }
     }
 

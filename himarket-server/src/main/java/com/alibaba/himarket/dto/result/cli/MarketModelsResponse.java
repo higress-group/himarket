@@ -26,9 +26,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class MarketModelsResponse {
 
     private List<MarketModelInfo> models;

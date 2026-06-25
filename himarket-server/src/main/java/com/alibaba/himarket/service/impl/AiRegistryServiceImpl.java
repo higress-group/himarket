@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -34,9 +33,9 @@ import com.alibaba.himarket.repository.AiRegistryInstanceRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.AiRegistrySkillService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -91,10 +90,9 @@ public class AiRegistryServiceImpl implements AiRegistryService {
                         instance -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{}:{} already exists",
-                                            AIREGISTRY_RESOURCE,
-                                            param.getName()));
+                                    AIREGISTRY_RESOURCE
+                                            + " already exists, name="
+                                            + param.getName());
                         });
 
         AiRegistryInstance instance = param.convertTo();
@@ -104,7 +102,7 @@ public class AiRegistryServiceImpl implements AiRegistryService {
             instance.setIsDefault(true);
         }
         aiRegistryInstanceRepository.save(instance);
-        log.info("Created AIRegistry config {}", instance.getAiRegistryId());
+        log.info("Created AIRegistry config, aiRegistryId={}", instance.getAiRegistryId());
     }
 
     @Override
@@ -112,21 +110,18 @@ public class AiRegistryServiceImpl implements AiRegistryService {
     public void updateAiRegistryInstance(String airegistryId, UpdateAiRegistryParam param) {
         normalize(param);
         AiRegistryInstance instance = findAiRegistryInstance(airegistryId);
-        Optional.ofNullable(param.getName())
-                .filter(name -> !name.equals(instance.getName()))
-                .flatMap(
-                        name ->
-                                aiRegistryInstanceRepository.findByNameAndAdminId(
-                                        name, currentAdmin()))
-                .ifPresent(
-                        conflict -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{}:{} already exists",
-                                            AIREGISTRY_RESOURCE,
-                                            param.getName()));
-                        });
+        String requestedName = param.getName();
+        if (requestedName != null && !requestedName.equals(instance.getName())) {
+            AiRegistryInstance existingInstance =
+                    aiRegistryInstanceRepository
+                            .findByNameAndAdminId(requestedName, currentAdmin())
+                            .orElse(null);
+            if (existingInstance != null) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT,
+                        AIREGISTRY_RESOURCE + " already exists, name=" + requestedName);
+            }
+        }
         param.update(instance);
         aiRegistryInstanceRepository.saveAndFlush(instance);
     }
@@ -144,9 +139,7 @@ public class AiRegistryServiceImpl implements AiRegistryService {
         if (referencedCount > 0) {
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
-                    StrUtil.format(
-                            "AIRegistry config is referenced by {} skill product(s)",
-                            referencedCount));
+                    "AIRegistry config is referenced by " + referencedCount + " skill product(s)");
         }
         aiRegistryInstanceRepository.delete(instance);
     }
@@ -164,7 +157,7 @@ public class AiRegistryServiceImpl implements AiRegistryService {
                             defaultInstance.setIsDefault(false);
                             aiRegistryInstanceRepository.save(defaultInstance);
                         });
-        if (StrUtil.isNotBlank(namespaceId)) {
+        if (Strings.isNotBlank(namespaceId)) {
             instance.setNamespaceId(namespaceId);
         }
         instance.setIsDefault(true);
@@ -174,7 +167,7 @@ public class AiRegistryServiceImpl implements AiRegistryService {
     @Override
     public void validateAiRegistry(String airegistryId, String namespaceId) {
         AiRegistryInstance instance = findAiRegistryInstance(airegistryId);
-        String targetNamespace = StrUtil.blankToDefault(namespaceId, instance.getNamespaceId());
+        String targetNamespace = Strings.blankToDefault(namespaceId, instance.getNamespaceId());
         aiRegistrySkillService.validateNamespace(airegistryId, targetNamespace);
     }
 
@@ -231,7 +224,7 @@ public class AiRegistryServiceImpl implements AiRegistryService {
     }
 
     private String trimToNull(String value) {
-        String trimmed = StrUtil.trim(value);
-        return StrUtil.isBlank(trimmed) ? null : trimmed;
+        String trimmed = value == null ? null : value.trim();
+        return Strings.isBlank(trimmed) ? null : trimmed;
     }
 }

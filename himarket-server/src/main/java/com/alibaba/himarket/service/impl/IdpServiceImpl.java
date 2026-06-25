@@ -19,16 +19,19 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.IdpConstants;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.service.IdpService;
 import com.alibaba.himarket.service.gateway.factory.HTTPClientFactory;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.GrantType;
 import com.alibaba.himarket.support.enums.PublicKeyFormat;
-import com.alibaba.himarket.support.portal.*;
+import com.alibaba.himarket.support.portal.AuthCodeConfig;
+import com.alibaba.himarket.support.portal.JwtBearerConfig;
+import com.alibaba.himarket.support.portal.OAuth2Config;
+import com.alibaba.himarket.support.portal.OidcConfig;
+import com.alibaba.himarket.support.portal.PublicKeyConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigInteger;
@@ -36,24 +39,28 @@ import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class IdpServiceImpl implements IdpService {
 
     private final RestTemplate restTemplate = HTTPClientFactory.createRestTemplate();
 
     @Override
     public void validateOidcConfigs(List<OidcConfig> oidcConfigs) {
-        if (CollUtil.isEmpty(oidcConfigs)) {
+        if (CollectionUtils.isEmpty(oidcConfigs)) {
             return;
         }
 
@@ -61,52 +68,47 @@ public class IdpServiceImpl implements IdpService {
         Set<String> providers =
                 oidcConfigs.stream()
                         .map(OidcConfig::getProvider)
-                        .filter(StrUtil::isNotBlank)
+                        .filter(Strings::isNotBlank)
                         .collect(Collectors.toSet());
         if (providers.size() != oidcConfigs.size()) {
             throw new BusinessException(
                     ErrorCode.CONFLICT, "Empty or duplicate provider in OIDC config");
         }
 
-        oidcConfigs.forEach(
-                config -> {
-                    AuthCodeConfig authConfig =
-                            Optional.ofNullable(config.getAuthCodeConfig())
-                                    .orElseThrow(
-                                            () ->
-                                                    new BusinessException(
-                                                            ErrorCode.INVALID_PARAMETER,
-                                                            StrUtil.format(
-                                                                    "OIDC config {} missing auth"
-                                                                            + " code config",
-                                                                    config.getProvider())));
-                    // Basic parameters
-                    if (StrUtil.isBlank(authConfig.getClientId())
-                            || StrUtil.isBlank(authConfig.getClientSecret())
-                            || StrUtil.isBlank(authConfig.getScopes())) {
-                        throw new BusinessException(
-                                ErrorCode.INVALID_PARAMETER,
-                                StrUtil.format(
-                                        "OIDC config {} missing required params: Client ID, Client"
-                                                + " Secret or Scopes",
-                                        config.getProvider()));
-                    }
+        for (OidcConfig config : oidcConfigs) {
+            AuthCodeConfig authConfig = config.getAuthCodeConfig();
+            if (authConfig == null) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        "OIDC config " + config.getProvider() + " missing auth code config");
+            }
 
-                    // Endpoint configuration
-                    if (StrUtil.isNotBlank(authConfig.getIssuer())) {
-                        discoverAndSetEndpoints(config.getProvider(), authConfig);
-                    } else {
-                        if (StrUtil.isBlank(authConfig.getAuthorizationEndpoint())
-                                || StrUtil.isBlank(authConfig.getTokenEndpoint())
-                                || StrUtil.isBlank(authConfig.getUserInfoEndpoint())) {
-                            throw new BusinessException(
-                                    ErrorCode.INVALID_PARAMETER,
-                                    StrUtil.format(
-                                            "OIDC config {} missing required endpoint config",
-                                            config.getProvider()));
-                        }
-                    }
-                });
+            // Basic parameters
+            if (Strings.isBlank(authConfig.getClientId())
+                    || Strings.isBlank(authConfig.getClientSecret())
+                    || Strings.isBlank(authConfig.getScopes())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        "OIDC config "
+                                + config.getProvider()
+                                + " missing required params: Client ID, Client Secret or Scopes");
+            }
+
+            // Endpoint configuration
+            if (Strings.isNotBlank(authConfig.getIssuer())) {
+                discoverAndSetEndpoints(config.getProvider(), authConfig);
+            } else {
+                if (Strings.isBlank(authConfig.getAuthorizationEndpoint())
+                        || Strings.isBlank(authConfig.getTokenEndpoint())
+                        || Strings.isBlank(authConfig.getUserInfoEndpoint())) {
+                    throw new BusinessException(
+                            ErrorCode.INVALID_PARAMETER,
+                            "OIDC config "
+                                    + config.getProvider()
+                                    + " missing required endpoint config");
+                }
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -128,27 +130,30 @@ public class IdpServiceImpl implements IdpService {
             config.setTokenEndpoint(tokenEndpoint);
             config.setUserInfoEndpoint(userInfoEndpoint);
         } catch (Exception e) {
-            log.error("Failed to discover OIDC endpoints from discovery URL: {}", discoveryUrl, e);
+            log.error(
+                    "Failed to discover OIDC endpoints, discoveryUrl={}, errorMessage={}",
+                    discoveryUrl,
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
-                    StrUtil.format("OIDC config {} issuer is invalid or unreachable", provider));
+                    "OIDC config " + provider + " issuer is invalid or unreachable");
         }
     }
 
     private String getRequiredEndpoint(Map<String, Object> discovery, String name) {
-        return Optional.ofNullable(discovery.get(name))
-                .map(Object::toString)
-                .filter(StrUtil::isNotBlank)
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        ErrorCode.INVALID_PARAMETER,
-                                        "Missing endpoint in OIDC discovery config: " + name));
+        Object endpoint = discovery.get(name);
+        if (endpoint == null || Strings.isBlank(endpoint.toString())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
+                    "Missing endpoint in OIDC discovery config: " + name);
+        }
+        return endpoint.toString();
     }
 
     @Override
     public void validateOAuth2Configs(List<OAuth2Config> oauth2Configs) {
-        if (CollUtil.isEmpty(oauth2Configs)) {
+        if (CollectionUtils.isEmpty(oauth2Configs)) {
             return;
         }
 
@@ -156,19 +161,18 @@ public class IdpServiceImpl implements IdpService {
         Set<String> providers =
                 oauth2Configs.stream()
                         .map(OAuth2Config::getProvider)
-                        .filter(StrUtil::isNotBlank)
+                        .filter(Strings::isNotBlank)
                         .collect(Collectors.toSet());
         if (providers.size() != oauth2Configs.size()) {
             throw new BusinessException(
                     ErrorCode.CONFLICT, "Empty or duplicate provider in OAuth2 config");
         }
 
-        oauth2Configs.forEach(
-                config -> {
-                    if (GrantType.JWT_BEARER.equals(config.getGrantType())) {
-                        validateJwtBearerConfig(config);
-                    }
-                });
+        for (OAuth2Config config : oauth2Configs) {
+            if (GrantType.JWT_BEARER.equals(config.getGrantType())) {
+                validateJwtBearerConfig(config);
+            }
+        }
     }
 
     private void validateJwtBearerConfig(OAuth2Config config) {
@@ -176,17 +180,16 @@ public class IdpServiceImpl implements IdpService {
         if (jwtBearerConfig == null) {
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
-                    StrUtil.format(
-                            "OAuth2 config {} uses JWT bearer but missing JWT bearer config",
-                            config.getProvider()));
+                    "OAuth2 config "
+                            + config.getProvider()
+                            + " uses JWT bearer but missing JWT bearer config");
         }
 
         List<PublicKeyConfig> publicKeys = jwtBearerConfig.getPublicKeys();
-        if (CollUtil.isEmpty(publicKeys)) {
+        if (CollectionUtils.isEmpty(publicKeys)) {
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER,
-                    StrUtil.format(
-                            "OAuth2 config {} missing public key config", config.getProvider()));
+                    "OAuth2 config " + config.getProvider() + " missing public key config");
         }
 
         if (publicKeys.stream()
@@ -201,8 +204,7 @@ public class IdpServiceImpl implements IdpService {
                 != publicKeys.size()) {
             throw new BusinessException(
                     ErrorCode.CONFLICT,
-                    StrUtil.format(
-                            "OAuth2 config {} has duplicate public key IDs", config.getProvider()));
+                    "OAuth2 config " + config.getProvider() + " has duplicate public key IDs");
         }
     }
 
@@ -229,7 +231,7 @@ public class IdpServiceImpl implements IdpService {
                         .replace("-----END RSA PUBLIC KEY-----", "")
                         .replaceAll("\\s", "");
 
-        if (StrUtil.isBlank(publicKeyPEM)) {
+        if (Strings.isBlank(publicKeyPEM)) {
             throw new IllegalArgumentException("PEM content is empty");
         }
 
@@ -242,7 +244,7 @@ public class IdpServiceImpl implements IdpService {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             return keyFactory.generatePublic(spec);
         } catch (Exception e) {
-            log.error("Failed to parse PEM public key", e);
+            log.error("Failed to parse PEM public key, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "Failed to parse PEM public key: " + e.getMessage());
         }
@@ -278,7 +280,7 @@ public class IdpServiceImpl implements IdpService {
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             return keyFactory.generatePublic(spec);
         } catch (Exception e) {
-            log.error("Failed to parse JWK RSA parameters", e);
+            log.error("Failed to parse JWK RSA parameters, errorMessage={}", e.getMessage(), e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
                     "Failed to parse JWK RSA parameters: " + e.getMessage());
@@ -287,9 +289,9 @@ public class IdpServiceImpl implements IdpService {
 
     private String getRequiredField(JsonNode jwk, String fieldName) {
         String value = jwk.path(fieldName).asText();
-        if (StrUtil.isBlank(value)) {
+        if (Strings.isBlank(value)) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Missing field in JWK: " + fieldName);
+                    ErrorCode.INVALID_REQUEST, "Missing JWK field: " + fieldName);
         }
         return value;
     }

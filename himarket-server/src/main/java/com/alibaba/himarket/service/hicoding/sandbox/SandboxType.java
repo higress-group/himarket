@@ -4,19 +4,27 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * 沙箱类型枚举。
- * 统一标识 CLI Agent 运行在哪种沙箱环境中。
- * JSON 序列化值分别为 "remote"、"open-sandbox"、"e2b"，与前端类型定义一致。
+ * Sandbox type enum.
+ *
+ * <p>Identifies the sandbox environment where the CLI agent runs. JSON values are
+ * {@code "remote"}, {@code "open-sandbox"}, and {@code "e2b"}, matching the frontend type
+ * definitions.
  */
 public enum SandboxType {
 
-    /** 远程沙箱：连接远程 Sidecar 服务（K8s / Docker / 裸机均可） */
+    /**
+     * Remote sandbox connected to a remote Sidecar service.
+     */
     REMOTE("remote"),
 
-    /** OpenSandbox 沙箱：通过 OpenSandbox Server API 管理 */
+    /**
+     * OpenSandbox sandbox managed through the OpenSandbox Server API.
+     */
     OPEN_SANDBOX("open-sandbox"),
 
-    /** E2B 云沙箱：通过 E2B SDK 管理 */
+    /**
+     * E2B cloud sandbox managed through the E2B SDK.
+     */
     E2B("e2b");
 
     private final String value;
@@ -32,7 +40,7 @@ public enum SandboxType {
 
     @JsonCreator
     public static SandboxType fromValue(String value) {
-        // 兼容旧值
+        // Keep compatibility with legacy values.
         if ("local".equalsIgnoreCase(value)
                 || "k8s".equalsIgnoreCase(value)
                 || "shared-k8s".equalsIgnoreCase(value)
@@ -44,6 +52,6 @@ public enum SandboxType {
                 return type;
             }
         }
-        throw new IllegalArgumentException("未知的沙箱类型: " + value);
+        throw new IllegalArgumentException("Unsupported sandbox type: " + value);
     }
 }

@@ -28,10 +28,10 @@ import lombok.Data;
 @Data
 public class UpdateProductCategoryParam implements InputConverter<ProductCategory> {
 
-    @Size(max = 100, message = "分类名称长度不能超过100个字符")
+    @Size(max = 100, message = "Category name cannot exceed 100 characters")
     private String name;
 
-    @Size(max = 500, message = "分类描述长度不能超过500个字符")
+    @Size(max = 500, message = "Category description cannot exceed 500 characters")
     private String description;
 
     private Icon icon;

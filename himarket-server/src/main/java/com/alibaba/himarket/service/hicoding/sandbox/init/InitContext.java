@@ -10,20 +10,26 @@ import com.alibaba.himarket.service.hicoding.sandbox.SandboxProvider;
 import com.alibaba.himarket.service.hicoding.session.CliSessionConfig;
 import com.alibaba.himarket.service.hicoding.session.ResolvedSessionConfig;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * 初始化上下文，各阶段通过此对象共享数据。 核心改动：持有 SandboxProvider 引用，各阶段通过 provider 执行操作。
+ * Initialization context shared across phases.
+ *
+ * <p>Holds the {@link SandboxProvider} reference so phases can execute operations through the
+ * provider.
  */
 public class InitContext {
 
-    // 核心：沙箱提供者
+    // Core sandbox provider.
     private final SandboxProvider provider;
 
-    // 输入参数
+    // Input parameters.
     private final String userId;
     private final SandboxConfig sandboxConfig;
     private final RuntimeConfig runtimeConfig;
@@ -31,13 +37,13 @@ public class InitContext {
     private final CliSessionConfig sessionConfig;
     private final WebSocketSession frontendSession;
 
-    // 阶段产出
+    // Phase outputs.
     private SandboxInfo sandboxInfo;
     private RuntimeAdapter runtimeAdapter;
     private List<ConfigFile> injectedConfigs = new ArrayList<>();
     private ResolvedSessionConfig resolvedSessionConfig;
 
-    // 状态追踪
+    // Status tracking.
     private final Map<String, PhaseStatus> phaseStatuses = new ConcurrentHashMap<>();
     private final List<InitEvent> events = new CopyOnWriteArrayList<>();
     private String lastError;
@@ -58,8 +64,6 @@ public class InitContext {
         this.sessionConfig = sessionConfig;
         this.frontendSession = frontendSession;
     }
-
-    // ========== Getters ==========
 
     public SandboxProvider getProvider() {
         return provider;
@@ -117,8 +121,6 @@ public class InitContext {
         return lastError;
     }
 
-    // ========== Setters（阶段产出 + 状态） ==========
-
     public void setSandboxInfo(SandboxInfo sandboxInfo) {
         this.sandboxInfo = sandboxInfo;
     }
@@ -139,14 +141,16 @@ public class InitContext {
         this.lastError = lastError;
     }
 
-    // ========== 辅助方法 ==========
-
-    /** 记录初始化事件。 */
+    /**
+     * Records an initialization event.
+     */
     public void recordEvent(String phase, InitEvent.EventType type, String message) {
         events.add(new InitEvent(Instant.now(), phase, type, message));
     }
 
-    /** 返回所有已完成阶段的名称列表。 */
+    /**
+     * Returns the names of all completed phases.
+     */
     public List<String> completedPhases() {
         List<String> completed = new ArrayList<>();
         for (Map.Entry<String, PhaseStatus> entry : phaseStatuses.entrySet()) {

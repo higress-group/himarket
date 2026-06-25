@@ -19,7 +19,7 @@
 
 package com.alibaba.himarket.core.exception;
 
-import cn.hutool.core.util.StrUtil;
+import java.text.MessageFormat;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
@@ -33,53 +33,53 @@ public enum ErrorCode {
     /**
      * Invalid parameter
      */
-    INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Invalid request parameter: {}"),
+    INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "Invalid request parameter: {0}"),
 
     /**
      * Invalid request
      */
-    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request: {}"),
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request: {0}"),
 
     /**
      * Unauthorized
      */
-    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication failed: {}"),
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication failed: {0}"),
 
     /**
      * Resource not found
      */
-    NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found: {}:{}"),
+    NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found: {0}:{1}"),
 
     /**
      * Resource conflict
      */
-    CONFLICT(HttpStatus.CONFLICT, "Resource conflict: {}"),
+    CONFLICT(HttpStatus.CONFLICT, "Resource conflict: {0}"),
 
     // Server errors (500-599)
     /**
      * Internal error
      */
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error: {}"),
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error: {0}"),
 
     /**
      * Gateway error
      */
-    GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Gateway error: {}"),
+    GATEWAY_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Gateway error: {0}"),
 
     /**
      * Sandbox not ready
      */
-    SANDBOX_NOT_READY(HttpStatus.SERVICE_UNAVAILABLE, "Sandbox is not ready: {}"),
+    SANDBOX_NOT_READY(HttpStatus.SERVICE_UNAVAILABLE, "Sandbox is not ready: {0}"),
 
     /**
      * Sandbox connection failed
      */
-    SANDBOX_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "Sandbox connection failed: {}"),
+    SANDBOX_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "Sandbox connection failed: {0}"),
 
     /**
      * Sandbox error
      */
-    SANDBOX_ERROR(HttpStatus.BAD_GATEWAY, "{}"),
+    SANDBOX_ERROR(HttpStatus.BAD_GATEWAY, "{0}"),
     ;
 
     private final HttpStatus status;
@@ -87,7 +87,7 @@ public enum ErrorCode {
 
     public String getMessage(Object... args) {
         try {
-            return StrUtil.format(messagePattern, args);
+            return MessageFormat.format(messagePattern, args);
         } catch (Exception e) {
             // Return original pattern if args mismatch
             return messagePattern;

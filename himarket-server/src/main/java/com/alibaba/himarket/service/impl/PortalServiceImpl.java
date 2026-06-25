@@ -19,10 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
@@ -51,24 +47,23 @@ import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.IdpService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.support.enums.DomainType;
-import com.alibaba.himarket.support.enums.SearchEngineType;
 import com.alibaba.himarket.support.portal.OidcConfig;
 import com.alibaba.himarket.support.portal.PortalSettingConfig;
 import com.alibaba.himarket.support.portal.PortalUiConfig;
-import com.alibaba.himarket.support.portal.SearchEngineConfig;
 import jakarta.persistence.criteria.Predicate;
-import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -92,6 +87,8 @@ public class PortalServiceImpl implements PortalService {
 
     private final ProductRepository productRepository;
 
+    private final ApplicationEventPublisher eventPublisher;
+
     public PortalResult createPortal(CreatePortalParam param) {
         portalRepository
                 .findByName(param.getName())
@@ -99,9 +96,7 @@ public class PortalServiceImpl implements PortalService {
                         portal -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Portal with name `{}` already exists",
-                                            portal.getName()));
+                                    "Portal with name `" + portal.getName() + "` already exists");
                         });
 
         String portalId = IdGenerator.genPortalId();
@@ -157,22 +152,17 @@ public class PortalServiceImpl implements PortalService {
         // Fill domain
         if (portals.hasContent()) {
             List<String> portalIds =
-                    portals.getContent().stream()
-                            .map(Portal::getPortalId)
-                            .collect(Collectors.toList());
+                    portals.getContent().stream().map(Portal::getPortalId).toList();
 
             List<PortalDomain> allDomains = portalDomainRepository.findAllByPortalIdIn(portalIds);
             Map<String, List<PortalDomain>> portalDomains =
                     allDomains.stream().collect(Collectors.groupingBy(PortalDomain::getPortalId));
 
-            portals.getContent()
-                    .forEach(
-                            portal -> {
-                                List<PortalDomain> domains =
-                                        portalDomains.getOrDefault(
-                                                portal.getPortalId(), new ArrayList<>());
-                                portal.setPortalDomains(domains);
-                            });
+            for (Portal portal : portals.getContent()) {
+                List<PortalDomain> domains =
+                        portalDomains.getOrDefault(portal.getPortalId(), new ArrayList<>());
+                portal.setPortalDomains(domains);
+            }
         }
 
         return new PageResult<PortalResult>()
@@ -183,44 +173,42 @@ public class PortalServiceImpl implements PortalService {
     public PortalResult updatePortal(String portalId, UpdatePortalParam param) {
         Portal portal = findPortal(portalId);
 
-        Optional.ofNullable(param.getName())
-                .filter(name -> !name.equals(portal.getName()))
-                .flatMap(portalRepository::findByName)
-                .ifPresent(
-                        p -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Portal with name `{}` already exists",
-                                            portal.getName()));
-                        });
+        String requestedName = param.getName();
+        if (requestedName != null && !requestedName.equals(portal.getName())) {
+            Portal existingPortal = portalRepository.findByName(requestedName).orElse(null);
+            if (existingPortal != null) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT,
+                        "Portal with name `" + requestedName + "` already exists");
+            }
+        }
 
         param.update(portal);
 
         PortalSettingConfig setting = portal.getPortalSettingConfig();
 
         // Verify OIDC configs
-        if (CollUtil.isNotEmpty(setting.getOidcConfigs())) {
+        if (!CollectionUtils.isEmpty(setting.getOidcConfigs())) {
             idpService.validateOidcConfigs(setting.getOidcConfigs());
         }
 
         // Verify OAuth2 configs
-        if (CollUtil.isNotEmpty(setting.getOauth2Configs())) {
+        if (!CollectionUtils.isEmpty(setting.getOauth2Configs())) {
             idpService.validateOAuth2Configs(setting.getOauth2Configs());
         }
 
-        // Verify search engine config
-        if (setting.getSearchEngineConfig() != null) {
-            validateSearchEngineConfig(setting.getSearchEngineConfig());
-        }
-
         // At least keep one authentication method
-        if (BooleanUtil.isFalse(setting.getBuiltinAuthEnabled())) {
-            boolean enabledOidc =
-                    Optional.ofNullable(setting.getOidcConfigs())
-                            .filter(CollUtil::isNotEmpty)
-                            .map(configs -> configs.stream().anyMatch(OidcConfig::isEnabled))
-                            .orElse(false);
+        if (Boolean.FALSE.equals(setting.getBuiltinAuthEnabled())) {
+            boolean enabledOidc = false;
+            List<OidcConfig> oidcConfigs = setting.getOidcConfigs();
+            if (!CollectionUtils.isEmpty(oidcConfigs)) {
+                for (OidcConfig oidcConfig : oidcConfigs) {
+                    if (oidcConfig.isEnabled()) {
+                        enabledOidc = true;
+                        break;
+                    }
+                }
+            }
 
             if (!enabledOidc) {
                 throw new BusinessException(
@@ -241,7 +229,7 @@ public class PortalServiceImpl implements PortalService {
         portalDomainRepository.deleteAllByPortalId(portalId);
 
         // Asynchronously clean up portal resources
-        SpringUtil.getApplicationContext().publishEvent(new PortalDeletingEvent(portalId));
+        eventPublisher.publishEvent(new PortalDeletingEvent(portalId));
         portalRepository.delete(portal);
     }
 
@@ -262,9 +250,7 @@ public class PortalServiceImpl implements PortalService {
                         portalDomain -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Portal domain `{}` already exists",
-                                            param.getDomain()));
+                                    "Portal domain `" + param.getDomain() + "` already exists");
                         });
 
         PortalDomain portalDomain = param.convertTo();
@@ -335,7 +321,10 @@ public class PortalServiceImpl implements PortalService {
                                         portal.getPortalSettingConfig()
                                                 .getAutoApproveSubscriptions());
                             } catch (Exception e) {
-                                log.error("Failed to get portal: {}", publication.getPortalId(), e);
+                                log.error(
+                                        "Failed to get portal, portalId={}",
+                                        publication.getPortalId(),
+                                        e);
                             }
 
                             // Fill product information
@@ -352,7 +341,9 @@ public class PortalServiceImpl implements PortalService {
                                 }
                             } catch (Exception e) {
                                 log.error(
-                                        "Failed to get product: {}", publication.getProductId(), e);
+                                        "Failed to get product, productId={}",
+                                        publication.getProductId(),
+                                        e);
                             }
 
                             return publicationResult;
@@ -375,92 +366,5 @@ public class PortalServiceImpl implements PortalService {
                         () ->
                                 new BusinessException(
                                         ErrorCode.NOT_FOUND, Resources.PORTAL, portalId));
-    }
-
-    /**
-     * Core method: Get API Key based on engine type for search ability calls
-     * (e.g. TalkSearchAbilityServiceGoogleImpl)
-     */
-    @Override
-    public String getSearchEngineApiKey(String portalId, SearchEngineType engineType) {
-        Portal portal = findPortal(portalId);
-        PortalSettingConfig settings = portal.getPortalSettingConfig();
-
-        if (settings == null || settings.getSearchEngineConfig() == null) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND,
-                    StrUtil.format("Portal {} has not configured search engine", portalId));
-        }
-
-        SearchEngineConfig config = settings.getSearchEngineConfig();
-
-        // Check if engine type matches
-        if (config.getEngineType() != engineType) {
-            throw new BusinessException(
-                    ErrorCode.NOT_FOUND,
-                    StrUtil.format(
-                            "Portal {} configured search engine type is {}, not {}",
-                            portalId,
-                            config.getEngineType(),
-                            engineType));
-        }
-
-        // Check if enabled
-        if (!config.isEnabled()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST,
-                    StrUtil.format("Search engine for Portal {} is disabled", portalId));
-        }
-
-        return config
-                .getApiKey(); // API Key will be automatically decrypted (via @Encrypted annotation)
-    }
-
-    @Override
-    public SearchEngineConfig getSearchEngineConfig(String portalId) {
-        Portal portal = findPortal(portalId);
-        PortalSettingConfig settings = portal.getPortalSettingConfig();
-
-        if (settings == null) {
-            return null;
-        }
-
-        return settings.getSearchEngineConfig();
-    }
-
-    private void validateSearchEngineConfig(SearchEngineConfig config) {
-        if (config == null) {
-            return;
-        }
-
-        // Validate if engine type is supported
-        if (config.getEngineType() == null) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Search engine type cannot be empty");
-        }
-
-        if (!SearchEngineType.isSupported(config.getEngineType())) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST,
-                    StrUtil.format(
-                            "Unsupported search engine type: {}, currently only supports: {}",
-                            config.getEngineType(),
-                            SearchEngineType.getSupportedTypes()));
-        }
-
-        // Validate required fields
-        if (StrUtil.isBlank(config.getEngineName())) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Search engine name cannot be empty");
-        }
-
-        if (StrUtil.isBlank(config.getApiKey())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "API Key cannot be empty");
-        }
-
-        log.info(
-                "Validated search engine config: type={}, name={}",
-                config.getEngineType(),
-                config.getEngineName());
     }
 }

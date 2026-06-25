@@ -166,12 +166,12 @@ public class JsonUtil {
             return objectMapper.readValue(string, javaType);
         } catch (JsonProcessingException e) {
             log.error(
-                    "Failed to parse JSON array: json={}, type={}, error={}",
+                    "Failed to parse JSON array, json={}, type={}, errorMessage={}",
                     string,
                     type.getName(),
                     e.getMessage(),
                     e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to parse JSON array: " + e.getMessage(), e);
         }
     }
 
@@ -192,12 +192,12 @@ public class JsonUtil {
             return objectMapper.readValue(string, type);
         } catch (JsonProcessingException e) {
             log.error(
-                    "Failed to parse JSON: json={}, type={}, error={}",
+                    "Failed to parse JSON, json={}, type={}, errorMessage={}",
                     string,
                     type.getName(),
                     e.getMessage(),
                     e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to parse JSON: " + e.getMessage(), e);
         }
     }
 
@@ -219,12 +219,12 @@ public class JsonUtil {
             return objectMapper.readValue(string, valueTypeRef);
         } catch (JsonProcessingException e) {
             log.error(
-                    "Failed to parse JSON: json={}, typeRef={}, error={}",
+                    "Failed to parse JSON, json={}, typeRef={}, errorMessage={}",
                     string,
                     valueTypeRef.getType(),
                     e.getMessage(),
                     e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to parse JSON: " + e.getMessage(), e);
         }
     }
 
@@ -252,8 +252,8 @@ public class JsonUtil {
         try {
             return objectMapper.writeValueAsString(source);
         } catch (JsonProcessingException e) {
-            log.error("Failed to convert to JSON: error={}", e.getMessage(), e);
-            throw new RuntimeException(e);
+            log.error("Failed to convert to JSON, errorMessage={}", e.getMessage(), e);
+            throw new RuntimeException("Failed to convert to JSON: " + e.getMessage(), e);
         }
     }
 
@@ -299,8 +299,12 @@ public class JsonUtil {
             }
             throw new RuntimeException("JSON is not an object: " + jsonStr);
         } catch (IOException e) {
-            log.error("Failed to parse JSON object: json={}, error={}", jsonStr, e.getMessage(), e);
-            throw new RuntimeException(e);
+            log.error(
+                    "Failed to parse JSON object, json={}, errorMessage={}",
+                    jsonStr,
+                    e.getMessage(),
+                    e);
+            throw new RuntimeException("Failed to parse JSON object: " + e.getMessage(), e);
         }
     }
 
@@ -314,8 +318,12 @@ public class JsonUtil {
         try {
             return DEFAULT_JSON_MAPPER.readTree(jsonStr);
         } catch (IOException e) {
-            log.error("Failed to read JSON tree: json={}, error={}", jsonStr, e.getMessage(), e);
-            throw new RuntimeException(e);
+            log.error(
+                    "Failed to read JSON tree, json={}, errorMessage={}",
+                    jsonStr,
+                    e.getMessage(),
+                    e);
+            throw new RuntimeException("Failed to read JSON tree: " + e.getMessage(), e);
         }
     }
 
@@ -337,9 +345,13 @@ public class JsonUtil {
             return valueNode != null ? valueNode.asText() : null;
         } catch (Exception e) {
             if (ignoreError) {
-                log.warn("Failed to parse JSON: jsonStr={}, key={}", jsonStr, key);
+                log.warn(
+                        "Failed to read JSON value, json={}, key={}, errorMessage={}",
+                        jsonStr,
+                        key,
+                        e.getMessage());
             } else {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to read JSON value: " + e.getMessage(), e);
             }
         }
         return null;
@@ -363,8 +375,13 @@ public class JsonUtil {
                     DEFAULT_JSON_MAPPER.getTypeFactory().constructCollectionType(List.class, type);
             return DEFAULT_JSON_MAPPER.convertValue(jsonArray, javaType);
         } catch (Exception e) {
-            log.error("Failed to convert JsonNode array to List: type={}", type.getName(), e);
-            throw new RuntimeException(e);
+            log.error(
+                    "Failed to convert JsonNode array to List, type={}, errorMessage={}",
+                    type.getName(),
+                    e.getMessage(),
+                    e);
+            throw new RuntimeException(
+                    "Failed to convert JsonNode array to List: " + e.getMessage(), e);
         }
     }
 }

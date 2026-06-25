@@ -2,12 +2,19 @@ package com.alibaba.himarket.service.hicoding.sandbox.init;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 沙箱初始化流水线。 按顺序执行注册的 InitPhase，每个阶段有前置检查、执行逻辑和就绪验证。 对所有沙箱类型（Local/K8s/E2B）通用。
+ * Sandbox initialization pipeline.
+ *
+ * <p>Executes registered {@link InitPhase} instances in order. Each phase owns prerequisite
+ * checks, execution logic, and readiness verification. The pipeline is shared by all sandbox types.
  */
 public class SandboxInitPipeline {
 
@@ -22,12 +29,16 @@ public class SandboxInitPipeline {
         this.initConfig = initConfig;
     }
 
-    /** 执行完整的初始化流水线。 */
+    /**
+     * Executes the full initialization pipeline.
+     */
     public InitResult execute(InitContext context) {
         return executeFromIndex(context, 0);
     }
 
-    /** 从指定阶段恢复执行。 */
+    /**
+     * Resumes execution from the specified phase.
+     */
     public InitResult resumeFrom(InitContext context, String fromPhase) {
         int startIndex = 0;
         for (int i = 0; i < phases.size(); i++) {
@@ -46,16 +57,17 @@ public class SandboxInitPipeline {
         for (int i = startIndex; i < phases.size(); i++) {
             InitPhase phase = phases.get(i);
 
-            // 检查总超时
+            // Check the total pipeline timeout.
             Duration elapsed = Duration.between(start, Instant.now());
             if (elapsed.compareTo(initConfig.totalTimeout()) > 0) {
                 context.setLastError(
-                        "总超时: 已耗时 "
+                        "Total timeout: elapsed "
                                 + elapsed.toSeconds()
-                                + "s，超过限制 "
+                                + "s, limit "
                                 + initConfig.totalTimeout().toSeconds()
                                 + "s");
-                context.recordEvent(phase.name(), InitEvent.EventType.PHASE_FAIL, "总超时终止");
+                context.recordEvent(
+                        phase.name(), InitEvent.EventType.PHASE_FAIL, "Stopped by total timeout");
                 return InitResult.failure(
                         phase.name(),
                         context.getLastError(),
@@ -64,17 +76,18 @@ public class SandboxInitPipeline {
                         context.getEvents());
             }
 
-            // 检查 shouldExecute
+            // Check whether this phase should execute.
             if (!phase.shouldExecute(context)) {
                 context.getPhaseStatuses().put(phase.name(), PhaseStatus.SKIPPED);
-                context.recordEvent(phase.name(), InitEvent.EventType.PHASE_SKIP, "条件不满足，跳过");
-                logger.info("[Pipeline] 跳过阶段: {}", phase.name());
+                context.recordEvent(
+                        phase.name(), InitEvent.EventType.PHASE_SKIP, "Condition not met, skipped");
+                logger.info("Skipped sandbox initialization phase, phase={}", phase.name());
                 continue;
             }
 
             context.getPhaseStatuses().put(phase.name(), PhaseStatus.EXECUTING);
-            context.recordEvent(phase.name(), InitEvent.EventType.PHASE_START, "开始执行");
-            logger.info("[Pipeline] 开始阶段: {}", phase.name());
+            context.recordEvent(phase.name(), InitEvent.EventType.PHASE_START, "Started");
+            logger.info("Started sandbox initialization phase, phase={}", phase.name());
             Instant phaseStart = Instant.now();
 
             boolean success = executeWithRetry(phase, context);
@@ -84,7 +97,10 @@ public class SandboxInitPipeline {
                 context.getPhaseStatuses().put(phase.name(), PhaseStatus.FAILED);
                 context.recordEvent(
                         phase.name(), InitEvent.EventType.PHASE_FAIL, context.getLastError());
-                logger.error("[Pipeline] 阶段失败: {} - {}", phase.name(), context.getLastError());
+                logger.error(
+                        "Sandbox initialization phase failed, phase={}, errorMessage={}",
+                        phase.name(),
+                        context.getLastError());
                 return InitResult.failure(
                         phase.name(),
                         context.getLastError(),
@@ -93,14 +109,15 @@ public class SandboxInitPipeline {
                         context.getEvents());
             }
 
-            // 验证阶段
+            // Verify the phase result.
             context.getPhaseStatuses().put(phase.name(), PhaseStatus.VERIFYING);
             if (initConfig.enableVerification() && !phase.verify(context)) {
                 context.getPhaseStatuses().put(phase.name(), PhaseStatus.FAILED);
-                String error = "阶段 " + phase.name() + " 验证失败";
+                String error = "Phase " + phase.name() + " verification failed";
                 context.setLastError(error);
                 context.recordEvent(phase.name(), InitEvent.EventType.VERIFY_FAIL, error);
-                logger.error("[Pipeline] 阶段验证失败: {}", phase.name());
+                logger.error(
+                        "Sandbox initialization phase verification failed, phase={}", phase.name());
                 return InitResult.failure(
                         phase.name(),
                         error,
@@ -110,9 +127,9 @@ public class SandboxInitPipeline {
             }
 
             context.getPhaseStatuses().put(phase.name(), PhaseStatus.COMPLETED);
-            context.recordEvent(phase.name(), InitEvent.EventType.PHASE_COMPLETE, "执行完成");
+            context.recordEvent(phase.name(), InitEvent.EventType.PHASE_COMPLETE, "Completed");
             logger.info(
-                    "[Pipeline] 阶段完成: {} (耗时 {}ms)",
+                    "Sandbox initialization phase completed, phase={}, durationMs={}",
                     phase.name(),
                     phaseDurations.get(phase.name()).toMillis());
         }
@@ -121,7 +138,9 @@ public class SandboxInitPipeline {
                 Duration.between(start, Instant.now()), phaseDurations, context.getEvents());
     }
 
-    /** 按 RetryPolicy 执行重试逻辑。 */
+    /**
+     * Executes the retry loop according to {@link RetryPolicy}.
+     */
     private boolean executeWithRetry(InitPhase phase, InitContext context) {
         RetryPolicy policy = phase.retryPolicy();
         int maxAttempts = policy.maxRetries() + 1;
@@ -138,12 +157,14 @@ public class SandboxInitPipeline {
                     context.recordEvent(
                             phase.name(),
                             InitEvent.EventType.PHASE_RETRY,
-                            "第 " + attempt + " 次失败，准备重试: " + e.getMessage());
+                            "Attempt " + attempt + " failed, retrying: " + e.getMessage());
                     logger.warn(
-                            "[Pipeline] 阶段 {} 第 {}/{} 次失败，准备重试: {}",
+                            "Sandbox initialization phase failed, retrying, phase={}, attempt={},"
+                                    + " maxAttempts={}, errorType={}, errorMessage={}",
                             phase.name(),
                             attempt,
                             maxAttempts,
+                            e.getClass().getSimpleName(),
                             e.getMessage());
 
                     long delayMs =
@@ -159,7 +180,7 @@ public class SandboxInitPipeline {
                         Thread.sleep(delayMs);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
-                        context.setLastError("重试等待被中断");
+                        context.setLastError("Retry wait was interrupted");
                         return false;
                     }
                 } else {

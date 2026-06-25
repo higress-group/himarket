@@ -21,40 +21,64 @@ package com.alibaba.himarket.dto.vendor;
 
 import lombok.Data;
 
-/** 返回前端的远程 MCP 条目，含平台已存在标记。 */
+/**
+ * Remote MCP item returned to the frontend with a platform existence marker.
+ */
 @Data
 public class RemoteMcpItemResult {
 
-    /** 供应商侧唯一标识 */
+    /**
+     * Vendor-side unique ID.
+     */
     private String remoteId;
 
-    /** 转换后的 mcpName（符合平台规范） */
+    /**
+     * Converted MCP name that follows platform naming rules.
+     */
     private String mcpName;
 
-    /** 展示名称 */
+    /**
+     * Display name.
+     */
     private String displayName;
 
-    /** 描述 */
+    /**
+     * Description.
+     */
     private String description;
 
-    /** 协议类型：sse / streamable-http / stdio */
+    /**
+     * Protocol type, such as sse, streamable-http, or stdio.
+     */
     private String protocolType;
 
-    /** JSON 格式连接配置 */
+    /**
+     * Connection configuration in JSON format.
+     */
     private String connectionConfig;
 
-    /** JSON 数组格式标签 */
+    /**
+     * Tags in JSON array format.
+     */
     private String tags;
 
-    /** JSON 格式图标 */
+    /**
+     * Icon in JSON format.
+     */
     private String icon;
 
-    /** 源码仓库地址 */
+    /**
+     * Source repository URL.
+     */
     private String repoUrl;
 
-    /** JSON 格式额外参数定义（如 env_schema / configSchema） */
+    /**
+     * Extra parameter definitions in JSON format, such as env_schema or configSchema.
+     */
     private String extraParams;
 
-    /** 平台是否已存在同名 MCP */
+    /**
+     * Whether the platform already contains an MCP server with the same name.
+     */
     private boolean existsInPlatform;
 }

@@ -20,6 +20,7 @@
 package com.alibaba.himarket.dto.params.developer;
 
 import com.alibaba.himarket.support.enums.DeveloperStatus;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
@@ -27,5 +28,6 @@ public class UpdateDeveloperStatusParam {
 
     private String portalId;
 
+    @NotNull(message = "Developer status cannot be null")
     private DeveloperStatus status;
 }

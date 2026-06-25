@@ -23,7 +23,7 @@ Use `PageResult.of()` only when post-processing is required:
 List<ProductResult> results = page.stream()
         .map(product -> new ProductResult().convertFrom(product))
         .filter(Objects::nonNull)
-        .collect(Collectors.toList());
+        .toList();
 return PageResult.of(results, page.getNumber() + 1, page.getSize(), page.getTotalElements());
 ```
 
@@ -112,6 +112,7 @@ public class ProductController {
 
 - Use `@Tag` and `@Operation` for Swagger/OpenAPI documentation.
 - POST/PUT body params use `@RequestBody @Valid`.
+- Add `@Validated` to the Controller when method parameters use Jakarta Validation constraints.
 - Path params use `@PathVariable`.
 - Query/filter params: bind directly to Param object (no annotation needed for GET).
 - Pagination: prefer `Pageable` for database-backed lists; use explicit `page` / `size` when
@@ -120,6 +121,46 @@ public class ProductController {
 - Controller methods are thin -- delegate business logic to the Service layer.
 - Ordinary JSON endpoints return business objects. Raw responses such as SSE, file downloads,
   redirects, or `ResponseEntity` are allowed only when the response shape requires it.
+
+### Request validation
+
+Use Jakarta Validation at the HTTP boundary so invalid input is rejected before it reaches the
+Service layer.
+
+```java
+@PostMapping
+public ProductResult createProduct(@RequestBody @Valid CreateProductParam param) {
+    return productService.createProduct(param);
+}
+```
+
+Use class-level `@Validated` when validating `@PathVariable` or `@RequestParam` values:
+
+```java
+@RestController
+@RequestMapping("/mcp-servers")
+@Validated
+public class McpServerController {
+
+    @GetMapping("/meta/batch")
+    public List<McpMetaResult> listMetaByProductIds(
+            @RequestParam
+                    List<@NotBlank(message = "Product ID cannot be blank") String> productIds) {
+        return mcpServerService.listMetaByProductIds(productIds);
+    }
+}
+```
+
+**Rules:**
+
+- Request body DTOs use `@Valid`.
+- Collection fields or parameters validate both the collection and its elements when blank elements
+  are invalid.
+- Use `@NotBlank` for strings, `@NotNull` for required objects and enums, and `@NotEmpty` for
+  required collections.
+- Validation messages must be concise English and name the invalid field or value.
+- Raw string bodies, file uploads, SSE, redirects, and downloads may bypass DTO validation when the
+  response or request shape requires it.
 
 ### OpenAPI documentation
 
@@ -133,6 +174,8 @@ verbose.
 - Use `Management` for admin or operational resources, `Authentication` for auth flows, and
   `API` for public integration surfaces.
 - The tag description should describe the resource group, not repeat the class name.
+- Keep tag names stable. Renaming a tag changes the generated documentation grouping and should be
+  reviewed like an API documentation change.
 
 ```java
 @Tag(
@@ -149,9 +192,13 @@ public class ProductController { ... }
 - Every request handler must have `@Operation(summary = "...")`.
 - Place `@Operation` immediately before the Spring mapping annotation.
 - Ordinary CRUD operations should use a concise summary only.
+- Write summaries as short verb phrases such as `Create product`, `List MCP server endpoints`, or
+  `Refresh MCP tool list`.
 - Add `description` only when the behavior is not obvious from the route and method, such as
   import, refresh, deployment, authentication redirects, streaming responses, non-wrapper
   responses, or cross-system queries.
+- Do not describe DTO fields in the operation description; put field-level details on the DTO
+  schema.
 
 ```java
 @Operation(summary = "List products")
@@ -172,6 +219,8 @@ public ImportProductsResult importProducts(@RequestBody @Valid ImportProductsPar
   responses.
 - Add explicit `@ApiResponse` only for raw or special responses: SSE streams, file downloads,
   redirects, binary content, or endpoints intentionally bypassing the unified wrapper.
+- For raw responses, document the media type and schema so generated OpenAPI clients do not assume
+  the normal JSON wrapper.
 - For file uploads, document the multipart file parameter with `@Parameter`.
 
 **Parameters and schemas:**
@@ -180,6 +229,10 @@ public ImportProductsResult importProducts(@RequestBody @Valid ImportProductsPar
 - Add `@Parameter` only for multipart files or path/query parameters whose meaning is not obvious
   from the method and parameter name.
 - Do not duplicate DTO field descriptions in Controller annotations.
+- Use `requiredMode = Schema.RequiredMode.REQUIRED` when a field is required by the API contract,
+  especially when the requirement is not obvious from Java type nullability.
+- For polymorphic or shape-dependent request bodies, document the discriminator and provide examples
+  on the request body or DTO schema.
 
 ### RESTful API conventions
 

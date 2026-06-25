@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.params.mcp.SaveMcpMetaParam;
@@ -27,13 +26,13 @@ import com.alibaba.himarket.entity.McpServerEndpoint;
 import com.alibaba.himarket.entity.McpServerMeta;
 import com.alibaba.himarket.service.McpSandboxDeployService;
 import com.alibaba.himarket.service.SandboxService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.McpHostingType;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.security.SecureRandom;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -51,8 +50,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpSandboxOrchestrator {
 
     private final McpConfigSyncHelper configSyncHelper;
@@ -67,8 +66,8 @@ public class McpSandboxOrchestrator {
      */
     public void doDeploySandbox(McpServerMeta meta, SaveMcpMetaParam param) {
         String sandboxId = param.getSandboxId();
-        String transportType = StrUtil.blankToDefault(param.getTransportType(), "sse");
-        String authType = StrUtil.blankToDefault(param.getAuthType(), "none");
+        String transportType = Strings.blankToDefault(param.getTransportType(), "sse");
+        String authType = Strings.blankToDefault(param.getAuthType(), "none");
         String paramValues = param.getParamValues();
         String adminUserId = getCreatedByOrDefault();
 
@@ -86,9 +85,9 @@ public class McpSandboxOrchestrator {
                                         McpHostingType.SANDBOX
                                                 .name()
                                                 .equalsIgnoreCase(ep.getHostingType()))
-                        .collect(Collectors.toList());
+                        .toList();
         for (McpServerEndpoint existing : existingPublic) {
-            if (StrUtil.isNotBlank(existing.getHostingInstanceId())) {
+            if (Strings.isNotBlank(existing.getHostingInstanceId())) {
                 eventPublisher.publishEvent(
                         McpSandboxUndeployEvent.builder()
                                 .sandboxId(existing.getHostingInstanceId())
@@ -115,12 +114,12 @@ public class McpSandboxOrchestrator {
         subParams.put("sandboxName", sandbox.getSandboxName());
         subParams.put("transportType", transportType);
         subParams.put("authType", authType);
-        subParams.put("namespace", StrUtil.blankToDefault(param.getNamespace(), "default"));
+        subParams.put("namespace", Strings.blankToDefault(param.getNamespace(), "default"));
         subParams.put("resourceName", resourceName);
-        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+        if ("apikey".equalsIgnoreCase(authType) && Strings.isNotBlank(apiKey)) {
             subParams.put("apiKey", apiKey);
         }
-        if (StrUtil.isNotBlank(paramValues)) {
+        if (Strings.isNotBlank(paramValues)) {
             subParams.set("extraParams", JsonUtil.readTree(paramValues));
         }
 
@@ -158,7 +157,11 @@ public class McpSandboxOrchestrator {
                         .apiKey(apiKey)
                         .build());
 
-        log.info("沙箱部署事件已发布（事务提交后执行）: mcpName={}, sandboxId={}", meta.getMcpName(), sandboxId);
+        log.info(
+                "Sandbox deployment event published after transaction commit, mcpName={},"
+                        + " sandboxId={}",
+                meta.getMcpName(),
+                sandboxId);
     }
 
     /**
@@ -170,7 +173,7 @@ public class McpSandboxOrchestrator {
                 configSyncHelper.findEndpointsByMcpServerId(meta.getMcpServerId());
         for (McpServerEndpoint ep : endpoints) {
             if (!McpHostingType.SANDBOX.name().equalsIgnoreCase(ep.getHostingType())
-                    || StrUtil.isBlank(ep.getHostingInstanceId())) {
+                    || Strings.isBlank(ep.getHostingInstanceId())) {
                 continue;
             }
             try {
@@ -185,17 +188,20 @@ public class McpSandboxOrchestrator {
                         resourceName,
                         secretName);
                 log.info(
-                        "沙箱 undeploy 成功: mcpName={}, sandboxId={}, namespace={}, resourceName={}",
+                        "Sandbox undeploy succeeded, mcpName={}, sandboxId={}, namespace={},"
+                                + " resourceName={}",
                         meta.getMcpName(),
                         ep.getHostingInstanceId(),
                         namespace,
                         resourceName);
             } catch (Exception e) {
                 log.warn(
-                        "沙箱 undeploy 失败（不阻塞删除）: mcpName={}, sandboxId={}, error={}",
+                        "Sandbox undeploy failed and does not block deletion, mcpName={},"
+                                + " sandboxId={}, errorMessage={}",
                         meta.getMcpName(),
                         ep.getHostingInstanceId(),
-                        e.getMessage());
+                        e.getMessage(),
+                        e);
             }
         }
     }
@@ -222,22 +228,22 @@ public class McpSandboxOrchestrator {
         }
     }
 
-    // ==================== SubscribeParams Extraction ====================
+    // SubscribeParams extraction helpers.
 
     public String extractNamespace(McpServerEndpoint endpoint) {
-        if (endpoint == null || StrUtil.isBlank(endpoint.getSubscribeParams())) {
+        if (endpoint == null || Strings.isBlank(endpoint.getSubscribeParams())) {
             return "default";
         }
         try {
             ObjectNode params = JsonUtil.readObjectNode(endpoint.getSubscribeParams());
-            return StrUtil.blankToDefault(params.path("namespace").asText(), "default");
+            return Strings.blankToDefault(params.path("namespace").asText(), "default");
         } catch (Exception e) {
             return "default";
         }
     }
 
     public String extractResourceName(McpServerEndpoint endpoint) {
-        if (endpoint == null || StrUtil.isBlank(endpoint.getSubscribeParams())) {
+        if (endpoint == null || Strings.isBlank(endpoint.getSubscribeParams())) {
             return null;
         }
         try {
@@ -249,7 +255,7 @@ public class McpSandboxOrchestrator {
     }
 
     public String extractSecretName(McpServerEndpoint endpoint) {
-        if (endpoint == null || StrUtil.isBlank(endpoint.getSubscribeParams())) {
+        if (endpoint == null || Strings.isBlank(endpoint.getSubscribeParams())) {
             return null;
         }
         try {

@@ -38,10 +38,14 @@ public class FileUploadValidator {
 
     private FileUploadValidator() {}
 
-    /** Maximum allowed file size: 20MB */
+    /**
+     * Maximum allowed file size: 20 MB.
+     */
     public static final long MAX_FILE_SIZE = 20L * 1024 * 1024;
 
-    /** Allowed file extensions (lowercase, without leading dot). */
+    /**
+     * Allowed file extensions in lowercase without a leading dot.
+     */
     private static final Set<String> ALLOWED_EXTENSIONS =
             Set.of(
                     // Images
@@ -79,7 +83,9 @@ public class FileUploadValidator {
                     "mov",
                     "mkv");
 
-    /** Mapping of each extension to its valid MIME types for cross-validation. */
+    /**
+     * Mapping of each extension to its valid MIME types for cross-validation.
+     */
     private static final Map<String, Set<String>> EXTENSION_MIME_MAP =
             Map.ofEntries(
                     // Images
@@ -229,7 +235,9 @@ public class FileUploadValidator {
         }
     }
 
-    /** Checks if the header bytes start with the given signature. */
+    /**
+     * Checks whether the header bytes start with the given signature.
+     */
     private static boolean startsWith(byte[] header, byte[] signature) {
         for (int i = 0; i < signature.length; i++) {
             if (header[i] != signature[i]) {

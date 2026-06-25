@@ -20,7 +20,7 @@
 package com.alibaba.himarket.core.security;
 
 import com.alibaba.himarket.core.constant.CommonConstants;
-import com.alibaba.himarket.core.utils.TokenUtil;
+import com.alibaba.himarket.service.TokenService;
 import com.alibaba.himarket.support.common.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -39,6 +39,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private final TokenService tokenService;
+
+    public JwtAuthenticationFilter(TokenService tokenService) {
+        this.tokenService = tokenService;
+    }
+
     @Override
     protected void doFilterInternal(
             @NotNull HttpServletRequest request,
@@ -47,31 +53,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws IOException, ServletException {
 
         try {
-            String token = TokenUtil.getTokenFromRequest(request);
+            String token = tokenService.getTokenFromRequest(request);
             if (token != null) {
-                // Check if token is revoked
-                if (TokenUtil.isTokenRevoked(token)) {
-                    log.debug("Token revoked: {}", token);
+                if (tokenService.isTokenRevoked(token)) {
+                    log.debug("Token revoked");
                     SecurityContextHolder.clearContext();
                 } else {
                     try {
                         authenticateRequest(token);
                     } catch (Exception e) {
-                        log.debug("Token auth failed: {}", e.getMessage());
+                        log.debug("Token auth failed, errorMessage={}", e.getMessage(), e);
                         SecurityContextHolder.clearContext();
                     }
                 }
             }
         } catch (Exception e) {
-            log.debug("Token error: {}", e.getMessage());
+            log.debug("Token processing failed, errorMessage={}", e.getMessage(), e);
             SecurityContextHolder.clearContext();
         }
         chain.doFilter(request, response);
     }
 
     private void authenticateRequest(String token) {
-        User user = TokenUtil.parseUser(token);
-        // Set authentication
+        User user = tokenService.parseUser(token);
         String role = CommonConstants.ROLE_PREFIX + user.getUserType().name();
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken(

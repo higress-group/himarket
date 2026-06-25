@@ -26,13 +26,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * MCP Server 公开信息 — 用于匿名用户（未登录）浏览。
- * 只包含展示所需字段，不暴露连接配置、endpoint、部署参数等敏感信息。
+ * Public MCP Server information for anonymous browsing.
+ *
+ * <p>This result includes display-only fields and does not expose connection config, endpoint
+ * details, deployment parameters, or other sensitive data.
  */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class McpMetaPublicResult {
 
     private String mcpServerId;

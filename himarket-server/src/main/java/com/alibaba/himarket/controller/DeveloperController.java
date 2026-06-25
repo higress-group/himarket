@@ -23,7 +23,10 @@ import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.DeveloperAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
 import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
-import com.alibaba.himarket.dto.params.developer.*;
+import com.alibaba.himarket.dto.params.developer.CreateDeveloperParam;
+import com.alibaba.himarket.dto.params.developer.QueryDeveloperParam;
+import com.alibaba.himarket.dto.params.developer.UpdateDeveloperParam;
+import com.alibaba.himarket.dto.params.developer.UpdateDeveloperStatusParam;
 import com.alibaba.himarket.dto.params.login.LoginParam;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -36,7 +39,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Developer Management", description = "Developer authentication and management APIs")
 @RestController
@@ -90,7 +101,7 @@ public class DeveloperController {
             description = "Change the password of the current developer")
     @PatchMapping("/password")
     @DeveloperAuth
-    public void changePassword(@RequestBody ResetPasswordParam param) {
+    public void changePassword(@Valid @RequestBody ResetPasswordParam param) {
         developerService.resetDeveloperPassword(param.getOldPassword(), param.getNewPassword());
     }
 
@@ -110,7 +121,7 @@ public class DeveloperController {
     @AdminAuth
     public void setDeveloperStatus(
             @PathVariable("developerId") String developerId,
-            @RequestBody UpdateDeveloperStatusParam param) {
+            @Valid @RequestBody UpdateDeveloperStatusParam param) {
         developerService.setDeveloperStatus(developerId, param.getStatus());
     }
 

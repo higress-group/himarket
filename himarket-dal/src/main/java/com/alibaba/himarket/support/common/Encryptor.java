@@ -19,69 +19,103 @@
 
 package com.alibaba.himarket.support.common;
 
-import cn.hutool.core.util.CharsetUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.Mode;
-import cn.hutool.crypto.Padding;
-import cn.hutool.crypto.SecureUtil;
-import cn.hutool.crypto.symmetric.AES;
-import cn.hutool.extra.spring.SpringUtil;
-import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
 
 @Slf4j
-public class Encryptor {
+@Component
+public class Encryptor implements EnvironmentAware {
 
-    private static String ROOT_KEY;
+    private static final String AES = "AES";
+    private static final String CBC_TRANSFORMATION = "AES/CBC/PKCS5Padding";
+    private static final String ECB_TRANSFORMATION = "AES/ECB/PKCS5Padding";
+
+    private static String rootKey;
+
+    @Override
+    public void setEnvironment(Environment environment) {
+        rootKey = environment.getProperty("encryption.root-key");
+    }
 
     private static byte[] getRootKeyBytes() {
-        if (StrUtil.isBlank(ROOT_KEY)) {
-            ROOT_KEY = SpringUtil.getProperty("encryption.root-key");
-        }
-        if (StrUtil.isBlank(ROOT_KEY)) {
+        if (Strings.isBlank(rootKey)) {
             throw new RuntimeException("Encryption root key is not set");
         }
-        return ROOT_KEY.getBytes(CharsetUtil.CHARSET_UTF_8);
+        return rootKey.getBytes(StandardCharsets.UTF_8);
     }
 
-    /** CBC 模式（新数据加密使用），IV 由密钥 MD5 派生。 */
-    private static AES getCbcAes() {
+    /**
+     * CBC mode for new encrypted data. The IV is derived from the key MD5 digest.
+     */
+    private static Cipher getCbcCipher(int mode) throws Exception {
         byte[] keyBytes = getRootKeyBytes();
-        byte[] iv = Arrays.copyOf(SecureUtil.md5().digest(keyBytes), 16);
-        return new AES(Mode.CBC, Padding.PKCS5Padding, keyBytes, iv);
+        Cipher cipher = Cipher.getInstance(CBC_TRANSFORMATION);
+        cipher.init(mode, new SecretKeySpec(keyBytes, AES), new IvParameterSpec(md5(keyBytes)));
+        return cipher;
     }
 
-    /** ECB 模式（兼容旧数据解密）。 */
-    private static AES getEcbAes() {
-        return SecureUtil.aes(getRootKeyBytes());
+    /**
+     * ECB mode for legacy data decryption.
+     */
+    private static Cipher getEcbCipher(int mode) throws Exception {
+        Cipher cipher = Cipher.getInstance(ECB_TRANSFORMATION);
+        cipher.init(mode, new SecretKeySpec(getRootKeyBytes(), AES));
+        return cipher;
     }
 
     public static String encrypt(String value) {
-        if (StrUtil.isBlank(value)) {
+        if (Strings.isBlank(value)) {
             return value;
         }
         try {
-            return getCbcAes().encryptHex(value);
+            byte[] encrypted =
+                    getCbcCipher(Cipher.ENCRYPT_MODE)
+                            .doFinal(value.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(encrypted);
         } catch (Exception e) {
             throw new RuntimeException("Encrypt failed, refusing to store plaintext", e);
         }
     }
 
     public static String decrypt(String value) {
-        if (StrUtil.isBlank(value)) {
+        if (Strings.isBlank(value)) {
             return value;
         }
-        // 优先尝试 CBC 解密（新格式）
+        // Prefer CBC decryption for the new format.
         try {
-            return getCbcAes().decryptStr(value);
+            byte[] decrypted =
+                    getCbcCipher(Cipher.DECRYPT_MODE).doFinal(HexFormat.of().parseHex(value));
+            return new String(decrypted, StandardCharsets.UTF_8);
         } catch (Exception ignored) {
-            // CBC 解密失败，尝试 ECB 兼容旧数据
+            // Fall back to ECB for legacy data when CBC decryption fails.
         }
         try {
-            return getEcbAes().decryptStr(value);
+            byte[] decrypted =
+                    getEcbCipher(Cipher.DECRYPT_MODE).doFinal(HexFormat.of().parseHex(value));
+            return new String(decrypted, StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.warn("Decrypt failed (data may be legacy plaintext): {}", e.getMessage());
+            log.warn(
+                    "Decrypt failed, returning original value for possible legacy plaintext,"
+                            + " errorMessage={}",
+                    e.getMessage());
             return value;
+        }
+    }
+
+    private static byte[] md5(byte[] value) {
+        try {
+            return MessageDigest.getInstance("MD5").digest(value);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("MD5 is not available", e);
         }
     }
 }

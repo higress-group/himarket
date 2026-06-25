@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 运行时配置数据类，封装创建运行时实例所需的全部参数。
+ * Runtime configuration data required to create runtime instances.
  */
 public class RuntimeConfig {
 

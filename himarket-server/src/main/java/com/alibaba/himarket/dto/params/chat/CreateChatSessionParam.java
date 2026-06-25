@@ -34,18 +34,18 @@ public class CreateChatSessionParam implements InputConverter<ChatSession> {
     /**
      * Products to use
      */
-    @NotEmpty(message = "products cannot be empty")
-    private List<String> products;
+    @NotEmpty(message = "Products cannot be empty")
+    private List<@NotBlank(message = "Product ID cannot be blank") String> products;
 
     /**
      * Model or Agent
      */
-    @NotNull(message = "talkType cannot be null")
+    @NotNull(message = "Talk type cannot be null")
     private TalkType talkType;
 
     /**
      * Session name
      */
-    @NotBlank(message = "name cannot be empty")
+    @NotBlank(message = "Session name cannot be empty")
     private String name;
 }

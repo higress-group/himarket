@@ -21,25 +21,27 @@ package com.alibaba.himarket.dto.converter;
 
 import com.alibaba.himarket.dto.params.sls.GenericSlsQueryResponse;
 import com.alibaba.himarket.dto.params.sls.TimeSeriesChartResponse;
+import com.alibaba.himarket.support.common.Strings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.StringUtils;
 
-/** SLS查询响应转换工具类 用于将通用查询结果转换为前端所需的各种格式 */
+/**
+ * Converts generic SLS query responses into frontend-friendly shapes.
+ */
 @Slf4j
 public class SlsResponseConverter {
 
     /**
-     * 转换为时序图表数据
+     * Converts a query response to time-series chart data.
      *
-     * @param response 通用查询响应
-     * @param timeField 时间字段名（如: time, __time__）
-     * @param valueField 数值字段名（如: count, total）
-     * @param interval 时间间隔（秒）
-     * @return 时序图表响应
+     * @param response generic query response
+     * @param timeField time field name, such as time or __time__
+     * @param valueField value field name, such as count or total
+     * @param interval time interval in seconds
+     * @return time-series chart response
      */
     public static TimeSeriesChartResponse toTimeSeriesChart(
             GenericSlsQueryResponse response,
@@ -74,7 +76,7 @@ public class SlsResponseConverter {
             String time = record.get(timeField);
             String value = record.get(valueField);
 
-            if (!StringUtils.hasText(time) || !StringUtils.hasText(value)) {
+            if (Strings.isBlank(time) || Strings.isBlank(value)) {
                 continue;
             }
 
@@ -85,7 +87,6 @@ public class SlsResponseConverter {
                                 .value(Double.parseDouble(value))
                                 .build();
 
-                // 添加其他维度字段
                 Map<String, String> dimensions = new HashMap<>();
                 for (Map.Entry<String, String> entry : record.entrySet()) {
                     String key = entry.getKey();
@@ -99,7 +100,10 @@ public class SlsResponseConverter {
 
                 dataPoints.add(point);
             } catch (NumberFormatException e) {
-                log.warn("Failed to parse value as number: {}", value);
+                log.warn(
+                        "Failed to parse value as number, value={}, errorMessage={}",
+                        value,
+                        e.getMessage());
             }
         }
 
@@ -115,11 +119,11 @@ public class SlsResponseConverter {
     }
 
     /**
-     * 转换为时序图表数据（使用默认字段名）
+     * Converts a query response to time-series chart data with default field names.
      *
-     * @param response 通用查询响应
-     * @param interval 时间间隔（秒）
-     * @return 时序图表响应
+     * @param response generic query response
+     * @param interval time interval in seconds
+     * @return time-series chart response
      */
     public static TimeSeriesChartResponse toTimeSeriesChart(
             GenericSlsQueryResponse response, Integer interval) {
@@ -127,10 +131,10 @@ public class SlsResponseConverter {
     }
 
     /**
-     * 转换为通用日志列表（直接返回原始数据）
+     * Converts a query response to a raw log list.
      *
-     * @param response 通用查询响应
-     * @return 日志列表
+     * @param response generic query response
+     * @return log rows
      */
     public static List<Map<String, String>> toLogList(GenericSlsQueryResponse response) {
         if (response == null || !response.getSuccess()) {
@@ -141,10 +145,10 @@ public class SlsResponseConverter {
     }
 
     /**
-     * 转换为统计数据（聚合结果）
+     * Converts a query response to statistics data.
      *
-     * @param response 通用查询响应
-     * @return 统计数据
+     * @param response generic query response
+     * @return statistics data
      */
     public static Map<String, Object> toStatistics(GenericSlsQueryResponse response) {
         Map<String, Object> statistics = new HashMap<>();
@@ -157,12 +161,10 @@ public class SlsResponseConverter {
         statistics.put("processStatus", response.getProcessStatus());
 
         if (response.getAggregations() != null && !response.getAggregations().isEmpty()) {
-            // 如果只有一条聚合结果，直接展开字段
             if (response.getAggregations().size() == 1) {
                 Map<String, String> firstAgg = response.getAggregations().get(0);
                 for (Map.Entry<String, String> entry : firstAgg.entrySet()) {
                     try {
-                        // 尝试转换为数字
                         statistics.put(entry.getKey(), Double.parseDouble(entry.getValue()));
                     } catch (NumberFormatException e) {
                         statistics.put(entry.getKey(), entry.getValue());
@@ -177,12 +179,12 @@ public class SlsResponseConverter {
     }
 
     /**
-     * 转换为饼图数据
+     * Converts a query response to pie chart data.
      *
-     * @param response 通用查询响应
-     * @param labelField 标签字段名
-     * @param valueField 数值字段名
-     * @return 饼图数据
+     * @param response generic query response
+     * @param labelField label field name
+     * @param valueField value field name
+     * @return pie chart rows
      */
     public static List<Map<String, Object>> toPieChart(
             GenericSlsQueryResponse response, String labelField, String valueField) {
@@ -206,7 +208,7 @@ public class SlsResponseConverter {
             String label = record.get(labelField);
             String value = record.get(valueField);
 
-            if (!StringUtils.hasText(label) || !StringUtils.hasText(value)) {
+            if (Strings.isBlank(label) || Strings.isBlank(value)) {
                 continue;
             }
 
@@ -216,7 +218,10 @@ public class SlsResponseConverter {
                 item.put("value", Double.parseDouble(value));
                 pieData.add(item);
             } catch (NumberFormatException e) {
-                log.warn("Failed to parse value as number: {}", value);
+                log.warn(
+                        "Failed to parse value as number, value={}, errorMessage={}",
+                        value,
+                        e.getMessage());
             }
         }
 

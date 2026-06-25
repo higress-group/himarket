@@ -19,13 +19,13 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.vendor.RemoteMcpItem;
 import com.alibaba.himarket.support.api.spec.McpConnection;
 import com.alibaba.himarket.support.api.spec.StdioConnection;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,9 +46,11 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.springframework.stereotype.Component;
 
-/** ModelScope（魔搭社区）供应商适配器，调用 ModelScope REST API 查询 MCP Server 列表。 */
-@Slf4j
+/**
+ * Vendor adapter for querying MCP servers through the ModelScope REST API.
+ */
 @Component
+@Slf4j
 public class ModelScopeAdapter implements McpVendorAdapter {
 
     private static final String LIST_URL = "https://www.modelscope.cn/openapi/v1/mcp/servers";
@@ -76,7 +78,7 @@ public class ModelScopeAdapter implements McpVendorAdapter {
         ObjectNode config = JsonUtil.readObjectNode(item.getConnectionConfig());
         ObjectNode serverConfig = firstMcpServer(config);
         String command = serverConfig.path("command").asText(null);
-        if (StrUtil.isBlank(command)) {
+        if (Strings.isBlank(command)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "stdio MCP command is required");
         }
 
@@ -96,7 +98,7 @@ public class ModelScopeAdapter implements McpVendorAdapter {
             connection.setEnv(env);
         }
         String cwd = serverConfig.path("cwd").asText(null);
-        if (StrUtil.isNotBlank(cwd)) {
+        if (Strings.isNotBlank(cwd)) {
             connection.setCwd(cwd);
         }
         return connection;
@@ -130,7 +132,7 @@ public class ModelScopeAdapter implements McpVendorAdapter {
             try (Response response = httpClient.newCall(request).execute()) {
                 if (!response.isSuccessful() || response.body() == null) {
                     log.warn(
-                            "ModelScope detail API failed for {}: {}",
+                            "ModelScope detail API failed, remoteId={}, status={}",
                             item.getRemoteId(),
                             response.code());
                     return item;
@@ -295,7 +297,11 @@ public class ModelScopeAdapter implements McpVendorAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to enrich ModelScope MCP detail for {}", item.getRemoteId(), e);
+            log.warn(
+                    "Failed to enrich ModelScope MCP detail, remoteId={}, errorMessage={}",
+                    item.getRemoteId(),
+                    e.getMessage(),
+                    e);
         }
         return item;
     }
@@ -336,7 +342,9 @@ public class ModelScopeAdapter implements McpVendorAdapter {
 
             try (Response response = httpClient.newCall(request).execute()) {
                 if (!response.isSuccessful() || response.body() == null) {
-                    log.warn("ModelScope API returned non-success status: {}", response.code());
+                    log.warn(
+                            "ModelScope API returned non-success status, status={}",
+                            response.code());
                     return PageResult.empty(page, size);
                 }
 
@@ -374,14 +382,23 @@ public class ModelScopeAdapter implements McpVendorAdapter {
                             items.add(item);
                         }
                     } catch (Exception e) {
-                        log.warn("Failed to parse ModelScope MCP item at index {}", i, e);
+                        log.warn(
+                                "Failed to parse ModelScope MCP item, index={}, errorMessage={}",
+                                i,
+                                e.getMessage(),
+                                e);
                     }
                 }
 
                 return PageResult.of(items, page, size, totalCount);
             }
         } catch (IOException e) {
-            log.warn("ModelScope API call failed", e);
+            log.warn(
+                    "ModelScope API call failed, keyword={}, page={}, size={}",
+                    keyword,
+                    page,
+                    size,
+                    e);
             return PageResult.empty(page, size);
         }
     }
@@ -428,12 +445,13 @@ public class ModelScopeAdapter implements McpVendorAdapter {
     }
 
     /**
-     * 将 ModelScope id 转换为 mcpName。
+     * Converts a ModelScope id to an mcpName.
      *
-     * <p>规则：去掉 {@code @} 前缀（如有），{@code /} 替换为 {@code -}，转小写，截断 63 字符。
+     * <p>Rules: remove the leading {@code @} when present, replace {@code /} with {@code -},
+     * lowercase the result, and truncate to 63 characters.
      *
-     * <p>示例：{@code @amap/amap-maps} → {@code amap-amap-maps}，{@code Alipay/alipay-subscription}
-     * → {@code alipay-alipay-subscription}
+     * <p>Examples: {@code @amap/amap-maps} => {@code amap-amap-maps}, {@code
+     * Alipay/alipay-subscription} => {@code alipay-alipay-subscription}
      */
     static String toMcpName(String id) {
         String name = id;
@@ -447,7 +465,9 @@ public class ModelScopeAdapter implements McpVendorAdapter {
         return name;
     }
 
-    /** 优先取 locales.zh.name，fallback 到顶层 name，再 fallback 到 locales.en.name。 */
+    /**
+     * Resolves the best display name from localized fields and the top-level fallback.
+     */
     private String resolveLocaleName(ObjectNode server) {
         ObjectNode locales =
                 server.get("locales") != null && server.get("locales").isObject()
@@ -481,7 +501,9 @@ public class ModelScopeAdapter implements McpVendorAdapter {
         return null;
     }
 
-    /** 优先取 locales.zh.description，fallback 到顶层 description，再 fallback 到 locales.en.description。 */
+    /**
+     * Resolves the best description from localized fields and the top-level fallback.
+     */
     private String resolveLocaleDescription(ObjectNode server) {
         ObjectNode locales =
                 server.get("locales") != null && server.get("locales").isObject()

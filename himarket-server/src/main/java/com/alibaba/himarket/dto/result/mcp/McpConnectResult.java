@@ -6,20 +6,26 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * MCP 远程连接返回结果。
+ * MCP remote connection result.
  */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class McpConnectResult {
 
-    /** 生成的 MCP 连接配置 JSON */
+    /**
+     * Generated MCP connection config JSON.
+     */
     private String configJson;
 
-    /** 沙箱 endpoint URL */
+    /**
+     * Sandbox endpoint URL.
+     */
     private String endpointUrl;
 
-    /** 传输类型：sse / http */
+    /**
+     * Transport type, such as sse or http.
+     */
     private String transportType;
 }

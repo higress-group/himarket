@@ -30,61 +30,61 @@ import org.springframework.context.annotation.Configuration;
 public class SlsConfig {
 
     /**
-     * 认证方式:STS 或 AK_SK
+     * Authentication type, either STS or AK/SK.
      */
     private SlsAuthType authType = SlsAuthType.AK_SK;
 
     /**
-     * SLS服务端点 例如: cn-hangzhou.log.aliyuncs.com
+     * SLS endpoint, for example cn-hangzhou.log.aliyuncs.com.
      */
     private String endpoint;
 
     /**
-     * 检查SLS配置是否有效
+     * Checks whether the SLS configuration is valid.
      *
-     * @return true表示配置有效, false表示配置无效
+     * @return {@code true} if the configuration is valid
      */
     public boolean isConfigured() {
         return endpoint != null && !endpoint.trim().isEmpty();
     }
 
     /**
-     * 访问密钥ID（仅当authType=AK_SK时使用）
+     * Access key ID, used only when authType is AK/SK.
      */
     private String accessKeyId;
 
     /**
-     * 访问密钥（仅当authType=AK_SK时使用）
+     * Access key secret, used only when authType is AK/SK.
      */
     private String accessKeySecret;
 
     /**
-     * 默认Project名称（可选）
+     * Default project name, optional.
      */
     private String defaultProject;
 
     /**
-     * 默认Logstore名称（可选）
+     * Default Logstore name, optional.
      */
     private String defaultLogstore;
 
     /**
-     * AliyunLogConfig CR配置
+     * AliyunLogConfig custom resource settings.
      */
     private AliyunLogConfigProperties aliyunLogConfig = new AliyunLogConfigProperties();
 
     /**
-     * AliyunLogConfig CR配置属性
+     * AliyunLogConfig custom resource properties.
      */
     @Data
     public static class AliyunLogConfigProperties {
         /**
-         * CR所在的namespace
+         * Namespace of the custom resource.
          */
         private String namespace = "apigateway-system";
 
         /**
-         * CR的名称
+         * Name of the custom resource.
          */
         private String crName = "apigateway-access-log";
     }

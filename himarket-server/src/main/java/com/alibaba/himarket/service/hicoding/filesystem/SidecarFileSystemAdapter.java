@@ -19,10 +19,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 基于 Sidecar HTTP API 的文件系统适配器。
- * <p>
- * 替代已废弃的 PodFileSystemAdapter，通过 Pod 内 Sidecar 提供的 HTTP 端点
- * 实现文件读写操作，避免使用不稳定的 kubectl exec 通道。
+ * File system adapter backed by the Sidecar HTTP API.
+ *
+ * <p>Replaces the deprecated PodFileSystemAdapter by using HTTP endpoints exposed by Sidecar for
+ * file operations, avoiding unstable kubectl exec channels.
  */
 public class SidecarFileSystemAdapter implements FileSystemAdapter {
 
@@ -38,8 +38,8 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
     private final ObjectMapper objectMapper;
 
     /**
-     * @param host     Sidecar 访问地址（Pod IP 或 Service IP）
-     * @param basePath 工作空间根目录（默认 "/workspace"）
+     * @param host Sidecar access address, such as Pod IP or Service IP
+     * @param basePath workspace root directory; defaults to "/workspace"
      */
     public SidecarFileSystemAdapter(String host, String basePath) {
         if (host == null || host.isBlank()) {
@@ -56,7 +56,7 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
     }
 
     /**
-     * 使用默认基础路径构造适配器。
+     * Creates an adapter with the default base path.
      */
     public SidecarFileSystemAdapter(String host) {
         this(host, DEFAULT_BASE_PATH);
@@ -72,13 +72,17 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
             throw new FileSystemException(
                     FileSystemException.ErrorType.FILE_NOT_FOUND,
                     SANDBOX_TYPE,
-                    "文件不存在: " + relativePath);
+                    "File not found: " + relativePath);
         }
         if (response.statusCode() != 200) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
                     SANDBOX_TYPE,
-                    "读取文件失败: " + relativePath + " (status=" + response.statusCode() + ")");
+                    "Failed to read file: "
+                            + relativePath
+                            + " (status="
+                            + response.statusCode()
+                            + ")");
         }
         JsonNode json = objectMapper.readTree(response.body());
         return json.has("content") ? json.get("content").asText() : "";
@@ -94,7 +98,11 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
                     SANDBOX_TYPE,
-                    "写入文件失败: " + relativePath + " (status=" + response.statusCode() + ")");
+                    "Failed to write file: "
+                            + relativePath
+                            + " (status="
+                            + response.statusCode()
+                            + ")");
         }
     }
 
@@ -108,13 +116,17 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
             throw new FileSystemException(
                     FileSystemException.ErrorType.FILE_NOT_FOUND,
                     SANDBOX_TYPE,
-                    "目录不存在: " + relativePath);
+                    "Directory not found: " + relativePath);
         }
         if (response.statusCode() != 200) {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
                     SANDBOX_TYPE,
-                    "列举目录失败: " + relativePath + " (status=" + response.statusCode() + ")");
+                    "Failed to list directory: "
+                            + relativePath
+                            + " (status="
+                            + response.statusCode()
+                            + ")");
         }
         List<Map<String, Object>> items =
                 objectMapper.readValue(response.body(), new TypeReference<>() {});
@@ -138,25 +150,33 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
                     SANDBOX_TYPE,
-                    "创建目录失败: " + relativePath + " (status=" + response.statusCode() + ")");
+                    "Failed to create directory: "
+                            + relativePath
+                            + " (status="
+                            + response.statusCode()
+                            + ")");
         }
     }
 
     @Override
     public void delete(String relativePath) throws IOException {
-        // Sidecar 可能没有 delete 端点，暂时抛出不支持异常
+        // Sidecar may not expose a delete endpoint yet.
         throw new FileSystemException(
-                FileSystemException.ErrorType.IO_ERROR, SANDBOX_TYPE, "Sidecar 不支持删除操作");
+                FileSystemException.ErrorType.IO_ERROR,
+                SANDBOX_TYPE,
+                "Sidecar does not support delete operations");
     }
 
     @Override
     public FileInfo getFileInfo(String relativePath) throws IOException {
-        // Sidecar 可能没有 stat 端点，暂时抛出不支持异常
+        // Sidecar may not expose a stat endpoint yet.
         throw new FileSystemException(
-                FileSystemException.ErrorType.IO_ERROR, SANDBOX_TYPE, "Sidecar 不支持获取文件信息操作");
+                FileSystemException.ErrorType.IO_ERROR,
+                SANDBOX_TYPE,
+                "Sidecar does not support file info operations");
     }
 
-    // ===== 内部辅助方法 =====
+    // Internal helpers.
 
     private String resolveAndValidate(String relativePath) throws FileSystemException {
         try {
@@ -182,15 +202,19 @@ public class SidecarFileSystemAdapter implements FileSystemAdapter {
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
         } catch (ConnectException | HttpConnectTimeoutException e) {
-            logger.error("Sidecar 不可达: {}", url, e);
+            logger.error(
+                    "Sidecar filesystem endpoint unreachable, url={}, errorMessage={}",
+                    url,
+                    e.getMessage(),
+                    e);
             throw new FileSystemException(
                     FileSystemException.ErrorType.IO_ERROR,
                     SANDBOX_TYPE,
-                    "Sidecar 连接失败: " + url,
+                    "Failed to connect to Sidecar service: " + e.getMessage(),
                     e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("Sidecar 请求被中断: " + url, e);
+            throw new IOException("Sidecar filesystem request interrupted", e);
         }
     }
 }

@@ -19,10 +19,18 @@
 
 package com.alibaba.himarket.service;
 
-import com.alibaba.himarket.dto.params.product.*;
+import com.alibaba.himarket.dto.params.product.AddProductRefParam;
+import com.alibaba.himarket.dto.params.product.CreateProductParam;
+import com.alibaba.himarket.dto.params.product.QueryProductParam;
+import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
+import com.alibaba.himarket.dto.params.product.UpdateProductParam;
+import com.alibaba.himarket.dto.params.product.UpdateProductSourceParam;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
-import com.alibaba.himarket.dto.result.product.*;
+import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
+import com.alibaba.himarket.dto.result.product.ProductRefResult;
+import com.alibaba.himarket.dto.result.product.ProductResult;
+import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.Pageable;

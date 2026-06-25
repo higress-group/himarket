@@ -23,7 +23,6 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -45,7 +44,7 @@ public class PageResult<T> implements OutputConverter<PageResult<T>, Page<T>> {
     private long totalElements;
 
     public <S> PageResult<T> mapFrom(PageResult<S> source, Function<S, T> mapper) {
-        setContent(source.getContent().stream().map(mapper).collect(Collectors.toList()));
+        setContent(source.getContent().stream().map(mapper).toList());
         setSize(source.getSize());
         setNumber(source.getNumber());
         setTotalElements(source.getTotalElements());
@@ -53,9 +52,9 @@ public class PageResult<T> implements OutputConverter<PageResult<T>, Page<T>> {
     }
 
     public <S> PageResult<T> convertFrom(Page<S> source, Function<S, T> mapper) {
-        setContent(source.getContent().stream().map(mapper).collect(Collectors.toList()));
+        setContent(source.getContent().stream().map(mapper).toList());
         setSize(source.getSize());
-        // 由Pageable转换时修正
+        // Spring Data pages are zero-based, while API pages are one-based.
         setNumber(source.getNumber() + 1);
         setTotalElements(source.getTotalElements());
         return this;

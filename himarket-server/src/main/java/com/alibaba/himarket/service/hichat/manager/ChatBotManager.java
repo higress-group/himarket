@@ -18,9 +18,6 @@
  */
 package com.alibaba.himarket.service.hichat.manager;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.SecureUtil;
 import com.alibaba.himarket.core.event.McpClientRemovedEvent;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.product.ProductResult;
@@ -28,6 +25,7 @@ import com.alibaba.himarket.service.hichat.support.ChatBot;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.service.hichat.support.ToolMeta;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.InMemoryMemory;
@@ -39,6 +37,7 @@ import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.agentscope.core.tool.mcp.McpTool;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,11 +49,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.DigestUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@Slf4j
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ChatBotManager {
 
@@ -83,7 +84,7 @@ public class ChatBotManager {
         String sessionId = request.getSessionId();
         String productId = request.getProduct().getProductId();
 
-        if (StrUtil.isBlank(sessionId) || StrUtil.isBlank(productId)) {
+        if (Strings.isBlank(sessionId) || Strings.isBlank(productId)) {
             log.error("Invalid request: sessionId and productId required");
             return null;
         }
@@ -94,7 +95,7 @@ public class ChatBotManager {
         ChatBot cachedBot = chatBotCache.getIfPresent(cacheKey);
         if (cachedBot != null) {
             if (cachedBot.isValid()) {
-                log.debug("Reused ChatBot from cache, degraded: {}", cachedBot.isDegraded());
+                log.debug("Reused ChatBot from cache, degraded={}", cachedBot.isDegraded());
                 return cachedBot;
             } else {
                 // Invalid (degraded TTL exceeded), remove from cache and create a new one
@@ -113,7 +114,7 @@ public class ChatBotManager {
                 int mcpCount = registerToolDependencies(cacheKey, request.getMcpConfigs());
 
                 log.info(
-                        "Created new ChatBot for session: {}, degraded: {}, MCPs: {}",
+                        "Created ChatBot, sessionId={}, degraded={}, mcpCount={}",
                         sessionId,
                         chatBot.isDegraded(),
                         mcpCount);
@@ -121,9 +122,10 @@ public class ChatBotManager {
             return chatBot;
         } catch (Exception e) {
             log.error(
-                    "Failed to create ChatBot, sessionId: {}, productId: {}",
+                    "Failed to create ChatBot, sessionId={}, productId={}, errorMessage={}",
                     sessionId,
                     productId,
+                    e.getMessage(),
                     e);
             return null;
         }
@@ -142,7 +144,7 @@ public class ChatBotManager {
 
         // Initialize and register mcp tools
         List<McpTransportConfig> mcpConfigs = request.getMcpConfigs();
-        int expectedMcpCount = CollUtil.isEmpty(mcpConfigs) ? 0 : mcpConfigs.size();
+        int expectedMcpCount = CollectionUtils.isEmpty(mcpConfigs) ? 0 : mcpConfigs.size();
 
         List<McpClientWrapper> mcpClients = loadMcpClients(request);
         Toolkit toolkit = new Toolkit();
@@ -171,8 +173,8 @@ public class ChatBotManager {
 
         long totalTime = System.currentTimeMillis() - startTime;
         log.info(
-                "ChatBot created successfully for session: {}, MCP: {}/{}, degraded: {}, total"
-                        + " time: {}ms",
+                "ChatBot created, sessionId={}, succeededMcpCount={}, expectedMcpCount={},"
+                        + " degraded={}, elapsedMillis={}",
                 request.getSessionId(),
                 actualSuccessCount,
                 expectedMcpCount,
@@ -190,14 +192,14 @@ public class ChatBotManager {
      */
     private List<McpClientWrapper> loadMcpClients(LlmChatRequest request) {
         List<McpTransportConfig> mcpConfigs = request.getMcpConfigs();
-        if (CollUtil.isEmpty(mcpConfigs)) {
-            log.debug("No MCP configs found for chat: {}", request.getChatId());
+        if (CollectionUtils.isEmpty(mcpConfigs)) {
+            log.debug("No MCP configs found for chat, chatId={}", request.getChatId());
             return List.of();
         }
 
         List<McpClientWrapper> clients = toolManager.getOrCreateClients(mcpConfigs);
         if (clients.isEmpty()) {
-            log.warn("No MCP clients available for chat: {}", request.getChatId());
+            log.warn("No MCP clients available for chat, chatId={}", request.getChatId());
         }
         return clients;
     }
@@ -231,9 +233,12 @@ public class ChatBotManager {
                                                     error ->
                                                             log.error(
                                                                     "Failed to list tools from MCP"
-                                                                        + " server: {}, error: {}",
+                                                                            + " server,"
+                                                                            + " serverName={},"
+                                                                            + " errorMessage={}",
                                                                     client.getName(),
-                                                                    error.getMessage()))
+                                                                    error.getMessage(),
+                                                                    error))
                                             .onErrorResume(error -> Mono.empty());
                                 },
                                 20)
@@ -245,7 +250,8 @@ public class ChatBotManager {
         long totalTime = System.currentTimeMillis() - startTime;
 
         log.info(
-                "MCP tools registered: {}/{} servers succeeded, total time: {}ms",
+                "MCP tools registered, succeededServerCount={}, totalServerCount={},"
+                        + " elapsedMillis={}",
                 successCount,
                 clients.size(),
                 totalTime);
@@ -268,7 +274,7 @@ public class ChatBotManager {
         for (String groupName : activeGroups) {
             ToolGroup group = toolkit.getToolGroup(groupName);
             if (group == null) {
-                log.warn("Tool group not found: {}", groupName);
+                log.warn("Tool group not found, groupName={}", groupName);
                 continue;
             }
 
@@ -311,14 +317,20 @@ public class ChatBotManager {
 
             // Create tool group if not exists
             if (toolkit.getToolGroup(groupName) == null) {
-                toolkit.createToolGroup(groupName, "Tools from MCP server: " + groupName, true);
+                toolkit.createToolGroup(
+                        groupName, String.format("Tools from MCP server: %s", groupName), true);
             }
 
             // Register tool with group
             toolkit.registration().agentTool(mcpTool).group(groupName).apply();
 
         } catch (Exception e) {
-            log.error("Failed to register tool: {} from {}", tool.name(), client.getName(), e);
+            log.error(
+                    "Failed to register tool, toolName={}, clientName={}, errorMessage={}",
+                    tool.name(),
+                    client.getName(),
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -331,7 +343,7 @@ public class ChatBotManager {
     private Memory createMemory(List<Msg> historyMessages) {
         Memory memory = new InMemoryMemory();
 
-        if (CollUtil.isNotEmpty(historyMessages)) {
+        if (!CollectionUtils.isEmpty(historyMessages)) {
             // Limit initial memory to 20 messages
             int maxInitMessages = 20;
             List<Msg> messagesToLoad = historyMessages;
@@ -340,13 +352,14 @@ public class ChatBotManager {
                 int startIndex = historyMessages.size() - maxInitMessages;
                 messagesToLoad = historyMessages.subList(startIndex, historyMessages.size());
                 log.info(
-                        "Truncated history from {} to {} messages for initialization",
+                        "Truncated history for initialization, originalMessageCount={},"
+                                + " retainedMessageCount={}",
                         historyMessages.size(),
                         maxInitMessages);
             }
 
             messagesToLoad.forEach(memory::addMessage);
-            log.debug("Initialized memory with {} messages", messagesToLoad.size());
+            log.debug("Initialized memory, messageCount={}", messagesToLoad.size());
         }
 
         return memory;
@@ -376,7 +389,7 @@ public class ChatBotManager {
      */
     private int registerToolDependencies(
             String chatBotCacheKey, List<McpTransportConfig> mcpConfigs) {
-        if (CollUtil.isEmpty(mcpConfigs)) {
+        if (CollectionUtils.isEmpty(mcpConfigs)) {
             return 0;
         }
 
@@ -391,7 +404,8 @@ public class ChatBotManager {
         }
 
         log.debug(
-                "Registered mapping for ChatBot: {}, MCP keys: {}, total mappings: {}",
+                "Registered ChatBot mapping, chatBotCacheKey={}, mcpKeyCount={},"
+                        + " totalMappingCount={}",
                 chatBotCacheKey,
                 mcpCacheKeys.size(),
                 toolDependencies.size());
@@ -400,8 +414,9 @@ public class ChatBotManager {
     }
 
     /**
-     * Event listener for MCP client removal
-     * Invalidates all ChatBots that depend on the removed MCP client
+     * Event listener for MCP client removal.
+     *
+     * <p>Invalidates all ChatBots that depend on the removed MCP client.
      *
      * @param event MCP client removed event
      */
@@ -410,13 +425,13 @@ public class ChatBotManager {
     public void onMcpClientRemoved(McpClientRemovedEvent event) {
         String mcpCacheKey = event.getMcpCacheKey();
 
-        log.info("Received MCP client removed event, key: {}", mcpCacheKey);
+        log.info("Received MCP client removed event, cacheKey={}", mcpCacheKey);
 
         // Get all ChatBot cache keys that depend on this MCP
         Set<String> chatBotKeys = toolDependencies.remove(mcpCacheKey);
 
-        if (CollUtil.isEmpty(chatBotKeys)) {
-            log.debug("No ChatBots depend on MCP key: {}", mcpCacheKey);
+        if (CollectionUtils.isEmpty(chatBotKeys)) {
+            log.debug("No ChatBots depend on MCP key, cacheKey={}", mcpCacheKey);
             return;
         }
 
@@ -425,7 +440,10 @@ public class ChatBotManager {
             chatBotCache.invalidate(cacheKey);
         }
 
-        log.info("Invalidated {} ChatBots for MCP key: {}", chatBotKeys.size(), mcpCacheKey);
+        log.info(
+                "Invalidated ChatBots for MCP key, chatBotCount={}, cacheKey={}",
+                chatBotKeys.size(),
+                mcpCacheKey);
     }
 
     /**
@@ -454,7 +472,7 @@ public class ChatBotManager {
                 sb.append(":").append(request.getUri().getPort());
             }
 
-            if (StrUtil.isNotBlank(request.getUri().getPath())) {
+            if (Strings.isNotBlank(request.getUri().getPath())) {
                 sb.append(request.getUri().getPath());
             }
 
@@ -467,7 +485,7 @@ public class ChatBotManager {
         sb.append("cred:");
 
         // API Key
-        if (StrUtil.isNotBlank(request.getApiKey())) {
+        if (Strings.isNotBlank(request.getApiKey())) {
             sb.append("apiKey=").append(request.getApiKey()).append(",");
         }
 
@@ -517,11 +535,11 @@ public class ChatBotManager {
 
         // MCP Tool URLs (sorted)
         sb.append("mcp:");
-        if (CollUtil.isNotEmpty(request.getMcpConfigs())) {
+        if (!CollectionUtils.isEmpty(request.getMcpConfigs())) {
             String mcpUrls =
                     request.getMcpConfigs().stream()
                             .map(McpTransportConfig::getUrl)
-                            .filter(StrUtil::isNotBlank)
+                            .filter(Strings::isNotBlank)
                             .sorted()
                             .collect(Collectors.joining(","));
             sb.append(mcpUrls);
@@ -532,6 +550,6 @@ public class ChatBotManager {
         // Hash the final string for fixed-length cache key
         String rawKey = sb.toString();
 
-        return "chatBot:" + SecureUtil.md5(rawKey);
+        return "chatBot:" + DigestUtils.md5DigestAsHex(rawKey.getBytes(StandardCharsets.UTF_8));
     }
 }

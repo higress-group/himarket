@@ -33,9 +33,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-/** {@link McpVendorService} 默认实现。 */
-@Slf4j
+/**
+ * Default {@link McpVendorService} implementation.
+ */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class McpVendorServiceImpl implements McpVendorService {
 
@@ -65,7 +67,7 @@ public class McpVendorServiceImpl implements McpVendorService {
         List<RemoteMcpItemResult> results =
                 remotePage.getContent().stream()
                         .map(item -> toResult(item, existingNames))
-                        .collect(Collectors.toList());
+                        .toList();
 
         return PageResult.of(
                 results,

@@ -1,6 +1,5 @@
 package com.alibaba.himarket.service.task;
 
-import cn.hutool.core.collection.CollUtil;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.AiRegistrySkillService;
@@ -13,11 +12,11 @@ import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpecSummary;
 import com.alibaba.nacos.api.ai.model.skills.SkillSummary;
 import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,7 +42,10 @@ public class DownloadCountSyncTask {
             syncSkillDownloadCounts();
             syncWorkerDownloadCounts();
         } catch (Exception e) {
-            log.error("Unexpected error during download count sync", e);
+            log.error(
+                    "Unexpected error during download count sync, errorMessage={}",
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -60,40 +62,38 @@ public class DownloadCountSyncTask {
                         .toList();
 
         if (!nacosProducts.isEmpty()) {
-            nacosProducts.stream()
-                    .collect(
-                            Collectors.groupingBy(
-                                    p -> {
-                                        SkillConfig c = p.getFeature().getSkillConfig();
-                                        return c.getNacosId() + ":" + c.getNamespace();
-                                    }))
-                    .forEach(
-                            (key, group) -> {
-                                Product first = group.get(0);
-                                SkillConfig config = first.getFeature().getSkillConfig();
-                                syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
-                            });
+            Map<String, List<Product>> productsByNacos = new HashMap<>();
+            for (Product product : nacosProducts) {
+                SkillConfig config = product.getFeature().getSkillConfig();
+                String groupKey = config.getNacosId() + ":" + config.getNamespace();
+                productsByNacos.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(product);
+            }
+
+            for (List<Product> group : productsByNacos.values()) {
+                SkillConfig config = group.get(0).getFeature().getSkillConfig();
+                syncSkillGroup(config.getNacosId(), config.getNamespace(), group);
+            }
         }
 
-        skillProducts.stream()
-                .filter(
-                        p ->
-                                p.getFeature() != null
-                                        && p.getFeature().getSkillConfig() != null
-                                        && isAiRegistrySkillConfig(p.getFeature().getSkillConfig()))
-                .collect(
-                        Collectors.groupingBy(
-                                p -> {
-                                    SkillConfig c = p.getFeature().getSkillConfig();
-                                    return c.getAiRegistryId() + ":" + c.getNamespace();
-                                }))
-                .forEach(
-                        (key, group) -> {
-                            Product first = group.get(0);
-                            SkillConfig config = first.getFeature().getSkillConfig();
-                            syncAiRegistrySkillGroup(
-                                    config.getAiRegistryId(), config.getNamespace(), group);
-                        });
+        Map<String, List<Product>> productsByAiRegistry = new HashMap<>();
+        for (Product product : skillProducts) {
+            if (product.getFeature() == null || product.getFeature().getSkillConfig() == null) {
+                continue;
+            }
+
+            SkillConfig config = product.getFeature().getSkillConfig();
+            if (!isAiRegistrySkillConfig(config)) {
+                continue;
+            }
+
+            String groupKey = config.getAiRegistryId() + ":" + config.getNamespace();
+            productsByAiRegistry.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(product);
+        }
+
+        for (List<Product> group : productsByAiRegistry.values()) {
+            SkillConfig config = group.get(0).getFeature().getSkillConfig();
+            syncAiRegistrySkillGroup(config.getAiRegistryId(), config.getNamespace(), group);
+        }
     }
 
     private boolean isNacosSkillConfig(SkillConfig config) {
@@ -122,19 +122,17 @@ public class DownloadCountSyncTask {
             return;
         }
 
-        products.stream()
-                .collect(
-                        Collectors.groupingBy(
-                                p -> {
-                                    WorkerConfig c = p.getFeature().getWorkerConfig();
-                                    return c.getNacosId() + ":" + c.getNamespace();
-                                }))
-                .forEach(
-                        (key, group) -> {
-                            Product first = group.get(0);
-                            WorkerConfig config = first.getFeature().getWorkerConfig();
-                            syncWorkerGroup(config.getNacosId(), config.getNamespace(), group);
-                        });
+        Map<String, List<Product>> productsByNacos = new HashMap<>();
+        for (Product product : products) {
+            WorkerConfig config = product.getFeature().getWorkerConfig();
+            String groupKey = config.getNacosId() + ":" + config.getNamespace();
+            productsByNacos.computeIfAbsent(groupKey, key -> new ArrayList<>()).add(product);
+        }
+
+        for (List<Product> group : productsByNacos.values()) {
+            WorkerConfig config = group.get(0).getFeature().getWorkerConfig();
+            syncWorkerGroup(config.getNacosId(), config.getNamespace(), group);
+        }
     }
 
     private void syncSkillGroup(String nacosId, String namespace, List<Product> products) {
@@ -146,7 +144,7 @@ public class DownloadCountSyncTask {
             while (true) {
                 Page<SkillSummary> page =
                         aiService.skill().listSkills(namespace, null, null, pageNo, PAGE_SIZE);
-                if (page == null || CollUtil.isEmpty(page.getPageItems())) {
+                if (page == null || page.getPageItems() == null || page.getPageItems().isEmpty()) {
                     break;
                 }
                 for (SkillSummary summary : page.getPageItems()) {
@@ -171,22 +169,25 @@ public class DownloadCountSyncTask {
                         config.setDownloadCount(count);
                         productRepository.save(product);
                         log.info(
-                                "Synced download count for skill product {}: {}",
+                                "Synced download count for skill product, productId={},"
+                                        + " downloadCount={}",
                                 product.getProductId(),
                                 count);
                     }
                 } catch (Exception e) {
                     log.warn(
-                            "Failed to sync download count for skill product {}",
+                            "Failed to sync download count for skill product, productId={}",
                             product.getProductId(),
                             e);
                 }
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync download counts for skill products from Nacos {}: {}",
+                    "Failed to sync download counts for skill products from Nacos, nacosId={},"
+                            + " errorMessage={}",
                     nacosId,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -207,22 +208,26 @@ public class DownloadCountSyncTask {
                         config.setDownloadCount(count);
                         productRepository.save(product);
                         log.info(
-                                "Synced download count for AIRegistry skill product {}: {}",
+                                "Synced download count for AIRegistry skill product, productId={},"
+                                        + " downloadCount={}",
                                 product.getProductId(),
                                 count);
                     }
                 } catch (Exception e) {
                     log.warn(
-                            "Failed to sync download count for AIRegistry skill product {}",
+                            "Failed to sync download count for AIRegistry skill product,"
+                                    + " productId={}",
                             product.getProductId(),
                             e);
                 }
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync download counts for skill products from AIRegistry {}: {}",
+                    "Failed to sync download counts for skill products from AIRegistry,"
+                            + " aiRegistryId={}, errorMessage={}",
                     aiRegistryId,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -237,7 +242,7 @@ public class DownloadCountSyncTask {
                         aiService
                                 .agentSpec()
                                 .listAgentSpecAdminItems(namespace, null, null, pageNo, PAGE_SIZE);
-                if (page == null || CollUtil.isEmpty(page.getPageItems())) {
+                if (page == null || page.getPageItems() == null || page.getPageItems().isEmpty()) {
                     break;
                 }
                 for (AgentSpecSummary summary : page.getPageItems()) {
@@ -262,22 +267,25 @@ public class DownloadCountSyncTask {
                         config.setDownloadCount(count);
                         productRepository.save(product);
                         log.info(
-                                "Synced download count for worker product {}: {}",
+                                "Synced download count for worker product, productId={},"
+                                        + " downloadCount={}",
                                 product.getProductId(),
                                 count);
                     }
                 } catch (Exception e) {
                     log.warn(
-                            "Failed to sync download count for worker product {}",
+                            "Failed to sync download count for worker product, productId={}",
                             product.getProductId(),
                             e);
                 }
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to sync download counts for worker products from Nacos {}: {}",
+                    "Failed to sync download counts for worker products from Nacos, nacosId={},"
+                            + " errorMessage={}",
                     nacosId,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 }

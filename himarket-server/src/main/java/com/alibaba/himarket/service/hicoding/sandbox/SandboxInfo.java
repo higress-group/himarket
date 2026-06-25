@@ -8,8 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
- * 沙箱实例信息，由 SandboxProvider.acquire() 返回。
- * 包含连接沙箱所需的所有信息。
+ * Sandbox instance information returned by {@link SandboxProvider#acquire(SandboxConfig)}.
+ * Contains all details required to connect to the sandbox.
  */
 public record SandboxInfo(
         SandboxType type,
@@ -23,45 +23,45 @@ public record SandboxInfo(
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
-     * 构建 Sidecar WebSocket URI。
+     * Builds the Sidecar WebSocket URI.
      *
-     * @param command 要执行的命令
-     * @param args    命令参数（可为 null 或空白）
-     * @return 完整的 WebSocket URI，args 部分经过 URL 编码
+     * @param command command to execute
+     * @param args command arguments, nullable or blank
+     * @return complete WebSocket URI with URL-encoded args
      */
     public URI sidecarWsUri(String command, String args) {
         return sidecarWsUri(command, args, null);
     }
 
     /**
-     * 构建 Sidecar WebSocket URI，支持传递环境变量和工作目录。
+     * Builds the Sidecar WebSocket URI with environment variables and working directory.
      *
-     * @param command 要执行的命令
-     * @param args    命令参数（可为 null 或空白）
-     * @param env     环境变量 Map（可为 null）
-     * @param cwd     工作目录路径（可为 null 或空白）
-     * @return 完整的 WebSocket URI，args、env 和 cwd 部分经过 URL 编码
+     * @param command command to execute
+     * @param args command arguments, nullable or blank
+     * @param env environment variables, nullable
+     * @param cwd working directory path, nullable or blank
+     * @return complete WebSocket URI with URL-encoded args, env, and cwd
      */
     public URI sidecarWsUri(String command, String args, Map<String, String> env, String cwd) {
         return sidecarWsUri(command, args, env, cwd, null);
     }
 
     /**
-     * 构建 Sidecar WebSocket URI，支持传递环境变量、工作目录和 sessionId。
+     * Builds the Sidecar WebSocket URI with environment variables, working directory, and sessionId.
      *
-     * <p>当 sessionId 非空时，生成 attach URI（不含 command 等参数），
-     * sidecar 将 attach 到已有 session 而非创建新进程。
+     * <p>When sessionId is present, this creates an attach URI without command parameters. The
+     * Sidecar will attach to the existing session instead of starting a new process.
      *
-     * @param command   要执行的命令（新建时必需，attach 时忽略）
-     * @param args      命令参数（可为 null 或空白）
-     * @param env       环境变量 Map（可为 null）
-     * @param cwd       工作目录路径（可为 null 或空白）
-     * @param sessionId sidecar session ID（非空则为 attach 模式）
-     * @return 完整的 WebSocket URI
+     * @param command command to execute, required for new sessions and ignored for attach mode
+     * @param args command arguments, nullable or blank
+     * @param env environment variables, nullable
+     * @param cwd working directory path, nullable or blank
+     * @param sessionId Sidecar session ID; present means attach mode
+     * @return complete WebSocket URI
      */
     public URI sidecarWsUri(
             String command, String args, Map<String, String> env, String cwd, String sessionId) {
-        // Attach 模式：只需 sessionId
+        // Attach mode only needs the sessionId.
         if (sessionId != null && !sessionId.isBlank()) {
             return URI.create(
                     "ws://"
@@ -71,7 +71,7 @@ public record SandboxInfo(
                             + "/?sessionId="
                             + URLEncoder.encode(sessionId, StandardCharsets.UTF_8));
         }
-        // 新建模式：需要 command 等参数
+        // New-session mode requires command parameters.
         String query = "command=" + command;
         if (args != null && !args.isBlank()) {
             query += "&args=" + URLEncoder.encode(args, StandardCharsets.UTF_8);
@@ -81,7 +81,7 @@ public record SandboxInfo(
                 String envJson = OBJECT_MAPPER.writeValueAsString(env);
                 query += "&env=" + URLEncoder.encode(envJson, StandardCharsets.UTF_8);
             } catch (JsonProcessingException e) {
-                throw new RuntimeException("Failed to serialize env to JSON", e);
+                throw new RuntimeException("Failed to serialize env to JSON: " + e.getMessage(), e);
             }
         }
         if (cwd != null && !cwd.isBlank()) {
@@ -91,12 +91,12 @@ public record SandboxInfo(
     }
 
     /**
-     * 构建 Sidecar WebSocket URI，支持传递环境变量。
+     * Builds the Sidecar WebSocket URI with environment variables.
      *
-     * @param command 要执行的命令
-     * @param args    命令参数（可为 null 或空白）
-     * @param env     环境变量 Map（可为 null）
-     * @return 完整的 WebSocket URI，args 和 env 部分经过 URL 编码
+     * @param command command to execute
+     * @param args command arguments, nullable or blank
+     * @param env environment variables, nullable
+     * @return complete WebSocket URI with URL-encoded args and env
      */
     public URI sidecarWsUri(String command, String args, Map<String, String> env) {
         return sidecarWsUri(command, args, env, null);

@@ -24,8 +24,8 @@ import com.alibaba.himarket.service.gateway.HigressOperator.HigressMcpConfig;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
+@EqualsAndHashCode(callSuper = true)
 public class HigressMcpServerResult extends GatewayMcpServerResult
         implements OutputConverter<HigressMcpServerResult, HigressMcpConfig> {
 

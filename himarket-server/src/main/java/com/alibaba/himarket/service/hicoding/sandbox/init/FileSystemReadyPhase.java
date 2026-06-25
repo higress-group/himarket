@@ -6,12 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 验证沙箱文件系统可访问。
- * 通过 SandboxProvider.healthCheck() 统一验证。
+ * Verifies that the sandbox filesystem is accessible.
  *
- * <p>当健康检查失败时，提供包含 host:port 的友好错误信息，
- * 帮助用户快速定位沙箱连接问题。使用快速失败策略（仅重试 1 次），
- * 避免沙箱不可达时长时间无意义等待。
+ * <p>Uses {@link SandboxProvider#healthCheck(SandboxInfo)} for provider-neutral validation. When
+ * the health check fails, the error includes host:port to help diagnose sandbox connectivity
+ * issues quickly. The phase uses a fail-fast strategy to avoid long waits when the sandbox is
+ * unreachable.
  */
 public class FileSystemReadyPhase implements InitPhase {
 
@@ -42,12 +42,15 @@ public class FileSystemReadyPhase implements InitPhase {
                 String detail = buildConnectivityErrorMessage(info);
                 throw new InitPhaseException("filesystem-ready", detail, true);
             }
-            logger.info("[FileSystemReady] 通过: sandboxId={}", info.sandboxId());
+            logger.info("Filesystem health check passed, sandboxId={}", info.sandboxId());
         } catch (InitPhaseException e) {
             throw e;
         } catch (Exception e) {
             throw new InitPhaseException(
-                    "filesystem-ready", "文件系统健康检查异常: " + e.getMessage(), e, true);
+                    "filesystem-ready",
+                    "Filesystem health check failed: " + e.getMessage(),
+                    e,
+                    true);
         }
     }
 
@@ -57,7 +60,7 @@ public class FileSystemReadyPhase implements InitPhase {
     }
 
     /**
-     * 不重试，失败直接返回。
+     * Does not retry; failures return immediately.
      */
     @Override
     public RetryPolicy retryPolicy() {
@@ -65,13 +68,14 @@ public class FileSystemReadyPhase implements InitPhase {
     }
 
     /**
-     * 构建包含连接信息的友好错误消息。
+     * Builds a friendly error message with connection details.
      */
     private String buildConnectivityErrorMessage(SandboxInfo info) {
         String host = info.host();
         int port = info.sidecarPort();
         return String.format(
-                "沙箱 %s (%s:%d) 不可达，请检查: 1) sidecar 服务是否已启动 2) 地址和端口是否正确",
+                "Sandbox %s (%s:%d) is unreachable. Check that the Sidecar service is running and"
+                        + " the address and port are correct.",
                 info.sandboxId(), host, port);
     }
 }

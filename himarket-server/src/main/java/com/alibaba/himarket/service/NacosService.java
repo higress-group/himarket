@@ -34,147 +34,153 @@ import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import org.springframework.data.domain.Pageable;
 
-/** Nacos服务接口，定义Nacos实例管理和MCP服务器配置相关操作 */
+/**
+ * Service for Nacos instance management and Nacos-backed product configuration.
+ */
 public interface NacosService {
 
     /**
-     * 获取Nacos实例列表
+     * Lists imported Nacos instances.
      *
-     * @param pageable 分页参数
-     * @return 分页的Nacos实例列表
+     * @param pageable paging parameters
+     * @return paged Nacos instances
      */
     PageResult<NacosResult> listNacosInstances(Pageable pageable);
 
     /**
-     * 获取Nacos实例详情
+     * Gets a Nacos instance.
      *
-     * @param nacosId Nacos实例唯一标识
-     * @return Nacos实例详细信息
+     * @param nacosId Nacos instance ID
+     * @return Nacos instance details
      */
     NacosResult getNacosInstance(String nacosId);
 
     /**
-     * 导入Nacos实例
+     * Creates an imported Nacos instance.
      *
-     * @param param Nacos实例创建参数
+     * @param param creation parameters
      */
     void createNacosInstance(CreateNacosParam param);
 
     /**
-     * 更新Nacos实例
+     * Updates a Nacos instance.
      *
-     * @param nacosId Nacos实例唯一标识
-     * @param param Nacos实例更新参数
+     * @param nacosId Nacos instance ID
+     * @param param update parameters
      */
     void updateNacosInstance(String nacosId, UpdateNacosParam param);
 
     /**
-     * 删除Nacos实例
+     * Deletes a Nacos instance.
      *
-     * @param nacosId Nacos实例唯一标识
+     * @param nacosId Nacos instance ID
      */
     void deleteNacosInstance(String nacosId);
 
     /**
-     * 获取MCP Server列表
+     * Lists MCP servers from a Nacos instance.
      *
-     * @param nacosId Nacos实例唯一标识
-     * @param pageable 分页参数
-     * @return 分页的MCP Server列表
-     * @throws Exception 获取MCP Server列表时可能抛出的异常
+     * @param nacosId Nacos instance ID
+     * @param namespaceId namespace ID, or empty to list from all namespaces
+     * @param pageable paging parameters
+     * @return paged MCP servers
+     * @throws Exception when Nacos query fails
      */
-    /** 获取MCP Server列表 (指定命名空间, 可为空表示全部) */
     PageResult<NacosMCPServerResult> fetchMcpServers(
             String nacosId, String namespaceId, Pageable pageable) throws Exception;
 
     /**
-     * 获取MCP Server配置
+     * Fetches MCP server configuration for product binding.
      *
-     * @param nacosId Nacos实例唯一标识
-     * @param nacosRefConfig Nacos引用配置
-     * @return MCP Server配置信息
+     * @param nacosId Nacos instance ID
+     * @param nacosRefConfig Nacos reference configuration
+     * @return serialized MCP server configuration
      */
     String fetchMcpConfig(String nacosId, NacosRefConfig nacosRefConfig);
 
     /**
-     * 从阿里云MSE获取Nacos集群列表
+     * Lists Nacos clusters from Alibaba Cloud MSE.
      *
-     * @param param
-     * @param pageable
-     * @return
+     * @param param MSE query parameters
+     * @param pageable paging parameters
+     * @return paged Nacos clusters
      */
     PageResult<MseNacosResult> fetchNacos(QueryNacosParam param, Pageable pageable);
 
     /**
-     * 通过直连信息获取命名空间列表（复用前端的创建/更新参数结构）
+     * Lists namespaces from an imported Nacos instance.
      *
-     * @param param CreateNacosParam/UpdateNacosParam 字段集合（此处使用 CreateNacosParam 承载）
-     * @param pageable 分页
-     * @return 命名空间分页
-     * @throws Exception 连接或查询异常
+     * @param nacosId Nacos instance ID
+     * @param pageable paging parameters
+     * @return paged namespaces
+     * @throws Exception when Nacos query fails
      */
-    /** 获取指定 Nacos 实例的命名空间列表 */
     PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable)
             throws Exception;
 
-    // ==================== Agent 相关 ====================
-
     /**
-     * 获取 Agent 列表
+     * Lists Agents from a Nacos instance.
      *
-     * @param nacosId Nacos 实例唯一标识
-     * @param namespaceId 命名空间 ID（可选，为空表示使用默认命名空间）
-     * @param pageable 分页参数
-     * @return 分页的 Agent 列表
-     * @throws Exception 获取 Agent 列表时可能抛出的异常
+     * @param nacosId Nacos instance ID
+     * @param namespaceId namespace ID, or empty to use the default namespace
+     * @param pageable paging parameters
+     * @return paged Agents
+     * @throws Exception when Nacos query fails
      */
     PageResult<NacosAgentResult> fetchAgents(String nacosId, String namespaceId, Pageable pageable)
             throws Exception;
 
+    /**
+     * Lists Skills from a Nacos instance.
+     *
+     * @param nacosId Nacos instance ID
+     * @param namespaceId namespace ID, or empty to use the public namespace
+     * @param pageable paging parameters
+     * @return paged Skills
+     * @throws Exception when Nacos query fails
+     */
     PageResult<NacosSkillResult> fetchSkills(String nacosId, String namespaceId, Pageable pageable)
             throws Exception;
 
     /**
-     * 获取 Agent 配置（用于产品关联时同步配置，默认最新版本） 注意：此方法仅供内部使用，不对外暴露为 REST 接口
+     * Fetches Agent configuration for product binding.
      *
-     * @param nacosId Nacos 实例唯一标识
-     * @param nacosRefConfig Nacos 引用配置（包含 agentName 和 namespaceId）
-     * @return Agent 配置的 JSON 字符串
+     * <p>This method uses the latest version and is not exposed as a REST endpoint.
+     *
+     * @param nacosId Nacos instance ID
+     * @param nacosRefConfig Nacos reference configuration
+     * @return serialized Agent configuration
      */
     String fetchAgentConfig(String nacosId, NacosRefConfig nacosRefConfig);
 
-    // ==================== Skill 相关 ====================
-
     /**
-     * 根据 nacosId 获取缓存的 AiMaintainerService 实例。
-     * 复用已有的 buildDynamicAiService + ConcurrentHashMap 缓存机制。
+     * Gets the cached AiMaintainerService for a Nacos instance.
      *
-     * @param nacosId nacos_instance 表主键
-     * @return AiMaintainerService 实例
+     * @param nacosId Nacos instance ID
+     * @return AiMaintainerService instance
      */
     AiMaintainerService getAiMaintainerService(String nacosId);
 
     /**
-     * 根据 nacosId 查询 NacosInstance 记录（用于提取凭证信息）。
+     * Finds the persisted Nacos instance entity.
      *
-     * @param nacosId nacos_instance 表主键
-     * @return NacosInstance 实体
+     * @param nacosId Nacos instance ID
+     * @return Nacos instance entity
      */
     NacosInstance findNacosInstanceById(String nacosId);
 
     /**
-     * 获取默认 Nacos 实例。
+     * Gets the default Nacos instance.
      *
-     * @return 默认实例信息，不存在时返回 null
+     * @return default instance, or null when none exists
      */
     NacosResult getDefaultNacosInstance();
 
     /**
-     * 设置指定 Nacos 实例为默认，可同步指定默认命名空间。
-     * 若提供 namespaceId，会先用已保存的认证信息连接 Nacos 验证命名空间是否存在，再保存。
+     * Sets the default Nacos instance and optionally stores a verified default namespace.
      *
-     * @param nacosId 要设为默认的实例 ID
-     * @param namespaceId 要设为默认的命名空间 ID（可选）
+     * @param nacosId instance ID to mark as default
+     * @param namespaceId namespace ID to store as default, optional
      */
     void setDefaultNacos(String nacosId, String namespaceId);
 }

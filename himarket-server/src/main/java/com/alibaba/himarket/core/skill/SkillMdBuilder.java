@@ -3,20 +3,18 @@ package com.alibaba.himarket.core.skill;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 
 /**
- * 从 Nacos Skill 对象拼装 SKILL.md 内容。
- * 格式：YAML frontmatter（name、description）+ instruction 正文。
+ * Builds SKILL.md content from a Nacos Skill object.
+ * Format: YAML frontmatter (name, description) plus instruction body.
  */
 public final class SkillMdBuilder {
-
-    private SkillMdBuilder() {}
 
     private static final String FRONTMATTER_DELIMITER = "---";
 
     /**
-     * 从 Skill 对象生成 SKILL.md 内容。
+     * Builds SKILL.md content from a Skill object.
      *
-     * <p>如果 Skill 的 skillMd 已包含 YAML frontmatter（以 --- 开头），
-     * 则直接返回原始内容，避免重复拼接 name/description。
+     * <p>If skillMd already contains YAML frontmatter (starts with ---), returns it as-is to avoid
+     * duplicating name and description.
      */
     public static String build(Skill skill) {
         String skillMd = skill.getSkillMd();

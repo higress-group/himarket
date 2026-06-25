@@ -19,20 +19,23 @@
 
 package com.alibaba.himarket.support.mcp;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpTool;
 import com.alibaba.nacos.api.ai.model.mcp.McpToolSpecification;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -58,16 +61,14 @@ public final class OpenAPIToolsConfigConverter {
                         .allowTools(Collections.singletonList(mcpServerDetailInfo.getName()))
                         .build());
 
-        Optional.ofNullable(mcpServerDetailInfo.getToolSpec())
-                .map(McpToolSpecification::getTools)
-                .filter(CollUtil::isNotEmpty)
-                .ifPresent(
-                        tools ->
-                                config.setTools(
-                                        tools.stream()
-                                                .map(OpenAPIToolsConfigConverter::convertNacosTool)
-                                                .filter(Objects::nonNull)
-                                                .collect(Collectors.toList())));
+        McpToolSpecification toolSpec = mcpServerDetailInfo.getToolSpec();
+        if (toolSpec != null && !CollectionUtils.isEmpty(toolSpec.getTools())) {
+            config.setTools(
+                    toolSpec.getTools().stream()
+                            .map(OpenAPIToolsConfigConverter::convertNacosTool)
+                            .filter(Objects::nonNull)
+                            .toList());
+        }
 
         return config;
     }
@@ -82,7 +83,7 @@ public final class OpenAPIToolsConfigConverter {
     public static OpenAPIToolsConfig convertFromToolList(
             String mcpServerName, List<McpSchema.Tool> toolList) {
         OpenAPIToolsConfig config = new OpenAPIToolsConfig();
-        if (CollUtil.isEmpty(toolList)) {
+        if (CollectionUtils.isEmpty(toolList)) {
             return config;
         }
 
@@ -91,7 +92,7 @@ public final class OpenAPIToolsConfigConverter {
                 toolList.stream()
                         .map(OpenAPIToolsConfigConverter::convertMcpSchemaTool)
                         .filter(Objects::nonNull)
-                        .collect(Collectors.toList()));
+                        .toList());
         return config;
     }
 
@@ -113,7 +114,7 @@ public final class OpenAPIToolsConfigConverter {
      * @return tools config, or null when the input cannot be parsed
      */
     public static OpenAPIToolsConfig convertFromRawConfig(String raw) {
-        if (StrUtil.isBlank(raw)) {
+        if (Strings.isBlank(raw)) {
             return null;
         }
 
@@ -140,65 +141,60 @@ public final class OpenAPIToolsConfigConverter {
             }
             return parsed == null ? null : JsonUtil.convert(parsed, OpenAPIToolsConfig.class);
         } catch (Exception e) {
-            log.warn("Failed to parse MCP tools config; tools will be omitted: {}", e.getMessage());
+            log.warn(
+                    "Failed to parse MCP tools config, tools will be omitted, errorMessage={}",
+                    e.getMessage());
             return null;
         }
     }
 
     private static OpenAPIToolsConfig.OpenAPITool convertNacosTool(McpTool mcpTool) {
-        return Optional.ofNullable(mcpTool)
-                .filter(tool -> StrUtil.isNotBlank(tool.getName()))
-                .map(
-                        tool ->
-                                OpenAPIToolsConfig.OpenAPITool.builder()
-                                        .name(tool.getName())
-                                        .description(tool.getDescription())
-                                        .args(convertArgs(tool.getInputSchema()))
-                                        .build())
-                .orElse(null);
+        if (mcpTool == null || Strings.isBlank(mcpTool.getName())) {
+            return null;
+        }
+
+        return OpenAPIToolsConfig.OpenAPITool.builder()
+                .name(mcpTool.getName())
+                .description(mcpTool.getDescription())
+                .args(convertArgs(mcpTool.getInputSchema()))
+                .build();
     }
 
     private static OpenAPIToolsConfig.OpenAPITool convertMcpSchemaTool(McpSchema.Tool mcpTool) {
-        return Optional.ofNullable(mcpTool)
-                .filter(tool -> StrUtil.isNotBlank(tool.name()))
-                .map(
-                        tool -> {
-                            Map<String, Object> inputSchemaMap =
-                                    MapUtil.builder(new HashMap<String, Object>())
-                                            .put("type", tool.inputSchema().type())
-                                            .put("properties", tool.inputSchema().properties())
-                                            .put("required", tool.inputSchema().required())
-                                            .put(
-                                                    "additionalProperties",
-                                                    tool.inputSchema().additionalProperties())
-                                            .put("definitions", tool.inputSchema().definitions())
-                                            .build();
-                            List<OpenAPIToolsConfig.Arg> args = convertArgs(inputSchemaMap);
+        if (mcpTool == null || Strings.isBlank(mcpTool.name())) {
+            return null;
+        }
 
-                            return OpenAPIToolsConfig.OpenAPITool.builder()
-                                    .name(tool.name())
-                                    .description(tool.description())
-                                    .args(args)
-                                    .build();
-                        })
-                .orElse(null);
+        Map<String, Object> inputSchemaMap = new HashMap<>();
+        inputSchemaMap.put("type", mcpTool.inputSchema().type());
+        inputSchemaMap.put("properties", mcpTool.inputSchema().properties());
+        inputSchemaMap.put("required", mcpTool.inputSchema().required());
+        inputSchemaMap.put("additionalProperties", mcpTool.inputSchema().additionalProperties());
+        inputSchemaMap.put("definitions", mcpTool.inputSchema().definitions());
+        List<OpenAPIToolsConfig.Arg> args = convertArgs(inputSchemaMap);
+
+        return OpenAPIToolsConfig.OpenAPITool.builder()
+                .name(mcpTool.name())
+                .description(mcpTool.description())
+                .args(args)
+                .build();
     }
 
     @SuppressWarnings("unchecked")
     private static List<OpenAPIToolsConfig.Arg> convertArgs(Map<String, Object> inputSchema) {
-        Map<String, Object> properties =
-                Optional.ofNullable(inputSchema)
-                        .map(schema -> MapUtil.get(schema, "properties", Map.class))
-                        .filter(props -> !props.isEmpty())
-                        .orElse(null);
+        Map<String, Object> properties = null;
+        if (inputSchema != null) {
+            Object schemaProperties = inputSchema.get("properties");
+            if (schemaProperties instanceof Map<?, ?> rawProperties && !rawProperties.isEmpty()) {
+                properties = toStringObjectMap(rawProperties);
+            }
+        }
 
-        if (MapUtil.isEmpty(properties)) {
+        if (CollectionUtils.isEmpty(properties)) {
             return new ArrayList<>();
         }
 
-        List<String> requiredFields =
-                Optional.ofNullable(MapUtil.get(inputSchema, "required", List.class))
-                        .orElse(new ArrayList<>());
+        List<String> requiredFields = requiredFields(inputSchema);
 
         return properties.entrySet().stream()
                 .map(
@@ -208,13 +204,33 @@ public final class OpenAPIToolsConfigConverter {
                             String name = entry.getKey();
 
                             OpenAPIToolsConfig.Arg arg =
-                                    OpenAPIToolsConfig.Arg.builder()
-                                            .name(name)
-                                            .required(requiredFields.contains(name))
-                                            .build();
+                                    JsonUtil.convert(propertyMap, OpenAPIToolsConfig.Arg.class);
+                            arg.setName(name);
+                            arg.setRequired(requiredFields.contains(name));
 
-                            return BeanUtil.fillBeanWithMap(propertyMap, arg, true);
+                            return arg;
                         })
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    private static List<String> requiredFields(Map<String, Object> inputSchema) {
+        if (inputSchema == null || !(inputSchema.get("required") instanceof List<?> rawRequired)) {
+            return new ArrayList<>();
+        }
+        return rawRequired.stream()
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .toList();
+    }
+
+    private static Map<String, Object> toStringObjectMap(Map<?, ?> rawMap) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        rawMap.forEach(
+                (key, value) -> {
+                    if (key != null) {
+                        result.put(String.valueOf(key), value);
+                    }
+                });
+        return result;
     }
 }

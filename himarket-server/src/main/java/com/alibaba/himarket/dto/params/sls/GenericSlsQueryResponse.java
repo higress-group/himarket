@@ -27,7 +27,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** 通用SLS查询响应 */
+/**
+ * Generic SLS query response.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -35,30 +37,48 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GenericSlsQueryResponse {
 
-    /** 查询是否成功 */
+    /**
+     * Whether the query succeeded.
+     */
     private Boolean success;
 
-    /** 查询进度（Complete/InComplete） */
+    /**
+     * Query process status, such as Complete or InComplete.
+     */
     private String processStatus;
 
-    /** 命中日志条数 */
+    /**
+     * Matched log count.
+     */
     private Long count;
 
-    /** 查询到的日志列表 */
+    /**
+     * Query result logs.
+     */
     private List<Map<String, String>> logs;
 
-    /** 聚合结果（如果是统计查询） */
+    /**
+     * Aggregation rows for statistics queries.
+     */
     private List<Map<String, String>> aggregations;
 
-    /** SQL查询语句（用于调试） */
+    /**
+     * SQL query text for debugging.
+     */
     private String sql;
 
-    /** 查询耗时（毫秒） */
+    /**
+     * Query elapsed time in milliseconds.
+     */
     private Long elapsedMillis;
 
-    /** 错误信息（如果查询失败） */
+    /**
+     * Error message when the query fails.
+     */
     private String errorMessage;
 
-    /** 额外信息 */
+    /**
+     * Additional response metadata.
+     */
     private Map<String, Object> extraInfo;
 }

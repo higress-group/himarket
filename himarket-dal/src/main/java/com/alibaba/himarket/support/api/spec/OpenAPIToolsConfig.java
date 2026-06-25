@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.support.api.spec;
 
-import cn.hutool.core.annotation.Alias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,11 +85,9 @@ public class OpenAPIToolsConfig extends ToolsConfig {
         private boolean required;
 
         @JsonProperty("default")
-        @Alias("default")
         private String defaultValue;
 
         @JsonProperty("enum")
-        @Alias("enum")
         private List<String> enumValues;
 
         private String position;

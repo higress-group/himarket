@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.DeveloperDeletingEvent;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
@@ -30,7 +27,6 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.core.utils.PasswordHasher;
-import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.dto.params.consumer.CreateConsumerParam;
 import com.alibaba.himarket.dto.params.developer.CreateDeveloperParam;
 import com.alibaba.himarket.dto.params.developer.CreateExternalDeveloperParam;
@@ -47,6 +43,8 @@ import com.alibaba.himarket.repository.DeveloperRepository;
 import com.alibaba.himarket.repository.PortalRepository;
 import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.DeveloperService;
+import com.alibaba.himarket.service.TokenService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.DeveloperAuthType;
 import com.alibaba.himarket.support.enums.DeveloperStatus;
 import jakarta.persistence.criteria.Predicate;
@@ -55,6 +53,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -64,8 +63,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 @Transactional
 public class DeveloperServiceImpl implements DeveloperService {
 
@@ -79,6 +78,10 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     private final ConsumerService consumerService;
 
+    private final ApplicationEventPublisher eventPublisher;
+
+    private final TokenService tokenService;
+
     @Override
     public AuthResult registerDeveloper(CreateDeveloperParam param) {
         DeveloperResult developer = createDeveloper(param);
@@ -90,12 +93,12 @@ public class DeveloperServiceImpl implements DeveloperService {
         Portal portal = findPortal(portalId);
         boolean autoApprove =
                 portal.getPortalSettingConfig() != null
-                        && BooleanUtil.isTrue(
+                        && Boolean.TRUE.equals(
                                 portal.getPortalSettingConfig().getAutoApproveDevelopers());
 
         if (autoApprove) {
             String token = generateToken(developer.getDeveloperId());
-            return AuthResult.of(token, TokenUtil.getTokenExpiresIn());
+            return AuthResult.of(token, tokenService.getTokenExpiresIn());
         }
         return null;
     }
@@ -109,9 +112,9 @@ public class DeveloperServiceImpl implements DeveloperService {
                         developer -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Developer with name `{}` already exists",
-                                            developer.getUsername()));
+                                    "Developer with name `"
+                                            + developer.getUsername()
+                                            + "` already exists");
                         });
 
         Developer developer = param.convertTo();
@@ -122,7 +125,7 @@ public class DeveloperServiceImpl implements DeveloperService {
         Portal portal = findPortal(portalId);
         boolean autoApprove =
                 portal.getPortalSettingConfig() != null
-                        && BooleanUtil.isTrue(
+                        && Boolean.TRUE.equals(
                                 portal.getPortalSettingConfig().getAutoApproveDevelopers());
         developer.setStatus(autoApprove ? DeveloperStatus.APPROVED : DeveloperStatus.PENDING);
         developer.setAuthType(DeveloperAuthType.BUILTIN);
@@ -157,7 +160,7 @@ public class DeveloperServiceImpl implements DeveloperService {
         String token = generateToken(developer.getDeveloperId());
         return AuthResult.builder()
                 .accessToken(token)
-                .expiresIn(TokenUtil.getTokenExpiresIn())
+                .expiresIn(tokenService.getTokenExpiresIn())
                 .build();
     }
 
@@ -210,7 +213,7 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @Override
     public void updateExternalDeveloperAvatar(String provider, String subject, String avatarUrl) {
-        if (StrUtil.isBlank(avatarUrl)) {
+        if (Strings.isBlank(avatarUrl)) {
             return;
         }
         externalRepository
@@ -218,7 +221,7 @@ public class DeveloperServiceImpl implements DeveloperService {
                 .ifPresent(
                         identity -> {
                             Developer developer = identity.getDeveloper();
-                            if (!StrUtil.equals(developer.getAvatarUrl(), avatarUrl)) {
+                            if (!Strings.equals(developer.getAvatarUrl(), avatarUrl)) {
                                 developer.setAvatarUrl(avatarUrl);
                                 developerRepository.save(developer);
                             }
@@ -226,12 +229,12 @@ public class DeveloperServiceImpl implements DeveloperService {
     }
 
     private String buildExternalName(String provider, String subject) {
-        return StrUtil.format("{}_{}", provider, subject);
+        return provider + "_" + subject;
     }
 
     @Override
     public void deleteDeveloper(String developerId) {
-        SpringUtil.getApplicationContext().publishEvent(new DeveloperDeletingEvent(developerId));
+        eventPublisher.publishEvent(new DeveloperDeletingEvent(developerId));
         externalRepository.deleteByDeveloper_DeveloperId(developerId);
         developerRepository.findByDeveloperId(developerId).ifPresent(developerRepository::delete);
     }
@@ -286,7 +289,7 @@ public class DeveloperServiceImpl implements DeveloperService {
                     .isPresent()) {
                 throw new BusinessException(
                         ErrorCode.CONFLICT,
-                        StrUtil.format("Developer with name `{}` already exists", username));
+                        "Developer with name `" + username + "` already exists");
             }
         }
         param.update(developer);
@@ -299,11 +302,13 @@ public class DeveloperServiceImpl implements DeveloperService {
     public void onPortalDeletion(PortalDeletingEvent event) {
         String portalId = event.getPortalId();
         List<Developer> developers = developerRepository.findByPortalId(portalId);
-        developers.forEach(developer -> deleteDeveloper(developer.getDeveloperId()));
+        for (Developer developer : developers) {
+            deleteDeveloper(developer.getDeveloperId());
+        }
     }
 
     private String generateToken(String developerId) {
-        return TokenUtil.generateDeveloperToken(developerId);
+        return tokenService.generateDeveloperToken(developerId);
     }
 
     private String generateDeveloperId() {
@@ -332,10 +337,10 @@ public class DeveloperServiceImpl implements DeveloperService {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (StrUtil.isNotBlank(param.getPortalId())) {
+            if (Strings.isNotBlank(param.getPortalId())) {
                 predicates.add(cb.equal(root.get("portalId"), param.getPortalId()));
             }
-            if (StrUtil.isNotBlank(param.getUsername())) {
+            if (Strings.isNotBlank(param.getUsername())) {
                 String likePattern = "%" + param.getUsername() + "%";
                 predicates.add(cb.like(root.get("username"), likePattern));
             }
@@ -349,7 +354,7 @@ public class DeveloperServiceImpl implements DeveloperService {
 
     @Override
     public void logout(HttpServletRequest request) {
-        TokenUtil.revokeToken(request);
+        tokenService.revokeRequestToken(request);
     }
 
     @Override

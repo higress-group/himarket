@@ -23,3 +23,14 @@ Testing effort should match the risk and scope of the change.
 - Run targeted tests for the changed module when available.
 - Run `./scripts/code-check.sh backend` or the relevant Maven command before submitting backend-only changes.
 - If tests cannot be added or run, document the reason and the manual verification performed.
+
+For backend-only cleanup or narrow service/controller changes, the minimum command set is:
+
+```bash
+git diff --check
+./mvnw -q spotless:check -DskipTests
+./mvnw -q -DskipTests test-compile
+```
+
+Run additional targeted tests when a change affects business rules, request validation, repository
+predicates, transaction boundaries, domain events, or external integration adapters.

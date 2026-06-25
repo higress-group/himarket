@@ -19,6 +19,8 @@
 
 package com.alibaba.himarket.support.enums;
 
+import java.util.Locale;
+
 public enum JwtAlgorithm {
     RS256,
 
@@ -32,4 +34,21 @@ public enum JwtAlgorithm {
 
     ES512,
     ;
+
+    /**
+     * Creates a JWT algorithm from a raw string.
+     *
+     * @param raw raw algorithm value from JWT configuration
+     * @return the parsed algorithm, or {@code null} when the value is unknown
+     */
+    public static JwtAlgorithm of(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return valueOf(raw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
 }

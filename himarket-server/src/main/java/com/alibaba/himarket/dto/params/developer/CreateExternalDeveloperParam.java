@@ -28,9 +28,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class CreateExternalDeveloperParam implements InputConverter<DeveloperExternalIdentity> {
 
     private String provider;

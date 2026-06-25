@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.PortalDeletingEvent;
 import com.alibaba.himarket.core.event.ProductConfigReloadEvent;
@@ -31,7 +28,13 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.core.utils.IdGenerator;
-import com.alibaba.himarket.dto.params.product.*;
+import com.alibaba.himarket.dto.params.product.AddProductRefParam;
+import com.alibaba.himarket.dto.params.product.CreateProductParam;
+import com.alibaba.himarket.dto.params.product.ProductSortBy;
+import com.alibaba.himarket.dto.params.product.QueryProductParam;
+import com.alibaba.himarket.dto.params.product.QueryProductSubscriptionParam;
+import com.alibaba.himarket.dto.params.product.UpdateProductParam;
+import com.alibaba.himarket.dto.params.product.UpdateProductSourceParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.airegistry.AiRegistryResult;
@@ -45,37 +48,65 @@ import com.alibaba.himarket.dto.result.mcp.McpToolListResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.portal.PortalResult;
-import com.alibaba.himarket.dto.result.product.*;
+import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
+import com.alibaba.himarket.dto.result.product.ProductRefResult;
+import com.alibaba.himarket.dto.result.product.ProductResult;
+import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.dto.result.setting.AdminSettingResult;
-import com.alibaba.himarket.entity.*;
-import com.alibaba.himarket.repository.*;
-import com.alibaba.himarket.service.*;
-import com.alibaba.himarket.service.hichat.manager.ToolManager;
-import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
+import com.alibaba.himarket.entity.Consumer;
+import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.entity.ProductCategoryRelation;
+import com.alibaba.himarket.entity.ProductPublication;
+import com.alibaba.himarket.entity.ProductRef;
+import com.alibaba.himarket.entity.ProductSubscription;
+import com.alibaba.himarket.repository.ApiDefinitionRepository;
+import com.alibaba.himarket.repository.ConsumerRepository;
+import com.alibaba.himarket.repository.ProductPublicationRepository;
+import com.alibaba.himarket.repository.ProductRefRepository;
+import com.alibaba.himarket.repository.ProductRepository;
+import com.alibaba.himarket.repository.SubscriptionRepository;
+import com.alibaba.himarket.service.AdminSettingService;
+import com.alibaba.himarket.service.AiRegistryService;
+import com.alibaba.himarket.service.GatewayService;
+import com.alibaba.himarket.service.McpToolService;
+import com.alibaba.himarket.service.NacosService;
+import com.alibaba.himarket.service.PortalService;
+import com.alibaba.himarket.service.ProductCategoryService;
+import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.service.SkillService;
+import com.alibaba.himarket.service.WorkerService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.enums.SourceType;
-import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
-import com.alibaba.himarket.support.product.*;
+import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.himarket.support.product.WorkerConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.github.benmanes.caffeine.cache.Cache;
-import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
-import jakarta.transaction.Transactional;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -105,7 +136,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductCategoryService productCategoryService;
 
-    private final ToolManager toolManager;
+    private final McpToolService mcpToolService;
 
     private final WorkerService workerService;
 
@@ -114,6 +145,8 @@ public class ProductServiceImpl implements ProductService {
     private final AdminSettingService adminSettingService;
 
     private final AiRegistryService aiRegistryService;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Cache to prevent duplicate sync within interval (5 minutes default)
@@ -128,8 +161,8 @@ public class ProductServiceImpl implements ProductService {
                         product -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Product with name '{}' already exists",
+                                    String.format(
+                                            "Product with name '%s' already exists",
                                             product.getName()));
                         });
 
@@ -156,8 +189,10 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        ProductFeature feature =
-                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            feature = ProductFeature.builder().build();
+        }
         if (productType == ProductType.AGENT_SKILL && feature.getSkillConfig() != null) {
             product.setFeature(feature);
             return;
@@ -209,7 +244,7 @@ public class ProductServiceImpl implements ProductService {
     private SkillRegistryType defaultSkillRegistryType() {
         AdminSettingResult setting = adminSettingService.getSetting("defaultSkillRegistryType");
         String value = setting == null ? null : setting.getSettingValue();
-        if (StrUtil.isBlank(value)) {
+        if (Strings.isBlank(value)) {
             return SkillRegistryType.NACOS;
         }
         try {
@@ -233,8 +268,8 @@ public class ProductServiceImpl implements ProductService {
                     .ifPresent(
                             o -> {
                                 productSyncCache.put(productId, Boolean.TRUE);
-                                SpringUtil.getApplicationContext()
-                                        .publishEvent(new ProductConfigReloadEvent(productId));
+                                eventPublisher.publishEvent(
+                                        new ProductConfigReloadEvent(productId));
                             });
         }
 
@@ -276,9 +311,7 @@ public class ProductServiceImpl implements ProductService {
             Page<Product> page =
                     productRepository.findAll(buildSpecification(param), sortedPageable);
             List<ProductResult> results =
-                    page.stream()
-                            .map(product -> new ProductResult().convertFrom(product))
-                            .collect(Collectors.toList());
+                    page.stream().map(product -> new ProductResult().convertFrom(product)).toList();
             fillProducts(results);
             return PageResult.of(
                     results, page.getNumber() + 1, page.getSize(), page.getTotalElements());
@@ -286,9 +319,7 @@ public class ProductServiceImpl implements ProductService {
 
         Page<Product> page = productRepository.findAll(buildSpecification(param), pageable);
         List<ProductResult> results =
-                page.stream()
-                        .map(product -> new ProductResult().convertFrom(product))
-                        .collect(Collectors.toList());
+                page.stream().map(product -> new ProductResult().convertFrom(product)).toList();
 
         // Fill product information
         fillProducts(results);
@@ -369,7 +400,10 @@ public class ProductServiceImpl implements ProductService {
                             try {
                                 portal = portalService.getPortal(publication.getPortalId());
                             } catch (Exception e) {
-                                log.error("Failed to get portal: {}", publication.getPortalId(), e);
+                                log.error(
+                                        "Failed to get portal, portalId={}",
+                                        publication.getPortalId(),
+                                        e);
                                 return null;
                             }
 
@@ -439,14 +473,14 @@ public class ProductServiceImpl implements ProductService {
         productRefRepository.deleteByProductId(productId);
 
         // Asynchronously clean up product resources
-        SpringUtil.getApplicationContext().publishEvent(new ProductDeletingEvent(productId));
+        eventPublisher.publishEvent(new ProductDeletingEvent(productId));
     }
 
     private void deleteLinkedApiDefinition(ProductRef productRef) {
         if (productRef == null
                 || productRef.getSourceType() == null
                 || !productRef.getSourceType().isApiDefinition()
-                || StrUtil.isBlank(productRef.getApiDefinitionId())) {
+                || Strings.isBlank(productRef.getApiDefinitionId())) {
             return;
         }
 
@@ -464,7 +498,8 @@ public class ProductServiceImpl implements ProductService {
             }
         } catch (Exception e) {
             log.warn(
-                    "Failed to cleanup remote resources for product {}, continuing with deletion",
+                    "Failed to cleanup remote resources for product, continuing with deletion,"
+                            + " productId={}",
                     product.getProductId(),
                     e);
         }
@@ -558,9 +593,13 @@ public class ProductServiceImpl implements ProductService {
         try {
             publicationRepository.deleteAllByPortalId(portalId);
 
-            log.info("Completed cleanup publications for portal {}", portalId);
+            log.info("Completed cleanup publications for portal, portalId={}", portalId);
         } catch (Exception e) {
-            log.error("Failed to unpublish products for portal {}: {}", portalId, e.getMessage());
+            log.error(
+                    "Failed to unpublish products for portal, portalId={}, errorMessage={}",
+                    portalId,
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -588,8 +627,8 @@ public class ProductServiceImpl implements ProductService {
         List<String> consumerIds =
                 subscriptions.getContent().stream()
                         .map(ProductSubscription::getConsumerId)
-                        .collect(Collectors.toList());
-        if (CollUtil.isEmpty(consumerIds)) {
+                        .toList();
+        if (CollectionUtils.isEmpty(consumerIds)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
@@ -630,7 +669,7 @@ public class ProductServiceImpl implements ProductService {
         List<String> notFoundProductIds =
                 productIds.stream()
                         .filter(productId -> !existedProductIds.contains(productId))
-                        .collect(Collectors.toList());
+                        .toList();
 
         if (!notFoundProductIds.isEmpty()) {
             throw new BusinessException(
@@ -673,32 +712,21 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public McpToolListResult listMcpTools(String productId) {
-        ProductResult product = getProduct(productId);
+        Product product =
+                contextHolder.isAdministrator()
+                        ? findProduct(productId)
+                        : findPublishedProduct(contextHolder.getPortal(), productId);
         if (product.getType() != ProductType.MCP_SERVER) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "API product is not a mcp server");
         }
 
-        ConsumerService consumerService =
-                SpringUtil.getApplicationContext().getBean(ConsumerService.class);
-        String consumerId = consumerService.getPrimaryConsumer().getConsumerId();
-        // Check subscription status
-        subscriptionRepository
-                .findByConsumerIdAndProductId(consumerId, productId)
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        ErrorCode.INVALID_REQUEST,
-                                        "API product is not subscribed, not allowed to list"
-                                                + " tools"));
-
-        // Initialize client and fetch tools
-        CredentialContext credentialContext =
-                consumerService.getDefaultCredential(contextHolder.getUser());
-        McpToolListResult result = new McpToolListResult();
-
-        result.setTools(toolManager.fetchTools(product.getMcpConfig(), credentialContext));
-        return result;
+        ProductRef productRef = productRefRepository.findFirstByProductId(productId).orElse(null);
+        McpConfigResult mcpConfig =
+                productRef == null
+                        ? null
+                        : JsonUtil.parse(productRef.getMcpConfig(), McpConfigResult.class);
+        return mcpToolService.listMcpTools(productId, mcpConfig);
     }
 
     @Override
@@ -715,14 +743,15 @@ public class ProductServiceImpl implements ProductService {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST, "AIRegistry only supports Agent Skill products");
             }
-            if (StrUtil.isBlank(param.getAiRegistryId()) || StrUtil.isBlank(param.getNamespace())) {
+            if (Strings.isBlank(param.getAiRegistryId()) || Strings.isBlank(param.getNamespace())) {
                 throw new BusinessException(
                         ErrorCode.INVALID_PARAMETER, "AIRegistry ID and namespace are required");
             }
             aiRegistryService.getAiRegistryInstance(param.getAiRegistryId());
-            ProductFeature feature =
-                    Optional.ofNullable(product.getFeature())
-                            .orElse(ProductFeature.builder().build());
+            ProductFeature feature = product.getFeature();
+            if (feature == null) {
+                feature = ProductFeature.builder().build();
+            }
             feature.setSkillConfig(
                     SkillConfig.builder()
                             .registryType(SkillRegistryType.AIREGISTRY)
@@ -738,15 +767,17 @@ public class ProductServiceImpl implements ProductService {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "Only Nacos or AIRegistry source is supported");
         }
-        if (StrUtil.isBlank(param.getNacosId()) || StrUtil.isBlank(param.getNamespace())) {
+        if (Strings.isBlank(param.getNacosId()) || Strings.isBlank(param.getNamespace())) {
             throw new BusinessException(
                     ErrorCode.INVALID_PARAMETER, "Nacos ID and namespace are required");
         }
 
         nacosService.getNacosInstance(param.getNacosId());
 
-        ProductFeature feature =
-                Optional.ofNullable(product.getFeature()).orElse(ProductFeature.builder().build());
+        ProductFeature feature = product.getFeature();
+        if (feature == null) {
+            feature = ProductFeature.builder().build();
+        }
 
         if (product.getType() == ProductType.AGENT_SKILL) {
             feature.setSkillConfig(
@@ -837,7 +868,9 @@ public class ProductServiceImpl implements ProductService {
                 default:
                     throw new BusinessException(
                             ErrorCode.INVALID_REQUEST,
-                            "Nacos source does not support product type: " + product.getType());
+                            String.format(
+                                    "Nacos source does not support product type: %s",
+                                    product.getType()));
             }
         }
     }
@@ -847,11 +880,11 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        McpConfigResult mcpConfig =
-                Optional.ofNullable(productRef.getMcpConfig())
-                        .map(config -> JsonUtil.parse(config, McpConfigResult.class))
-                        .orElse(null);
-
+        String mcpConfigJson = productRef.getMcpConfig();
+        if (mcpConfigJson == null) {
+            return;
+        }
+        McpConfigResult mcpConfig = JsonUtil.parse(mcpConfigJson, McpConfigResult.class);
         if (mcpConfig == null) {
             return;
         }
@@ -864,30 +897,19 @@ public class ProductServiceImpl implements ProductService {
                                 productRef.getGatewayId(), product.getType(), productRef);
             } catch (Exception e) {
                 log.warn(
-                        "Failed to fetch API credential for product {}: {}",
+                        "Failed to fetch API credential, productId={}, errorMessage={}",
                         productRef.getProductId(),
-                        e.getMessage());
+                        e.getMessage(),
+                        e);
             }
         }
 
-        List<McpSchema.Tool> tools = toolManager.fetchTools(mcpConfig, credential);
-        if (CollUtil.isEmpty(tools)) {
+        String toolsConfig = mcpToolService.fetchToolsConfig(mcpConfig, credential);
+        if (Strings.isBlank(toolsConfig)) {
             return;
         }
-
-        try {
-            OpenAPIToolsConfig toolsConfig =
-                    OpenAPIToolsConfigConverter.convertFromToolList(
-                            mcpConfig.getMcpServerName(), tools);
-            String toolsStr = JsonUtil.toJson(toolsConfig);
-            mcpConfig.setTools(toolsStr);
-            productRef.setMcpConfig(JsonUtil.toJson(mcpConfig));
-        } catch (Exception e) {
-            log.warn(
-                    "Failed to convert tools for {}: {}",
-                    mcpConfig.getMcpServerName(),
-                    e.getMessage());
-        }
+        mcpConfig.setTools(toolsConfig);
+        productRef.setMcpConfig(JsonUtil.toJson(mcpConfig));
     }
 
     /**
@@ -896,12 +918,11 @@ public class ProductServiceImpl implements ProductService {
      * @param products the list of products to fill
      */
     private void fillProducts(List<ProductResult> products) {
-        if (CollUtil.isEmpty(products)) {
+        if (CollectionUtils.isEmpty(products)) {
             return;
         }
 
-        List<String> productIds =
-                products.stream().map(ProductResult::getProductId).collect(Collectors.toList());
+        List<String> productIds = products.stream().map(ProductResult::getProductId).toList();
 
         Map<String, ProductRef> productRefMap =
                 productRefRepository.findByProductIdIn(productIds).stream()
@@ -946,23 +967,23 @@ public class ProductServiceImpl implements ProductService {
                 productRef.getSourceType() != null && productRef.getSourceType().isGateway());
 
         // API config for REST API
-        if (StrUtil.isNotBlank(productRef.getApiConfig())) {
+        if (Strings.isNotBlank(productRef.getApiConfig())) {
             product.setApiConfig(JsonUtil.parse(productRef.getApiConfig(), APIConfigResult.class));
         }
 
         // MCP config for MCP Server
-        if (StrUtil.isNotBlank(productRef.getMcpConfig())) {
+        if (Strings.isNotBlank(productRef.getMcpConfig())) {
             product.setMcpConfig(JsonUtil.parse(productRef.getMcpConfig(), McpConfigResult.class));
         }
 
         // Agent config for Agent API
-        if (StrUtil.isNotBlank(productRef.getAgentConfig())) {
+        if (Strings.isNotBlank(productRef.getAgentConfig())) {
             product.setAgentConfig(
                     JsonUtil.parse(productRef.getAgentConfig(), AgentConfigResult.class));
         }
 
         // Model config for Model API
-        if (StrUtil.isNotBlank(productRef.getModelConfig())) {
+        if (Strings.isNotBlank(productRef.getModelConfig())) {
             product.setModelConfig(
                     JsonUtil.parse(productRef.getModelConfig(), ModelConfigResult.class));
         }
@@ -984,7 +1005,7 @@ public class ProductServiceImpl implements ProductService {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (StrUtil.isNotBlank(param.getPortalId())) {
+            if (Strings.isNotBlank(param.getPortalId())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductPublication> publicationRoot = subquery.from(ProductPublication.class);
                 subquery.select(publicationRoot.get("productId"))
@@ -1000,12 +1021,12 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
 
-            if (StrUtil.isNotBlank(param.getName())) {
+            if (Strings.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName() + "%";
                 predicates.add(cb.like(root.get("name"), likePattern));
             }
 
-            if (CollUtil.isNotEmpty(param.getCategoryIds())) {
+            if (!CollectionUtils.isEmpty(param.getCategoryIds())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductCategoryRelation> relationRoot =
                         subquery.from(ProductCategoryRelation.class);
@@ -1014,7 +1035,7 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(root.get("productId").in(subquery));
             }
 
-            if (StrUtil.isNotBlank(param.getExcludeCategoryId())) {
+            if (Strings.isNotBlank(param.getExcludeCategoryId())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductCategoryRelation> relationRoot =
                         subquery.from(ProductCategoryRelation.class);
@@ -1051,7 +1072,7 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
 
-            if (StrUtil.isNotBlank(param.getConsumerName())) {
+            if (Strings.isNotBlank(param.getConsumerName())) {
                 Subquery<String> consumerSubquery = query.subquery(String.class);
                 Root<Consumer> consumerRoot = consumerSubquery.from(Consumer.class);
 
@@ -1096,9 +1117,13 @@ public class ProductServiceImpl implements ProductService {
 
             productRefRepository.save(productRef);
 
-            log.info("Auto-sync product ref: {} successfully completed", productId);
+            log.info("Auto-sync product ref completed, productId={}", productId);
         } catch (Exception e) {
-            log.warn("Failed to auto-sync product ref: {}", productId, e);
+            log.warn(
+                    "Failed to auto-sync product ref, productId={}, errorMessage={}",
+                    productId,
+                    e.getMessage(),
+                    e);
         }
     }
 
@@ -1110,7 +1135,7 @@ public class ProductServiceImpl implements ProductService {
             QueryProductParam param, Pageable pageable) {
         List<Product> allProducts = productRepository.findAll(buildSpecification(param));
 
-        if (CollUtil.isEmpty(allProducts)) {
+        if (CollectionUtils.isEmpty(allProducts)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
@@ -1130,7 +1155,7 @@ public class ProductServiceImpl implements ProductService {
         List<ProductResult> results =
                 pageContent.stream()
                         .map(product -> new ProductResult().convertFrom(product))
-                        .collect(Collectors.toList());
+                        .toList();
 
         fillProducts(results);
 
@@ -1164,36 +1189,27 @@ public class ProductServiceImpl implements ProductService {
      */
     private PageResult<ProductResult> listProductsWithFilter(
             QueryProductParam param, Pageable pageable) {
-        List<Product> allProducts = productRepository.findAllByType(param.getType());
+        List<Product> allProducts = productRepository.findAll(buildSpecification(param));
 
-        if (CollUtil.isEmpty(allProducts)) {
+        if (CollectionUtils.isEmpty(allProducts)) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
         Map<String, ProductRef> productRefMap =
                 productRefRepository
-                        .findByProductIdIn(
-                                allProducts.stream()
-                                        .map(Product::getProductId)
-                                        .collect(Collectors.toList()))
+                        .findByProductIdIn(allProducts.stream().map(Product::getProductId).toList())
                         .stream()
                         .collect(Collectors.toMap(ProductRef::getProductId, ref -> ref));
 
-        List<Product> targetProducts =
-                allProducts.stream()
-                        .filter(p -> matchesFilter(productRefMap.get(p.getProductId()), param))
-                        // Filter by Product fields (status, name)
-                        .filter(
-                                p ->
-                                        param.getStatus() == null
-                                                || p.getStatus().equals(param.getStatus()))
-                        .filter(
-                                p ->
-                                        StrUtil.isBlank(param.getName())
-                                                || Optional.ofNullable(p.getName())
-                                                        .orElse("")
-                                                        .contains(param.getName()))
-                        .collect(Collectors.toList());
+        List<Product> targetProducts = new ArrayList<>();
+        for (Product product : allProducts) {
+            ProductRef productRef = productRefMap.get(product.getProductId());
+            if (!matchesFilter(productRef, param)) {
+                continue;
+            }
+
+            targetProducts.add(product);
+        }
 
         // Manual pagination
         int start = (int) pageable.getOffset();
@@ -1206,7 +1222,7 @@ public class ProductServiceImpl implements ProductService {
         List<ProductResult> results =
                 pageContent.stream()
                         .map(product -> new ProductResult().convertFrom(product))
-                        .collect(Collectors.toList());
+                        .toList();
 
         fillProducts(results);
 
@@ -1225,7 +1241,7 @@ public class ProductServiceImpl implements ProductService {
      * @return true if product matches the filter, false otherwise
      */
     private boolean matchesFilter(ProductRef productRef, QueryProductParam param) {
-        if (productRef == null || StrUtil.isBlank(productRef.getModelConfig())) {
+        if (productRef == null || Strings.isBlank(productRef.getModelConfig())) {
             return false;
         }
 
@@ -1237,14 +1253,15 @@ public class ProductServiceImpl implements ProductService {
                 return param.getModelFilter().matches(config);
             } catch (Exception e) {
                 log.warn(
-                        "Failed to parse modelConfig for product: {}",
+                        "Failed to parse modelConfig for product, productId={}, errorMessage={}",
                         productRef.getProductId(),
+                        e.getMessage(),
                         e);
                 return false;
             }
         }
 
-        // TODO: Add other filter types here
+        // TODO: Add other filter types here.
         // if (param.getType() == ProductType.AGENT && param.getAgentFilter() != null) {
         //     ...
         // }

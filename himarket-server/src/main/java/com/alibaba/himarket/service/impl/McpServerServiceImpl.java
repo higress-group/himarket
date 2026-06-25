@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.bean.copier.CopyOptions;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -41,7 +38,6 @@ import com.alibaba.himarket.repository.McpServerEndpointRepository;
 import com.alibaba.himarket.repository.McpServerMetaRepository;
 import com.alibaba.himarket.repository.ProductPublicationRepository;
 import com.alibaba.himarket.repository.ProductRepository;
-import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.McpServerService;
 import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.service.mcp.McpConfigSyncHelper;
@@ -51,16 +47,27 @@ import com.alibaba.himarket.service.mcp.McpSandboxOrchestrator;
 import com.alibaba.himarket.service.mcp.McpToolsConfigParser;
 import com.alibaba.himarket.service.mcp.McpTransportResolver;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
-import com.alibaba.himarket.support.enums.*;
+import com.alibaba.himarket.support.common.Strings;
+import com.alibaba.himarket.support.enums.McpEndpointStatus;
+import com.alibaba.himarket.support.enums.McpHostingType;
+import com.alibaba.himarket.support.enums.McpOrigin;
+import com.alibaba.himarket.support.enums.McpProtocolType;
+import com.alibaba.himarket.support.enums.McpTransportMode;
+import com.alibaba.himarket.support.enums.ProductStatus;
+import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.utils.JsonUtil;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
-import jakarta.annotation.Resource;
+import java.beans.PropertyDescriptor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -68,6 +75,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class McpServerServiceImpl implements McpServerService {
 
     private final McpServerMetaRepository metaRepository;
@@ -79,29 +87,6 @@ public class McpServerServiceImpl implements McpServerService {
     private final McpConfigSyncHelper configSyncHelper;
     private final McpSandboxOrchestrator sandboxOrchestrator;
     private final McpTransportResolver transportResolver;
-
-    @Lazy @Resource private ConsumerService consumerService;
-
-    public McpServerServiceImpl(
-            McpServerMetaRepository metaRepository,
-            McpServerEndpointRepository endpointRepository,
-            ProductRepository productRepository,
-            ProductPublicationRepository publicationRepository,
-            ContextHolder contextHolder,
-            ToolManager toolManager,
-            McpConfigSyncHelper configSyncHelper,
-            McpSandboxOrchestrator sandboxOrchestrator,
-            McpTransportResolver transportResolver) {
-        this.metaRepository = metaRepository;
-        this.endpointRepository = endpointRepository;
-        this.productRepository = productRepository;
-        this.publicationRepository = publicationRepository;
-        this.contextHolder = contextHolder;
-        this.toolManager = toolManager;
-        this.configSyncHelper = configSyncHelper;
-        this.sandboxOrchestrator = sandboxOrchestrator;
-        this.transportResolver = transportResolver;
-    }
 
     @Override
     @Transactional
@@ -145,16 +130,13 @@ public class McpServerServiceImpl implements McpServerService {
                             .toolsConfig(McpToolsConfigParser.normalize(param.getToolsConfig()))
                             .sandboxRequired(param.getSandboxRequired())
                             .createdBy(
-                                    StrUtil.blankToDefault(
+                                    Strings.blankToDefault(
                                             param.getCreatedBy(),
                                             sandboxOrchestrator.getCreatedByOrDefault()))
                             .build();
         } else {
             param.setToolsConfig(McpToolsConfigParser.normalize(param.getToolsConfig()));
-            BeanUtil.copyProperties(
-                    param,
-                    meta,
-                    CopyOptions.create().ignoreNullValue().setIgnoreProperties("productId"));
+            BeanUtils.copyProperties(param, meta, ignoredProperties(param, "productId"));
         }
 
         metaRepository.save(meta);
@@ -178,15 +160,19 @@ public class McpServerServiceImpl implements McpServerService {
                         existing -> {
                             throw new BusinessException(
                                     ErrorCode.INVALID_REQUEST,
-                                    "MCP 名称「" + param.getMcpName() + "」已被注册，请更换名称");
+                                    String.format(
+                                            "MCP name \"%s\" has already been registered. Use"
+                                                    + " another name",
+                                            param.getMcpName()));
                         });
 
         McpProtocolType regProtocol = McpProtocolType.fromString(param.getProtocolType());
         if (regProtocol == null || !regProtocol.isStdio()) {
             String connCfg = param.getConnectionConfig();
-            if (StrUtil.isBlank(connCfg)) {
+            if (Strings.isBlank(connCfg)) {
                 throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST, "非 stdio 协议必须提供 connectionConfig（包含连接地址）");
+                        ErrorCode.INVALID_REQUEST,
+                        "Non-stdio protocols must provide connectionConfig with an endpoint URL");
             }
             try {
                 com.fasterxml.jackson.databind.node.ObjectNode connJson =
@@ -194,21 +180,24 @@ public class McpServerServiceImpl implements McpServerService {
                 String url =
                         configSyncHelper.extractEndpointUrl(
                                 connJson, param.getMcpName(), param.getProtocolType());
-                if (StrUtil.isBlank(url)) {
+                if (Strings.isBlank(url)) {
                     throw new BusinessException(
-                            ErrorCode.INVALID_REQUEST, "connectionConfig 中未找到有效的连接地址（url）");
+                            ErrorCode.INVALID_REQUEST,
+                            "No valid endpoint URL found in connectionConfig");
                 }
             } catch (BusinessException e) {
                 throw e;
             } catch (Exception e) {
                 throw new BusinessException(
                         ErrorCode.INVALID_REQUEST,
-                        "connectionConfig 格式错误或缺少连接地址: " + e.getMessage());
+                        String.format(
+                                "connectionConfig is invalid or missing an endpoint URL: %s",
+                                e.getMessage()));
             }
         }
 
         String productId = IdGenerator.genApiProductId();
-        String productName = StrUtil.blankToDefault(param.getDisplayName(), param.getMcpName());
+        String productName = Strings.blankToDefault(param.getDisplayName(), param.getMcpName());
         Product product =
                 Product.builder()
                         .productId(productId)
@@ -217,20 +206,20 @@ public class McpServerServiceImpl implements McpServerService {
                         .description(param.getDescription())
                         .status(ProductStatus.PENDING)
                         .adminId(
-                                StrUtil.blankToDefault(
+                                Strings.blankToDefault(
                                         param.getCreatedBy(),
                                         sandboxOrchestrator.getCreatedByOrDefault()))
                         .enableConsumerAuth(false)
                         .autoApprove(true)
                         .build();
 
-        if (StrUtil.isNotBlank(param.getIcon())) {
+        if (Strings.isNotBlank(param.getIcon())) {
             try {
                 product.setIcon(
                         JsonUtil.parse(
                                 param.getIcon(), com.alibaba.himarket.support.product.Icon.class));
             } catch (Exception e) {
-                log.warn("解析 icon JSON 失败: {}", e.getMessage());
+                log.warn("Failed to parse icon JSON, errorMessage={}", e.getMessage(), e);
             }
         }
 
@@ -243,7 +232,7 @@ public class McpServerServiceImpl implements McpServerService {
         metaParam.setDescription(param.getDescription());
         metaParam.setRepoUrl(param.getRepoUrl());
         metaParam.setSourceType(SourceType.CUSTOM.name());
-        metaParam.setOrigin(StrUtil.blankToDefault(param.getOrigin(), McpOrigin.OPEN_API.name()));
+        metaParam.setOrigin(Strings.blankToDefault(param.getOrigin(), McpOrigin.OPEN_API.name()));
         metaParam.setTags(param.getTags());
         metaParam.setIcon(param.getIcon());
         metaParam.setProtocolType(param.getProtocolType());
@@ -358,10 +347,7 @@ public class McpServerServiceImpl implements McpServerService {
         }
 
         List<String> pageProductIds =
-                metaPage.getContent().stream()
-                        .map(McpServerMeta::getProductId)
-                        .distinct()
-                        .collect(Collectors.toList());
+                metaPage.getContent().stream().map(McpServerMeta::getProductId).distinct().toList();
         Map<String, Product> productMap =
                 productRepository.findByProductIdIn(pageProductIds).stream()
                         .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
@@ -375,7 +361,7 @@ public class McpServerServiceImpl implements McpServerService {
                                             r, productMap.get(m.getProductId()));
                                     return r;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
         return PageResult.of(
                 results, metaPage.getNumber() + 1, metaPage.getSize(), metaPage.getTotalElements());
     }
@@ -429,7 +415,7 @@ public class McpServerServiceImpl implements McpServerService {
                             configSyncHelper.fillResolvedConfig(result, m, ep);
                             return result;
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -446,8 +432,7 @@ public class McpServerServiceImpl implements McpServerService {
                 productRepository.findByProductIdIn(productIds).stream()
                         .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
 
-        List<String> mcpServerIds =
-                metas.stream().map(McpServerMeta::getMcpServerId).collect(Collectors.toList());
+        List<String> mcpServerIds = metas.stream().map(McpServerMeta::getMcpServerId).toList();
         Map<String, McpServerEndpoint> endpointMap =
                 endpointRepository
                         .findByMcpServerIdInAndUserIdInAndStatus(
@@ -476,7 +461,7 @@ public class McpServerServiceImpl implements McpServerService {
                             configSyncHelper.fillResolvedConfig(result, m, ep);
                             return result;
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -496,11 +481,11 @@ public class McpServerServiceImpl implements McpServerService {
         String endpointUrl = activeEndpoint != null ? activeEndpoint.getEndpointUrl() : null;
         String transportType =
                 activeEndpoint != null
-                        ? StrUtil.blankToDefault(
+                        ? Strings.blankToDefault(
                                 activeEndpoint.getProtocol(), McpProtocolType.SSE.getValue())
                         : McpProtocolType.SSE.getValue();
 
-        if (endpointUrl == null && StrUtil.isNotBlank(meta.getConnectionConfig())) {
+        if (endpointUrl == null && Strings.isNotBlank(meta.getConnectionConfig())) {
             try {
                 McpConnectionConfig cfg = McpConnectionConfig.parse(meta.getConnectionConfig());
                 if (cfg.isMcpServersFormat()) {
@@ -515,12 +500,14 @@ public class McpServerServiceImpl implements McpServerService {
                     }
                 }
             } catch (Exception e) {
-                log.warn("解析 connectionConfig 失败: {}", e.getMessage());
+                log.warn("Failed to parse connectionConfig, errorMessage={}", e.getMessage(), e);
             }
         }
 
         if (endpointUrl == null) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "无可用的连接地址，请先配置连接点或部署沙箱");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "No available connection URL. Configure an endpoint or deploy a sandbox first");
         }
 
         fetchAndSaveToolsListOrThrow(meta, endpointUrl, transportType);
@@ -562,15 +549,20 @@ public class McpServerServiceImpl implements McpServerService {
     public McpMetaResult deploySandbox(String mcpServerId, SaveMcpMetaParam param) {
         McpServerMeta meta = findMeta(mcpServerId);
         if (!Boolean.TRUE.equals(meta.getSandboxRequired())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该 MCP 配置未启用沙箱托管");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "Sandbox hosting is not enabled for this MCP config");
         }
-        if (StrUtil.isBlank(param.getSandboxId())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "请选择沙箱实例");
+        if (Strings.isBlank(param.getSandboxId())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Select a sandbox instance");
         }
         if (meta.getMcpName() != null && meta.getMcpName().length() > 32) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    "MCP 英文名称不能超过 32 个字符（当前 " + meta.getMcpName().length() + " 个），请先修改名称后再部署沙箱");
+                    String.format(
+                            "MCP name must be no more than 32 characters. Current length is %s."
+                                    + " Rename it before deploying the sandbox",
+                            meta.getMcpName().length()));
         }
         param.setProductId(meta.getProductId());
         param.setMcpName(meta.getMcpName());
@@ -585,7 +577,9 @@ public class McpServerServiceImpl implements McpServerService {
     public McpMetaResult undeploySandbox(String mcpServerId) {
         McpServerMeta meta = findMeta(mcpServerId);
         if (!Boolean.TRUE.equals(meta.getSandboxRequired())) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该 MCP 配置未启用沙箱托管");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "Sandbox hosting is not enabled for this MCP config");
         }
         sandboxOrchestrator.undeploySandboxEndpoints(meta);
         List<McpServerEndpoint> endpoints =
@@ -595,7 +589,10 @@ public class McpServerServiceImpl implements McpServerService {
                 endpointRepository.delete(ep);
             }
         }
-        log.info("管理员取消沙箱托管: mcpName={}, mcpServerId={}", meta.getMcpName(), mcpServerId);
+        log.info(
+                "Admin undeployed sandbox hosting, mcpName={}, mcpServerId={}",
+                meta.getMcpName(),
+                mcpServerId);
         McpMetaResult result = new McpMetaResult().convertFrom(meta);
         configSyncHelper.enrichFromProduct(result, meta.getProductId());
         return result;
@@ -608,7 +605,9 @@ public class McpServerServiceImpl implements McpServerService {
         String productId = meta.getProductId();
 
         if (publicationRepository.existsByProductId(productId)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "产品已发布，请先下架后再删除 MCP 配置");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "The product is published. Unpublish it before deleting MCP configs");
         }
 
         sandboxOrchestrator.undeploySandboxEndpoints(meta);
@@ -634,11 +633,14 @@ public class McpServerServiceImpl implements McpServerService {
     public void deleteMetaByProduct(String productId) {
         List<McpServerMeta> metas = metaRepository.findByProductId(productId);
         if (metas.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "该产品下没有 MCP 配置");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "No MCP config exists under this product");
         }
 
         if (publicationRepository.existsByProductId(productId)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "产品已发布，请先下架后再删除 MCP 配置");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    "The product is published. Unpublish it before deleting MCP configs");
         }
 
         for (McpServerMeta meta : metas) {
@@ -689,7 +691,7 @@ public class McpServerServiceImpl implements McpServerService {
                         .hostingType(param.getHostingType())
                         .protocol(param.getProtocol())
                         .userId(
-                                StrUtil.blankToDefault(
+                                Strings.blankToDefault(
                                         param.getUserId(), McpEndpointStatus.PUBLIC_USER_ID))
                         .hostingInstanceId(param.getHostingInstanceId())
                         .hostingIdentifier(param.getHostingIdentifier())
@@ -704,7 +706,7 @@ public class McpServerServiceImpl implements McpServerService {
     public List<McpEndpointResult> listEndpoints(String mcpServerId) {
         return endpointRepository.findByMcpServerId(mcpServerId).stream()
                 .map(e -> new McpEndpointResult().convertFrom(e))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -730,9 +732,7 @@ public class McpServerServiceImpl implements McpServerService {
                         ProductStatus.PUBLISHED,
                         pageable);
         List<String> productIds =
-                productPage.getContent().stream()
-                        .map(Product::getProductId)
-                        .collect(Collectors.toList());
+                productPage.getContent().stream().map(Product::getProductId).toList();
         if (productIds.isEmpty()) {
             return PageResult.of(List.of(), productPage.getNumber() + 1, productPage.getSize(), 0);
         }
@@ -751,7 +751,7 @@ public class McpServerServiceImpl implements McpServerService {
                                     r.setVisibility("PUBLIC");
                                     return r;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
         return PageResult.of(
                 results,
                 productPage.getNumber() + 1,
@@ -765,10 +765,7 @@ public class McpServerServiceImpl implements McpServerService {
         List<McpServerEndpoint> endpoints = endpointRepository.findByUserIdIn(List.of(userId, "*"));
 
         List<String> mcpServerIds =
-                endpoints.stream()
-                        .map(McpServerEndpoint::getMcpServerId)
-                        .distinct()
-                        .collect(Collectors.toList());
+                endpoints.stream().map(McpServerEndpoint::getMcpServerId).distinct().toList();
 
         Map<String, McpServerMeta> metaMap =
                 metaRepository.findByMcpServerIdIn(mcpServerIds).stream()
@@ -777,10 +774,7 @@ public class McpServerServiceImpl implements McpServerService {
                                         McpServerMeta::getMcpServerId, m -> m, (a, b) -> a));
 
         List<String> productIds =
-                metaMap.values().stream()
-                        .map(McpServerMeta::getProductId)
-                        .distinct()
-                        .collect(Collectors.toList());
+                metaMap.values().stream().map(McpServerMeta::getProductId).distinct().toList();
         Map<String, Product> productMap =
                 productRepository.findByProductIdIn(productIds).stream()
                         .collect(Collectors.toMap(Product::getProductId, p -> p, (a, b) -> a));
@@ -821,10 +815,10 @@ public class McpServerServiceImpl implements McpServerService {
                                     .toolsConfig(meta != null ? meta.getToolsConfig() : null)
                                     .build();
                         })
-                .collect(Collectors.toList());
+                .toList();
     }
 
-    // ==================== Transport Config Resolution ====================
+    // Transport config resolution.
 
     @Override
     public List<McpTransportConfig> resolveTransportConfigs(
@@ -832,7 +826,7 @@ public class McpServerServiceImpl implements McpServerService {
         return transportResolver.resolveTransportConfigs(productIds, userId);
     }
 
-    // ==================== Private Methods ====================
+    // Private methods.
 
     private McpServerMeta findMeta(String mcpServerId) {
         return metaRepository
@@ -864,7 +858,9 @@ public class McpServerServiceImpl implements McpServerService {
             String mcpServerId, String endpointUrl, String transportType) {
         McpServerMeta meta = metaRepository.findByMcpServerId(mcpServerId).orElse(null);
         if (meta == null) {
-            log.warn("异步获取工具列表时 meta 已不存在: mcpServerId={}", mcpServerId);
+            log.warn(
+                    "Meta no longer exists while fetching tools asynchronously, mcpServerId={}",
+                    mcpServerId);
             return;
         }
         fetchAndSaveToolsListOrThrow(meta, endpointUrl, transportType);
@@ -885,7 +881,10 @@ public class McpServerServiceImpl implements McpServerService {
         if (client == null) {
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "创建 MCP 客户端失败，请检查连接地址是否可达: mcpName=" + meta.getMcpName());
+                    String.format(
+                            "Failed to create MCP client. Check whether the connection URL is"
+                                    + " reachable: mcpName=%s",
+                            meta.getMcpName()));
         }
 
         List<McpSchema.Tool> tools = client.listTools().block();
@@ -895,12 +894,30 @@ public class McpServerServiceImpl implements McpServerService {
                 meta.setToolsConfig(toolsJson);
             } catch (Exception e) {
                 throw new BusinessException(
-                        ErrorCode.INTERNAL_ERROR, "序列化工具列表失败: " + e.getMessage());
+                        ErrorCode.INTERNAL_ERROR,
+                        String.format("Failed to serialize tools list: %s", e.getMessage()));
             }
             metaRepository.save(meta);
-            log.info("自动查询工具列表成功: mcpName={}, toolCount={}", meta.getMcpName(), tools.size());
+            log.info(
+                    "Tools list fetched automatically, mcpName={}, toolCount={}",
+                    meta.getMcpName(),
+                    tools.size());
         } else {
-            log.info("工具列表为空: mcpName={}", meta.getMcpName());
+            log.info("Tools list is empty, mcpName={}", meta.getMcpName());
         }
+    }
+
+    private static String[] ignoredProperties(Object source, String... additionalProperties) {
+        BeanWrapper sourceWrapper = new BeanWrapperImpl(source);
+        List<String> ignoredProperties = new ArrayList<>();
+        for (PropertyDescriptor propertyDescriptor : sourceWrapper.getPropertyDescriptors()) {
+            String propertyName = propertyDescriptor.getName();
+            if (sourceWrapper.isReadableProperty(propertyName)
+                    && sourceWrapper.getPropertyValue(propertyName) == null) {
+                ignoredProperties.add(propertyName);
+            }
+        }
+        ignoredProperties.addAll(List.of(additionalProperties));
+        return ignoredProperties.toArray(new String[0]);
     }
 }

@@ -27,9 +27,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class CredentialContext {
 
     private String apiKey;
@@ -39,9 +39,9 @@ public class CredentialContext {
     @Builder.Default private Map<String, String> queryParams = new HashMap<>();
 
     /**
-     * Returns a copy of headers to prevent modifications to the original map
+     * Returns a copy of headers to prevent modifications to the original map.
      *
-     * @return
+     * @return copied header map
      */
     public Map<String, String> copyHeaders() {
         if (headers == null) {

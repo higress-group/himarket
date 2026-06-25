@@ -29,12 +29,12 @@ import java.util.function.Consumer;
 public class CacheUtil {
 
     /**
-     * Caffeine cache
+     * Creates a Caffeine cache with write-based expiration.
      *
-     * @param expireAfterWrite
-     * @param <K>
-     * @param <V>
-     * @return
+     * @param expireAfterWrite expiration duration in minutes after write
+     * @param <K> key type
+     * @param <V> value type
+     * @return cache instance
      */
     public static <K, V> Cache<K, V> newCache(long expireAfterWrite) {
         return Caffeine.newBuilder()
@@ -45,13 +45,13 @@ public class CacheUtil {
     }
 
     /**
-     * Caffeine cache with expire callback
+     * Creates a Caffeine cache with write-based expiration and an expiration callback.
      *
-     * @param expireAfterWrite
-     * @param onExpire
-     * @param <K>
-     * @param <V>
-     * @return
+     * @param expireAfterWrite expiration duration in minutes after write
+     * @param onExpire callback invoked when an entry expires
+     * @param <K> key type
+     * @param <V> value type
+     * @return cache instance
      */
     public static <K, V> Cache<K, V> newCache(long expireAfterWrite, Consumer<V> onExpire) {
         return Caffeine.newBuilder()
@@ -70,12 +70,12 @@ public class CacheUtil {
     }
 
     /**
-     * Create LRU cache with time-based eviction
+     * Creates an LRU cache with time-based eviction.
      *
      * @param expireAfterAccess expire after N seconds of no access
-     * @param <K>               key type
-     * @param <V>               value type
-     * @return Cache instance
+     * @param <K> key type
+     * @param <V> value type
+     * @return cache instance
      */
     public static <K, V> Cache<K, V> newLRUCache(long expireAfterAccess) {
         return Caffeine.newBuilder()
@@ -86,13 +86,13 @@ public class CacheUtil {
     }
 
     /**
-     * Create LRU cache with time-based eviction and removal listener
+     * Creates an LRU cache with time-based eviction and a removal listener.
      *
      * @param expireAfterAccess expire after N seconds of no access
-     * @param removalListener   listener to be invoked when an entry is removed
-     * @param <K>               key type
-     * @param <V>               value type
-     * @return Cache instance
+     * @param removalListener listener to be invoked when an entry is removed
+     * @param <K> key type
+     * @param <V> value type
+     * @return cache instance
      */
     public static <K, V> Cache<K, V> newLRUCache(
             long expireAfterAccess, RemovalListener<K, V> removalListener) {

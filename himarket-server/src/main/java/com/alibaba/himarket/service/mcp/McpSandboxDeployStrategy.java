@@ -3,33 +3,33 @@ package com.alibaba.himarket.service.mcp;
 import com.alibaba.himarket.entity.SandboxInstance;
 
 /**
- * MCP 沙箱部署策略接口。
+ * Strategy interface for deploying MCP servers into sandbox clusters.
  *
- * <p>不同 sandboxType 对应不同的部署实现。
+ * <p>Each sandboxType can provide its own deployment implementation.
  */
 public interface McpSandboxDeployStrategy {
 
     /**
-     * 该策略支持的沙箱类型。
+     * Returns the sandbox type supported by this strategy.
      */
     String supportedSandboxType();
 
     /**
-     * 部署 MCP Server 到沙箱集群，返回 endpoint URL。
+     * Deploys an MCP server into a sandbox cluster and returns the endpoint URL.
      *
-     * @param sandbox         沙箱实例
+     * @param sandbox sandbox instance
      * @param mcpServerId     MCP Server ID
-     * @param mcpName         MCP Server 名称
-     * @param userId          订阅用户 ID
-     * @param transportType   传输类型：sse / http（endpoint 协议）
-     * @param metaProtocolType MCP meta 协议类型：stdio / sse / http（CRD 使用）
-     * @param connectionConfig MCP 连接配置 JSON
-     * @param apiKey          用户的 API Key（consumer credential token）
-     * @param authType        鉴权方式：none / bearer
-     * @param userParams      用户提交的参数值 JSON
-     * @param extraParamsDef  额外参数定义 JSON（含 position 信息）
-     * @param namespace       部署目标 Namespace（为空时使用 "default"）
-     * @param resourceSpec    资源规格 JSON（CPU/内存等）
+     * @param mcpName MCP Server name
+     * @param userId subscribing user ID
+     * @param transportType transport type, such as sse or http for the endpoint protocol
+     * @param metaProtocolType MCP meta protocol type, such as stdio, sse, or http for the CRD
+     * @param connectionConfig MCP connection config JSON
+     * @param apiKey user API key, used as the consumer credential token
+     * @param authType authentication type, such as none or bearer
+     * @param userParams user-submitted parameter values as JSON
+     * @param extraParamsDef extra parameter definition JSON, including position metadata
+     * @param namespace target namespace, defaults to "default" when blank
+     * @param resourceSpec resource specification JSON, such as CPU and memory
      * @return endpoint URL
      */
     String deploy(
@@ -48,23 +48,23 @@ public interface McpSandboxDeployStrategy {
             String resourceSpec);
 
     /**
-     * 删除沙箱集群中的 ToolServer CRD。
+     * Deletes the ToolServer CRD from the sandbox cluster.
      *
-     * @param sandbox    沙箱实例
-     * @param mcpName    MCP Server 名称
-     * @param userId     订阅用户 ID
-     * @param namespace  部署时使用的 Namespace（为空时使用 "default"）
+     * @param sandbox sandbox instance
+     * @param mcpName MCP Server name
+     * @param userId subscribing user ID
+     * @param namespace namespace used for deployment, defaults to "default" when blank
      */
     void undeploy(SandboxInstance sandbox, String mcpName, String userId, String namespace);
 
     /**
-     * 删除沙箱集群中的 ToolServer CRD（使用指定的 resourceName）。
+     * Deletes the ToolServer CRD from the sandbox cluster with the given resourceName.
      *
-     * @param sandbox       沙箱实例
-     * @param mcpName       MCP Server 名称
-     * @param userId        订阅用户 ID
-     * @param namespace     部署时使用的 Namespace（为空时使用 "default"）
-     * @param resourceName  CRD 资源名称（为空时回退到名称计算）
+     * @param sandbox sandbox instance
+     * @param mcpName MCP Server name
+     * @param userId subscribing user ID
+     * @param namespace namespace used for deployment, defaults to "default" when blank
+     * @param resourceName CRD resource name, or blank to fall back to name calculation
      */
     default void undeploy(
             SandboxInstance sandbox,
@@ -76,14 +76,14 @@ public interface McpSandboxDeployStrategy {
     }
 
     /**
-     * 删除沙箱集群中的 ToolServer CRD 和关联的 K8s Secret。
+     * Deletes the ToolServer CRD and associated K8s Secret from the sandbox cluster.
      *
-     * @param sandbox       沙箱实例
-     * @param mcpName       MCP Server 名称
-     * @param userId        订阅用户 ID
-     * @param namespace     部署时使用的 Namespace
-     * @param resourceName  CRD 资源名称
-     * @param secretName    K8s Secret 名称（为空时跳过 Secret 删除）
+     * @param sandbox sandbox instance
+     * @param mcpName MCP Server name
+     * @param userId subscribing user ID
+     * @param namespace namespace used for deployment
+     * @param resourceName CRD resource name
+     * @param secretName K8s Secret name, or blank to skip Secret deletion
      */
     default void undeploy(
             SandboxInstance sandbox,

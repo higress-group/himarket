@@ -20,6 +20,7 @@
 package com.alibaba.himarket;
 
 import com.alibaba.himarket.config.AcpProperties;
+import com.alibaba.himarket.config.JwtProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -29,7 +30,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableScheduling
-@EnableConfigurationProperties({AcpProperties.class})
+@EnableConfigurationProperties({AcpProperties.class, JwtProperties.class})
 public class HiMarketApplication {
 
     public static void main(String[] args) {

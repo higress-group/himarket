@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.event.DeveloperDeletingEvent;
 import com.alibaba.himarket.core.event.ProductDeletingEvent;
@@ -42,7 +40,11 @@ import com.alibaba.himarket.dto.result.portal.PortalResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
-import com.alibaba.himarket.entity.*;
+import com.alibaba.himarket.entity.Consumer;
+import com.alibaba.himarket.entity.ConsumerCredential;
+import com.alibaba.himarket.entity.ConsumerRef;
+import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.entity.ProductSubscription;
 import com.alibaba.himarket.repository.ConsumerCredentialRepository;
 import com.alibaba.himarket.repository.ConsumerRefRepository;
 import com.alibaba.himarket.repository.ConsumerRepository;
@@ -51,6 +53,7 @@ import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
 import com.alibaba.himarket.support.consumer.HmacConfig;
@@ -65,9 +68,11 @@ import com.alibaba.himarket.utils.JsonUtil;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
-import jakarta.transaction.Transactional;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -77,6 +82,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -178,9 +184,11 @@ public class ConsumerServiceImpl implements ConsumerService {
                 }
             } catch (Exception e) {
                 log.error(
-                        "revoke consumer authorization error, consumerId: {}, productId: {}",
+                        "Failed to revoke consumer authorization, consumerId={}, productId={},"
+                                + " errorMessage={}",
                         consumerId,
                         subscription.getProductId(),
+                        e.getMessage(),
                         e);
             }
         }
@@ -199,8 +207,9 @@ public class ConsumerServiceImpl implements ConsumerService {
                         consumerRef.getGwConsumerId(), consumerRef.getGatewayConfig());
             } catch (Exception e) {
                 log.error(
-                        "deleteConsumer gatewayConsumer error, gwConsumerId: {}",
+                        "Failed to delete gateway consumer, gwConsumerId={}, errorMessage={}",
                         consumerRef.getGwConsumerId(),
+                        e.getMessage(),
                         e);
             }
         }
@@ -222,9 +231,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                         c -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Credential of consumer `{}` already exists",
-                                            consumerId));
+                                    "Credential of consumer `" + consumerId + "` already exists");
                         });
         ConsumerCredential credential = param.convertTo();
         credential.setConsumerId(consumerId);
@@ -269,8 +276,9 @@ public class ConsumerServiceImpl implements ConsumerService {
                         consumerRef.getGwConsumerId(), credential, consumerRef.getGatewayConfig());
             } catch (Exception e) {
                 log.error(
-                        "Update gatewayConsumer error, gwConsumerId: {}",
+                        "Failed to update gateway consumer, gwConsumerId={}, errorMessage={}",
                         consumerRef.getGwConsumerId(),
+                        e.getMessage(),
                         e);
             }
         }
@@ -306,10 +314,10 @@ public class ConsumerServiceImpl implements ConsumerService {
         subscription.setSubscriptionId(IdGenerator.genSubscriptionId());
         subscription.setConsumerId(consumerId);
 
-        // 判断是否自动审批
+        // Resolve whether this subscription can be approved automatically.
         boolean autoApprove = resolveAutoApprove(product, consumer);
 
-        // 网关来源：需要同步授权到网关
+        // Gateway products need synchronized gateway-side authorization.
         if (productRef != null && productRef.getSourceType() == SourceType.GATEWAY) {
             if (autoApprove) {
                 ConsumerAuthConfig consumerAuthConfig =
@@ -350,13 +358,13 @@ public class ConsumerServiceImpl implements ConsumerService {
                 GatewayConfig gatewayConfig =
                         gatewayService.getGatewayConfig(productRef.getGatewayId());
                 // Revoke the consumer's authorization configuration from the gateway
-                Optional.ofNullable(matchConsumerRef(consumerId, gatewayConfig))
-                        .ifPresent(
-                                consumerRef ->
-                                        gatewayService.revokeConsumerAuthorization(
-                                                productRef.getGatewayId(),
-                                                consumerRef.getGwConsumerId(),
-                                                subscription.getConsumerAuthConfig()));
+                ConsumerRef consumerRef = matchConsumerRef(consumerId, gatewayConfig);
+                if (consumerRef != null) {
+                    gatewayService.revokeConsumerAuthorization(
+                            productRef.getGatewayId(),
+                            consumerRef.getGwConsumerId(),
+                            subscription.getConsumerAuthConfig());
+                }
             }
         }
 
@@ -387,9 +395,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 subscriptionRepository.findAll(buildCredentialSpec(consumerId, param), pageable);
 
         List<String> productIds =
-                subscriptions.getContent().stream()
-                        .map(ProductSubscription::getProductId)
-                        .collect(Collectors.toList());
+                subscriptions.getContent().stream().map(ProductSubscription::getProductId).toList();
         Map<String, ProductResult> products = productService.getProducts(productIds);
         return new PageResult<SubscriptionResult>()
                 .convertFrom(
@@ -411,7 +417,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 subscriptionRepository.findAllByConsumerId(consumerId);
         return subscriptions.stream()
                 .map(subscription -> new SubscriptionResult().convertFrom(subscription))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -507,15 +513,15 @@ public class ConsumerServiceImpl implements ConsumerService {
                 param.setDeveloperId(contextHolder.getUser());
             }
 
-            if (StrUtil.isNotBlank(param.getDeveloperId())) {
+            if (Strings.isNotBlank(param.getDeveloperId())) {
                 predicates.add(cb.equal(root.get("developerId"), param.getDeveloperId()));
             }
 
-            if (StrUtil.isNotBlank(param.getPortalId())) {
+            if (Strings.isNotBlank(param.getPortalId())) {
                 predicates.add(cb.equal(root.get("portalId"), param.getPortalId()));
             }
 
-            if (StrUtil.isNotBlank(param.getName())) {
+            if (Strings.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName() + "%";
                 predicates.add(cb.like(cb.lower(root.get("name")), likePattern));
             }
@@ -532,7 +538,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             if (param.getStatus() != null) {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
-            if (StrUtil.isNotBlank(param.getProductName())) {
+            if (Strings.isNotBlank(param.getProductName())) {
                 Subquery<String> productSubquery = query.subquery(String.class);
                 Root<Product> productRoot = productSubquery.from(Product.class);
 
@@ -561,7 +567,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             if (apiKeyCredentials != null) {
                 for (ApiKeyConfig.ApiKeyCredential cred : apiKeyCredentials) {
                     if (cred.getMode() == CredentialMode.SYSTEM
-                            && StrUtil.isBlank(cred.getApiKey())) {
+                            && Strings.isBlank(cred.getApiKey())) {
                         cred.setApiKey(generateApiKey());
                     }
                 }
@@ -575,7 +581,7 @@ public class ConsumerServiceImpl implements ConsumerService {
             if (hmacCredentials != null) {
                 for (HmacConfig.HmacCredential cred : hmacCredentials) {
                     if (cred.getMode() == CredentialMode.SYSTEM
-                            && (StrUtil.isBlank(cred.getAk()) || StrUtil.isBlank(cred.getSk()))) {
+                            && (Strings.isBlank(cred.getAk()) || Strings.isBlank(cred.getSk()))) {
                         cred.setAk(IdGenerator.genIdWithPrefix("ak-"));
                         cred.setSk(IdGenerator.genIdWithPrefix("sk-"));
                     }
@@ -607,8 +613,8 @@ public class ConsumerServiceImpl implements ConsumerService {
 
             if (!isConsumerExistsInGateway(gwConsumerId, gatewayConfig)) {
                 log.warn(
-                        "Consumer in gateway was deleted, need to recreate consumer: gwConsumerId:"
-                                + " {}, gatewayType: {}",
+                        "Gateway consumer is missing and will be recreated, gwConsumerId={},"
+                                + " gatewayType={}",
                         gwConsumerId,
                         gatewayConfig.getGatewayType());
 
@@ -647,10 +653,11 @@ public class ConsumerServiceImpl implements ConsumerService {
             return gatewayService.isConsumerExists(gwConsumerId, gatewayConfig);
         } catch (Exception e) {
             log.warn(
-                    "Failed to check consumer existence in gateway, gwConsumerId: {}, gatewayType:"
-                            + " {}",
+                    "Failed to check gateway consumer existence, gwConsumerId={}, gatewayType={},"
+                            + " errorMessage={}",
                     gwConsumerId,
                     gatewayConfig.getGatewayType(),
+                    e.getMessage(),
                     e);
             return true;
         }
@@ -660,43 +667,46 @@ public class ConsumerServiceImpl implements ConsumerService {
     @Async("taskExecutor")
     public void onDeveloperDeletion(DeveloperDeletingEvent event) {
         String developerId = event.getDeveloperId();
-        log.info("Cleaning consumers for developer {}", developerId);
+        log.info("Cleaning consumers for developer, developerId={}", developerId);
 
         List<Consumer> consumers = consumerRepository.findAllByDeveloperId(developerId);
-        consumers.forEach(
-                consumer -> {
-                    try {
-                        deleteConsumer(consumer.getConsumerId());
-                    } catch (Exception e) {
-                        log.error("Failed to delete consumer {}", consumer.getConsumerId(), e);
-                    }
-                });
+        for (Consumer consumer : consumers) {
+            try {
+                deleteConsumer(consumer.getConsumerId());
+            } catch (Exception e) {
+                log.error(
+                        "Failed to delete consumer, consumerId={}, errorMessage={}",
+                        consumer.getConsumerId(),
+                        e.getMessage(),
+                        e);
+            }
+        }
     }
 
     @EventListener
     @Async("taskExecutor")
     public void onProductDeletion(ProductDeletingEvent event) {
         String productId = event.getProductId();
-        log.info("Cleaning subscriptions for product {}", productId);
+        log.info("Cleaning subscriptions for product, productId={}", productId);
 
         subscriptionRepository.deleteAllByProductId(productId);
 
         List<ProductSubscription> subscriptions =
                 subscriptionRepository.findAllByProductId(productId);
 
-        subscriptions.forEach(
-                subscription -> {
-                    try {
-                        unsubscribeProduct(
-                                subscription.getConsumerId(), subscription.getProductId());
-                    } catch (Exception e) {
-                        log.error(
-                                "Failed to unsubscribe product {} for consumer {}",
-                                productId,
-                                subscription.getConsumerId(),
-                                e);
-                    }
-                });
+        for (ProductSubscription subscription : subscriptions) {
+            try {
+                unsubscribeProduct(subscription.getConsumerId(), subscription.getProductId());
+            } catch (Exception e) {
+                log.error(
+                        "Failed to unsubscribe product for consumer, productId={}, consumerId={},"
+                                + " errorMessage={}",
+                        productId,
+                        subscription.getConsumerId(),
+                        e.getMessage(),
+                        e);
+            }
+        }
     }
 
     private ConsumerRef matchConsumerRef(String consumerId, GatewayConfig gatewayConfig) {
@@ -726,7 +736,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                                             refGatewayConfig.getHigressConfig());
                         }
                         default ->
-                                StrUtil.equals(
+                                Strings.equals(
                                         JsonUtil.toJson(refGatewayConfig),
                                         JsonUtil.toJson(gatewayConfig));
                     };
@@ -748,12 +758,12 @@ public class ConsumerServiceImpl implements ConsumerService {
                     .orElseGet(
                             () -> {
                                 log.debug(
-                                        "No credential found for consumer: {}",
+                                        "No credential found for consumer, consumerId={}",
                                         consumer.getConsumerId());
                                 return CredentialContext.builder().build();
                             });
         } catch (BusinessException e) {
-            log.debug("No consumer found for developer: {}", developerId);
+            log.debug("No consumer found for developer, developerId={}", developerId);
             return CredentialContext.builder().build();
         }
     }
@@ -764,8 +774,8 @@ public class ConsumerServiceImpl implements ConsumerService {
         Consumer consumer = findDevConsumer(consumerId);
 
         // Return if consumer is already primary
-        if (BooleanUtil.isTrue(consumer.getIsPrimary())) {
-            log.debug("Consumer already primary: consumerId={}", consumerId);
+        if (Boolean.TRUE.equals(consumer.getIsPrimary())) {
+            log.debug("Consumer already primary, consumerId={}", consumerId);
             return;
         }
 
@@ -788,7 +798,7 @@ public class ConsumerServiceImpl implements ConsumerService {
                 .map(
                         consumer -> {
                             log.debug(
-                                    "Found existing primary consumer: developerId={},"
+                                    "Found existing primary consumer, developerId={},"
                                             + " consumerId={}",
                                     developerId,
                                     consumer.getConsumerId());
@@ -868,7 +878,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         }
         PortalResult portal = portalService.getPortal(consumer.getPortalId());
         return portal.getPortalSettingConfig() != null
-                && BooleanUtil.isTrue(
+                && Boolean.TRUE.equals(
                         portal.getPortalSettingConfig().getAutoApproveSubscriptions());
     }
 }

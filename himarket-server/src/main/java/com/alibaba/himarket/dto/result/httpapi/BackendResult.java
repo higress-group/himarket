@@ -23,8 +23,6 @@ import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.aliyun.sdk.service.apig20240327.models.Backend;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.Data;
 
 @Data
@@ -38,14 +36,12 @@ public class BackendResult implements OutputConverter<BackendResult, Backend> {
     public BackendResult convertFrom(Backend backend) {
         OutputConverter.super.convertFrom(backend);
 
-        this.services =
-                Optional.ofNullable(backend.getServices())
-                        .map(
-                                serviceList ->
-                                        serviceList.stream()
-                                                .map(new ServiceResult()::convertFrom)
-                                                .collect(Collectors.toList()))
-                        .orElse(Collections.emptyList());
+        if (backend.getServices() == null) {
+            this.services = Collections.emptyList();
+        } else {
+            this.services =
+                    backend.getServices().stream().map(new ServiceResult()::convertFrom).toList();
+        }
 
         return this;
     }

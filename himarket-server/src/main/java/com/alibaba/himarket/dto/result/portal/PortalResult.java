@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.dto.result.portal;
 
-import cn.hutool.core.collection.CollUtil;
 import com.alibaba.himarket.dto.converter.OutputConverter;
 import com.alibaba.himarket.entity.Portal;
 import com.alibaba.himarket.entity.PortalDomain;
@@ -28,7 +27,6 @@ import com.alibaba.himarket.support.enums.ProtocolType;
 import com.alibaba.himarket.support.portal.PortalSettingConfig;
 import com.alibaba.himarket.support.portal.PortalUiConfig;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.Data;
 
 @Data
@@ -51,11 +49,11 @@ public class PortalResult implements OutputConverter<PortalResult, Portal> {
     @Override
     public PortalResult convertFrom(Portal source) {
         OutputConverter.super.convertFrom(source);
-        if (CollUtil.isNotEmpty(source.getPortalDomains())) {
+        if (source.getPortalDomains() != null && !source.getPortalDomains().isEmpty()) {
             portalDomainConfig =
                     source.getPortalDomains().stream()
                             .map(domain -> new PortalDomainConfig().convertFrom(domain))
-                            .collect(Collectors.toList());
+                            .toList();
         }
         return this;
     }

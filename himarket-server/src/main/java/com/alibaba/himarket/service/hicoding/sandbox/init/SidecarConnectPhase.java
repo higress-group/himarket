@@ -5,8 +5,9 @@ import com.alibaba.himarket.service.hicoding.runtime.RuntimeStatus;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxProvider;
 
 /**
- * 建立到 Sidecar Server 的 WebSocket 连接。
- * 所有沙箱类型都通过 Sidecar WebSocket 桥接 CLI，逻辑完全一致。
+ * Establishes the WebSocket connection to the Sidecar Server.
+ *
+ * <p>All sandbox types bridge the CLI through the Sidecar WebSocket, so the logic is shared.
  */
 public class SidecarConnectPhase implements InitPhase {
 
@@ -34,7 +35,10 @@ public class SidecarConnectPhase implements InitPhase {
             context.setRuntimeAdapter(adapter);
         } catch (Exception e) {
             throw new InitPhaseException(
-                    "sidecar-connect", "Sidecar 连接失败: " + e.getMessage(), e, true);
+                    "sidecar-connect",
+                    "Failed to connect to Sidecar service: " + e.getMessage(),
+                    e,
+                    true);
         }
     }
 

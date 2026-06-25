@@ -18,28 +18,32 @@
  */
 package com.alibaba.himarket.service.hichat.service;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.ChatError;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
+import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.hichat.manager.ChatBotManager;
-import com.alibaba.himarket.service.hichat.support.*;
+import com.alibaba.himarket.service.hichat.support.ChatBot;
+import com.alibaba.himarket.service.hichat.support.ChatContext;
+import com.alibaba.himarket.service.hichat.support.ChatEvent;
+import com.alibaba.himarket.service.hichat.support.ChatFormatter;
+import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
+import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.product.ModelFeature;
-import com.alibaba.himarket.support.product.ProductFeature;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.model.Model;
 import java.net.URI;
-import java.util.*;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 @Slf4j
@@ -95,10 +99,15 @@ public abstract class AbstractLlmService implements LlmService {
                     .doFinally(signal -> resultHandler.accept(chatContext.toResult()));
 
         } catch (Exception e) {
-            log.error("Failed to process chat request for chatId: {}", param.getChatId(), e);
+            log.error(
+                    "Failed to process chat request, chatId={}, errorMessage={}",
+                    param.getChatId(),
+                    e.getMessage(),
+                    e);
             ChatError chatError = ChatError.from(e);
             chatContext.fail();
-            chatContext.appendAnswer("[Sorry, something went wrong: " + e.getMessage() + "]");
+            chatContext.appendAnswer(
+                    String.format("[Sorry, something went wrong: %s]", e.getMessage()));
             resultHandler.accept(chatContext.toResult());
 
             return Flux.just(
@@ -106,7 +115,7 @@ public abstract class AbstractLlmService implements LlmService {
                     ChatEvent.error(
                             param.getChatId(),
                             chatError.name(),
-                            StrUtil.blankToDefault(e.getMessage(), chatError.getDescription())),
+                            Strings.blankToDefault(e.getMessage(), chatError.getDescription())),
                     ChatEvent.done(param.getChatId(), null));
         }
     }
@@ -115,30 +124,38 @@ public abstract class AbstractLlmService implements LlmService {
             Flux<ChatEvent> flux, String chatId, ChatContext chatContext) {
         return flux.doOnCancel(
                         () -> {
-                            log.warn("Chat stream was canceled by client, chatId: {}", chatId);
+                            log.warn("Chat stream was canceled by client, chatId={}", chatId);
                             chatContext.fail();
                         })
                 .doOnError(
                         error -> {
-                            log.error("Chat stream encountered error, chatId: {}", chatId, error);
+                            log.error(
+                                    "Chat stream encountered error, chatId={}, errorMessage={}",
+                                    chatId,
+                                    error.getMessage(),
+                                    error);
                             chatContext.fail();
                             chatContext.appendAnswer(
-                                    "\n[Sorry, an error occurred: " + error.getMessage() + "]");
+                                    String.format(
+                                            "\n[Sorry, an error occurred: %s]",
+                                            error.getMessage()));
                         })
                 .onErrorResume(
                         error -> {
                             ChatError chatError = ChatError.from(error);
                             log.error(
-                                    "Chat execution failed, chatId: {}, errorType: {}",
+                                    "Chat execution failed, chatId={}, errorType={},"
+                                            + " errorMessage={}",
                                     chatId,
                                     chatError,
+                                    error.getMessage(),
                                     error);
 
                             return Flux.just(
                                     ChatEvent.error(
                                             chatId,
                                             chatError.name(),
-                                            StrUtil.blankToDefault(
+                                            Strings.blankToDefault(
                                                     error.getMessage(),
                                                     chatError.getDescription())));
                         });
@@ -168,25 +185,29 @@ public abstract class AbstractLlmService implements LlmService {
     }
 
     protected ModelFeature getOrDefaultModelFeature(ProductResult product) {
-        ModelFeature modelFeature =
-                Optional.ofNullable(product)
-                        .map(ProductResult::getFeature)
-                        .map(ProductFeature::getModelFeature)
-                        .orElseGet(() -> ModelFeature.builder().build());
+        ModelFeature modelFeature = null;
+        if (product != null && product.getFeature() != null) {
+            modelFeature = product.getFeature().getModelFeature();
+        }
+        if (modelFeature == null) {
+            modelFeature = ModelFeature.builder().build();
+        }
 
         return ModelFeature.builder()
                 .model(modelFeature.getModel())
                 .maxTokens(modelFeature.getMaxTokens())
-                .temperature(ObjectUtil.defaultIfNull(modelFeature.getTemperature(), 0.9))
-                .streaming(ObjectUtil.defaultIfNull(modelFeature.getStreaming(), true))
-                .webSearch(ObjectUtil.defaultIfNull(modelFeature.getWebSearch(), false))
+                .temperature(
+                        modelFeature.getTemperature() != null ? modelFeature.getTemperature() : 0.9)
+                .streaming(modelFeature.getStreaming() != null ? modelFeature.getStreaming() : true)
+                .webSearch(
+                        modelFeature.getWebSearch() != null ? modelFeature.getWebSearch() : false)
                 .build();
     }
 
     @Override
     public boolean match(String protocol) {
         return getProtocols().stream()
-                .anyMatch(p -> StrUtil.equalsIgnoreCase(p.getProtocol(), protocol));
+                .anyMatch(p -> Strings.equalsIgnoreCase(p.getProtocol(), protocol));
     }
 
     /**
@@ -205,46 +226,24 @@ public abstract class AbstractLlmService implements LlmService {
             BiFunction<String, String, String> pathProcessor) {
 
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
-        if (modelAPIConfig == null || CollUtil.isEmpty(modelAPIConfig.getRoutes())) {
+        if (modelAPIConfig == null || CollectionUtils.isEmpty(modelAPIConfig.getRoutes())) {
             log.error("Failed to build URI: model API config is null or contains no routes");
             return null;
         }
 
         // Find matching route by keyword
-        com.alibaba.himarket.dto.result.httpapi.HttpRouteResult route =
+        HttpRouteResult route =
                 modelAPIConfig.getRoutes().stream()
-                        .filter(
-                                r ->
-                                        java.util.Optional.ofNullable(r.getMatch())
-                                                .map(
-                                                        com.alibaba.himarket.dto.result.httpapi
-                                                                        .HttpRouteResult
-                                                                        .RouteMatchResult
-                                                                ::getPath)
-                                                .map(
-                                                        com.alibaba.himarket.dto.result.httpapi
-                                                                        .HttpRouteResult
-                                                                        .RouteMatchPath
-                                                                ::getValue)
-                                                .filter(path -> path.contains(routeKeyword))
-                                                .isPresent())
+                        .filter(routeCandidate -> routeMatches(routeCandidate, routeKeyword))
                         .findFirst()
                         .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
 
         // Get and process path
-        String path =
-                java.util.Optional.ofNullable(route.getMatch())
-                        .map(
-                                com.alibaba.himarket.dto.result.httpapi.HttpRouteResult
-                                                .RouteMatchResult
-                                        ::getPath)
-                        .map(
-                                routeMatchPath -> {
-                                    String pathValue = routeMatchPath.getValue();
-                                    String pathType = routeMatchPath.getType();
-                                    return pathProcessor.apply(pathValue, pathType);
-                                })
-                        .orElse(routeKeyword);
+        String path = routeKeyword;
+        if (route.getMatch() != null && route.getMatch().getPath() != null) {
+            HttpRouteResult.RouteMatchPath routeMatchPath = route.getMatch().getPath();
+            path = pathProcessor.apply(routeMatchPath.getValue(), routeMatchPath.getType());
+        }
 
         org.springframework.web.util.UriComponentsBuilder builder =
                 org.springframework.web.util.UriComponentsBuilder.newInstance();
@@ -252,24 +251,24 @@ public abstract class AbstractLlmService implements LlmService {
         // Try to get public domain first, fallback to first domain
         com.alibaba.himarket.dto.result.common.DomainResult domain =
                 route.getDomains().stream()
-                        .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
+                        .filter(d -> !Strings.equalsIgnoreCase(d.getNetworkType(), "intranet"))
                         .findFirst()
                         .orElseGet(
                                 () ->
-                                        ObjectUtil.isNotEmpty(route.getDomains())
+                                        !CollectionUtils.isEmpty(route.getDomains())
                                                 ? route.getDomains().get(0)
                                                 : null);
 
         if (domain != null) {
             String protocol =
-                    StrUtil.isNotBlank(domain.getProtocol())
+                    Strings.isNotBlank(domain.getProtocol())
                             ? domain.getProtocol().toLowerCase()
                             : "http";
             builder.scheme(protocol).host(domain.getDomain());
             if (domain.getPort() != null && domain.getPort() > 0) {
                 builder.port(domain.getPort());
             }
-        } else if (ObjectUtil.isNotEmpty(gatewayUris)) {
+        } else if (!CollectionUtils.isEmpty(gatewayUris)) {
             URI uri = gatewayUris.get(0);
             builder.scheme(uri.getScheme() != null ? uri.getScheme() : "http").host(uri.getHost());
             if (uri.getPort() != -1) {
@@ -282,8 +281,17 @@ public abstract class AbstractLlmService implements LlmService {
 
         builder.path(path);
         URI uri = builder.build().toUri();
-        log.debug("Successfully built URI: {}", uri);
+        log.debug("Built model invocation URI, uri={}", uri);
         return uri;
+    }
+
+    private boolean routeMatches(HttpRouteResult route, String routeKeyword) {
+        if (route.getMatch() == null || route.getMatch().getPath() == null) {
+            return false;
+        }
+
+        String path = route.getMatch().getPath().getValue();
+        return path != null && path.contains(routeKeyword);
     }
 
     /**

@@ -19,12 +19,23 @@
 
 package com.alibaba.himarket.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
 /**
- * MCP Server 运行时连接信息（热数据）。
- * 存储 MCP 的 endpoint、托管方式等运行时信息，查询频率高。
+ * MCP Server runtime connection data.
+ *
+ * <p>This entity stores frequently queried runtime data such as endpoints and hosting type.
  */
 @Entity
 @Table(

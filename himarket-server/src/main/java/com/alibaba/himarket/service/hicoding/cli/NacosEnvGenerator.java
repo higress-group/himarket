@@ -12,8 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * nacos-env.yaml 生成工具。
- * 按 nacosId 分组，为每个 Nacos 实例生成独立的配置文件。
+ * Generates nacos-env.yaml files grouped by Nacos instance.
  */
 public final class NacosEnvGenerator {
 
@@ -23,8 +22,7 @@ public final class NacosEnvGenerator {
     private NacosEnvGenerator() {}
 
     /**
-     * 为 Skill 列表生成 nacos-env.yaml 文件。
-     * 按 nacosId 分组，每个 nacosId 生成一个 .nacos/nacos-env-{nacosId}.yaml。
+     * Generates one .nacos/nacos-env-{nacosId}.yaml file for each Nacos instance.
      */
     public static void generateNacosEnvFiles(
             String workingDirectory, List<ResolvedSessionConfig.ResolvedSkillEntry> skills)
@@ -33,7 +31,7 @@ public final class NacosEnvGenerator {
         Path nacosDir = Path.of(workingDirectory, NACOS_DIR);
         Files.createDirectories(nacosDir);
 
-        // 按 nacosId 分组，取每组第一个 entry 的凭证信息
+        // Group by nacosId and use the first entry's credentials for each group.
         Map<String, ResolvedSessionConfig.ResolvedSkillEntry> byNacosId =
                 skills.stream()
                         .collect(
@@ -50,13 +48,17 @@ public final class NacosEnvGenerator {
                 Path filePath = nacosDir.resolve("nacos-env-" + nacosId + ".yaml");
                 Files.writeString(filePath, yaml);
             } catch (Exception e) {
-                logger.error("生成 nacos-env-{}.yaml 失败: {}", nacosId, e.getMessage(), e);
+                logger.error(
+                        "Failed to generate Nacos env file, nacosId={}, errorMessage={}",
+                        nacosId,
+                        e.getMessage(),
+                        e);
             }
         }
     }
 
     /**
-     * 从 ResolvedSkillEntry 构建 nacos-env.yaml 内容。
+     * Builds nacos-env.yaml content from a ResolvedSkillEntry.
      */
     static String buildNacosEnvYaml(ResolvedSessionConfig.ResolvedSkillEntry skill) {
         HostPort hp = parseServerAddr(skill.getServerAddr());
@@ -85,12 +87,12 @@ public final class NacosEnvGenerator {
     }
 
     /**
-     * 解析 serverAddr URL 为 host 和 port。
-     * 支持格式: http://host:port, https://host:port, host:port
+     * Parses serverAddr into host and port.
+     * Supports http://host:port, https://host:port, and host:port.
      */
     static HostPort parseServerAddr(String serverAddr) {
         if (serverAddr == null || serverAddr.isBlank()) {
-            throw new IllegalArgumentException("serverAddr 不能为空");
+            throw new IllegalArgumentException("serverAddr must not be empty");
         }
         try {
             String uriStr = serverAddr;
@@ -101,14 +103,15 @@ public final class NacosEnvGenerator {
             String host = uri.getHost();
             int port = uri.getPort();
             if (host == null || host.isBlank()) {
-                throw new IllegalArgumentException("无法从 serverAddr 解析 host: " + serverAddr);
+                throw new IllegalArgumentException(
+                        "Failed to parse host from serverAddr: " + serverAddr);
             }
             if (port == -1) {
-                port = 8848; // Nacos 默认端口
+                port = 8848; // Default Nacos port.
             }
             return new HostPort(host, port);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("serverAddr 格式不合法: " + serverAddr, e);
+            throw new IllegalArgumentException("Invalid serverAddr format: " + serverAddr, e);
         }
     }
 

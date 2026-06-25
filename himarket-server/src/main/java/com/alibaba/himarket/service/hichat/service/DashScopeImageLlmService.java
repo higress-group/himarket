@@ -18,9 +18,6 @@
  */
 package com.alibaba.himarket.service.hichat.service;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.ChatError;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
@@ -32,6 +29,7 @@ import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.AIProtocol;
 import com.alibaba.himarket.support.product.ModelFeature;
 import io.agentscope.core.message.ContentBlock;
@@ -48,6 +46,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 @Service
@@ -102,12 +101,14 @@ public class DashScopeImageLlmService extends AbstractLlmService {
 
         } catch (Exception e) {
             log.error(
-                    "Failed to process image generation request for chatId: {}",
+                    "Failed to process image generation request, chatId={}, errorMessage={}",
                     param.getChatId(),
+                    e.getMessage(),
                     e);
             ChatError chatError = ChatError.from(e);
             chatContext.fail();
-            chatContext.appendAnswer("[Image generation failed: " + e.getMessage() + "]");
+            chatContext.appendAnswer(
+                    String.format("[Image generation failed. Reason: %s]", e.getMessage()));
             resultHandler.accept(chatContext.toResult());
 
             return Flux.just(
@@ -115,7 +116,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                     ChatEvent.error(
                             param.getChatId(),
                             chatError.name(),
-                            StrUtil.blankToDefault(e.getMessage(), chatError.getDescription())),
+                            Strings.blankToDefault(e.getMessage(), chatError.getDescription())),
                     ChatEvent.done(param.getChatId(), null));
         }
     }
@@ -124,33 +125,38 @@ public class DashScopeImageLlmService extends AbstractLlmService {
             Flux<ChatEvent> flux, String chatId, ChatContext chatContext) {
         return flux.doOnCancel(
                         () -> {
-                            log.warn("Image generation was canceled by client, chatId: {}", chatId);
+                            log.warn("Image generation was canceled by client, chatId={}", chatId);
                             chatContext.fail();
                         })
                 .doOnError(
                         error -> {
                             log.error(
-                                    "Image generation stream encountered error, chatId: {}",
+                                    "Image generation stream encountered error, chatId={},"
+                                            + " errorMessage={}",
                                     chatId,
+                                    error.getMessage(),
                                     error);
                             chatContext.fail();
                             chatContext.appendAnswer(
-                                    "\n[Image generation error: " + error.getMessage() + "]");
+                                    String.format(
+                                            "\n[Image generation error: %s]", error.getMessage()));
                         })
                 .onErrorResume(
                         error -> {
                             ChatError chatError = ChatError.from(error);
                             log.error(
-                                    "Image generation failed, chatId: {}, errorType: {}",
+                                    "Image generation failed, chatId={}, errorType={},"
+                                            + " errorMessage={}",
                                     chatId,
                                     chatError,
+                                    error.getMessage(),
                                     error);
 
                             return Flux.just(
                                     ChatEvent.error(
                                             chatId,
                                             chatError.name(),
-                                            StrUtil.blankToDefault(
+                                            Strings.blankToDefault(
                                                     error.getMessage(),
                                                     chatError.getDescription())));
                         });
@@ -179,14 +185,11 @@ public class DashScopeImageLlmService extends AbstractLlmService {
         if (bodyParams != null && !bodyParams.containsKey("parameters")) {
             // Add default parameters for image generation if not provided
             Map<String, Object> defaultParams =
-                    MapUtil.<String, Object>builder()
-                            .put("n", 1)
-                            .put("prompt_extend", true)
-                            .put("watermark", false)
-                            .build();
+                    Map.of("n", 1, "prompt_extend", true, "watermark", false);
             bodyParams.put("parameters", defaultParams);
 
-            log.debug("Added default parameters for image generation: {}", defaultParams);
+            log.debug(
+                    "Added default parameters for image generation, parameters={}", defaultParams);
         }
 
         return request;
@@ -206,7 +209,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
 
         ModelFeature modelFeature = getOrDefaultModelFeature(request.getProduct());
         String modelName = modelFeature.getModel();
-        log.info("Creating DashScopeImageChatModel for image model '{}'", modelName);
+        log.info("Creating DashScopeImageChatModel, modelName={}", modelName);
 
         String baseUrl = request.getUri() != null ? request.getUri().toString() : null;
 
@@ -250,7 +253,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
 
         // Process content (text and images)
         List<ContentBlock> content = response.getContent();
-        if (CollUtil.isEmpty(content)) {
+        if (CollectionUtils.isEmpty(content)) {
             return Flux.just(ChatEvent.text(chatId, "[No content generated]"));
         }
 
@@ -264,11 +267,14 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                                 // Image URL - send as markdown format
                                 String imageUrl = ((URLSource) imageBlock.getSource()).getUrl();
                                 String image = String.format("![Generated Image](%s)", imageUrl);
-                                log.info("Generated image URL for chatId {}: {}", chatId, imageUrl);
+                                log.info(
+                                        "Generated image URL, chatId={}, imageUrl={}",
+                                        chatId,
+                                        imageUrl);
                                 return Flux.just(ChatEvent.text(chatId, image));
                             } else {
                                 log.warn(
-                                        "Unsupported content block type: {}",
+                                        "Unsupported content block type, blockType={}",
                                         block.getClass().getName());
                                 return Flux.empty();
                             }

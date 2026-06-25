@@ -24,7 +24,16 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Skill Management", description = "Skill package, file, version, and import APIs")
@@ -136,9 +145,6 @@ public class SkillController {
         skillService.deleteDraft(productId);
     }
 
-    @Operation(
-            summary = "Download Skill ZIP package",
-            description = "Return the Skill package as binary ZIP content")
     @ApiResponse(
             responseCode = "200",
             description = "Skill ZIP package",
@@ -146,6 +152,9 @@ public class SkillController {
                     @Content(
                             mediaType = "application/zip",
                             schema = @Schema(type = "string", format = "binary")))
+    @Operation(
+            summary = "Download Skill ZIP package",
+            description = "Return the Skill package as binary ZIP content")
     @GetMapping("/{productId}/download")
     public void downloadPackage(
             @PathVariable String productId,

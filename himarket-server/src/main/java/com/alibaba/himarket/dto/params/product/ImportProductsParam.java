@@ -1,6 +1,6 @@
 package com.alibaba.himarket.dto.params.product;
 
-import cn.hutool.core.util.StrUtil;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductImportSource;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -68,7 +68,7 @@ public class ImportProductsParam {
             return true;
         }
         return items != null
-                && items.stream().allMatch(item -> StrUtil.isNotBlank(item.getResourceName()));
+                && items.stream().allMatch(item -> Strings.isNotBlank(item.getResourceName()));
     }
 
     @AssertTrue(message = "External import items must specify resource ID")
@@ -77,6 +77,6 @@ public class ImportProductsParam {
             return true;
         }
         return items != null
-                && items.stream().allMatch(item -> StrUtil.isNotBlank(item.getResourceId()));
+                && items.stream().allMatch(item -> Strings.isNotBlank(item.getResourceId()));
     }
 }

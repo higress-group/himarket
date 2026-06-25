@@ -23,44 +23,44 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * ListInstances 请求参数
+ * Request parameters for listing gateway instances.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class ListInstancesRequest extends ApsaraGatewayBaseRequest {
 
     /**
-     * 当前页码
+     * Current page number.
      */
     private Integer current;
 
     /**
-     * 每页数量
+     * Page size.
      */
     private Integer size;
 
     /**
-     * Broker 引擎类型
+     * Broker engine type.
      */
     private String brokerEngineType;
 
     /**
-     * 部署模式
+     * Deployment mode.
      */
     private String deployMode;
 
     /**
-     * 网关实例 ID
+     * Gateway instance ID.
      */
     private String gwInstanceId;
 
     /**
-     * 实例名称
+     * Instance name.
      */
     private String name;
 
     /**
-     * 状态
+     * Instance status.
      */
     private Integer status;
 }

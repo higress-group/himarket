@@ -77,15 +77,12 @@ public class CreateAppRequest extends ApsaraGatewayBaseRequest {
     private Boolean isDisasterRecovery;
 
     /**
-     * API Key位置类型 (HEADER/QUERY/BEARER)
-     * higress 引擎使用
+     * API key location type, such as HEADER, QUERY, or BEARER.
      */
     private String apiKeyLocationType;
 
     /**
-     * API Key在Header/Query中的名称
-     * 当 apiKeyLocationType 为 HEADER 或 QUERY 时需要提供
-     * BEARER 类型不需要此字段（固定使用 Authorization）
+     * API key name used in headers or query parameters.
      */
     private String keyName;
 }

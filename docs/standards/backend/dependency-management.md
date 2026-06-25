@@ -23,10 +23,16 @@ reviewed in one place.
   required module POM.
 - Do not duplicate the same dependency version across module POM files. Existing direct versions in
   module POM files should be treated as cleanup debt and not copied.
+- Manage internal module dependencies in the parent POM with `${project.version}`. Module POM files
+  should depend on sibling modules without hard-coded versions.
 - Keep dependency scope explicit. Use `test`, `runtime`, `provided`, or optional dependencies only
   when the module really requires that scope.
+- Test-only dependencies must use `<scope>test</scope>`.
+- Do not use version ranges, `LATEST`, or `RELEASE`.
 - Avoid adding a new dependency when the JDK, Spring, existing project utilities, or a current
   dependency already provides the capability.
+- Do not add Hutool, Guava, or Apache Commons as broad replacements for basic JDK, Spring, or
+  project utility functionality.
 - When replacing or upgrading a dependency, check all modules that use it and run the relevant
   build or tests.
 
@@ -52,5 +58,26 @@ reviewed in one place.
     <artifactId>example-lib</artifactId>
 </dependency>
 ```
+
+---
+
+
+## Utility Selection
+
+Prefer platform and project utilities before adding dependencies.
+
+| Need | Preferred choice |
+| ---- | ---------------- |
+| String checks and equality | Project `Strings` helper |
+| Collection emptiness | JDK collection APIs or Spring `CollectionUtils` |
+| Base64 | JDK `Base64` with `StandardCharsets.UTF_8` |
+| JSON | Project `JsonUtil` |
+| Business IDs | Project `IdGenerator` |
+| Simple hashing for non-secret cache keys | Spring `DigestUtils` or existing project helper |
+| Application events | Constructor-injected `ApplicationEventPublisher` |
+
+Keep project utility classes narrow. A helper such as `Strings` should only contain common string
+semantics; it should not grow unrelated formatting, joining, collection, or business-specific
+methods.
 
 ---

@@ -19,11 +19,11 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.utils.K8sClientUtils;
 import com.alibaba.himarket.entity.SandboxInstance;
+import com.alibaba.himarket.support.common.Strings;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -47,14 +47,14 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.representer.Representer;
 
 /**
- * AGENT_RUNTIME 类型沙箱部署策略。
+ * Deployment strategy for AGENT_RUNTIME sandboxes.
  *
- * <p>从 classpath 加载 CRD YAML 模板（resources/crd-templates/），
- * 替换占位符后下发到沙箱集群。用户可自定义模板，只需保留占位符即可。
+ * <p>Loads CRD YAML templates from classpath resources under {@code crd-templates/}, replaces
+ * placeholders, and applies the rendered resources to the sandbox cluster. Users may customize the
+ * templates as long as the placeholders are preserved.
  *
- * <p>模板占位符：
- * RESOURCE_NAME, NAMESPACE, CLUSTER_ID, SHOW_NAME, PROTOCOL,
- * MCP_SERVERS_JSON, ACCESSES_YAML, ENV_YAML（仅 stdio 模板）
+ * <p>Template placeholders: RESOURCE_NAME, NAMESPACE, CLUSTER_ID, SHOW_NAME, PROTOCOL,
+ * MCP_SERVERS_JSON, ACCESSES_YAML, and ENV_YAML for stdio templates.
  */
 @Component
 @Slf4j
@@ -76,14 +76,24 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                     .withScope("Namespaced")
                     .build();
 
-    /** 轮询 Endpoint 的最大等待时间和间隔（毫秒） */
+    /**
+     * Maximum Endpoint polling wait time, in milliseconds.
+     */
     private static final long POLL_TIMEOUT_MS = 60_000;
 
     private static final long POLL_INTERVAL_MS = 3_000;
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    /** 用于非阻塞轮询的调度线程池（守护线程，不阻塞 JVM 关闭） */
+    private final K8sClientUtils k8sClientUtils;
+
+    public AgentRuntimeDeployStrategy(K8sClientUtils k8sClientUtils) {
+        this.k8sClientUtils = k8sClientUtils;
+    }
+
+    /**
+     * Scheduler for non-blocking polling. Daemon threads do not block JVM shutdown.
+     */
     private final ScheduledExecutorService pollScheduler =
             Executors.newScheduledThreadPool(
                     2,
@@ -121,12 +131,14 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             String extraParamsDef,
             String namespace,
             String resourceSpec) {
-        if (StrUtil.isBlank(sandbox.getKubeConfig())) {
+        if (Strings.isBlank(sandbox.getKubeConfig())) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "沙箱实例未配置 KubeConfig: " + sandbox.getSandboxId());
+                    ErrorCode.INVALID_REQUEST,
+                    String.format(
+                            "Sandbox instance has no KubeConfig: %s", sandbox.getSandboxId()));
         }
 
-        String ns = StrUtil.blankToDefault(namespace, "default");
+        String ns = Strings.blankToDefault(namespace, "default");
         String resourceName = buildResourceName(mcpName, userId);
         String accessName = "himarket-" + userId;
         boolean isStdio = "stdio".equalsIgnoreCase(metaProtocolType);
@@ -134,23 +146,21 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                 "bearer".equalsIgnoreCase(authType) || "apikey".equalsIgnoreCase(authType);
         String secretName = null;
 
-        // 构建 mcpServers JSON，同时从中剥离 env 字段
+        // Build mcpServers JSON and strip env fields from it.
         String[] mcpResult = buildMcpServersJson(mcpName, connectionConfig);
         String mcpServersJson = mcpResult[0];
         String configEnvJson = mcpResult[1];
 
-        // 非 stdio：根据 extraParams 定义的 position 将用户参数分流到 headers/query/env
-        // stdio：所有用户参数都作为 env 处理
-        String envParamsJson = userParams; // 默认全部当 env
-        if (!isStdio && StrUtil.isNotBlank(extraParamsDef) && StrUtil.isNotBlank(userParams)) {
+        // For non-stdio, route user params to headers/query/env based on extraParams.position.
+        // For stdio, all user params are treated as env values.
+        String envParamsJson = userParams;
+        if (!isStdio && Strings.isNotBlank(extraParamsDef) && Strings.isNotBlank(userParams)) {
             try {
                 Map<String, String> headerParams = new LinkedHashMap<>();
                 Map<String, String> queryParams = new LinkedHashMap<>();
                 Map<String, String> envParams = new LinkedHashMap<>();
 
-                // 解析参数定义（含 position）
                 List<?> defs = OBJECT_MAPPER.readValue(extraParamsDef, List.class);
-                // 解析用户提交的参数值
                 @SuppressWarnings("unchecked")
                 Map<String, String> userValues = OBJECT_MAPPER.readValue(userParams, Map.class);
 
@@ -160,7 +170,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                     String paramName = (String) def.get("name");
                     String position = (String) def.getOrDefault("position", "env");
                     String value = userValues.get(paramName);
-                    if (StrUtil.isBlank(value)) continue;
+                    if (Strings.isBlank(value)) {
+                        continue;
+                    }
 
                     switch (position.toLowerCase()) {
                         case "header":
@@ -175,30 +187,32 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                     }
                 }
 
-                // 将 header 和 query 参数注入到 mcpServers JSON
                 if (!headerParams.isEmpty() || !queryParams.isEmpty()) {
                     mcpServersJson =
                             injectParamsIntoMcpServersJson(
                                     mcpServersJson, headerParams, queryParams);
                 }
 
-                // env 参数继续走原来的逻辑
                 envParamsJson =
                         envParams.isEmpty() ? null : OBJECT_MAPPER.writeValueAsString(envParams);
             } catch (Exception e) {
-                log.warn("按 position 分流参数失败，回退为全部当 env: {}", e.getMessage());
+                log.warn(
+                        "Failed to route params by position, falling back to env-only params,"
+                                + " errorMessage={}",
+                        e.getMessage(),
+                        e);
                 envParamsJson = userParams;
             }
         }
 
-        // 合并 env：connectionConfig 中的 env + env 类型的用户参数
+        // Merge env values from connectionConfig and user-submitted env params.
         String mergedEnvJson = mergeEnvJson(configEnvJson, envParamsJson);
         String envYaml = "";
-        if (StrUtil.isNotBlank(mergedEnvJson)) {
+        if (Strings.isNotBlank(mergedEnvJson)) {
             envYaml = buildEnvYaml(mergedEnvJson);
         }
 
-        // 只放模板里实际用到的占位符
+        // Only include placeholders that are used by the templates.
         Map<String, String> vars = new LinkedHashMap<>();
         vars.put("RESOURCE_NAME", resourceName);
         vars.put("NAMESPACE", ns);
@@ -208,27 +222,25 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                 "PROTOCOL",
                 "http".equalsIgnoreCase(metaProtocolType) ? "streamableHttp" : metaProtocolType);
         vars.put("MCP_SERVERS_JSON", mcpServersJson);
-        // 当 authType 为 "apikey" 且 apiKey 非空时，生成 Secret 名称
-        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+        // Generate a Secret name when authType is "apikey" and apiKey is present.
+        if ("apikey".equalsIgnoreCase(authType) && Strings.isNotBlank(apiKey)) {
             secretName = buildSecretName(mcpName);
         }
         vars.put("ACCESSES_YAML", buildAccessesYaml(isApiKeyAuth, accessName, secretName));
         vars.put("ENV_YAML", envYaml);
 
-        // 从 MCP 配置的资源规格读取 CPU/内存等
+        // Read CPU, memory, and other resource placeholders from MCP resourceSpec.
         Map<String, String> resourceVars = extractResourceVars(resourceSpec);
         vars.putAll(resourceVars);
 
-        // 选择模板
         String templateFile =
                 isStdio
                         ? "crd-templates/toolserver-stdio.yaml"
                         : "crd-templates/toolserver-sse.yaml";
 
-        // 加载模板 + 替换占位符
         String renderedYaml = renderTemplate(templateFile, vars);
 
-        // 反序列化为 GenericKubernetesResource（使用 Jackson YAML 避免 SnakeYAML 2.x 兼容问题）
+        // Use Jackson YAML to avoid SnakeYAML 2.x compatibility issues when deserializing CRDs.
         GenericKubernetesResource crd;
         try {
             crd =
@@ -237,10 +249,11 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                             .readValue(renderedYaml, GenericKubernetesResource.class);
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "CRD YAML 反序列化失败: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    e,
+                    String.format("Failed to deserialize CRD YAML: %s", e.getMessage()));
         }
 
-        // 追加 labels
         if (crd.getMetadata().getLabels() == null) {
             crd.getMetadata().setLabels(new LinkedHashMap<>());
         }
@@ -251,11 +264,10 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             crd.getMetadata().getLabels().put("himarket.io/ref-secret", secretName);
         }
 
-        // 下发 CRD（先创建 Secret，再创建 CRD，CRD 失败时回滚 Secret）
-        KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
+        // Create Secret first, then CRD. Roll back the Secret if CRD creation fails.
+        KubernetesClient client = k8sClientUtils.getClient(sandbox.getKubeConfig());
 
-        // 当 authType 为 "apikey" 且 apiKey 非空时，先创建 K8s Secret
-        if ("apikey".equalsIgnoreCase(authType) && StrUtil.isNotBlank(apiKey)) {
+        if ("apikey".equalsIgnoreCase(authType) && Strings.isNotBlank(apiKey)) {
             Secret k8sSecret =
                     new SecretBuilder()
                             .withNewMetadata()
@@ -271,7 +283,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                             .addToStringData("API_KEY", apiKey)
                             .build();
             client.secrets().inNamespace(ns).resource(k8sSecret).createOrReplace();
-            log.info("[AgentRuntimeDeploy] K8s Secret 创建成功: namespace={}, name={}", ns, secretName);
+            log.info("Agent runtime Secret created, namespace={}, secretName={}", ns, secretName);
         }
 
         try {
@@ -283,31 +295,47 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             if (secretName != null) {
                 try {
                     client.secrets().inNamespace(ns).withName(secretName).delete();
-                    log.info("[AgentRuntimeDeploy] CRD 创建失败，已回滚删除 Secret: {}", secretName);
+                    log.info(
+                            "Rolled back agent runtime Secret after CRD creation failure,"
+                                    + " secretName={}",
+                            secretName);
                 } catch (Exception rollbackEx) {
-                    log.warn("[AgentRuntimeDeploy] 回滚删除 Secret 失败: {}", rollbackEx.getMessage());
+                    log.warn(
+                            "Failed to roll back agent runtime Secret, secretName={},"
+                                    + " errorMessage={}",
+                            secretName,
+                            rollbackEx.getMessage(),
+                            rollbackEx);
                 }
             }
             throw e;
         }
 
         log.info(
-                "[AgentRuntimeDeploy] CRD 下发成功: namespace={}, name={}, template={}",
+                "Agent runtime CRD applied, namespace={}, resourceName={}, template={}",
                 ns,
                 resourceName,
                 templateFile);
 
-        // 轮询 Endpoint CRD 获取真实 endpoint URL
         String endpointName = resourceName + "-primary";
         String endpointUrl = pollEndpointUrl(client, ns, endpointName);
 
         // When SSL verification is disabled, downgrade HTTPS to HTTP
         if (!sslVerify && endpointUrl != null && endpointUrl.startsWith("https://")) {
             endpointUrl = endpointUrl.replaceFirst("https://", "http://");
-            log.info("[AgentRuntimeDeploy] SSL verification disabled, using HTTP: {}", endpointUrl);
+            log.info(
+                    "Agent runtime endpoint protocol downgraded, namespace={}, resourceName={},"
+                            + " sslVerify={}",
+                    ns,
+                    resourceName,
+                    sslVerify);
         }
 
-        log.info("[AgentRuntimeDeploy] Endpoint URL 获取成功: {}", endpointUrl);
+        log.info(
+                "Agent runtime endpoint resolved, namespace={}, resourceName={}, endpoint={}",
+                ns,
+                resourceName,
+                endpointUrl);
         if (secretName != null) {
             return endpointUrl + "|SECRET:" + secretName;
         }
@@ -337,55 +365,57 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             String namespace,
             String resourceName,
             String secretName) {
-        if (StrUtil.isBlank(sandbox.getKubeConfig())) {
+        if (Strings.isBlank(sandbox.getKubeConfig())) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "沙箱实例未配置 KubeConfig: " + sandbox.getSandboxId());
+                    ErrorCode.INVALID_REQUEST,
+                    String.format(
+                            "Sandbox instance has no KubeConfig: %s", sandbox.getSandboxId()));
         }
 
-        String ns = StrUtil.blankToDefault(namespace, "default");
-        KubernetesClient client = K8sClientUtils.getClient(sandbox.getKubeConfig());
+        String ns = Strings.blankToDefault(namespace, "default");
+        KubernetesClient client = k8sClientUtils.getClient(sandbox.getKubeConfig());
 
-        if (StrUtil.isBlank(resourceName)) {
+        if (Strings.isBlank(resourceName)) {
             resourceName = buildResourceName(mcpName, userId);
         }
 
-        // 先删除 K8s Secret（如果有）
-        if (StrUtil.isNotBlank(secretName)) {
+        if (Strings.isNotBlank(secretName)) {
             try {
                 client.secrets().inNamespace(ns).withName(secretName).delete();
                 log.info(
-                        "[AgentRuntimeDeploy] K8s Secret 删除成功: namespace={}, name={}",
+                        "Agent runtime Secret deleted, namespace={}, secretName={}",
                         ns,
                         secretName);
             } catch (Exception e) {
                 log.warn(
-                        "[AgentRuntimeDeploy] K8s Secret 删除失败（可能已不存在）: namespace={}, name={},"
-                                + " error={}",
+                        "Failed to delete agent runtime Secret, namespace={}, secretName={},"
+                                + " errorMessage={}",
                         ns,
                         secretName,
-                        e.getMessage());
+                        e.getMessage(),
+                        e);
             }
         }
 
         String endpointName = resourceName + "-primary";
 
-        // 删除 ToolServer CRD
         try {
             client.genericKubernetesResources(CRD_CONTEXT)
                     .inNamespace(ns)
                     .withName(resourceName)
                     .delete();
             log.info(
-                    "[AgentRuntimeDeploy] ToolServer CRD 删除成功: namespace={}, name={}",
+                    "Agent runtime ToolServer CRD deleted, namespace={}, resourceName={}",
                     ns,
                     resourceName);
         } catch (Exception e) {
             log.warn(
-                    "[AgentRuntimeDeploy] ToolServer CRD 删除失败（可能已不存在）: namespace={}, name={},"
-                            + " error={}",
+                    "Failed to delete agent runtime ToolServer CRD, namespace={}, resourceName={},"
+                            + " errorMessage={}",
                     ns,
                     resourceName,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
             return;
         }
 
@@ -393,9 +423,10 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
     }
 
     /**
-     * 轮询等待 Endpoint CRD 被沙箱异步清理。
-     * 使用 CompletableFuture + ScheduledExecutorService 避免阻塞 Tomcat 请求线程。
-     * 如果超时仍未删除，仅打印警告不抛异常（不阻塞后续重建）。
+     * Waits for the Endpoint CRD to be asynchronously cleaned up by the sandbox.
+     *
+     * <p>CompletableFuture and ScheduledExecutorService avoid blocking Tomcat request threads. A
+     * timeout only emits a warning and does not block a later rebuild.
      */
     private void waitEndpointDeleted(
             KubernetesClient client, String namespace, String endpointName) {
@@ -407,7 +438,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                     @Override
                     public void run() {
                         if (System.currentTimeMillis() > deadline) {
-                            future.complete(null); // 超时不抛异常
+                            future.complete(null);
                             return;
                         }
                         try {
@@ -418,7 +449,8 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                                             .get();
                             if (endpoint == null) {
                                 log.info(
-                                        "[AgentRuntimeDeploy] Endpoint 已清理: namespace={}, name={}",
+                                        "Agent runtime endpoint cleaned, namespace={},"
+                                                + " endpointName={}",
                                         namespace,
                                         endpointName);
                                 future.complete(null);
@@ -426,14 +458,16 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                             }
                         } catch (Exception e) {
                             log.info(
-                                    "[AgentRuntimeDeploy] Endpoint 已清理（查询异常）: namespace={},"
-                                            + " name={}",
+                                    "Agent runtime endpoint treated as cleaned after query failure,"
+                                            + " namespace={}, endpointName={}",
                                     namespace,
                                     endpointName);
                             future.complete(null);
                             return;
                         }
-                        log.debug("[AgentRuntimeDeploy] Endpoint 尚未清理，继续等待: {}", endpointName);
+                        log.debug(
+                                "Agent runtime endpoint is not cleaned yet, endpointName={}",
+                                endpointName);
                         pollScheduler.schedule(this, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
                     }
                 };
@@ -444,22 +478,24 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             future.get(POLL_TIMEOUT_MS + 5_000, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             log.warn(
-                    "[AgentRuntimeDeploy] 等待 Endpoint 清理超时或异常（{}秒），继续执行: {}",
+                    "Agent runtime endpoint cleanup wait failed or timed out, timeoutSeconds={},"
+                            + " endpointName={}",
                     POLL_TIMEOUT_MS / 1000,
                     endpointName);
         }
     }
 
-    // ==================== 私有方法 ====================
+    // Private helpers.
 
     /**
-     * 从 classpath 加载模板并替换占位符。
+     * Loads a template from classpath and replaces placeholders.
      */
     private String renderTemplate(String templatePath, Map<String, String> variables) {
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(templatePath)) {
             if (is == null) {
                 throw new BusinessException(
-                        ErrorCode.INVALID_REQUEST, "CRD 模板文件不存在: " + templatePath);
+                        ErrorCode.INVALID_REQUEST,
+                        String.format("CRD template file does not exist: %s", templatePath));
             }
             String template = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             for (Map.Entry<String, String> entry : variables.entrySet()) {
@@ -470,33 +506,37 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             throw e;
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "读取 CRD 模板失败: " + e.getMessage());
+                    ErrorCode.INVALID_REQUEST,
+                    e,
+                    String.format("Failed to read CRD template: %s", e.getMessage()));
         }
     }
 
     /**
-     * 解析 connectionConfig JSON，构建 mcpServers JSON 并剥离 env。
-     * env 应通过 CRD spec.env 传递，不应留在 mcpServers JSON 中。
+     * Parses connectionConfig JSON, builds mcpServers JSON, and removes env values.
      *
-     * @return String[2]: [0]=mcpServersJson, [1]=提取的 env JSON（可能为 null）
-     * @throws BusinessException connectionConfig 为空或无法解析时抛出
+     * <p>env values are passed through CRD spec.env and should not remain in mcpServers JSON.
+     *
+     * @return String[2]: [0]=mcpServersJson, [1]=extracted env JSON, possibly null
+     * @throws BusinessException when connectionConfig is blank or cannot be parsed
      */
     private String[] buildMcpServersJson(String mcpName, String connectionConfig) {
-        if (StrUtil.isBlank(connectionConfig)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "MCP connectionConfig 为空，无法部署");
+        if (Strings.isBlank(connectionConfig)) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "MCP connectionConfig is empty and cannot deploy");
         }
 
-        String serverName = StrUtil.blankToDefault(mcpName, "mcp-server");
+        String serverName = Strings.blankToDefault(mcpName, "mcp-server");
 
         try {
             McpConnectionConfig config = McpConnectionConfig.parse(connectionConfig);
 
-            // 格式3: { mcpServerConfig: { rawConfig: {...} } } → 递归解析 rawConfig
+            // Format 3: { mcpServerConfig: { rawConfig: {...} } }. Parse rawConfig recursively.
             if (config.isWrappedFormat()) {
                 return buildMcpServersJson(mcpName, config.getRawConfigJson());
             }
 
-            // 格式1 或 格式2: 提取 env，构建不含 env 的 mcpServers JSON
+            // Format 1 or 2: extract env and build mcpServers JSON without env.
             if (config.isMcpServersFormat() || config.isSingleServerFormat()) {
                 Map<String, String> extractedEnv = config.extractAllEnv();
                 String mcpJson = config.toMcpServersJsonWithoutEnv(serverName);
@@ -508,19 +548,23 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             }
 
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "无法识别 connectionConfig 格式，请检查 MCP 配置");
+                    ErrorCode.INVALID_REQUEST,
+                    "Unrecognized connectionConfig format. Check the MCP config");
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "解析 connectionConfig 失败: " + e.getMessage());
+                    ErrorCode.INVALID_REQUEST,
+                    e,
+                    String.format("Failed to parse connectionConfig: %s", e.getMessage()));
         }
     }
 
     /**
-     * 将 header 和 query 参数注入到 mcpServers JSON 中。
-     * header 参数 → 每个 server 的 "headers" 字段
-     * query 参数 → 追加到每个 server 的 "url" 的 query string
+     * Injects header and query parameters into mcpServers JSON.
+     *
+     * <p>Header parameters are written to each server's {@code headers} field. Query parameters are
+     * appended to each server's {@code url} query string.
      */
     @SuppressWarnings("unchecked")
     private String injectParamsIntoMcpServersJson(
@@ -530,12 +574,13 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         try {
             Map<String, Object> root = OBJECT_MAPPER.readValue(mcpServersJson, Map.class);
             Map<String, Object> servers = (Map<String, Object>) root.get("mcpServers");
-            if (servers == null) return mcpServersJson;
+            if (servers == null) {
+                return mcpServersJson;
+            }
 
             for (Map.Entry<String, Object> entry : servers.entrySet()) {
                 Map<String, Object> server = (Map<String, Object>) entry.getValue();
 
-                // 注入 headers
                 if (!headerParams.isEmpty()) {
                     Map<String, String> headers =
                             server.containsKey("headers")
@@ -546,7 +591,8 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                     server.put("headers", headers);
                 }
 
-                // 注入 query 参数到 url（同名参数替换，新参数追加）
+                // Existing query parameters keep their order; user parameters replace same-name
+                // keys and append new keys.
                 if (!queryParams.isEmpty() && server.containsKey("url")) {
                     String url = server.get("url").toString();
                     try {
@@ -560,7 +606,6 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                                                 null)
                                         .toString();
 
-                        // 解析已有的 query 参数（保持顺序）
                         LinkedHashMap<String, String> merged = new LinkedHashMap<>();
                         if (uri.getRawQuery() != null) {
                             for (String pair : uri.getRawQuery().split("&")) {
@@ -578,15 +623,15 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                                 merged.put(k, v);
                             }
                         }
-                        // 用户参数覆盖同名 key
                         merged.putAll(queryParams);
 
-                        // 重新拼接
                         StringBuilder sb = new StringBuilder(baseUrl);
                         sb.append("?");
                         boolean first = true;
                         for (Map.Entry<String, String> qp : merged.entrySet()) {
-                            if (!first) sb.append("&");
+                            if (!first) {
+                                sb.append("&");
+                            }
                             sb.append(java.net.URLEncoder.encode(qp.getKey(), "UTF-8"))
                                     .append("=")
                                     .append(java.net.URLEncoder.encode(qp.getValue(), "UTF-8"));
@@ -594,12 +639,18 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                         }
                         server.put("url", sb.toString());
                     } catch (Exception urlEx) {
-                        log.warn("解析 URL query 参数失败，回退为追加模式: {}", urlEx.getMessage());
+                        log.warn(
+                                "Failed to parse URL query parameters, falling back to append"
+                                        + " mode, errorMessage={}",
+                                urlEx.getMessage(),
+                                urlEx);
                         StringBuilder sb = new StringBuilder(url);
                         sb.append(url.contains("?") ? "&" : "?");
                         boolean first = true;
                         for (Map.Entry<String, String> qp : queryParams.entrySet()) {
-                            if (!first) sb.append("&");
+                            if (!first) {
+                                sb.append("&");
+                            }
                             sb.append(java.net.URLEncoder.encode(qp.getKey(), "UTF-8"))
                                     .append("=")
                                     .append(java.net.URLEncoder.encode(qp.getValue(), "UTF-8"));
@@ -612,15 +663,19 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
             return OBJECT_MAPPER.writeValueAsString(root);
         } catch (Exception e) {
-            log.warn("注入 header/query 参数到 mcpServersJson 失败: {}", e.getMessage());
+            log.warn(
+                    "Failed to inject header/query parameters into mcpServersJson, errorMessage={}",
+                    e.getMessage(),
+                    e);
             return mcpServersJson;
         }
     }
 
     /**
-     * 根据鉴权方式生成 CRD accesses YAML 片段。
-     * isApiKeyAuth 为 true（bearer 或 apikey）：包含 authentication + name + port + type。
-     * 否则：只有 port + type，不含 authentication 和 name。
+     * Builds the CRD accesses YAML fragment from the authentication mode.
+     *
+     * <p>When isApiKeyAuth is true, for bearer or apikey, the fragment includes authentication,
+     * name, port, and type. Otherwise it includes only port and type.
      */
     private String buildAccessesYaml(boolean isApiKeyAuth, String accessName, String secretName) {
         List<Map<String, Object>> accesses = new ArrayList<>();
@@ -628,7 +683,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
         if (isApiKeyAuth) {
             String resolvedSecretName =
-                    StrUtil.isNotBlank(secretName) ? secretName : accessName + "-secret";
+                    Strings.isNotBlank(secretName) ? secretName : accessName + "-secret";
             Map<String, Object> source = new LinkedHashMap<>();
             source.put("key", "API_KEY");
             source.put("name", resolvedSecretName);
@@ -655,7 +710,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         Yaml yaml = new Yaml(new Representer(options), options);
         String raw = yaml.dump(accesses);
 
-        // 添加缩进前缀以匹配 CRD 模板层级
+        // Add indentation to match the CRD template nesting level.
         StringBuilder sb = new StringBuilder();
         for (String line : raw.split("\n")) {
             sb.append("        ").append(line).append("\n");
@@ -664,40 +719,44 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
     }
 
     /**
-     * 合并 connectionConfig 中提取的 env 和用户提交的 params。
-     * userParams 优先级更高（覆盖同名 key）。
+     * Merges env extracted from connectionConfig with user-submitted params.
      *
-     * @return 合并后的 JSON 字符串，或 null
+     * <p>userParams has higher priority and overrides same-name keys.
+     *
+     * @return merged JSON string, or null
      */
     @SuppressWarnings("unchecked")
     private String mergeEnvJson(String configEnvJson, String userParams) {
         Map<String, Object> merged = new LinkedHashMap<>();
-        if (StrUtil.isNotBlank(configEnvJson)) {
+        if (Strings.isNotBlank(configEnvJson)) {
             try {
                 merged.putAll(OBJECT_MAPPER.readValue(configEnvJson, Map.class));
             } catch (Exception e) {
-                log.warn("解析 configEnvJson 失败: {}", e.getMessage());
+                log.warn("Failed to parse configEnvJson, errorMessage={}", e.getMessage(), e);
             }
         }
-        if (StrUtil.isNotBlank(userParams)) {
+        if (Strings.isNotBlank(userParams)) {
             try {
                 merged.putAll(OBJECT_MAPPER.readValue(userParams, Map.class));
             } catch (Exception e) {
-                log.warn("解析 userParams 失败: {}", e.getMessage());
+                log.warn("Failed to parse userParams, errorMessage={}", e.getMessage(), e);
             }
         }
-        if (merged.isEmpty()) return null;
+        if (merged.isEmpty()) {
+            return null;
+        }
         try {
             return OBJECT_MAPPER.writeValueAsString(merged);
         } catch (Exception e) {
-            log.warn("序列化 mergedEnv 失败: {}", e.getMessage());
+            log.warn("Failed to serialize mergedEnv, errorMessage={}", e.getMessage(), e);
             return null;
         }
     }
 
     /**
-     * 从 env JSON 构建 CRD spec.env YAML 片段。
-     * envJson 格式：{"KEY": "value", ...}
+     * Builds a CRD spec.env YAML fragment from env JSON.
+     *
+     * <p>envJson format: {"KEY": "value", ...}
      */
     @SuppressWarnings("unchecked")
     private String buildEnvYaml(String envJson) {
@@ -727,20 +786,26 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             }
             return sb.toString();
         } catch (Exception e) {
-            log.warn("解析 envJson 构建 env 失败: {}", e.getMessage());
+            log.warn(
+                    "Failed to parse envJson while building env YAML, errorMessage={}",
+                    e.getMessage(),
+                    e);
             return "";
         }
     }
 
     /**
-     * 从资源规格 JSON 中提取 CPU/内存等配置，用于 CRD 模板占位符替换。
-     * 未配置的字段使用默认值。
+     * Extracts CPU, memory, and other resource values from resourceSpec JSON.
+     *
+     * <p>Missing fields use defaults and the resulting values replace CRD template placeholders.
      */
     @SuppressWarnings("unchecked")
     private Map<String, String> extractResourceVars(String resourceSpecJson) {
-        if (StrUtil.isBlank(resourceSpecJson)) {
+        if (Strings.isBlank(resourceSpecJson)) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "未配置资源规格，请在 MCP 沙箱部署配置中设置 CPU/内存等资源");
+                    ErrorCode.INVALID_REQUEST,
+                    "Resource spec is required. Set CPU, memory, and related resources in the MCP"
+                            + " sandbox deployment config");
         }
 
         Map<String, Object> spec;
@@ -748,7 +813,9 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             spec = OBJECT_MAPPER.readValue(resourceSpecJson, Map.class);
         } catch (Exception e) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "资源规格 JSON 格式异常: " + e.getMessage());
+                    ErrorCode.INVALID_REQUEST,
+                    e,
+                    String.format("Resource spec JSON format is invalid: %s", e.getMessage()));
         }
 
         String cpuRequest = getOrDefault(spec, "cpuRequest", "250m");
@@ -764,7 +831,7 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
         vars.put("MEMORY_REQUEST", memoryRequest);
         vars.put("MEMORY_LIMIT", memoryLimit);
         vars.put("EPHEMERAL_STORAGE", ephemeralStorage);
-        if (StrUtil.isNotBlank(image)) {
+        if (Strings.isNotBlank(image)) {
             vars.put("IMAGE", image);
         }
         return vars;
@@ -772,15 +839,15 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
 
     private String getOrDefault(Map<String, Object> map, String key, String defaultValue) {
         Object val = map.get(key);
-        return (val != null && StrUtil.isNotBlank(val.toString())) ? val.toString() : defaultValue;
+        return (val != null && Strings.isNotBlank(val.toString())) ? val.toString() : defaultValue;
     }
 
     /**
-     * 从 clusterAttribute JSON 中提取 clusterId。
+     * Extracts clusterId from clusterAttribute JSON.
      */
     @SuppressWarnings("unchecked")
     private String extractClusterId(String clusterAttribute) {
-        if (StrUtil.isBlank(clusterAttribute)) {
+        if (Strings.isBlank(clusterAttribute)) {
             return "";
         }
         try {
@@ -788,17 +855,18 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
             Object clusterId = map.get("clusterId");
             return clusterId != null ? clusterId.toString() : "";
         } catch (Exception e) {
-            log.warn("解析 clusterAttribute 失败: {}", e.getMessage());
+            log.warn("Failed to parse clusterAttribute, errorMessage={}", e.getMessage(), e);
             return "";
         }
     }
 
     /**
-     * 生成 K8s Secret 名称。
-     * 格式：himarket-{sanitized-mcp-name}-{uuid前8位}-secret
+     * Builds a K8s Secret name.
+     *
+     * <p>Format: himarket-{sanitized-mcp-name}-{first-8-uuid-chars}-secret
      */
     public static String buildSecretName(String mcpName) {
-        String name = StrUtil.blankToDefault(mcpName, "mcp-server");
+        String name = Strings.blankToDefault(mcpName, "mcp-server");
         String sanitized =
                 name.toLowerCase()
                         .replaceAll("[^a-z0-9-]", "-")
@@ -810,15 +878,17 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
     }
 
     /**
-     * 构建 K8s 资源名称：mcpName + userId 后 8 位。
-     * 公开静态方法，供 McpSandboxDeployListener 在部署后记录 resourceName。
+     * Builds a K8s resource name from mcpName and the last 8 characters of userId.
+     *
+     * <p>This public static method is used by McpSandboxDeployListener when recording resourceName
+     * after deployment.
      */
     public static String buildResourceNameStatic(String mcpName, String userId) {
-        String name = StrUtil.blankToDefault(mcpName, "mcp-server");
+        String name = Strings.blankToDefault(mcpName, "mcp-server");
         String userSuffix =
                 (userId != null && userId.length() >= 8)
                         ? userId.substring(userId.length() - 8)
-                        : StrUtil.blankToDefault(userId, "unknown");
+                        : Strings.blankToDefault(userId, "unknown");
         String raw = name + "-" + userSuffix;
         String sanitized =
                 raw.toLowerCase()
@@ -833,9 +903,10 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
     }
 
     /**
-     * 轮询 Endpoint CRD（kind: Endpoint）获取 status.url。
-     * 使用 CompletableFuture + ScheduledExecutorService 避免阻塞 Tomcat 请求线程。
-     * Endpoint 名称为 {toolserver名称}-primary。
+     * Polls the Endpoint CRD for status.url.
+     *
+     * <p>CompletableFuture and ScheduledExecutorService avoid blocking Tomcat request threads. The
+     * Endpoint name is {toolserver-name}-primary.
      */
     private String pollEndpointUrl(KubernetesClient client, String namespace, String endpointName) {
         CompletableFuture<String> future = new CompletableFuture<>();
@@ -849,10 +920,10 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                             future.completeExceptionally(
                                     new BusinessException(
                                             ErrorCode.INVALID_REQUEST,
-                                            "等待 Endpoint 就绪超时（"
-                                                    + (POLL_TIMEOUT_MS / 1000)
-                                                    + "秒）: "
-                                                    + endpointName));
+                                            String.format(
+                                                    "Timed out waiting for Endpoint readiness"
+                                                            + " after %s seconds: %s",
+                                                    POLL_TIMEOUT_MS / 1000, endpointName)));
                             return;
                         }
                         try {
@@ -863,15 +934,14 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                             }
                         } catch (Exception e) {
                             log.debug(
-                                    "[AgentRuntimeDeploy] 轮询 Endpoint 异常（可能尚未创建）: {}",
+                                    "Agent runtime endpoint polling failed before creation,"
+                                            + " errorMessage={}",
                                     e.getMessage());
                         }
-                        // 未获取到，继续调度下一次轮询
                         pollScheduler.schedule(this, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
                     }
                 };
 
-        // 启动首次轮询
         pollScheduler.schedule(pollTask, 0, TimeUnit.MILLISECONDS);
 
         try {
@@ -882,20 +952,25 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                 throw (BusinessException) cause;
             }
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "轮询 Endpoint 失败: " + cause.getMessage());
+                    ErrorCode.INVALID_REQUEST,
+                    cause,
+                    String.format("Endpoint polling failed: %s", cause.getMessage()));
         } catch (java.util.concurrent.TimeoutException e) {
             future.cancel(true);
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    "等待 Endpoint 就绪超时（" + (POLL_TIMEOUT_MS / 1000) + "秒）: " + endpointName);
+                    String.format(
+                            "Timed out waiting for Endpoint readiness after %s seconds: %s",
+                            POLL_TIMEOUT_MS / 1000, endpointName));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "轮询 Endpoint 被中断");
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Endpoint polling was interrupted");
         }
     }
 
     /**
-     * 尝试从 Endpoint CRD 中获取 URL，获取不到返回 null。
+     * Tries to get the URL from the Endpoint CRD, returning null when unavailable.
      */
     @SuppressWarnings("unchecked")
     private String tryGetEndpointUrl(
@@ -906,17 +981,23 @@ public class AgentRuntimeDeployStrategy implements McpSandboxDeployStrategy {
                         .withName(endpointName)
                         .get();
 
-        if (endpoint == null) return null;
+        if (endpoint == null) {
+            return null;
+        }
 
         Map<String, Object> status =
                 (Map<String, Object>) endpoint.getAdditionalProperties().get("status");
-        if (status == null) return null;
+        if (status == null) {
+            return null;
+        }
 
-        // 优先取顶层 status.url
+        // Prefer top-level status.url.
         String url = status.get("url") != null ? status.get("url").toString() : null;
-        if (StrUtil.isNotBlank(url)) return url;
+        if (Strings.isNotBlank(url)) {
+            return url;
+        }
 
-        // fallback: 从 status.addresses 中取 internet 类型
+        // Fallback to the internet address in status.addresses.
         Object addressesObj = status.get("addresses");
         if (addressesObj instanceof java.util.List) {
             for (Object addrObj : (java.util.List<?>) addressesObj) {

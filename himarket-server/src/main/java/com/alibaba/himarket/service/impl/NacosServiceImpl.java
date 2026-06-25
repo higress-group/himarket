@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.SecureUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -43,6 +41,7 @@ import com.alibaba.himarket.dto.result.nacos.NacosSkillResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -66,20 +65,20 @@ import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 
 @Service
 @Slf4j
@@ -94,7 +93,7 @@ public class NacosServiceImpl implements NacosService {
 
     private final NacosAgentConverter nacosAgentConverter;
 
-    // 添加缓存，用于存储AiMaintainerService实例
+    // Cache AiMaintainerService instances by connection properties.
     private final Map<String, AiMaintainerService> aiServiceCache = new ConcurrentHashMap<>();
 
     @PostConstruct
@@ -126,10 +125,9 @@ public class NacosServiceImpl implements NacosService {
                         nacos -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{}:{}已存在",
-                                            Resources.NACOS_INSTANCE,
-                                            param.getNacosName()));
+                                    String.format(
+                                            "%s already exists, name=%s",
+                                            Resources.NACOS_INSTANCE, param.getNacosName()));
                         });
 
         NacosInstance nacosInstance = param.convertTo();
@@ -142,7 +140,9 @@ public class NacosServiceImpl implements NacosService {
             if (exists) {
                 throw new BusinessException(
                         ErrorCode.CONFLICT,
-                        StrUtil.format("{}:{}已存在", Resources.NACOS_INSTANCE, providedId));
+                        String.format(
+                                "%s already exists, nacosId=%s",
+                                Resources.NACOS_INSTANCE, providedId));
             }
             nacosInstance.setNacosId(providedId);
         } else {
@@ -151,7 +151,7 @@ public class NacosServiceImpl implements NacosService {
 
         nacosInstance.setAdminId(contextHolder.getUser());
 
-        // 第一个实例自动标记为默认
+        // Mark the first imported instance as default.
         if (nacosInstanceRepository.findByIsDefaultTrue().isEmpty()) {
             nacosInstance.setIsDefault(true);
         }
@@ -163,18 +163,19 @@ public class NacosServiceImpl implements NacosService {
     public void updateNacosInstance(String nacosId, UpdateNacosParam param) {
         NacosInstance instance = findNacosInstance(nacosId);
 
-        Optional.ofNullable(param.getNacosName())
-                .filter(name -> !name.equals(instance.getNacosName()))
-                .flatMap(nacosInstanceRepository::findByNacosName)
-                .ifPresent(
-                        nacos -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "{}:{}已存在",
-                                            Resources.NACOS_INSTANCE,
-                                            param.getNacosName()));
-                        });
+        String requestedName = param.getNacosName();
+        if (requestedName != null && !requestedName.equals(instance.getNacosName())) {
+            nacosInstanceRepository
+                    .findByNacosName(requestedName)
+                    .ifPresent(
+                            nacos -> {
+                                throw new BusinessException(
+                                        ErrorCode.CONFLICT,
+                                        String.format(
+                                                "%s already exists, name=%s",
+                                                Resources.NACOS_INSTANCE, requestedName));
+                            });
+        }
 
         param.update(instance);
         nacosInstanceRepository.saveAndFlush(instance);
@@ -184,9 +185,11 @@ public class NacosServiceImpl implements NacosService {
     public void deleteNacosInstance(String nacosId) {
         NacosInstance nacosInstance = findNacosInstance(nacosId);
         if (Boolean.TRUE.equals(nacosInstance.getIsDefault())) {
-            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "默认 Nacos 实例不允许删除，请先切换默认实例");
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
+                    "Default Nacos instance cannot be deleted. Switch the default instance first.");
         }
-        // 从缓存中移除相关条目
+        // Evict cached services for the deleted instance.
         String cacheKey = buildCacheKey(nacosInstance);
         aiServiceCache.remove(cacheKey);
         nacosInstanceRepository.delete(nacosInstance);
@@ -195,10 +198,10 @@ public class NacosServiceImpl implements NacosService {
     @Override
     public PageResult<MseNacosResult> fetchNacos(QueryNacosParam param, Pageable pageable) {
         try {
-            // 创建MSE客户端
+            // Create MSE client.
             Client client = new Client(param.toClientConfig());
 
-            // 构建请求
+            // Build request.
             ListClustersRequest request =
                     new ListClustersRequest()
                             .setRegionId(param.getRegionId())
@@ -207,51 +210,37 @@ public class NacosServiceImpl implements NacosService {
 
             RuntimeOptions runtime = new RuntimeOptions();
 
-            // 调用MSE API获取集群列表
+            // Fetch cluster list from MSE.
             ListClustersResponse response = client.listClustersWithOptions(request, runtime);
-
-            // 转换响应结果，并过滤掉 clusterType 为 "Nacos-Ans" 的实例
-            Optional<List<MseNacosResult>> nacosResults =
-                    Optional.ofNullable(response.getBody())
-                            .map(ListClustersResponseBody::getData)
-                            .map(
-                                    clusters ->
-                                            clusters.stream()
-                                                    .filter(
-                                                            cluster -> {
-                                                                String type =
-                                                                        cluster.getClusterType();
-                                                                return (type == null
-                                                                                || "Nacos-Ans"
-                                                                                        .equalsIgnoreCase(
-                                                                                                type))
-                                                                        && cluster.getVersionCode()
-                                                                                .startsWith(
-                                                                                        "NACOS_3");
-                                                            })
-                                                    .map(
-                                                            MseNacosResult
-                                                                    ::fromListClustersResponseBodyData)
-                                                    .collect(Collectors.toList()));
-
-            if (nacosResults.isPresent()) {
-                // 返回分页结果
-                int total =
-                        response.getBody() != null && response.getBody().getTotalCount() != null
-                                ? response.getBody().getTotalCount().intValue()
-                                : 0;
-                return PageResult.of(
-                        nacosResults.get(),
-                        pageable.getPageNumber(),
-                        pageable.getPageSize(),
-                        total);
+            ListClustersResponseBody body = response.getBody();
+            if (body == null || body.getData() == null) {
+                return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
             }
-            return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
+
+            // Convert response and filter Nacos 3 clusters.
+            List<MseNacosResult> nacosResults =
+                    body.getData().stream()
+                            .filter(
+                                    cluster -> {
+                                        String type = cluster.getClusterType();
+                                        return (type == null || "Nacos-Ans".equalsIgnoreCase(type))
+                                                && cluster.getVersionCode().startsWith("NACOS_3");
+                                    })
+                            .map(MseNacosResult::fromListClustersResponseBodyData)
+                            .toList();
+
+            int total = body.getTotalCount() == null ? 0 : body.getTotalCount().intValue();
+            return PageResult.of(
+                    nacosResults, pageable.getPageNumber(), pageable.getPageSize(), total);
         } catch (Exception e) {
-            log.error("Error fetching Nacos clusters from MSE", e);
+            log.error(
+                    "Failed to fetch Nacos clusters, dependency=MSE, operation=listClusters,"
+                            + " errorMessage={}",
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "Failed to fetch Nacos clusters from MSE: " + e.getMessage());
+                    String.format("Failed to fetch Nacos clusters from MSE: %s", e.getMessage()));
         }
     }
 
@@ -266,34 +255,37 @@ public class NacosServiceImpl implements NacosService {
         if (page == null || page.getPageItems() == null) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
-        return page.getPageItems().stream()
-                .map(basicInfo -> new NacosMCPServerResult().convertFrom(basicInfo))
-                .skip(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .collect(
-                        Collectors.collectingAndThen(
-                                Collectors.toList(),
-                                list ->
-                                        PageResult.of(
-                                                list,
-                                                pageable.getPageNumber(),
-                                                pageable.getPageSize(),
-                                                page.getPageItems().size())));
+        List<NacosMCPServerResult> results =
+                page.getPageItems().stream()
+                        .map(basicInfo -> new NacosMCPServerResult().convertFrom(basicInfo))
+                        .skip(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .toList();
+        return PageResult.of(
+                results,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                page.getPageItems().size());
     }
 
     @Override
     public PageResult<NacosNamespaceResult> fetchNamespaces(String nacosId, Pageable pageable)
             throws Exception {
         NacosInstance nacosInstance = findNacosInstance(nacosId);
-        // 使用空 namespace 构建 (列出全部命名空间)
+        // Use an empty namespace to list all namespaces.
         NamingMaintainerService namingService = buildDynamicNamingService(nacosInstance, "");
         List<?> namespaces;
         try {
             namespaces = namingService.getNamespaceList();
         } catch (NacosException e) {
-            log.error("Error fetching namespaces from Nacos by nacosId {}", nacosId, e);
+            log.error(
+                    "Failed to fetch Nacos namespaces, dependency=Nacos, operation=listNamespaces,"
+                            + " nacosId={}",
+                    nacosId,
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch namespaces: " + e.getErrMsg());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch namespaces: %s", e.getErrMsg()));
         }
 
         if (namespaces == null || namespaces.isEmpty()) {
@@ -305,7 +297,7 @@ public class NacosServiceImpl implements NacosService {
                         .map(o -> new NacosNamespaceResult().convertFrom(o))
                         .skip(pageable.getOffset())
                         .limit(pageable.getPageSize())
-                        .collect(Collectors.toList());
+                        .toList();
 
         return PageResult.of(
                 list, pageable.getPageNumber(), pageable.getPageSize(), namespaces.size());
@@ -329,7 +321,14 @@ public class NacosServiceImpl implements NacosService {
             McpConfigResult mcpConfig = buildMCPConfigResult(detail);
             return JsonUtil.toJson(mcpConfig);
         } catch (Exception e) {
-            log.error("Error fetching Nacos MCP servers", e);
+            log.error(
+                    "Failed to fetch Nacos MCP config, dependency=Nacos,"
+                            + " operation=getMcpServerDetail, nacosId={}, namespaceId={},"
+                            + " mcpServerName={}",
+                    nacosId,
+                    nacosRefConfig.getNamespaceId(),
+                    nacosRefConfig.getMcpServerName(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "Failed to fetch Nacos MCP config");
         }
@@ -364,7 +363,11 @@ public class NacosServiceImpl implements NacosService {
                 String gatewayFormatYaml = converter.toYaml();
                 mcpConfig.setTools(gatewayFormatYaml);
             } catch (Exception e) {
-                log.error("Error converting tools to gateway format", e);
+                log.error(
+                        "Failed to convert Nacos tools to gateway format,"
+                                + " operation=convertToolsConfig, mcpServerName={}",
+                        detail.getName(),
+                        e);
                 mcpConfig.setTools(null);
             }
         } else {
@@ -544,27 +547,26 @@ public class NacosServiceImpl implements NacosService {
     }
 
     private AiMaintainerService buildDynamicAiService(NacosInstance nacosInstance) {
-        // 构建缓存键
         String cacheKey = buildCacheKey(nacosInstance);
-
-        // 尝试从缓存中获取
         AiMaintainerService cachedService = aiServiceCache.get(cacheKey);
         if (cachedService != null) {
             return cachedService;
         }
 
-        // 缓存未命中，创建新的服务实例
         Properties properties = buildMaintainerProperties(nacosInstance);
 
         try {
             AiMaintainerService service = AiMaintainerFactory.createAiMaintainerService(properties);
-            // 将新创建的服务实例放入缓存
             aiServiceCache.put(cacheKey, service);
             return service;
         } catch (Exception e) {
-            log.error("Error init Nacos AiMaintainerService", e);
+            log.error(
+                    "Failed to initialize Nacos AI maintainer service, dependency=Nacos,"
+                            + " operation=createAiMaintainerService, nacosId={}",
+                    nacosInstance.getNacosId(),
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error init Nacos AiMaintainerService");
+                    ErrorCode.INTERNAL_ERROR, "Failed to initialize Nacos AI maintainer service");
         }
     }
 
@@ -579,9 +581,7 @@ public class NacosServiceImpl implements NacosService {
             properties.setProperty(PropertyKeyConst.PASSWORD, nacosInstance.getPassword());
         }
         properties.setProperty(PropertyKeyConst.CONTEXT_PATH, DEFAULT_CONTEXT_PATH);
-        // instance no longer stores namespace; leave namespace empty to let requests use
-        // default/public
-        // if consumers need a specific namespace, they should call an overload that accepts it
+        // Instance records no longer store a namespace; request-level callers pass one explicitly.
         if (Objects.nonNull(nacosInstance.getAccessKey())) {
             properties.setProperty(PropertyKeyConst.ACCESS_KEY, nacosInstance.getAccessKey());
         }
@@ -593,10 +593,10 @@ public class NacosServiceImpl implements NacosService {
     }
 
     /**
-     * 根据NacosInstance的关键属性构建缓存键
+     * Builds a cache key from the connection-sensitive Nacos instance properties.
      *
-     * @param nacosInstance Nacos实例
-     * @return 缓存键
+     * @param nacosInstance Nacos instance
+     * @return cache key
      */
     private String buildCacheKey(NacosInstance nacosInstance) {
         StringBuilder keyBuilder = new StringBuilder();
@@ -618,12 +618,10 @@ public class NacosServiceImpl implements NacosService {
             keyBuilder.append("|").append(nacosInstance.getSecretKey());
         }
 
-        return SecureUtil.md5(keyBuilder.toString());
+        return DigestUtils.md5DigestAsHex(keyBuilder.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    // removed unused no-namespace overload; use the runtime-namespace overload instead
-
-    // overload to build NamingMaintainerService with a runtime namespace value
+    // Build a NamingMaintainerService for the namespace used by the current request.
     private NamingMaintainerService buildDynamicNamingService(
             NacosInstance nacosInstance, String runtimeNamespace) {
         Properties properties = new Properties();
@@ -650,56 +648,54 @@ public class NacosServiceImpl implements NacosService {
         try {
             return NamingMaintainerFactory.createNamingMaintainerService(properties);
         } catch (Exception e) {
-            log.error("Error init Nacos NamingMaintainerService", e);
+            log.error(
+                    "Failed to initialize Nacos naming maintainer service, dependency=Nacos,"
+                        + " operation=createNamingMaintainerService, nacosId={}, namespaceId={}",
+                    nacosInstance.getNacosId(),
+                    runtimeNamespace,
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error init Nacos NamingMaintainerService");
+                    ErrorCode.INTERNAL_ERROR,
+                    "Failed to initialize Nacos naming maintainer service");
         }
     }
-
-    // ==================== Agent 相关实现 ====================
 
     @Override
     public PageResult<NacosAgentResult> fetchAgents(
             String nacosId, String namespaceId, Pageable pageable) throws Exception {
 
-        // 1. 获取 Nacos 实例
         NacosInstance nacosInstance = findNacosInstance(nacosId);
-
-        // 2. 构建 AiMaintainerService（复用现有方法）
         AiMaintainerService aiService = buildDynamicAiService(nacosInstance);
+        String ns = Strings.isBlank(namespaceId) ? "" : namespaceId;
 
-        // 3. 确定命名空间
-        String ns = StrUtil.isBlank(namespaceId) ? "" : namespaceId;
-
-        // 4. 调用 Nacos SDK 查询 Agent 列表
         com.alibaba.nacos.api.model.Page<AgentCardVersionInfo> agentPage;
         try {
-            int pageNo = pageable.getPageNumber() + 1; // Nacos SDK 页码从 1 开始
+            // Nacos SDK uses 1-based page numbers.
+            int pageNo = pageable.getPageNumber() + 1;
             int pageSize = pageable.getPageSize();
 
             agentPage = aiService.listAgentCards(ns, pageNo, pageSize);
         } catch (NacosException e) {
             log.error(
-                    "Error fetching agents from Nacos: nacosId={}, namespaceId={}",
+                    "Failed to fetch Nacos agents, dependency=Nacos, operation=listAgentCards,"
+                            + " nacosId={}, namespaceId={}",
                     nacosId,
                     namespaceId,
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch agents: " + e.getErrMsg());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch agents: %s", e.getErrMsg()));
         }
 
-        // 5. 处理空结果
         if (agentPage == null
                 || agentPage.getPageItems() == null
                 || agentPage.getPageItems().isEmpty()) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
 
-        // 6. 转换为 NacosAgentResult
         List<NacosAgentResult> agentResults =
                 nacosAgentConverter.convertToAgentResults(agentPage.getPageItems(), ns);
 
-        // 7. 返回分页结果
         return PageResult.of(
                 agentResults,
                 pageable.getPageNumber(),
@@ -714,7 +710,7 @@ public class NacosServiceImpl implements NacosService {
         com.alibaba.nacos.api.model.Page<SkillSummary> page =
                 service.skill()
                         .listSkills(
-                                StrUtil.blankToDefault(namespaceId, "public"),
+                                Strings.blankToDefault(namespaceId, "public"),
                                 null,
                                 null,
                                 1,
@@ -722,63 +718,56 @@ public class NacosServiceImpl implements NacosService {
         if (page == null || page.getPageItems() == null) {
             return PageResult.empty(pageable.getPageNumber(), pageable.getPageSize());
         }
-        return page.getPageItems().stream()
-                .map(
-                        skill ->
-                                NacosSkillResult.builder()
-                                        .name(skill.getName())
-                                        .description(skill.getDescription())
-                                        .downloadCount(skill.getDownloadCount())
-                                        .build())
-                .skip(pageable.getOffset())
-                .limit(pageable.getPageSize())
-                .collect(
-                        Collectors.collectingAndThen(
-                                Collectors.toList(),
-                                list ->
-                                        PageResult.of(
-                                                list,
-                                                pageable.getPageNumber(),
-                                                pageable.getPageSize(),
-                                                page.getPageItems().size())));
+        List<NacosSkillResult> results =
+                page.getPageItems().stream()
+                        .map(
+                                skill ->
+                                        NacosSkillResult.builder()
+                                                .name(skill.getName())
+                                                .description(skill.getDescription())
+                                                .downloadCount(skill.getDownloadCount())
+                                                .build())
+                        .skip(pageable.getOffset())
+                        .limit(pageable.getPageSize())
+                        .toList();
+        return PageResult.of(
+                results,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                page.getPageItems().size());
     }
 
     /**
-     * 获取 Agent 详细信息（私有方法，仅供内部使用） 注意：此方法不对外暴露为 REST 接口，仅用于 fetchAgentConfig() 内部调用
+     * Fetches the latest Agent detail for internal configuration synchronization.
      *
-     * <p>返回标准的 AgentCard 而不是 AgentCardDetailInfo，确保与标准 A2A 协议兼容
+     * <p>Returning the standard {@link AgentCard} keeps the serialized config aligned with A2A and
+     * avoids depending on Nacos-specific extension fields.
      */
     private AgentCard fetchAgentDetailInternal(String nacosId, String agentName, String namespaceId)
             throws Exception {
 
-        // 1. 获取 Nacos 实例
         NacosInstance nacosInstance = findNacosInstance(nacosId);
-
-        // 2. 构建 AiMaintainerService
         AiMaintainerService aiService = buildDynamicAiService(nacosInstance);
+        String ns = Strings.isBlank(namespaceId) ? "" : namespaceId;
 
-        // 3. 确定命名空间
-        String ns = StrUtil.isBlank(namespaceId) ? "" : namespaceId;
-
-        // 4. 调用 Nacos SDK 查询 Agent 详情（默认最新版本）
-        // 注意：虽然 Nacos SDK 返回 AgentCardDetailInfo，但我们向上转型为标准的 AgentCard
-        // 这样可以忽略 Nacos 特有的扩展字段（registrationType, latestVersion）
         AgentCard agentCard;
         try {
             agentCard = aiService.getAgentCard(agentName, ns);
         } catch (NacosException e) {
             log.error(
-                    "Error fetching agent detail from Nacos: nacosId={}, agentName={}",
+                    "Failed to fetch Nacos agent detail, dependency=Nacos, operation=getAgentCard,"
+                            + " nacosId={}, agentName={}",
                     nacosId,
                     agentName,
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch agent detail: " + e.getErrMsg());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch agent detail: %s", e.getErrMsg()));
         }
 
-        // 5. 检查结果
         if (agentCard == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "Agent not found: " + agentName);
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND, String.format("Agent not found: %s", agentName));
         }
 
         return agentCard;
@@ -786,48 +775,46 @@ public class NacosServiceImpl implements NacosService {
 
     @Override
     public String fetchAgentConfig(String nacosId, NacosRefConfig nacosRefConfig) {
-        // 1. 参数校验
-        if (StrUtil.isBlank(nacosRefConfig.getAgentName())) {
+        if (Strings.isBlank(nacosRefConfig.getAgentName())) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Agent name is required");
         }
 
         try {
-            // 2. 获取 Agent 详细信息（调用私有方法，返回标准 AgentCard）
             AgentCard agentCard =
                     fetchAgentDetailInternal(
                             nacosId,
                             nacosRefConfig.getAgentName(),
                             nacosRefConfig.getNamespaceId());
 
-            // 3. 直接保存 AgentCard，无需转换
+            // A2A protocol does not use route definitions.
             AgentConfigResult.AgentAPIConfig apiConfig =
                     AgentConfigResult.AgentAPIConfig.builder()
-                            .agentProtocols(List.of("a2a")) // 标识为 A2A 协议
-                            .agentCard(agentCard) // 完整的 AgentCard
-                            .routes(null) // A2A 协议不使用 routes
+                            .agentProtocols(List.of("a2a"))
+                            .agentCard(agentCard)
+                            .routes(null)
                             .build();
 
-            // 构建元数据
             AgentConfigResult.AgentMetadata meta =
                     AgentConfigResult.AgentMetadata.builder()
-                            .source(SourceType.NACOS.name()) // 标识来源为 Nacos
+                            .source(SourceType.NACOS.name())
                             .build();
 
             AgentConfigResult result = new AgentConfigResult();
             result.setAgentAPIConfig(apiConfig);
-            result.setMeta(meta); // 设置元数据到顶层
+            result.setMeta(meta);
 
-            // 4. 序列化为 JSON
             return JsonUtil.toJson(result);
 
         } catch (Exception e) {
             log.error(
-                    "Error fetching agent config: nacosId={}, agentName={}",
+                    "Failed to fetch Nacos agent config, dependency=Nacos,"
+                            + " operation=fetchAgentConfig, nacosId={}, agentName={}",
                     nacosId,
                     nacosRefConfig.getAgentName(),
                     e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to fetch agent config: " + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR,
+                    String.format("Failed to fetch agent config: %s", e.getMessage()));
         }
     }
 
@@ -854,7 +841,7 @@ public class NacosServiceImpl implements NacosService {
     @Transactional
     public void setDefaultNacos(String nacosId, String namespaceId) {
         NacosInstance newDefault = findNacosInstance(nacosId);
-        // 取消旧默认
+        // Clear the previous default before setting the new one.
         nacosInstanceRepository
                 .findByIsDefaultTrue()
                 .ifPresent(
@@ -862,12 +849,11 @@ public class NacosServiceImpl implements NacosService {
                             old.setIsDefault(false);
                             nacosInstanceRepository.save(old);
                         });
-        // 设置新默认
         newDefault.setIsDefault(true);
         nacosInstanceRepository.save(newDefault);
 
-        // 若指定了命名空间，验证并保存
-        if (StrUtil.isNotBlank(namespaceId)) {
+        // Verify the namespace before storing it as the default namespace.
+        if (Strings.isNotBlank(namespaceId)) {
             NamingMaintainerService namingService = buildDynamicNamingService(newDefault, "");
             try {
                 List<Namespace> namespaces = namingService.getNamespaceList();
@@ -876,12 +862,12 @@ public class NacosServiceImpl implements NacosService {
                                 && namespaces.stream()
                                         .anyMatch(
                                                 ns ->
-                                                        StrUtil.equals(
+                                                        Strings.equals(
                                                                         namespaceId,
                                                                         ns.getNamespace())
-                                                                || (StrUtil.isBlank(
+                                                                || (Strings.isBlank(
                                                                                 ns.getNamespace())
-                                                                        && StrUtil.equalsIgnoreCase(
+                                                                        && Strings.equalsIgnoreCase(
                                                                                 namespaceId,
                                                                                 "public")));
                 if (!exists) {
@@ -890,13 +876,13 @@ public class NacosServiceImpl implements NacosService {
                 }
             } catch (NacosException e) {
                 log.error(
-                        "Error verifying namespace from Nacos: nacosId={}, namespaceId={}",
+                        "Error verifying namespace from Nacos, nacosId={}, namespaceId={}",
                         nacosId,
                         namespaceId,
                         e);
                 throw new BusinessException(
                         ErrorCode.INTERNAL_ERROR,
-                        "Failed to verify namespace from Nacos: " + e.getErrMsg());
+                        String.format("Failed to verify namespace from Nacos: %s", e.getErrMsg()));
             }
 
             newDefault.setDefaultNamespace(namespaceId);

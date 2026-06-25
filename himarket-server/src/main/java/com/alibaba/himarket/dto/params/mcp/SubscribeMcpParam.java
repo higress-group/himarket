@@ -3,23 +3,32 @@ package com.alibaba.himarket.dto.params.mcp;
 import lombok.Data;
 
 /**
- * MCP 订阅请求参数。
+ * MCP subscription request parameters.
  *
- * <p>SSE/HTTP 直连场景：不需要传任何参数。
- * <p>Remote 沙箱场景：需要传 sandboxId + transportType，可选 params。
+ * <p>Direct SSE/HTTP connections do not require parameters.
+ *
+ * <p>Remote sandbox connections require sandboxId and transportType, with optional params.
  */
 @Data
 public class SubscribeMcpParam {
 
-    /** 沙箱 ID（Remote 场景必填） */
+    /**
+     * Sandbox ID, required for remote scenarios.
+     */
     private String sandboxId;
 
-    /** 传输类型：sse / http（Remote 场景必填） */
+    /**
+     * Transport type, such as sse or http, required for remote scenarios.
+     */
     private String transportType;
 
-    /** 鉴权方式：none / bearer（Remote 场景，默认 none） */
+    /**
+     * Authentication type for remote scenarios, such as none or bearer.
+     */
     private String authType;
 
-    /** 用户填写的额外参数（JSON 格式），可选 */
+    /**
+     * Optional user-provided extra parameters as JSON.
+     */
     private String params;
 }

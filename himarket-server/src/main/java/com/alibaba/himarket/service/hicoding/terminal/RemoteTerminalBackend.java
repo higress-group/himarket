@@ -21,10 +21,10 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 /**
- * 远程终端后端。
- * 通过 WebSocket 连接 Sidecar 的 /terminal 端点，
- * Sidecar 端使用 node-pty 提供交互式 PTY shell。
- * 不依赖 K8s API，适用于任意可达的 Sidecar 服务。
+ * Remote terminal backend.
+ *
+ * <p>Connects to the Sidecar /terminal endpoint through WebSocket. Sidecar uses node-pty to provide
+ * an interactive PTY shell, without depending on K8s APIs.
  */
 public class RemoteTerminalBackend implements TerminalBackend {
 
@@ -44,7 +44,7 @@ public class RemoteTerminalBackend implements TerminalBackend {
     private Disposable wsConnection;
     private volatile boolean closed = false;
 
-    // 心跳保活
+    // Heartbeat.
     private final ScheduledExecutorService scheduler =
             Executors.newScheduledThreadPool(
                     1,
@@ -55,7 +55,7 @@ public class RemoteTerminalBackend implements TerminalBackend {
                     });
     private ScheduledFuture<?> pingFuture;
 
-    // 断连重连
+    // Reconnect state.
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
     private volatile boolean reconnecting = false;
     private volatile int lastCols;
@@ -72,7 +72,7 @@ public class RemoteTerminalBackend implements TerminalBackend {
         this.lastCols = cols;
         this.lastRows = rows;
         doConnect(cols, rows, true);
-        logger.info("[RemoteTerminal] Connected to sidecar terminal");
+        logger.info("Connected to sidecar terminal");
         startHeartbeat();
     }
 
@@ -87,7 +87,7 @@ public class RemoteTerminalBackend implements TerminalBackend {
                         java.net.URLEncoder.encode(cwd, StandardCharsets.UTF_8));
         URI wsUri = URI.create(uriStr);
 
-        logger.info("[RemoteTerminal] Connecting to {}", wsUri);
+        logger.info("Connecting to remote terminal, wsUri={}", wsUri);
 
         ReactorNettyWebSocketClient wsClient = new ReactorNettyWebSocketClient();
         CountDownLatch connectedLatch = blocking ? new CountDownLatch(1) : null;
@@ -122,8 +122,9 @@ public class RemoteTerminalBackend implements TerminalBackend {
                                                                     () -> {
                                                                         if (!closed) {
                                                                             logger.info(
-                                                                                    "[RemoteTerminal]"
-                                                                                        + " Connection"
+                                                                                    "Remote"
+                                                                                        + " terminal"
+                                                                                        + " connection"
                                                                                         + " closed"
                                                                                         + " by sidecar");
                                                                             scheduleReconnect();
@@ -133,9 +134,13 @@ public class RemoteTerminalBackend implements TerminalBackend {
                                                                     err -> {
                                                                         if (!closed) {
                                                                             logger.error(
-                                                                                    "[RemoteTerminal]"
-                                                                                        + " Connection"
-                                                                                        + " error",
+                                                                                    "Remote"
+                                                                                        + " terminal"
+                                                                                        + " connection"
+                                                                                        + " error,"
+                                                                                        + " errorMessage={}",
+                                                                                    err
+                                                                                            .getMessage(),
                                                                                     err);
                                                                             scheduleReconnect();
                                                                         }
@@ -147,11 +152,11 @@ public class RemoteTerminalBackend implements TerminalBackend {
         if (blocking) {
             try {
                 if (!connectedLatch.await(10, TimeUnit.SECONDS)) {
-                    throw new IOException("连接远程终端超时: " + wsUri);
+                    throw new IOException("Timed out connecting to remote terminal: " + wsUri);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IOException("连接远程终端被中断", e);
+                throw new IOException("Interrupted while connecting to remote terminal", e);
             }
         }
     }
@@ -174,19 +179,23 @@ public class RemoteTerminalBackend implements TerminalBackend {
                                                     unused -> {},
                                                     err ->
                                                             logger.warn(
-                                                                    "[RemoteTerminal] Heartbeat"
-                                                                            + " failed: {}",
-                                                                    err.getMessage()));
+                                                                    "Remote terminal heartbeat"
+                                                                            + " failed,"
+                                                                            + " errorMessage={}",
+                                                                    err.getMessage(),
+                                                                    err));
                                 } catch (Exception e) {
                                     logger.warn(
-                                            "[RemoteTerminal] Heartbeat error: {}", e.getMessage());
+                                            "Remote terminal heartbeat error, errorMessage={}",
+                                            e.getMessage(),
+                                            e);
                                 }
                             },
                             HEARTBEAT_INTERVAL_SECONDS,
                             HEARTBEAT_INTERVAL_SECONDS,
                             TimeUnit.SECONDS);
         } catch (RejectedExecutionException e) {
-            logger.debug("[RemoteTerminal] Scheduler already shutdown, skip heartbeat");
+            logger.debug("Remote terminal scheduler is already shut down, skipping heartbeat");
         }
     }
 
@@ -205,7 +214,7 @@ public class RemoteTerminalBackend implements TerminalBackend {
         int attempt = reconnectAttempts.get();
         if (attempt >= MAX_RECONNECT_ATTEMPTS) {
             logger.warn(
-                    "[RemoteTerminal] Max reconnect attempts ({}) reached, giving up",
+                    "Remote terminal reconnect attempts exhausted, maxAttempts={}",
                     MAX_RECONNECT_ATTEMPTS);
             reconnecting = false;
             outputSink.tryEmitComplete();
@@ -214,12 +223,14 @@ public class RemoteTerminalBackend implements TerminalBackend {
 
         long delayMs = Math.min(1000L * (1L << attempt), MAX_BACKOFF_MS);
         logger.info(
-                "[RemoteTerminal] Scheduling reconnect attempt {} in {}ms", attempt + 1, delayMs);
+                "Scheduling remote terminal reconnect, attempt={}, delayMs={}",
+                attempt + 1,
+                delayMs);
 
         try {
             scheduler.schedule(this::doReconnect, delayMs, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
-            logger.debug("[RemoteTerminal] Scheduler shutdown, cannot reconnect");
+            logger.debug("Remote terminal scheduler is shut down, cannot reconnect");
             reconnecting = false;
             outputSink.tryEmitComplete();
         }
@@ -231,7 +242,7 @@ public class RemoteTerminalBackend implements TerminalBackend {
             return;
         }
 
-        // 清理旧连接
+        // Clean up the previous connection.
         if (wsConnection != null && !wsConnection.isDisposed()) {
             wsConnection.dispose();
         }
@@ -241,9 +252,9 @@ public class RemoteTerminalBackend implements TerminalBackend {
             reconnectAttempts.set(0);
             reconnecting = false;
             startHeartbeat();
-            logger.info("[RemoteTerminal] Reconnected successfully");
+            logger.info("Remote terminal reconnected");
         } catch (IOException e) {
-            logger.warn("[RemoteTerminal] Reconnect failed: {}", e.getMessage());
+            logger.warn("Remote terminal reconnect failed, errorMessage={}", e.getMessage(), e);
             reconnectAttempts.incrementAndGet();
             reconnecting = false;
             scheduleReconnect();
@@ -280,7 +291,7 @@ public class RemoteTerminalBackend implements TerminalBackend {
     public void close() {
         if (closed) return;
         closed = true;
-        logger.info("[RemoteTerminal] Closing");
+        logger.info("Closing remote terminal");
         stopHeartbeat();
         scheduler.shutdownNow();
         outputSink.tryEmitComplete();

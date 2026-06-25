@@ -33,7 +33,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Public MCP Server APIs for external systems using API Key authentication.
@@ -67,8 +75,6 @@ public class OpenApiMcpController {
         verifyApiKey(key);
     }
 
-    // ==================== Write APIs ====================
-
     @Operation(
             summary = "Register MCP server",
             description = "Register MCP metadata through the API key protected integration API")
@@ -82,8 +88,6 @@ public class OpenApiMcpController {
     // @PostMapping("/meta")
     // public McpMetaDetailResult saveMeta(...)
 
-    // ==================== Detail query APIs ====================
-
     @Operation(summary = "Get MCP server by mcpServerId")
     @GetMapping("/meta/{mcpServerId}")
     public McpMetaDetailResult getMeta(@PathVariable String mcpServerId) {
@@ -95,8 +99,6 @@ public class OpenApiMcpController {
     public McpMetaDetailResult getMetaByName(@PathVariable String mcpName) {
         return McpMetaDetailResult.fromFull(mcpServerService.getPublishedMetaByName(mcpName));
     }
-
-    // ==================== List query APIs ====================
 
     @Operation(
             summary = "List published MCP servers by origin",

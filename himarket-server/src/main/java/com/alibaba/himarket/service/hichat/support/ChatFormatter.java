@@ -18,8 +18,8 @@
  */
 package com.alibaba.himarket.service.hichat.support;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.utils.JsonUtil;
 import io.agentscope.core.agent.Event;
 import io.agentscope.core.agent.EventType;
@@ -47,7 +47,9 @@ import reactor.core.publisher.Flux;
 @Slf4j
 public class ChatFormatter {
 
-    /** Tracks whether any text content has been streamed (via isLast=false REASONING events) */
+    /**
+     * Tracks whether any text content has been streamed through non-final reasoning events.
+     */
     private boolean hasStreamedText = false;
 
     public Flux<ChatEvent> format(Event event, ChatContext chatContext) {
@@ -56,7 +58,7 @@ public class ChatFormatter {
             EventType type = event.getType();
 
             log.debug(
-                    "Converting event - type: {}, isLast: {}, msg: {}",
+                    "Converting chat event, type={}, last={}, message={}",
                     type,
                     event.isLast(),
                     JsonUtil.toJson(msg));
@@ -80,12 +82,17 @@ public class ChatFormatter {
                     return Flux.empty();
 
                 default:
-                    log.debug("Skipping unknown event type: {}", type);
+                    log.debug("Skipping unknown event type, type={}", type);
                     return Flux.empty();
             }
 
         } catch (Exception e) {
-            log.error("Error converting event to ChatEvent", e);
+            log.error(
+                    "Failed to convert chat event, chatId={}, eventType={}, errorMessage={}",
+                    chatContext.getChatId(),
+                    event.getType(),
+                    e.getMessage(),
+                    e);
             return Flux.just(
                     ChatEvent.error(chatContext.getChatId(), "CONVERSION_ERROR", e.getMessage()));
         }
@@ -98,27 +105,28 @@ public class ChatFormatter {
         // 1. Extract thinking content
         List<ThinkingBlock> thinkingBlocks = msg.getContentBlocks(ThinkingBlock.class);
         for (ThinkingBlock thinking : thinkingBlocks) {
-            if (StrUtil.isNotBlank(thinking.getThinking())) {
+            if (Strings.isNotBlank(thinking.getThinking())) {
                 chunks.add(ChatEvent.thinking(chatId, thinking.getThinking()));
             }
         }
 
         // 2. Extract text content (model's response)
         String textContent = msg.getTextContent();
-        if (StrUtil.isNotBlank(textContent)) {
+        if (Strings.isNotBlank(textContent)) {
             if (isLast) {
                 getUsage(msg, chatContext);
                 if (hasStreamedText) {
                     // Streaming chunks were already sent, skip to avoid duplication
                     log.debug(
-                            "Skipping final complete text (already streamed, length={})",
-                            textContent.length());
+                            "Skipping final complete text because streaming chunks were already"
+                                    + " sent, text={}",
+                            textContent);
                 } else {
                     // No streaming chunks were sent (e.g., simple/short answers),
                     // emit the final text so the frontend receives content
                     log.debug(
-                            "Emitting final text as no streaming chunks were sent (length={})",
-                            textContent.length());
+                            "Emitting final text because no streaming chunks were sent, text={}",
+                            textContent);
                     chunks.add(ChatEvent.text(chatId, textContent));
                 }
             } else {
@@ -142,7 +150,7 @@ public class ChatFormatter {
         if (!toolUseBlocks.isEmpty()) {
             if (isLast) {
                 // Final complete tool calls with parsed input arguments
-                log.debug("Sending {} complete tool call(s)", toolUseBlocks.size());
+                log.debug("Sending complete tool calls, toolCallCount={}", toolUseBlocks.size());
                 for (ToolUseBlock toolUse : toolUseBlocks) {
                     ToolMeta toolMeta = chatContext.getToolMeta(toolUse.getName());
                     String mcpServerName = toolMeta != null ? toolMeta.getMcpServerName() : null;
@@ -158,7 +166,8 @@ public class ChatFormatter {
                 }
             } else {
                 // Skip streaming tool call chunks (input is empty, contains fragments)
-                log.debug("Skipping {} streaming tool call chunk(s)", toolUseBlocks.size());
+                log.debug(
+                        "Skipping streaming tool call chunks, chunkCount={}", toolUseBlocks.size());
             }
         }
 
@@ -189,7 +198,7 @@ public class ChatFormatter {
         getUsage(msg, chatContext);
 
         // Send summary text if available
-        if (msg != null && StrUtil.isNotBlank(msg.getTextContent())) {
+        if (msg != null && Strings.isNotBlank(msg.getTextContent())) {
             return Flux.just(ChatEvent.text(chatContext.getChatId(), msg.getTextContent()));
         }
         return Flux.empty();
@@ -237,7 +246,7 @@ public class ChatFormatter {
 
         chatContext.setUsage(usage);
         log.debug(
-                "Get usage: input={}, output={}, total={}",
+                "Recorded chat usage, inputTokens={}, outputTokens={}, totalTokens={}",
                 usage.getInputTokens(),
                 usage.getOutputTokens(),
                 usage.getTotalTokens());

@@ -68,7 +68,7 @@ public class DashScopeLlmService extends AbstractLlmService {
 
         ModelFeature modelFeature = getOrDefaultModelFeature(request.getProduct());
 
-        // TODO set dashscope request uri
+        // TODO: Configure the DashScope request URI.
 
         // Build DashScopeChatModel using Builder pattern
         return DashScopeChatModel.builder()

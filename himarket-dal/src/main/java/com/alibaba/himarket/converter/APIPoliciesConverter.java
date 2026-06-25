@@ -42,8 +42,8 @@ public class APIPoliciesConverter implements AttributeConverter<List<ApiPolicy>,
         try {
             return MAPPER.writeValueAsString(attribute);
         } catch (Exception e) {
-            log.error("Failed to serialize APIPolicy list", e);
-            throw new RuntimeException("Failed to serialize APIPolicy list", e);
+            log.error("Failed to serialize APIPolicy list, errorMessage={}", e.getMessage(), e);
+            throw new RuntimeException("Failed to serialize APIPolicy list: " + e.getMessage(), e);
         }
     }
 
@@ -55,8 +55,9 @@ public class APIPoliciesConverter implements AttributeConverter<List<ApiPolicy>,
         try {
             return MAPPER.readValue(dbData, TYPE_REF);
         } catch (Exception e) {
-            log.error("Failed to deserialize APIPolicy list", e);
-            throw new RuntimeException("Failed to deserialize APIPolicy list", e);
+            log.error("Failed to deserialize APIPolicy list, errorMessage={}", e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to deserialize APIPolicy list: " + e.getMessage(), e);
         }
     }
 }

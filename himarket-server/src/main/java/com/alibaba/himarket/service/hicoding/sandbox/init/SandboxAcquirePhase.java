@@ -4,8 +4,10 @@ import com.alibaba.himarket.service.hicoding.sandbox.SandboxInfo;
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxProvider;
 
 /**
- * 获取沙箱实例。
- * 通过 SandboxProvider.acquire() 统一处理，不直接依赖任何具体实现。
+ * Acquires a sandbox instance.
+ *
+ * <p>Delegates to {@link SandboxProvider#acquire} so this phase does not depend on concrete
+ * provider implementations.
  */
 public class SandboxAcquirePhase implements InitPhase {
 
@@ -31,7 +33,8 @@ public class SandboxAcquirePhase implements InitPhase {
             SandboxInfo info = provider.acquire(context.getSandboxConfig());
             context.setSandboxInfo(info);
         } catch (Exception e) {
-            throw new InitPhaseException("sandbox-acquire", "沙箱获取失败: " + e.getMessage(), e, false);
+            throw new InitPhaseException(
+                    "sandbox-acquire", "Failed to acquire sandbox: " + e.getMessage(), e, false);
         }
     }
 

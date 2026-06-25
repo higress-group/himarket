@@ -19,12 +19,18 @@
 
 package com.alibaba.himarket.service.importer;
 
-import cn.hutool.core.util.EnumUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.apidefinition.CreateApiDefinitionParam;
-import com.alibaba.himarket.dto.params.product.*;
+import com.alibaba.himarket.dto.params.product.AddProductRefParam;
+import com.alibaba.himarket.dto.params.product.AiRegistryImportConfigParam;
+import com.alibaba.himarket.dto.params.product.CreateProductParam;
+import com.alibaba.himarket.dto.params.product.ExternalImportConfigParam;
+import com.alibaba.himarket.dto.params.product.GatewayImportConfigParam;
+import com.alibaba.himarket.dto.params.product.ImportProductsParam;
+import com.alibaba.himarket.dto.params.product.NacosImportConfigParam;
+import com.alibaba.himarket.dto.params.product.ProductImportItemParam;
+import com.alibaba.himarket.dto.params.product.ProductImportSourceConfigParam;
 import com.alibaba.himarket.dto.result.gateway.GatewayResult;
 import com.alibaba.himarket.dto.result.mcp.APIGMcpServerResult;
 import com.alibaba.himarket.dto.result.mcp.GatewayMcpServerResult;
@@ -42,6 +48,7 @@ import com.alibaba.himarket.support.api.meta.ApiDefinitionMeta;
 import com.alibaba.himarket.support.api.meta.ApiDefinitionSource;
 import com.alibaba.himarket.support.api.meta.ApiDefinitionSourceType;
 import com.alibaba.himarket.support.api.spec.McpServerSpec;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ApiType;
 import com.alibaba.himarket.support.enums.GatewayType;
 import com.alibaba.himarket.support.enums.McpFromType;
@@ -50,16 +57,22 @@ import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.enums.SourceType;
-import com.alibaba.himarket.support.product.*;
+import com.alibaba.himarket.support.product.APIGRefConfig;
+import com.alibaba.himarket.support.product.HigressRefConfig;
+import com.alibaba.himarket.support.product.Icon;
+import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ProductImporter {
 
@@ -86,7 +99,7 @@ public class ProductImporter {
         ProductType productType = param.getProductType();
         ProductImportSourceConfigParam sourceConfig = param.getSourceConfig();
         log.info(
-                "Importing products of type {} from source: {}",
+                "Importing products, productType={}, sourceConfig={}",
                 productType,
                 JsonUtil.toJson(sourceConfig));
         for (ProductImportItemParam item : param.getItems()) {
@@ -99,7 +112,10 @@ public class ProductImporter {
                 }
                 result.setSuccessCount(result.getSuccessCount() + 1);
             } catch (Exception e) {
-                log.warn("Failed to import product item: {}", item.getResourceName(), e);
+                log.warn(
+                        "Failed to import product item, resourceName={}",
+                        item.getResourceName(),
+                        e);
                 ProductImportResult failure = new ProductImportResult();
                 failure.setResourceName(item.getResourceName());
                 failure.setErrorMessage(e.getMessage());
@@ -130,7 +146,10 @@ public class ProductImporter {
                             productType, (GatewayImportConfigParam) sourceConfig, item);
             productService.addProductRef(product.getProductId(), addProductRefParam);
         } catch (Exception e) {
-            log.warn("Failed to add gateway reference for product: {}", product.getProductId(), e);
+            log.warn(
+                    "Failed to add gateway reference for product, productId={}",
+                    product.getProductId(),
+                    e);
             productService.deleteProduct(product.getProductId());
             throw e;
         }
@@ -150,7 +169,7 @@ public class ProductImporter {
             ProductImportItemParam item) {
         GatewayResult gateway = gatewayService.getGateway(importConfigParam.getInstanceId());
 
-        // TODO: support other gateways
+        // TODO: Support other gateway types.
         GatewayType gatewayType = gateway.getGatewayType();
         HigressRefConfig higressRefConfig =
                 gatewayType.isHigress() ? buildHigressRefConfig(productType, item) : null;
@@ -210,13 +229,13 @@ public class ProductImporter {
      */
     private void completeMcpRouteId(GatewayResult gateway, APIGRefConfig config) {
         String mcpServerId = config.getMcpServerId();
-        if (!gateway.getGatewayType().isAIGateway() || StrUtil.isBlank(mcpServerId)) {
+        if (!gateway.getGatewayType().isAIGateway() || Strings.isBlank(mcpServerId)) {
             return;
         }
 
         GatewayMcpServerResult mcpServer =
                 gatewayService.fetchMcpServer(gateway.getGatewayId(), mcpServerId);
-        if (mcpServer instanceof APIGMcpServerResult m && StrUtil.isNotBlank(m.getMcpRouteId())) {
+        if (mcpServer instanceof APIGMcpServerResult m && Strings.isNotBlank(m.getMcpRouteId())) {
             config.setMcpServerName(m.getMcpServerName());
             config.setMcpRouteId(m.getMcpRouteId());
             return;
@@ -224,7 +243,7 @@ public class ProductImporter {
 
         throw new BusinessException(
                 ErrorCode.INVALID_REQUEST,
-                "Cannot resolve MCP route id for resource: " + mcpServerId);
+                String.format("Cannot resolve MCP route id for resource: %s", mcpServerId));
     }
 
     /**
@@ -291,7 +310,10 @@ public class ProductImporter {
 
             productService.addProductRef(product.getProductId(), addProductRefParam);
         } catch (Exception e) {
-            log.warn("Failed to add Nacos reference for product: {}", product.getProductId(), e);
+            log.warn(
+                    "Failed to add Nacos reference for product, productId={}",
+                    product.getProductId(),
+                    e);
             productService.deleteProduct(product.getProductId());
             throw e;
         }
@@ -366,8 +388,13 @@ public class ProductImporter {
 
         ExternalImportConfigParam externalSourceConfig = (ExternalImportConfigParam) sourceConfig;
 
-        McpVendorType mcpVendorType =
-                EnumUtil.fromString(McpVendorType.class, externalSourceConfig.getProvider());
+        McpVendorType mcpVendorType = parseMcpVendorType(externalSourceConfig.getProvider());
+        if (mcpVendorType == null) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST,
+                    String.format(
+                            "Unsupported vendor type: %s", externalSourceConfig.getProvider()));
+        }
 
         McpVendorAdapter adapter = vendorAdapterRegistry.getAdapter(mcpVendorType);
         RemoteMcpItem remoteItem = adapter.getMcpServer(item.getResourceId());
@@ -390,7 +417,7 @@ public class ProductImporter {
      */
     private CreateProductParam buildMcpProductParam(RemoteMcpItem item) {
         return CreateProductParam.builder()
-                .name(StrUtil.blankToDefault(item.getDisplayName(), item.getMcpName()))
+                .name(Strings.blankToDefault(item.getDisplayName(), item.getMcpName()))
                 .description(item.getDescription())
                 .type(ProductType.MCP_SERVER)
                 .autoApprove(true)
@@ -485,5 +512,17 @@ public class ProductImporter {
                 .autoApprove(true)
                 .feature(ProductFeature.builder().skillConfig(skillConfig).build())
                 .build();
+    }
+
+    private McpVendorType parseMcpVendorType(String provider) {
+        if (Strings.isBlank(provider)) {
+            return null;
+        }
+
+        try {
+            return McpVendorType.valueOf(provider.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

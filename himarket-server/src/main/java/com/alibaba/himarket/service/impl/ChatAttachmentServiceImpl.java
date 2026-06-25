@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.codec.Base64;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
@@ -31,14 +30,15 @@ import com.alibaba.himarket.entity.ChatAttachment;
 import com.alibaba.himarket.repository.ChatAttachmentRepository;
 import com.alibaba.himarket.service.ChatAttachmentService;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
+import java.util.Base64;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class ChatAttachmentServiceImpl implements ChatAttachmentService {
 
     private final ContextHolder contextHolder;
@@ -76,7 +76,11 @@ public class ChatAttachmentServiceImpl implements ChatAttachmentService {
 
             return new ChatAttachmentResult().convertFrom(chatAttachment);
         } catch (Exception e) {
-            log.error("Failed to upload attachment: {}", file.getOriginalFilename(), e);
+            log.error(
+                    "Failed to upload attachment, fileName={}, errorMessage={}",
+                    file.getOriginalFilename(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR, "Failed to upload attachment: " + e.getMessage());
         }
@@ -109,13 +113,13 @@ public class ChatAttachmentServiceImpl implements ChatAttachmentService {
         ChatAttachment attachment = findAttachment(attachmentId);
 
         // Encode data to Base64
-        String base64Data = Base64.encode(attachment.getData());
+        String base64Data = Base64.getEncoder().encodeToString(attachment.getData());
 
         log.debug(
-                "Retrieved attachment detail: attachmentId={}, size={}, base64Length={}",
+                "Retrieved attachment detail, attachmentId={}, size={}, base64Data={}",
                 attachmentId,
                 attachment.getSize(),
-                base64Data.length());
+                base64Data);
 
         return ChatAttachmentDetailResult.builder()
                 .attachmentId(attachment.getAttachmentId())

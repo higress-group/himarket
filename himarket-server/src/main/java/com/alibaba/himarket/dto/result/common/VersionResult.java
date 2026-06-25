@@ -42,10 +42,10 @@ public class VersionResult {
      *
      * <p>When pipeline is APPROVED but Nacos hasn't yet transitioned version status to "online",
      * returns "online" to eliminate the inconsistency window where the UI would simultaneously show
-     * "审核中" (from version status) and "审核通过" (from pipeline result).
+     * reviewing status from the version and approved status from the pipeline result.
      *
      * <p>When pipeline is REJECTED, returns "rejected" so the UI can correctly display
-     * "审核不通过" instead of misleadingly showing "审核中".
+     * rejection status instead of misleadingly showing reviewing status.
      */
     public static String resolveStatus(String rawStatus, String publishPipelineInfo) {
         return resolveStatus(rawStatus, publishPipelineInfo, true);

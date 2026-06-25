@@ -63,12 +63,12 @@ public class ListAppsByGwInstanceIdResponse
         private Boolean useWhiteList;
 
         /**
-         * API Key位置类型 (HEADER/QUERY/BEARER)
+         * API key location type, such as HEADER, QUERY, or BEARER.
          */
         private String apiKeyLocationType;
 
         /**
-         * API Key在Header/Query中的名称
+         * API key name used in headers or query parameters.
          */
         private String keyName;
     }

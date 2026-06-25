@@ -40,7 +40,7 @@ throw new BusinessException(ErrorCode.NOT_FOUND, Resources.PRODUCT, productId);
 
 // Conflict -- resource already exists
 throw new BusinessException(ErrorCode.CONFLICT,
-        StrUtil.format("Product with name '{}' already exists", product.getName()));
+        String.format("Product with name '%s' already exists", product.getName()));
 
 // Invalid request -- business rule violation
 throw new BusinessException(ErrorCode.INVALID_REQUEST, "API product already linked to API");
@@ -61,9 +61,16 @@ private Product findProduct(String productId) {
 productRepository.findByNameAndAdminId(param.getName(), contextHolder.getAdmin())
         .ifPresent(product -> {
             throw new BusinessException(ErrorCode.CONFLICT,
-                    StrUtil.format("Product with name '{}' already exists", product.getName()));
+                    String.format("Product with name '%s' already exists", product.getName()));
         });
 ```
+
+### Message formatting
+
+- Use `String.format` for stable business exception templates.
+- Use simple `+` only for short local strings where a template would be less readable.
+- Use SLF4J `{}` placeholders for logs; do not use `String.format` in log messages.
+- Use `String.join` or `Collectors.joining` for collection joining.
 
 ---
 
@@ -75,6 +82,8 @@ repositories should not contain business transaction decisions.
 
 **Rules:**
 
+- Use Spring `org.springframework.transaction.annotation.Transactional`.
+- Do not use `jakarta.transaction.Transactional` or `javax.transaction.Transactional`.
 - Use `@Transactional` for business services or methods that perform database writes.
 - Use class-level `@Transactional` when most public methods mutate data and share the same boundary.
 - Use method-level `@Transactional` when only selected methods mutate data or when different
@@ -140,12 +149,14 @@ public class ProductDeletingEvent extends ApplicationEvent {
 ### Publish event
 
 ```java
+private final ApplicationEventPublisher eventPublisher;
+
 @Override
 public void deleteProduct(String productId) {
     Product product = findProduct(productId);
     productRepository.delete(product);
 
-    SpringUtil.publishEvent(new ProductDeletingEvent(productId));
+    eventPublisher.publishEvent(new ProductDeletingEvent(productId));
 }
 ```
 
@@ -158,9 +169,13 @@ public void onProductDeleting(ProductDeletingEvent event) {
     try {
         publicationRepository.deleteByProductId(event.getProductId());
         subscriptionRepository.deleteByProductId(event.getProductId());
-        log.info("Cleanup completed for product {}", event.getProductId());
+        log.info("Product cleanup completed, productId={}", event.getProductId());
     } catch (Exception e) {
-        log.warn("Cleanup failed for product {}: {}", event.getProductId(), e.getMessage());
+        log.warn(
+                "Product cleanup failed, productId={}, errorMessage={}",
+                event.getProductId(),
+                e.getMessage(),
+                e);
     }
 }
 ```

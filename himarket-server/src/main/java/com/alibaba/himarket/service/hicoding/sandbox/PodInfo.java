@@ -3,13 +3,14 @@ package com.alibaba.himarket.service.hicoding.sandbox;
 import java.net.URI;
 
 /**
- * Pod 信息传递对象，作为 acquirePod 的返回值。
+ * Pod information transfer object returned by acquirePod.
  *
- * @param podName      Pod 名称
- * @param podIp        Pod IP 地址
- * @param serviceIp    Service ClusterIP/LoadBalancer IP（可为 null，仅在创建了 Service 时有值）
- * @param sidecarWsUri Sidecar WebSocket 端点 URI
- * @param reused       是否为复用的已有 Pod
+ * @param podName Pod name
+ * @param podIp Pod IP address
+ * @param serviceIp Service ClusterIP or LoadBalancer IP, nullable and present only when a Service
+ *     was created
+ * @param sidecarWsUri Sidecar WebSocket endpoint URI
+ * @param reused whether an existing Pod was reused
  */
 public record PodInfo(
         String podName, String podIp, String serviceIp, URI sidecarWsUri, boolean reused) {}

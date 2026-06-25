@@ -18,8 +18,10 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Manages an ACP-compatible CLI subprocess (qodercli, kiro-cli, claude-code, codex, qwen-code, etc.).
- * Provides reactive stdin/stdout access for transparent proxying.
+ * Manages an ACP-compatible CLI subprocess (qodercli, kiro-cli, claude-code, codex, qwen-code,
+ * etc.).
+ *
+ * <p>Provides reactive stdin/stdout access for transparent proxying.
  */
 public class CliProcess {
 
@@ -58,7 +60,7 @@ public class CliProcess {
         fullCommand.add(command);
         fullCommand.addAll(args);
 
-        logger.info("Starting ACP process: {}", String.join(" ", fullCommand));
+        logger.info("Starting ACP process, command={}, cwd={}", String.join(" ", fullCommand), cwd);
 
         ProcessBuilder pb = new ProcessBuilder(fullCommand);
         pb.redirectErrorStream(false);
@@ -90,7 +92,7 @@ public class CliProcess {
                                     return t;
                                 }));
 
-        // Read stdout lines → stdoutSink
+        // Read stdout lines into stdoutSink.
         stdoutScheduler.schedule(
                 () -> {
                     try (BufferedReader reader =
@@ -99,19 +101,23 @@ public class CliProcess {
                                             process.getInputStream(), StandardCharsets.UTF_8))) {
                         String line;
                         while (!closed && (line = reader.readLine()) != null) {
-                            logger.trace("STDOUT: {}", line);
+                            logger.trace("Process stdout received, line={}", line);
                             stdoutSink.tryEmitNext(line);
                         }
                     } catch (IOException e) {
                         if (!closed) {
-                            logger.error("Error reading stdout", e);
+                            logger.error(
+                                    "Failed to read process stdout, pid={}, errorMessage={}",
+                                    process.pid(),
+                                    e.getMessage(),
+                                    e);
                         }
                     } finally {
                         stdoutSink.tryEmitComplete();
                     }
                 });
 
-        // Read stderr lines → log
+        // Read stderr lines into logs.
         stderrScheduler.schedule(
                 () -> {
                     try (BufferedReader reader =
@@ -120,19 +126,23 @@ public class CliProcess {
                                             process.getErrorStream(), StandardCharsets.UTF_8))) {
                         String line;
                         while (!closed && (line = reader.readLine()) != null) {
-                            logger.debug("STDERR: {}", line);
+                            logger.debug("Process stderr received, line={}", line);
                             stderrSink.tryEmitNext(line);
                         }
                     } catch (IOException e) {
                         if (!closed) {
-                            logger.error("Error reading stderr", e);
+                            logger.error(
+                                    "Failed to read process stderr, pid={}, errorMessage={}",
+                                    process.pid(),
+                                    e.getMessage(),
+                                    e);
                         }
                     } finally {
                         stderrSink.tryEmitComplete();
                     }
                 });
 
-        logger.info("ACP process started (pid={})", process.pid());
+        logger.info("ACP process started, pid={}", process.pid());
     }
 
     /**
@@ -144,7 +154,7 @@ public class CliProcess {
         }
         // Escape embedded newlines per ACP spec
         String escaped = jsonLine.replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n");
-        logger.trace("STDIN: {}", escaped);
+        logger.trace("Process stdin sent, line={}", escaped);
         stdin.write(escaped.getBytes(StandardCharsets.UTF_8));
         stdin.write('\n');
         stdin.flush();

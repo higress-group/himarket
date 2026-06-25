@@ -22,9 +22,9 @@ package com.alibaba.himarket.support.enums;
 import lombok.Getter;
 
 /**
- * MCP 协议类型。
+ * MCP protocol type.
  *
- * <p>标准值有四种，兼容外部系统传入的各种写法。
+ * <p>The enum supports canonical values and common aliases from external systems.
  */
 @Getter
 public enum McpProtocolType {
@@ -40,10 +40,9 @@ public enum McpProtocolType {
     }
 
     /**
-     * 从原始字符串解析，大小写不敏感。
-     * 兼容 streamable-http、StreamableHTTP、HTTP、Stdio、dualHttp 等写法。
+     * Parses a raw protocol string in a case-insensitive way.
      *
-     * @return 解析后的枚举值，无法识别时返回 null
+     * @return parsed protocol type, or {@code null} when the raw value is not recognized
      */
     public static McpProtocolType fromString(String raw) {
         if (raw == null || raw.isBlank()) return null;
@@ -56,8 +55,7 @@ public enum McpProtocolType {
     }
 
     /**
-     * 标准化协议类型字符串。
-     * 兼容旧代码中直接使用字符串的场景。
+     * Normalizes a protocol type string while preserving unrecognized values.
      */
     public static String normalize(String raw) {
         McpProtocolType type = fromString(raw);
@@ -81,9 +79,7 @@ public enum McpProtocolType {
     }
 
     /**
-     * 转换为 MCP 传输模式。
-     * STDIO 不支持远程传输，返回 null。
-     * DUAL_HTTP 默认返回 STREAMABLE_HTTP（base URL 即为 StreamableHTTP 路径）。
+     * Converts this protocol type to an MCP transport mode.
      */
     public McpTransportMode toTransportMode() {
         return switch (this) {
@@ -94,8 +90,7 @@ public enum McpProtocolType {
     }
 
     /**
-     * 从原始协议字符串解析传输模式，默认 SSE。
-     * 统一入口，避免各处重复写字符串判断。
+     * Resolves the transport mode from a raw protocol string.
      */
     public static McpTransportMode resolveTransportMode(String raw) {
         McpProtocolType type = fromString(raw);

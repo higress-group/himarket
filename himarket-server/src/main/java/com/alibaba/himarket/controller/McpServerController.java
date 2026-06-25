@@ -36,10 +36,20 @@ import com.alibaba.himarket.service.McpServerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @Tag(
         name = "MCP Server Management",
@@ -47,12 +57,11 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/mcp-servers")
 @RequiredArgsConstructor
+@Validated
 public class McpServerController {
 
     private final McpServerService mcpServerService;
     private final ContextHolder contextHolder;
-
-    // ==================== Management APIs (Admin required) ====================
 
     @Operation(summary = "Save MCP metadata")
     @PostMapping("/meta")
@@ -89,8 +98,6 @@ public class McpServerController {
         mcpServerService.deleteEndpoint(endpointId);
     }
 
-    // ==================== Query APIs (Portal accessible) ====================
-
     @Operation(summary = "Get MCP metadata")
     @GetMapping("/meta/{mcpServerId}")
     public McpMetaResult getMeta(@PathVariable String mcpServerId) {
@@ -110,7 +117,9 @@ public class McpServerController {
 
     @Operation(summary = "Batch get MCP metadata for products")
     @GetMapping("/meta/batch")
-    public List<McpMetaResult> listMetaByProductIds(@RequestParam List<String> productIds) {
+    public List<McpMetaResult> listMetaByProductIds(
+            @RequestParam
+                    List<@NotBlank(message = "Product ID cannot be blank") String> productIds) {
         List<McpMetaResult> results = mcpServerService.listMetaByProductIds(productIds);
         if (!contextHolder.isAdministrator()) {
             results.forEach(McpMetaResult::sanitize);
@@ -122,10 +131,11 @@ public class McpServerController {
     @GetMapping("/meta/batch/public")
     @PublicAccess
     public List<McpMetaPublicResult> listMetaByProductIdsPublic(
-            @RequestParam List<String> productIds) {
+            @RequestParam
+                    List<@NotBlank(message = "Product ID cannot be blank") String> productIds) {
         return mcpServerService.listMetaByProductIds(productIds).stream()
                 .map(McpMetaPublicResult::fromFull)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
     }
 
     @Operation(

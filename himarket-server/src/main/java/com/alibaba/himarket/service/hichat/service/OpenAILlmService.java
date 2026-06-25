@@ -1,6 +1,5 @@
 package com.alibaba.himarket.service.hichat.service;
 
-import cn.hutool.core.util.BooleanUtil;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.gateway.ModelEndpointResolver;
@@ -47,7 +46,7 @@ public class OpenAILlmService extends AbstractLlmService {
                                         pathValue, pathType, aiProtocols));
         request.setUri(uri);
 
-        if (BooleanUtil.isTrue(param.getEnableWebSearch())) {
+        if (Boolean.TRUE.equals(param.getEnableWebSearch())) {
             Map<String, Object> webSearchOptions =
                     JsonUtil.parse(
                             """

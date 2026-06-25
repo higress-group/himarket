@@ -19,9 +19,6 @@
 
 package com.alibaba.himarket.service.gateway;
 
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.params.gateway.QueryAPIGParam;
@@ -39,6 +36,7 @@ import com.alibaba.himarket.entity.ConsumerCredential;
 import com.alibaba.himarket.entity.Gateway;
 import com.alibaba.himarket.entity.ProductRef;
 import com.alibaba.himarket.service.gateway.client.APIGClient;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.consumer.APIGAuthConfig;
 import com.alibaba.himarket.support.consumer.ApiKeyConfig;
 import com.alibaba.himarket.support.consumer.ConsumerAuthConfig;
@@ -50,23 +48,71 @@ import com.alibaba.himarket.support.gateway.GatewayConfig;
 import com.alibaba.himarket.support.product.APIGRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.gateway.pop.exception.PopClientException;
-import com.aliyun.sdk.service.apig20240327.models.*;
+import com.aliyun.sdk.service.apig20240327.models.AkSkIdentityConfig;
+import com.aliyun.sdk.service.apig20240327.models.ApiKeyIdentityConfig;
+import com.aliyun.sdk.service.apig20240327.models.BatchDeleteConsumerAuthorizationRuleRequest;
+import com.aliyun.sdk.service.apig20240327.models.BatchDeleteConsumerAuthorizationRuleResponse;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.AuthorizationRules;
 import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesRequest.ResourceIdentifier;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerAuthorizationRulesResponse;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.CreateConsumerResponse;
+import com.aliyun.sdk.service.apig20240327.models.DeleteConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.EnvironmentInfo;
+import com.aliyun.sdk.service.apig20240327.models.ExportHttpApiRequest;
+import com.aliyun.sdk.service.apig20240327.models.ExportHttpApiResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetConsumerResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetConsumerResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.GetGatewayRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetGatewayResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetGatewayResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiResponse;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiRouteRequest;
+import com.aliyun.sdk.service.apig20240327.models.GetHttpApiRouteResponse;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiInfoByName;
+import com.aliyun.sdk.service.apig20240327.models.HttpApiOperationInfo;
+import com.aliyun.sdk.service.apig20240327.models.HttpRoute;
+import com.aliyun.sdk.service.apig20240327.models.ListConsumersRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListConsumersResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListConsumersResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.ListEnvironmentsRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListEnvironmentsResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListGatewaysRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListGatewaysResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListGatewaysResponseBody;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiOperationsRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiOperationsResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiRoutesRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApiRoutesResponse;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApisRequest;
+import com.aliyun.sdk.service.apig20240327.models.ListHttpApisResponse;
+import com.aliyun.sdk.service.apig20240327.models.SubDomainInfo;
+import com.aliyun.sdk.service.apig20240327.models.UpdateConsumerRequest;
+import com.aliyun.sdk.service.apig20240327.models.UpdateConsumerResponse;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
-@RequiredArgsConstructor
 @Service
 @Slf4j
+@RequiredArgsConstructor
 @Primary
 public class APIGOperator extends GatewayOperator<APIGClient> {
 
@@ -113,7 +159,8 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         APIConfigResult configResult = new APIConfigResult();
         // spec
-        String apiSpec = Base64.decodeStr(contentBase64);
+        String apiSpec =
+                new String(Base64.getDecoder().decode(contentBase64), StandardCharsets.UTF_8);
         configResult.setSpec(apiSpec);
 
         // meta
@@ -190,7 +237,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
 
         List<GetGatewayResponseBody.Environments> environments =
                 response.getBody().getData().getEnvironments();
-        if (CollUtil.isEmpty(environments)) {
+        if (CollectionUtils.isEmpty(environments)) {
             return null;
         }
 
@@ -205,7 +252,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         String mark =
                 consumer.getDeveloperId()
                         .substring(Math.max(0, consumer.getDeveloperId().length() - 8));
-        String gwConsumerName = StrUtil.format("{}-{}", consumer.getName(), mark);
+        String gwConsumerName = consumer.getName() + "-" + mark;
         try {
             // ApiKey
             ApiKeyIdentityConfig apikeyIdentityConfig =
@@ -248,9 +295,15 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                             .equals(((PopClientException) cause).getErrCode())) {
                 return retrievalConsumer(gwConsumerName, config);
             }
-            log.error("Error creating Consumer", e);
+            log.error(
+                    "Failed to create gateway consumer, dependency=APIG, operation=createConsumer,"
+                            + " consumerName={}, errorType={}, errorMessage={}",
+                    gwConsumerName,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error creating Consumer，Cause：" + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR, "Failed to create Consumer: " + e.getMessage());
         }
     }
 
@@ -270,7 +323,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         }
 
         for (ListConsumersResponseBody.Items item : response.getBody().getData().getItems()) {
-            if (StrUtil.equals(item.getName(), name)) {
+            if (Strings.equals(item.getName(), name)) {
                 return item.getConsumerId();
             }
         }
@@ -343,9 +396,16 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 return false;
             }
 
-            log.error("Error fetching Consumer", e);
+            log.error(
+                    "Failed to fetch gateway consumer, dependency=APIG,"
+                            + " operation=isConsumerExists, consumerId={}, errorType={},"
+                            + " errorMessage={}",
+                    consumerId,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Error fetching Consumer，Cause：" + e.getMessage());
+                    ErrorCode.INTERNAL_ERROR, "Failed to fetch Consumer: " + e.getMessage());
         } finally {
             client.close();
         }
@@ -359,37 +419,37 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
             throw new BusinessException(ErrorCode.GATEWAY_ERROR, response.getBody().getMessage());
         }
 
-        ApiKeyIdentityConfig apiKeyConfig =
-                Optional.ofNullable(response.getBody())
-                        .map(GetConsumerResponseBody::getData)
-                        .map(GetConsumerResponseBody.Data::getApiKeyIdentityConfig)
-                        .orElse(null);
-        if (apiKeyConfig == null || CollUtil.isEmpty(apiKeyConfig.getCredentials())) {
+        ApiKeyIdentityConfig apiKeyConfig = null;
+        GetConsumerResponseBody body = response.getBody();
+        if (body != null && body.getData() != null) {
+            apiKeyConfig = body.getData().getApiKeyIdentityConfig();
+        }
+        if (apiKeyConfig == null || CollectionUtils.isEmpty(apiKeyConfig.getCredentials())) {
             return CredentialContext.builder().build();
         }
 
         String apiKey =
                 apiKeyConfig.getCredentials().stream()
                         .map(ApiKeyIdentityConfig.Credentials::getApikey)
-                        .filter(StrUtil::isNotBlank)
+                        .filter(Strings::isNotBlank)
                         .findFirst()
                         .orElse(null);
-        if (StrUtil.isBlank(apiKey)) {
+        if (Strings.isBlank(apiKey)) {
             return CredentialContext.builder().build();
         }
 
         CredentialContext context = CredentialContext.builder().apiKey(apiKey).build();
         ApiKeyIdentityConfig.ApikeySource sourceConfig = apiKeyConfig.getApikeySource();
-        String source =
-                Optional.ofNullable(sourceConfig)
-                        .map(ApiKeyIdentityConfig.ApikeySource::getSource)
-                        .filter(StrUtil::isNotBlank)
-                        .orElse("Default");
-        String key =
-                Optional.ofNullable(sourceConfig)
-                        .map(ApiKeyIdentityConfig.ApikeySource::getValue)
-                        .filter(StrUtil::isNotBlank)
-                        .orElse("Authorization");
+        String source = "Default";
+        String key = "Authorization";
+        if (sourceConfig != null) {
+            if (Strings.isNotBlank(sourceConfig.getSource())) {
+                source = sourceConfig.getSource();
+            }
+            if (Strings.isNotBlank(sourceConfig.getValue())) {
+                key = sourceConfig.getValue();
+            }
+        }
 
         switch (source.toUpperCase()) {
             case "DEFAULT", "BEARER" ->
@@ -411,7 +471,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         String apiId = config.getApiId();
 
         List<HttpApiOperationInfo> operations = fetchRESTOperations(gateway, apiId);
-        if (CollUtil.isEmpty(operations)) {
+        if (CollectionUtils.isEmpty(operations)) {
             return null;
         }
 
@@ -462,10 +522,13 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         APIGClient client = getClient(gateway);
 
         try {
+            List<String> authorizationRuleIds = apigAuthConfig.getAuthorizationRuleIds();
             BatchDeleteConsumerAuthorizationRuleRequest request =
                     BatchDeleteConsumerAuthorizationRuleRequest.builder()
                             .consumerAuthorizationRuleIds(
-                                    StrUtil.join(",", apigAuthConfig.getAuthorizationRuleIds()))
+                                    authorizationRuleIds == null
+                                            ? null
+                                            : String.join(",", authorizationRuleIds))
                             .build();
 
             CompletableFuture<BatchDeleteConsumerAuthorizationRuleResponse> f =
@@ -484,15 +547,24 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                     && "DatabaseError.RecordNotFound"
                             .equals(((PopClientException) cause).getErrCode())) {
                 log.warn(
-                        "Consumer authorization rules[{}] not found, ignore",
+                        "Consumer authorization rules not found, skipping revocation,"
+                                + " dependency=APIG, operation=revokeConsumerAuthorization,"
+                                + " authorizationRuleIds={}",
                         apigAuthConfig.getAuthorizationRuleIds());
                 return;
             }
 
-            log.error("Error deleting Consumer Authorization", e);
+            log.error(
+                    "Failed to delete consumer authorization, dependency=APIG,"
+                            + " operation=revokeConsumerAuthorization, consumerId={},"
+                            + " errorType={}, errorMessage={}",
+                    consumerId,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     ErrorCode.INTERNAL_ERROR,
-                    "Error deleting Consumer Authorization，Cause：" + e.getMessage());
+                    "Failed to delete Consumer Authorization: " + e.getMessage());
         }
     }
 
@@ -517,7 +589,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                 // Only internet load balancer support
                 .filter(
                         loadBalancer ->
-                                StrUtil.equalsIgnoreCase(loadBalancer.getAddressType(), "internet"))
+                                Strings.equalsIgnoreCase(loadBalancer.getAddressType(), "internet"))
                 .map(GetGatewayResponseBody.LoadBalancers::getIpv4Addresses)
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
@@ -527,12 +599,19 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                 // Build gateway URI with http scheme by default
                                 return new URI("http://" + ip);
                             } catch (URISyntaxException e) {
-                                log.error("Error creating URI for IP: {}", ip, e);
+                                log.error(
+                                        "Failed to create gateway URI, dependency=APIG,"
+                                                + " operation=fetchGatewayUris, ip={},"
+                                                + " errorType={}, errorMessage={}",
+                                        ip,
+                                        e.getClass().getSimpleName(),
+                                        e.getMessage(),
+                                        e);
                                 return null;
                             }
                         })
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public HttpApiApiInfo fetchAPI(Gateway gateway, String apiId) {
@@ -648,7 +727,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                                 .apikey(cred.getApiKey())
                                                 .generateMode("Custom")
                                                 .build())
-                        .collect(Collectors.toList());
+                        .toList();
 
         return ApiKeyIdentityConfig.builder()
                 .apikeySource(apikeySource)
@@ -671,7 +750,7 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                         .generateMode("Custom")
                                         .type("AkSk")
                                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     protected List<DomainResult> extractAPIDomains(HttpApiApiInfo apiInfo) {
@@ -706,7 +785,10 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
                                                 .build())
                         .filter(result -> result.getDomain() != null);
 
-        return Stream.concat(customDomains, subDomains).collect(Collectors.toList());
+        List<DomainResult> domains = new ArrayList<>();
+        customDomains.forEach(domains::add);
+        subDomains.forEach(domains::add);
+        return domains;
     }
 
     protected List<DomainResult> fetchDefaultDomains(Gateway gateway) {
@@ -726,24 +808,28 @@ public class APIGOperator extends GatewayOperator<APIGClient> {
         }
 
         List<EnvironmentInfo> items = response.getBody().getData().getItems();
-        if (CollUtil.isEmpty(items)) {
+        if (CollectionUtils.isEmpty(items)) {
             return Collections.emptyList();
         }
 
         // Default Environment
         EnvironmentInfo env = items.get(0);
 
-        return Optional.ofNullable(env.getSubDomainInfos()).orElse(Collections.emptyList()).stream()
-                .map(
-                        domain ->
-                                DomainResult.builder()
-                                        .domain(domain.getName())
-                                        .protocol(
-                                                Optional.ofNullable(domain.getProtocol())
-                                                        .map(String::toLowerCase)
-                                                        .orElse(null))
-                                        .networkType(domain.getNetworkType())
-                                        .build())
-                .collect(Collectors.toList());
+        if (env.getSubDomainInfos() == null) {
+            return Collections.emptyList();
+        }
+
+        List<DomainResult> domains = new ArrayList<>();
+        for (SubDomainInfo domain : env.getSubDomainInfos()) {
+            String protocol =
+                    domain.getProtocol() == null ? null : domain.getProtocol().toLowerCase();
+            domains.add(
+                    DomainResult.builder()
+                            .domain(domain.getName())
+                            .protocol(protocol)
+                            .networkType(domain.getNetworkType())
+                            .build());
+        }
+        return domains;
     }
 }

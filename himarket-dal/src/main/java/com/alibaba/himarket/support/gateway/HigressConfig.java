@@ -19,9 +19,10 @@
 
 package com.alibaba.himarket.support.gateway;
 
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.core.util.URLUtil;
 import com.alibaba.himarket.support.common.Encrypted;
+import com.alibaba.himarket.support.common.Strings;
+import java.net.URI;
+import java.util.Locale;
 import lombok.Data;
 
 @Data
@@ -39,48 +40,64 @@ public class HigressConfig {
     private String gatewayAddress;
 
     public String buildUniqueKey() {
-        return StrUtil.join(":", address, username, password, gatewayAddress);
+        return String.join(
+                ":",
+                String.valueOf(address),
+                String.valueOf(username),
+                String.valueOf(password),
+                String.valueOf(gatewayAddress));
     }
 
     public boolean validate() {
-        if (StrUtil.isBlank(address) || StrUtil.isBlank(username) || StrUtil.isBlank(password)) {
+        if (Strings.isBlank(address) || Strings.isBlank(username) || Strings.isBlank(password)) {
             return false;
         }
 
-        try {
-            // Normalize address and gatewayAddress
-            if (!URLUtil.url(address).getProtocol().contains("http")) {
-                address = "http://" + address;
-            }
-
-            if (StrUtil.isNotBlank(gatewayAddress)
-                    && !URLUtil.url(gatewayAddress).getProtocol().contains("http")) {
-                gatewayAddress = "http://" + gatewayAddress;
-            }
-        } catch (Exception e) {
+        address = normalizeAddress(address);
+        if (!isValidUrl(address)) {
             return false;
         }
 
+        if (Strings.isNotBlank(gatewayAddress)) {
+            gatewayAddress = normalizeAddress(gatewayAddress);
+            return isValidUrl(gatewayAddress);
+        }
         return true;
     }
 
     public boolean matchesGatewayIdentity(HigressConfig other) {
         String normalizedAddress = normalizeAddress(address);
         return other != null
-                && StrUtil.isNotBlank(normalizedAddress)
-                && StrUtil.equals(normalizedAddress, normalizeAddress(other.getAddress()));
+                && Strings.isNotBlank(normalizedAddress)
+                && Strings.equals(normalizedAddress, normalizeAddress(other.getAddress()));
     }
 
     private static String normalizeAddress(String address) {
-        String trimmedAddress = StrUtil.trim(address);
-        if (StrUtil.isBlank(trimmedAddress)) {
+        String trimmedAddress = address == null ? null : address.trim();
+        if (Strings.isBlank(trimmedAddress)) {
             return null;
         }
 
         String addressWithScheme =
-                StrUtil.startWithAnyIgnoreCase(trimmedAddress, "http://", "https://")
-                        ? trimmedAddress
-                        : "http://" + trimmedAddress;
-        return StrUtil.removeSuffix(addressWithScheme, "/");
+                startsWithHttpScheme(trimmedAddress) ? trimmedAddress : "http://" + trimmedAddress;
+        return removeTrailingSlash(addressWithScheme);
+    }
+
+    private static boolean startsWithHttpScheme(String value) {
+        String lowerCaseValue = value.toLowerCase(Locale.ROOT);
+        return lowerCaseValue.startsWith("http://") || lowerCaseValue.startsWith("https://");
+    }
+
+    private static String removeTrailingSlash(String value) {
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    private static boolean isValidUrl(String value) {
+        try {
+            new URI(value).toURL();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

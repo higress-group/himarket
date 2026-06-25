@@ -123,5 +123,15 @@ public class JwtConstants {
      */
     public static final String JWT_TOKEN_TYPE = "JWT";
 
+    /**
+     * HS256 JWT algorithm.
+     */
+    public static final String ALGORITHM_HS256 = "HS256";
+
+    /**
+     * JCA HMAC-SHA256 algorithm.
+     */
+    public static final String JCA_HMAC_SHA256 = "HmacSHA256";
+
     // endregion
 }

@@ -28,7 +28,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
-/** 供应商适配器注册表，按 {@link McpVendorType} 查找对应的适配器实例。 */
+/**
+ * Registry for looking up vendor adapters by {@link McpVendorType}.
+ */
 @Component
 public class VendorAdapterRegistry {
 
@@ -41,16 +43,17 @@ public class VendorAdapterRegistry {
     }
 
     /**
-     * 根据供应商类型获取对应的适配器。
+     * Gets the adapter for a vendor type.
      *
-     * @param type 供应商类型
-     * @return 对应的适配器实例
-     * @throws BusinessException 如果该类型未注册
+     * @param type vendor type
+     * @return matching adapter
+     * @throws BusinessException when the type is not registered
      */
     public McpVendorAdapter getAdapter(McpVendorType type) {
         McpVendorAdapter adapter = adapterMap.get(type);
         if (adapter == null) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "不支持的供应商类型: " + type);
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Unsupported vendor type: " + type);
         }
         return adapter;
     }

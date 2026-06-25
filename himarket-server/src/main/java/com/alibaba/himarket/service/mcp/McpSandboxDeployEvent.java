@@ -25,19 +25,20 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 沙箱部署事件：在事务提交后触发实际的 K8s CRD 部署。
+ * Sandbox deployment event that triggers K8s CRD deployment after transaction commit.
  *
- * <p>解决 K8s 资源泄漏问题：如果 DB 事务回滚，CRD 不会被部署；
- * 只有事务成功提交后才执行 K8s 操作。
+ * <p>This prevents K8s resource leaks: when the database transaction rolls back, the CRD is not
+ * deployed. K8s operations run only after the transaction commits successfully.
  *
- * <p>注意：本类是 POJO，未继承 {@link org.springframework.context.ApplicationEvent}。
- * Spring Boot 3.x 支持 POJO 事件，会自动包装为 {@link org.springframework.context.PayloadApplicationEvent}，
- * 配合 {@code @TransactionalEventListener} 正常工作。
+ * <p>This class is a POJO and does not extend {@link
+ * org.springframework.context.ApplicationEvent}. Spring Boot 3.x wraps POJO events in {@link
+ * org.springframework.context.PayloadApplicationEvent}, so they work with {@code
+ * @TransactionalEventListener}.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class McpSandboxDeployEvent {
 
     private String sandboxId;
@@ -53,9 +54,13 @@ public class McpSandboxDeployEvent {
     private String namespace;
     private String resourceSpec;
 
-    /** 预创建的 endpoint ID，部署成功后更新 URL；失败时删除 */
+    /**
+     * Pre-created endpoint ID. Its URL is updated after success and cleaned up after failure.
+     */
     private String endpointId;
 
-    /** 生成的 API Key（authType 为 "apikey" 时非空） */
+    /**
+     * Generated API key, present when authType is "apikey".
+     */
     private String apiKey;
 }

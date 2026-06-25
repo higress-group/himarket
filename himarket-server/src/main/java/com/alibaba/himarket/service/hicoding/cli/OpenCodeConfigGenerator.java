@@ -16,10 +16,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Open Code CLI 工具的配置文件生成器。
- * 生成 opencode.json 文件到工作目录，包含自定义 provider 定义和 model 指定。
- * 支持与已有 opencode.json 合并，保留用户已有的其他配置项。
- * 支持 MCP Server 和 Skill 配置。
+ * Configuration generator for Open Code CLI.
+ * Generates opencode.json under the working directory with a custom provider and selected model.
+ * Existing opencode.json content is merged to preserve unrelated user settings. MCP server and
+ * Skill configuration are supported.
  */
 public class OpenCodeConfigGenerator implements CliConfigGenerator {
 
@@ -48,25 +48,24 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
             throws IOException {
         Path configPath = Path.of(workingDirectory, CONFIG_FILE_NAME);
 
-        // 1. 读取已有配置（如存在）
+        // 1. Read existing configuration when present.
         Map<String, Object> root = readExistingConfig(configPath);
 
-        // 2. 合并自定义 provider 配置
+        // 2. Merge custom provider configuration.
         mergeCustomProvider(root, config);
 
-        // 3. 写入 opencode.json
+        // 3. Write opencode.json.
         writeConfig(configPath, root);
 
-        // 4. 返回环境变量 map
+        // 4. Return environment variables.
         Map<String, String> envVars = new HashMap<>();
         envVars.put(ENV_VAR_NAME, config.getApiKey());
         return envVars;
     }
 
     /**
-     * 读取已有的 opencode.json 配置文件。
-     * 如果文件不存在，返回空 map。
-     * 如果文件内容不是合法 JSON，记录警告并返回空 map（后续会覆盖）。
+     * Reads the existing opencode.json file.
+     * Returns an empty map when the file does not exist or cannot be parsed.
      */
     Map<String, Object> readExistingConfig(Path configPath) {
         if (!Files.exists(configPath)) {
@@ -79,14 +78,17 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
                             content, new TypeReference<LinkedHashMap<String, Object>>() {});
             return existing != null ? existing : new LinkedHashMap<>();
         } catch (Exception e) {
-            logger.warn("已有 opencode.json 不是合法 JSON，将使用全新配置覆盖: {}", e.getMessage());
+            logger.warn(
+                    "Existing opencode.json is not valid JSON and will be overwritten,"
+                            + " errorMessage={}",
+                    e.getMessage());
             return new LinkedHashMap<>();
         }
     }
 
     /**
-     * 将自定义 provider 配置合并到根配置中。
-     * 保留已有的其他 provider 条目，新增或覆盖 custom-provider。
+     * Merges custom provider configuration into the root object.
+     * Preserves unrelated providers and adds or replaces custom-provider.
      */
     @SuppressWarnings("unchecked")
     void mergeCustomProvider(Map<String, Object> root, CustomModelConfig config) {
@@ -95,26 +97,26 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
                         ? config.getModelName()
                         : config.getModelId();
 
-        // 构建 custom-provider 的 options
+        // Build custom-provider options.
         Map<String, Object> options = new LinkedHashMap<>();
         options.put("baseURL", config.getBaseUrl());
         options.put("apiKey", API_KEY_ENV_REF);
 
-        // 构建 model 条目
+        // Build the model entry.
         Map<String, Object> modelEntry = new LinkedHashMap<>();
         modelEntry.put("name", modelName);
 
         Map<String, Object> models = new LinkedHashMap<>();
         models.put(config.getModelId(), modelEntry);
 
-        // 构建 custom-provider
+        // Build custom-provider.
         Map<String, Object> customProvider = new LinkedHashMap<>();
         customProvider.put("npm", NPM_PACKAGE);
         customProvider.put("name", modelName);
         customProvider.put("options", options);
         customProvider.put("models", models);
 
-        // 合并到 provider map（保留已有 provider）
+        // Merge into provider map while preserving existing providers.
         Map<String, Object> providers =
                 root.containsKey("provider")
                         ? (Map<String, Object>) root.get("provider")
@@ -122,12 +124,12 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
         providers.put(PROVIDER_KEY, customProvider);
         root.put("provider", providers);
 
-        // 设置 model 字段
+        // Set the model field.
         root.put("model", PROVIDER_KEY + "/" + config.getModelId());
     }
 
     /**
-     * 将配置写入 opencode.json 文件。
+     * Writes opencode.json.
      */
     private void writeConfig(Path configPath, Map<String, Object> root) throws IOException {
         String json =
@@ -156,16 +158,16 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
     }
 
     /**
-     * 将 MCP Server 列表合并到根配置的 mcp 段中。
-     * OpenCode 使用 "mcp" 字段（不是 "mcpServers"），格式为：
+     * Merges MCP servers into the root mcp section.
+     * OpenCode uses the "mcp" field instead of "mcpServers":
      * {
-     *   "mcp": {
-     *     "server-name": {
-     *       "type": "remote",
-     *       "url": "https://...",
-     *       "headers": { ... }
-     *     }
-     *   }
+     * "mcp": {
+     * "server-name": {
+     * "type": "remote",
+     * "url": "https://...",
+     * "headers": { ... }
+     * }
+     * }
      * }
      */
     @SuppressWarnings("unchecked")
@@ -178,13 +180,13 @@ public class OpenCodeConfigGenerator implements CliConfigGenerator {
 
         for (ResolvedSessionConfig.ResolvedMcpEntry entry : mcpServers) {
             Map<String, Object> serverConfig = new LinkedHashMap<>();
-            // OpenCode 使用 "remote" 类型表示远程 MCP 服务器
+            // OpenCode uses "remote" for remote MCP servers.
             serverConfig.put("type", "remote");
             serverConfig.put("url", entry.getUrl());
             if (entry.getHeaders() != null && !entry.getHeaders().isEmpty()) {
                 serverConfig.put("headers", entry.getHeaders());
             }
-            // 默认启用
+            // Enable by default.
             serverConfig.put("enabled", true);
             mcpMap.put(entry.getName(), serverConfig);
         }

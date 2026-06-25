@@ -1,28 +1,28 @@
 package com.alibaba.himarket.service;
 
 /**
- * MCP 沙箱部署服务：负责向沙箱集群部署 MCP Server 并获取 endpoint URL。
+ * MCP sandbox deployment service that deploys MCP Servers and resolves endpoint URLs.
  *
- * <p>根据沙箱类型（sandboxType）分发到不同的部署策略。
+ * <p>Requests are dispatched to deployment strategies by sandboxType.
  */
 public interface McpSandboxDeployService {
 
     /**
-     * 部署 MCP Server 到指定沙箱集群，返回 endpoint URL。
+     * Deploys an MCP Server to a sandbox cluster and returns the endpoint URL.
      *
-     * @param sandboxId        沙箱实例 ID
+     * @param sandboxId        sandbox instance ID
      * @param mcpServerId      MCP Server ID
-     * @param mcpName          MCP Server 名称
-     * @param userId           订阅用户 ID
-     * @param transportType    传输类型：sse / http（endpoint 协议）
-     * @param metaProtocolType MCP meta 协议类型：stdio / sse / http（CRD 使用）
-     * @param connectionConfig MCP 冷数据中的连接配置 JSON
-     * @param apiKey           用户的 API Key
-     * @param authType         鉴权方式：none / bearer
-     * @param userParams       用户提交的参数值 JSON
-     * @param extraParamsDef   额外参数定义 JSON（含 position 信息）
-     * @param namespace        部署目标 Namespace（为空时使用 "default"）
-     * @param resourceSpec     资源规格 JSON（CPU/内存等）
+     * @param mcpName          MCP Server name
+     * @param userId           subscribing user ID
+     * @param transportType    transport type: sse / http, used by the endpoint protocol
+     * @param metaProtocolType MCP meta protocol type: stdio / sse / http, used by the CRD
+     * @param connectionConfig connection config JSON from MCP cold data
+     * @param apiKey           user API key
+     * @param authType         auth type: none / bearer
+     * @param userParams       user-submitted parameter values as JSON
+     * @param extraParamsDef   extra parameter definition JSON, including position metadata
+     * @param namespace        target Namespace, defaulting to "default" when blank
+     * @param resourceSpec     resource spec JSON, including CPU and memory
      * @return endpoint URL
      */
     String deploy(
@@ -41,17 +41,17 @@ public interface McpSandboxDeployService {
             String resourceSpec);
 
     /**
-     * 删除沙箱集群中的 ToolServer CRD。
+     * Deletes the ToolServer CRD from the sandbox cluster.
      *
-     * @param sandboxId  沙箱实例 ID
-     * @param mcpName    MCP Server 名称
-     * @param userId     订阅用户 ID
-     * @param namespace  部署时使用的 Namespace（为空时使用 "default"）
+     * @param sandboxId sandbox instance ID
+     * @param mcpName   MCP Server name
+     * @param userId    subscribing user ID
+     * @param namespace Namespace used during deployment, defaulting to "default" when blank
      */
     void undeploy(String sandboxId, String mcpName, String userId, String namespace);
 
     /**
-     * 删除沙箱集群中的 ToolServer CRD（使用指定的 resourceName）。
+     * Deletes the ToolServer CRD from the sandbox cluster using the specified resourceName.
      */
     default void undeploy(
             String sandboxId,
@@ -63,7 +63,7 @@ public interface McpSandboxDeployService {
     }
 
     /**
-     * 删除沙箱集群中的 ToolServer CRD 和关联的 K8s Secret。
+     * Deletes the ToolServer CRD and associated K8s Secret from the sandbox cluster.
      */
     default void undeploy(
             String sandboxId,

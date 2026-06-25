@@ -40,16 +40,17 @@ import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.AdminSettingService;
 import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.GatewayService;
+import com.alibaba.himarket.service.McpToolService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.SkillService;
 import com.alibaba.himarket.service.WorkerService;
-import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 class ProductServiceImplSourceTest {
 
@@ -110,10 +111,11 @@ class ProductServiceImplSourceTest {
                 mock(ConsumerRepository.class),
                 mock(NacosService.class),
                 mock(ProductCategoryService.class),
-                mock(ToolManager.class),
+                mock(McpToolService.class),
                 mock(WorkerService.class),
                 mock(SkillService.class),
                 mock(AdminSettingService.class),
-                aiRegistryService);
+                aiRegistryService,
+                mock(ApplicationEventPublisher.class));
     }
 }

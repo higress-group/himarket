@@ -41,18 +41,19 @@ import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.AdminSettingService;
 import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.GatewayService;
+import com.alibaba.himarket.service.McpToolService;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.service.PortalService;
 import com.alibaba.himarket.service.ProductCategoryService;
 import com.alibaba.himarket.service.SkillService;
 import com.alibaba.himarket.service.WorkerService;
-import com.alibaba.himarket.service.hichat.manager.ToolManager;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 class ProductServiceImplAiRegistryDefaultTest {
 
@@ -109,11 +110,12 @@ class ProductServiceImplAiRegistryDefaultTest {
                         mock(ConsumerRepository.class),
                         mock(NacosService.class),
                         productCategoryService,
-                        mock(ToolManager.class),
+                        mock(McpToolService.class),
                         mock(WorkerService.class),
                         mock(SkillService.class),
                         adminSettingService,
-                        aiRegistryService);
+                        aiRegistryService,
+                        mock(ApplicationEventPublisher.class));
 
         ProductResult result =
                 service.createProduct(

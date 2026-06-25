@@ -15,10 +15,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * QoderCli 工具的配置文件生成器。
- * 生成 .qoder/settings.json 文件到工作目录下的 .qoder/ 子目录，
- * 将 MCP Server 配置写入 mcpServers 字段。
- * 支持与已有 .qoder/settings.json 合并，保留用户已有的其他配置项。
+ * Configuration generator for QoderCli.
+ * Generates .qoder/settings.json under the working directory and writes MCP server configuration
+ * into mcpServers. Existing .qoder/settings.json content is merged to preserve unrelated user
+ * settings.
  */
 public class QoderCliConfigGenerator implements CliConfigGenerator {
 
@@ -41,7 +41,7 @@ public class QoderCliConfigGenerator implements CliConfigGenerator {
     @Override
     public Map<String, String> generateConfig(String workingDirectory, CustomModelConfig config)
             throws IOException {
-        // QoderCli 不支持自定义模型配置，返回空 map
+        // QoderCli does not support custom model configuration.
         return Map.of();
     }
 
@@ -61,8 +61,8 @@ public class QoderCliConfigGenerator implements CliConfigGenerator {
     }
 
     /**
-     * 将 MCP Server 列表合并到根配置的 mcpServers 段中。
-     * 按 name 去重，新条目覆盖同名旧条目。
+     * Merges MCP servers into the root mcpServers section.
+     * Uses name as the deduplication key; new entries override existing entries with the same name.
      */
     @SuppressWarnings("unchecked")
     void mergeMcpServers(
@@ -86,9 +86,8 @@ public class QoderCliConfigGenerator implements CliConfigGenerator {
     }
 
     /**
-     * 读取已有的 .qoder/settings.json 配置文件。
-     * 如果文件不存在，返回空 map。
-     * 如果文件内容不是合法 JSON，记录警告并返回空 map（后续会覆盖）。
+     * Reads the existing .qoder/settings.json file.
+     * Returns an empty map when the file does not exist or cannot be parsed.
      */
     Map<String, Object> readExistingConfig(Path configPath) {
         if (!Files.exists(configPath)) {
@@ -101,13 +100,16 @@ public class QoderCliConfigGenerator implements CliConfigGenerator {
                             content, new TypeReference<LinkedHashMap<String, Object>>() {});
             return existing != null ? existing : new LinkedHashMap<>();
         } catch (Exception e) {
-            logger.warn("已有 .qoder/settings.json 不是合法 JSON，将使用全新配置覆盖: {}", e.getMessage());
+            logger.warn(
+                    "Existing .qoder/settings.json is not valid JSON and will be overwritten,"
+                            + " errorMessage={}",
+                    e.getMessage());
             return new LinkedHashMap<>();
         }
     }
 
     /**
-     * 将配置写入 .qoder/settings.json 文件。
+     * Writes .qoder/settings.json.
      */
     private void writeConfig(Path configPath, Map<String, Object> root) throws IOException {
         String json =

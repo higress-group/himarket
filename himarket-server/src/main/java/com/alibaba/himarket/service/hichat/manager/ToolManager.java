@@ -20,40 +20,45 @@ package com.alibaba.himarket.service.hichat.manager;
 
 import static reactor.core.scheduler.Schedulers.boundedElastic;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.SecureUtil;
-import cn.hutool.extra.spring.SpringUtil;
 import com.alibaba.himarket.core.event.McpClientRemovedEvent;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
 import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.agentscope.core.tool.mcp.McpClientBuilder;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.DigestUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
  * Tool manager for MCP client management.
- * Handles client creation, caching and initialization.
+ *
+ * <p>Handles client creation, caching and initialization.
  */
-@Slf4j
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class ToolManager {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration INITIALIZE_TIMEOUT = Duration.ofSeconds(30);
+
+    private final ApplicationEventPublisher eventPublisher;
 
     // MCP client cache with removal listener (10 minutes = 600 seconds)
     private final Cache<String, McpClientWrapper> clientCache =
@@ -78,9 +83,18 @@ public class ToolManager {
                                 if (client != null) {
                                     return client;
                                 }
-                                log.error("Create MCP client failed for: {}", config.getUrl());
+                                log.error(
+                                        "Failed to create MCP client, serverName={}, url={}",
+                                        config.getMcpServerName(),
+                                        config.getUrl());
                             } catch (Exception e) {
-                                log.error("Create MCP client error for: {}", config.getUrl(), e);
+                                log.error(
+                                        "Failed to create MCP client, serverName={}, url={},"
+                                                + " errorMessage={}",
+                                        config.getMcpServerName(),
+                                        config.getUrl(),
+                                        e.getMessage(),
+                                        e);
                             }
                             return null;
                         });
@@ -93,8 +107,8 @@ public class ToolManager {
      * @return List of created MCP client wrappers
      */
     public List<McpClientWrapper> getOrCreateClients(List<McpTransportConfig> configs) {
-        if (CollUtil.isEmpty(configs)) {
-            return CollUtil.empty(List.class);
+        if (CollectionUtils.isEmpty(configs)) {
+            return Collections.emptyList();
         }
 
         long startTime = System.currentTimeMillis();
@@ -108,7 +122,8 @@ public class ToolManager {
 
         long totalTime = System.currentTimeMillis() - startTime;
         log.info(
-                "MCP clients initialized: {}/{} succeeded, total time: {}ms",
+                "MCP clients initialized, succeededClientCount={}, totalClientCount={},"
+                        + " elapsedMillis={}",
                 result.size(),
                 configs.size(),
                 totalTime);
@@ -130,9 +145,9 @@ public class ToolManager {
         }
 
         McpTransportConfig transportConfig = mcpConfig.toTransportConfig();
-        if (transportConfig == null || StrUtil.isBlank(transportConfig.getUrl())) {
+        if (transportConfig == null || Strings.isBlank(transportConfig.getUrl())) {
             log.warn(
-                    "Tool fetch skipped for {}: transport config or URL is blank",
+                    "Tool fetch skipped because transport config or URL is blank, serverName={}",
                     mcpConfig.getMcpServerName());
             return null;
         }
@@ -152,15 +167,18 @@ public class ToolManager {
      */
     public List<McpSchema.Tool> fetchTools(McpTransportConfig transportConfig) {
         String serverName = transportConfig == null ? null : transportConfig.getMcpServerName();
-        if (transportConfig == null || StrUtil.isBlank(transportConfig.getUrl())) {
-            log.warn("Tool fetch skipped for {}: transport config or URL is blank", serverName);
+        if (transportConfig == null || Strings.isBlank(transportConfig.getUrl())) {
+            log.warn(
+                    "Tool fetch skipped because transport config or URL is blank,"
+                            + " serverName={}",
+                    serverName);
             return null;
         }
 
         McpClientWrapper client = getOrCreateClient(transportConfig);
         if (client == null) {
             log.warn(
-                    "Tool fetch failed for {}: cannot create MCP client (URL: {})",
+                    "Tool fetch failed because MCP client cannot be created, serverName={}, url={}",
                     serverName,
                     transportConfig.getUrl());
             return null;
@@ -168,22 +186,23 @@ public class ToolManager {
 
         try {
             List<McpSchema.Tool> tools = client.listTools().block();
-            if (CollUtil.isEmpty(tools)) {
-                log.info("Tool fetch result for {}: empty tool list", serverName);
+            if (CollectionUtils.isEmpty(tools)) {
+                log.info("Tool fetch returned empty list, serverName={}", serverName);
                 return null;
             }
             log.info(
-                    "Tool fetch success for {}: {} tools fetched from {}",
+                    "Tool fetch succeeded, serverName={}, toolCount={}, url={}",
                     serverName,
                     tools.size(),
                     transportConfig.getUrl());
             return tools;
         } catch (Exception e) {
             log.error(
-                    "Tool fetch failed for {} (URL: {}): {}",
+                    "Tool fetch failed, serverName={}, url={}, errorMessage={}",
                     serverName,
                     transportConfig.getUrl(),
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
             return null;
         }
     }
@@ -214,9 +233,11 @@ public class ToolManager {
                                                     } catch (Exception e) {
                                                         log.error(
                                                                 "Failed to create MCP client for"
-                                                                        + " server: {}, error: {}",
+                                                                        + " server, serverName={},"
+                                                                        + " errorMessage={}",
                                                                 serverName,
-                                                                e.getMessage());
+                                                                e.getMessage(),
+                                                                e);
                                                         return null;
                                                     }
                                                 }))
@@ -224,11 +245,11 @@ public class ToolManager {
                 .flatMap(
                         client -> {
                             if (client != null) {
-                                log.debug("MCP client ready for server: {}", serverName);
+                                log.debug("MCP client ready, serverName={}", serverName);
                                 return Mono.just(client);
                             } else {
                                 log.warn(
-                                        "MCP client creation returned null for server: {}",
+                                        "MCP client creation returned null, serverName={}",
                                         serverName);
                                 return Mono.empty();
                             }
@@ -246,7 +267,7 @@ public class ToolManager {
         long startTime = System.currentTimeMillis();
 
         log.info(
-                "Creating MCP client for server: {}, transport: {}, url: {}",
+                "Creating MCP client, serverName={}, transportMode={}, url={}",
                 serverName,
                 config.getTransportMode(),
                 config.getUrl());
@@ -261,14 +282,14 @@ public class ToolManager {
                 break;
             default:
                 throw new IllegalArgumentException(
-                        "Unsupported transport: " + config.getTransportMode());
+                        String.format("Unsupported transport: %s", config.getTransportMode()));
         }
 
         // Apply authentication headers and query parameters
-        if (MapUtil.isNotEmpty(config.getHeaders())) {
+        if (config.getHeaders() != null && !config.getHeaders().isEmpty()) {
             builder.headers(config.getHeaders());
         }
-        if (MapUtil.isNotEmpty(config.getQueryParams())) {
+        if (config.getQueryParams() != null && !config.getQueryParams().isEmpty()) {
             builder.queryParams(config.getQueryParams());
         }
 
@@ -278,31 +299,36 @@ public class ToolManager {
             clientWrapper = builder.buildAsync().block();
 
             if (clientWrapper == null) {
-                log.error("Failed to build MCP client for server: {}", serverName);
+                log.error("Failed to build MCP client, serverName={}", serverName);
                 return null;
             }
 
             clientWrapper.initialize().timeout(INITIALIZE_TIMEOUT).block();
 
             long totalTime = System.currentTimeMillis() - startTime;
-            log.info("MCP client created for server: {}, total time: {}ms", serverName, totalTime);
+            log.info("MCP client created, serverName={}, elapsedMillis={}", serverName, totalTime);
 
             return clientWrapper;
 
         } catch (Exception e) {
             long totalTime = System.currentTimeMillis() - startTime;
             log.error(
-                    "Failed to create MCP client for server: {}, time: {}ms, error: {}",
+                    "Failed to create MCP client, serverName={}, elapsedMillis={}, errorMessage={}",
                     serverName,
                     totalTime,
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
 
             // Clean up failed client
             if (clientWrapper != null) {
                 try {
                     clientWrapper.close();
                 } catch (Exception closeException) {
-                    log.warn("Failed to close MCP client for server: {}", serverName);
+                    log.warn(
+                            "Failed to close MCP client, serverName={}, errorMessage={}",
+                            serverName,
+                            closeException.getMessage(),
+                            closeException);
                 }
             }
             return null;
@@ -355,9 +381,9 @@ public class ToolManager {
 
         // Hash the final string for fixed-length cache key
         String rawKey = sb.toString();
-        String key = "tool:" + SecureUtil.md5(rawKey);
+        String key = "tool:" + DigestUtils.md5DigestAsHex(rawKey.getBytes(StandardCharsets.UTF_8));
 
-        log.debug("MCP client cache key built - raw length: {}, key: {}", rawKey.length(), key);
+        log.debug("MCP client cache key built, rawKey={}, cacheKey={}", rawKey, key);
 
         return key;
     }
@@ -374,21 +400,21 @@ public class ToolManager {
             return;
         }
 
-        log.info(
-                "MCP client removed from cache: {}, key: {}, cause: {}",
-                client.getName(),
-                cacheKey,
-                cause);
+        log.info("MCP client removed from cache, clientName={}, cause={}", client.getName(), cause);
 
         // Publish event with cache key to notify dependent components
-        SpringUtil.getApplicationContext().publishEvent(new McpClientRemovedEvent(cacheKey));
+        eventPublisher.publishEvent(new McpClientRemovedEvent(cacheKey));
 
         // Close the MCP client
         try {
             client.close();
-            log.info("MCP client closed: {}", client.getName());
+            log.info("MCP client closed, clientName={}", client.getName());
         } catch (Exception e) {
-            log.error("Failed to close MCP client: {}", client.getName(), e);
+            log.error(
+                    "Failed to close MCP client, clientName={}, errorMessage={}",
+                    client.getName(),
+                    e.getMessage(),
+                    e);
         }
     }
 }

@@ -24,11 +24,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Portal 端沙箱选项，只暴露 id 和名称 */
+/**
+ * Portal sandbox option that exposes only ID and name.
+ */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class SandboxSimpleResult {
 
     private String sandboxId;

@@ -60,7 +60,7 @@ public class ChatBot {
         if (messages.size() > MAX_MEMORY_SIZE) {
             // Remove the oldest message
             messages.remove(0);
-            log.debug("Memory overflow, removed oldest message, current size: {}", messages.size());
+            log.debug("Memory overflow, removed oldest message, currentSize={}", messages.size());
         }
     }
 

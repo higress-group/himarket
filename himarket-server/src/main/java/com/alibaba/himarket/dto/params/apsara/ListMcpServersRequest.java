@@ -23,24 +23,24 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * ListMcpServers 请求参数
+ * Request parameters for listing MCP servers.
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class ListMcpServersRequest extends ApsaraGatewayBaseRequest {
 
     /**
-     * 当前页码
+     * Current page number.
      */
     private Integer current;
 
     /**
-     * 每页数量
+     * Page size.
      */
     private Integer size;
 
     /**
-     * 网关实例 ID
+     * Gateway instance ID.
      */
     private String gwInstanceId;
 

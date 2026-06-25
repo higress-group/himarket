@@ -27,8 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
-@Data
 @Slf4j
+@Data
 @Configuration
 @RequiredArgsConstructor
 @ConfigurationProperties(prefix = "observability")
@@ -39,23 +39,31 @@ public class ObservabilityConfig {
 
     @PostConstruct
     public void init() {
-        log.info("Observability log source: {}", logSource);
+        log.info("Initialized observability config, logSource={}", logSource);
         if (logSource == LogSource.SLS) {
             log.info(
-                    "SLS endpoint: {}, project: {}, logstore: {}, authType: {}",
+                    "Configured observability SLS source, endpoint={}, project={}, logstore={},"
+                            + " authType={}",
                     slsConfig.getEndpoint(),
                     slsConfig.getDefaultProject(),
                     slsConfig.getDefaultLogstore(),
                     slsConfig.getAuthType());
             if (!slsConfig.isConfigured()) {
-                log.warn("SLS endpoint is not configured! Queries will return empty results.");
+                log.warn(
+                        "Observability SLS source is not fully configured, endpoint={}",
+                        slsConfig.getEndpoint());
             }
         } else {
             try {
                 String url = dataSource.getConnection().getMetaData().getURL();
-                log.info("DB datasource URL: {}, table: access_logs", url);
+                log.info("Configured observability DB source, url={}, table=access_logs", url);
             } catch (Exception e) {
-                log.info("DB datasource: unable to retrieve URL ({})", e.getMessage());
+                log.warn(
+                        "Failed to read observability DB datasource metadata, errorType={},"
+                                + " errorMessage={}",
+                        e.getClass().getSimpleName(),
+                        e.getMessage(),
+                        e);
             }
         }
     }
@@ -66,7 +74,8 @@ public class ObservabilityConfig {
     }
 
     /**
-     * 日志数据源：SLS（默认，查询阿里云日志服务）或 DB（查询本地 access_logs 表）
+     * Log source: SLS by default, querying Alibaba Cloud Log Service, or DB, querying the local
+     * access_logs table.
      */
     private LogSource logSource = LogSource.SLS;
 }

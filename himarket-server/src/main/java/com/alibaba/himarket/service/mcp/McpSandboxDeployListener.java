@@ -19,9 +19,9 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.repository.McpServerEndpointRepository;
 import com.alibaba.himarket.service.McpSandboxDeployService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import jakarta.annotation.Resource;
 import java.util.concurrent.Executor;
@@ -32,13 +32,14 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * 监听沙箱部署事件，在事务提交后执行 K8s CRD 部署。
+ * Handles sandbox deployment events after transaction commit.
  *
- * <p>确保只有 DB 记录成功写入后才部署 K8s 资源，避免事务回滚导致的资源泄漏。
+ * <p>K8s CRD resources are deployed only after the database records are committed, preventing
+ * resource leaks when the transaction rolls back.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpSandboxDeployListener {
 
     private final McpSandboxDeployService mcpSandboxDeployService;
@@ -55,7 +56,6 @@ public class McpSandboxDeployListener {
     private void doDeployAsync(McpSandboxDeployEvent event) {
         String endpointUrl = null;
         try {
-            // Step 1: 部署 CRD 到沙箱
             String rawResult =
                     mcpSandboxDeployService.deploy(
                             event.getSandboxId(),
@@ -72,8 +72,7 @@ public class McpSandboxDeployListener {
                             event.getNamespace(),
                             event.getResourceSpec());
 
-            // 解析返回值：提取 endpointUrl 和 secretName
-            // deploy() 返回格式：endpointUrl 或 endpointUrl|SECRET:secretName
+            // deploy() returns either endpointUrl or endpointUrl|SECRET:secretName.
             String secretName = null;
             endpointUrl = rawResult;
             if (rawResult != null && rawResult.contains("|SECRET:")) {
@@ -82,11 +81,10 @@ public class McpSandboxDeployListener {
                 secretName = rawResult.substring(idx + 8); // "|SECRET:".length() == 8
             }
 
-            // 标准化 URL：SSE 协议追加 /sse 后缀，去掉尾部多余斜杠
+            // Normalize the URL by trimming trailing slashes and adding /sse for SSE endpoints.
             String finalEndpointUrl =
                     McpProtocolUtils.normalizeEndpointUrl(endpointUrl, event.getTransportType());
 
-            // Step 2: 更新 endpoint URL 和状态，回写 secretName 到 subscribeParams
             String lambdaUrl = finalEndpointUrl;
             String lambdaSecretName = secretName;
             endpointRepository
@@ -95,9 +93,8 @@ public class McpSandboxDeployListener {
                             ep -> {
                                 ep.setEndpointUrl(lambdaUrl);
                                 ep.setStatus(McpEndpointStatus.ACTIVE.name());
-                                // 回写 secretName 到 subscribeParams
-                                if (StrUtil.isNotBlank(lambdaSecretName)
-                                        && StrUtil.isNotBlank(ep.getSubscribeParams())) {
+                                if (Strings.isNotBlank(lambdaSecretName)
+                                        && Strings.isNotBlank(ep.getSubscribeParams())) {
                                     try {
                                         com.fasterxml.jackson.databind.node.ObjectNode params =
                                                 com.alibaba.himarket.utils.JsonUtil.readObjectNode(
@@ -106,27 +103,28 @@ public class McpSandboxDeployListener {
                                         ep.setSubscribeParams(params.toString());
                                     } catch (Exception e) {
                                         log.warn(
-                                                "回写 secretName 到 subscribeParams 失败: {}",
-                                                e.getMessage());
+                                                "Failed to write secretName into subscribeParams,"
+                                                        + " errorMessage={}",
+                                                e.getMessage(),
+                                                e);
                                     }
                                 }
                                 endpointRepository.save(ep);
                             });
 
             log.info(
-                    "沙箱 CRD 部署成功: mcpName={}, sandboxId={}, endpoint={}",
+                    "Sandbox CRD deployment succeeded, mcpName={}, sandboxId={}, endpoint={}",
                     event.getMcpName(),
                     event.getSandboxId(),
                     finalEndpointUrl);
 
         } catch (Exception e) {
             log.error(
-                    "沙箱 CRD 部署失败: mcpName={}, sandboxId={}",
+                    "Sandbox CRD deployment failed, mcpName={}, sandboxId={}",
                     event.getMcpName(),
                     event.getSandboxId(),
                     e);
 
-            // 回滚：标记 endpoint 为 INACTIVE
             endpointRepository
                     .findByEndpointId(event.getEndpointId())
                     .ifPresent(
@@ -135,7 +133,7 @@ public class McpSandboxDeployListener {
                                 endpointRepository.save(ep);
                             });
 
-            // 回滚：删除已部署的 CRD（如果部署成功了的话）
+            // Roll back the CRD when deployment produced an endpoint before failing.
             if (endpointUrl != null) {
                 try {
                     String rollbackResourceName =
@@ -145,23 +143,30 @@ public class McpSandboxDeployListener {
                             event.getSandboxId(),
                             event.getMcpName(),
                             event.getAdminUserId(),
-                            StrUtil.blankToDefault(event.getNamespace(), "default"),
+                            Strings.blankToDefault(event.getNamespace(), "default"),
                             rollbackResourceName,
                             null); // Secret already cleaned up in deploy() rollback
                 } catch (Exception re) {
-                    log.warn("回滚删除 CRD 失败: {}", re.getMessage());
+                    log.warn(
+                            "Failed to roll back CRD deployment, errorMessage={}",
+                            re.getMessage(),
+                            re);
                 }
             }
         }
     }
 
-    /** 监听 {@link McpSandboxUndeployEvent}，事务提交后异步清理旧沙箱 CRD。 */
+    /**
+     * Handles {@link McpSandboxUndeployEvent} after transaction commit and clears old sandbox CRDs
+     * asynchronously.
+     */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSandboxUndeploy(McpSandboxUndeployEvent event) {
         taskExecutor.execute(
                 () -> {
                     log.info(
-                            "事务已提交，开始异步清理旧沙箱 CRD: mcpName={}, sandboxId={}",
+                            "Transaction committed, clearing old sandbox CRD asynchronously,"
+                                    + " mcpName={}, sandboxId={}",
                             event.getMcpName(),
                             event.getSandboxId());
                     try {
@@ -169,16 +174,17 @@ public class McpSandboxDeployListener {
                                 event.getSandboxId(),
                                 event.getMcpName(),
                                 event.getUserId(),
-                                StrUtil.blankToDefault(event.getNamespace(), "default"),
+                                Strings.blankToDefault(event.getNamespace(), "default"),
                                 event.getResourceName(),
                                 event.getSecretName());
                         log.info(
-                                "旧沙箱 CRD 清理成功: mcpName={}, sandboxId={}",
+                                "Old sandbox CRD cleanup succeeded, mcpName={}, sandboxId={}",
                                 event.getMcpName(),
                                 event.getSandboxId());
                     } catch (Exception e) {
                         log.warn(
-                                "旧沙箱 CRD 清理失败（不影响新部署）: mcpName={}, sandboxId={}, error={}",
+                                "Old sandbox CRD cleanup failed and does not block the new"
+                                        + " deployment, mcpName={}, sandboxId={}, errorMessage={}",
                                 event.getMcpName(),
                                 event.getSandboxId(),
                                 e.getMessage(),

@@ -37,19 +37,27 @@ public interface McpServerMetaRepository extends BaseRepository<McpServerMeta, L
 
     Optional<McpServerMeta> findByMcpName(String mcpName);
 
-    /** 批量按 mcpName 查询（避免 N+1） */
+    /**
+     * Batch query by mcpName to avoid N+1 queries.
+     */
     List<McpServerMeta> findByMcpNameIn(java.util.Collection<String> mcpNames);
 
-    /** 批量按 mcpServerId 查询（避免 N+1） */
+    /**
+     * Batch query by mcpServerId to avoid N+1 queries.
+     */
     List<McpServerMeta> findByMcpServerIdIn(java.util.Collection<String> mcpServerIds);
 
     Page<McpServerMeta> findByOrigin(String origin, Pageable pageable);
 
-    /** 分页查询指定产品集合中、指定来源的 meta（Open API 用） */
+    /**
+     * Paged query for metadata by product IDs and origin, used by Open API.
+     */
     Page<McpServerMeta> findByProductIdInAndOrigin(
             java.util.Collection<String> productIds, String origin, Pageable pageable);
 
-    /** 分页查询指定产品集合中的所有 meta（Open API 用） */
+    /**
+     * Paged query for all metadata under the given product IDs, used by Open API.
+     */
     Page<McpServerMeta> findByProductIdIn(
             java.util.Collection<String> productIds, Pageable pageable);
 }

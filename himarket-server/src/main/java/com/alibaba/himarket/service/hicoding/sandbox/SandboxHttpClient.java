@@ -14,27 +14,29 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * 沙箱 Sidecar HTTP 客户端。
+ * Sandbox Sidecar HTTP client.
  *
- * <p>统一封装对 Sidecar HTTP API 的调用（writeFile / readFile / healthCheck / exec），
- * 消除 RemoteSandboxProvider 和 LocalSandboxProvider 中的代码重复。
+ * <p>Wraps Sidecar HTTP API calls for writeFile, readFile, healthCheck, and exec, removing
+ * duplicated code from provider implementations.
  *
- * <h3>可复用性说明</h3>
- * <p>本组件设计为跨 Provider 可复用。OpenSandbox 的 execd 组件提供与 HiMarket Sidecar
- * 兼容的 /files/* HTTP API（/files/write、/files/read、/files/extract），
- * 因此未来 {@code OpenSandboxProvider} 可直接注入本客户端完成文件操作，
- * 无需重复实现 HTTP 调用逻辑。
+ * <h3>Reusability Notes</h3>
  *
- * <p>唯一差异在于 baseUrl 的构造方式：
+ * <p>This component is designed to be reused across providers. OpenSandbox execd exposes
+ * {@code /files/*} HTTP APIs compatible with the HiMarket Sidecar, including
+ * {@code /files/write}, {@code /files/read}, and {@code /files/extract}. A future
+ * {@code OpenSandboxProvider} can inject this client directly for file operations.
+ *
+ * <p>The only difference is how baseUrl is constructed:
+ *
  * <ul>
- *   <li>HiMarket Sidecar：{@code http://<pod-ip>:<sidecar-port>}</li>
- *   <li>OpenSandbox execd：{@code http://<sandbox-host>:<execd-port>}
- *       （端口默认 8080，可通过 OpenSandbox Server API 获取）</li>
+ *   <li>HiMarket Sidecar: {@code http://<pod-ip>:<sidecar-port>}</li>
+ *   <li>OpenSandbox execd: {@code http://<sandbox-host>:<execd-port>}
+ *       (default port 8080, discoverable through the OpenSandbox Server API)</li>
  * </ul>
  *
  * @see RemoteSandboxProvider
  * @see LocalSandboxProvider
- * @see SandboxProvider OpenSandbox 对接说明
+ * @see SandboxProvider OpenSandbox integration notes
  */
 @Component
 public class SandboxHttpClient {
@@ -55,15 +57,16 @@ public class SandboxHttpClient {
     }
 
     /**
-     * 写入文件到沙箱。
+     * Writes a file to the sandbox.
      *
-     * <p>调用 Sidecar POST /files/write，请求体为 {@code {"path": relativePath, "content": content}}。
+     * <p>Calls Sidecar {@code POST /files/write} with request body
+     * {@code {"path": relativePath, "content": content}}.
      *
-     * @param baseUrl      Sidecar 基础 URL（如 http://host:port）
-     * @param sandboxId    沙箱标识（用于异常信息）
-     * @param relativePath 文件相对路径
-     * @param content      文件内容
-     * @throws IOException 当 HTTP 响应非 200 或请求失败时
+     * @param baseUrl Sidecar base URL, such as http://host:port
+     * @param sandboxId sandbox identifier for error messages
+     * @param relativePath relative file path
+     * @param content file content
+     * @throws IOException if the HTTP response is not 200 or the request fails
      */
     public void writeFile(String baseUrl, String sandboxId, String relativePath, String content)
             throws IOException {
@@ -73,21 +76,21 @@ public class SandboxHttpClient {
         HttpResponse<String> response = doPost(url, body, DEFAULT_TIMEOUT);
         if (response.statusCode() != 200) {
             throw new IOException(
-                    "Sidecar writeFile 失败 (sandbox: " + sandboxId + "): " + response.body());
+                    "Sidecar writeFile failed (sandbox: " + sandboxId + "): " + response.body());
         }
     }
 
     /**
-     * 从沙箱读取文件。
+     * Reads a file from the sandbox.
      *
-     * <p>调用 Sidecar POST /files/read，请求体为 {@code {"path": relativePath}}，
-     * 从响应 JSON 中解析 {@code content} 字段。
+     * <p>Calls Sidecar {@code POST /files/read} with request body {@code {"path": relativePath}}
+     * and parses the {@code content} field from the JSON response.
      *
-     * @param baseUrl      Sidecar 基础 URL
-     * @param sandboxId    沙箱标识（用于异常信息）
-     * @param relativePath 文件相对路径
-     * @return 文件内容
-     * @throws IOException 当 HTTP 响应非 200 或请求失败时
+     * @param baseUrl Sidecar base URL
+     * @param sandboxId sandbox identifier for error messages
+     * @param relativePath relative file path
+     * @return file content
+     * @throws IOException if the HTTP response is not 200 or the request fails
      */
     public String readFile(String baseUrl, String sandboxId, String relativePath)
             throws IOException {
@@ -96,18 +99,18 @@ public class SandboxHttpClient {
         HttpResponse<String> response = doPost(url, body, DEFAULT_TIMEOUT);
         if (response.statusCode() != 200) {
             throw new IOException(
-                    "Sidecar readFile 失败 (sandbox: " + sandboxId + "): " + response.body());
+                    "Sidecar readFile failed (sandbox: " + sandboxId + "): " + response.body());
         }
         return objectMapper.readTree(response.body()).get("content").asText();
     }
 
     /**
-     * 健康检查。
+     * Performs a health check.
      *
-     * <p>调用 Sidecar GET /health，超时 5 秒。任何异常均返回 false。
+     * <p>Calls Sidecar {@code GET /health} with a 5-second timeout. Any exception returns false.
      *
-     * @param baseUrl Sidecar 基础 URL
-     * @return true 表示健康，false 表示不可达或异常
+     * @param baseUrl Sidecar base URL
+     * @return true if healthy, false if unreachable or failed
      */
     public boolean healthCheck(String baseUrl) {
         try {
@@ -119,14 +122,14 @@ public class SandboxHttpClient {
     }
 
     /**
-     * 带日志的健康检查。
+     * Performs a health check with diagnostic logging.
      *
-     * <p>与 {@link #healthCheck(String)} 相同逻辑，但在失败时记录 warn 日志，
-     * 包含 sandboxId、host、status、body 等诊断信息。
+     * <p>Uses the same logic as {@link #healthCheck(String)}, but logs sandboxId, host, status,
+     * body, and other diagnostics on failure.
      *
-     * @param baseUrl   Sidecar 基础 URL
-     * @param sandboxId 沙箱标识（用于日志）
-     * @return true 表示健康，false 表示不可达或异常
+     * @param baseUrl Sidecar base URL
+     * @param sandboxId sandbox identifier for logs
+     * @return true if healthy, false if unreachable or failed
      */
     public boolean healthCheckWithLog(String baseUrl, String sandboxId) {
         String url = baseUrl + "/health";
@@ -136,8 +139,8 @@ public class SandboxHttpClient {
                 return true;
             }
             logger.warn(
-                    "[SandboxHttpClient] healthCheck HTTP 非 200 (sandbox: {}, host: {}, status: {},"
-                            + " body: {})",
+                    "Sandbox health check returned non-OK status, sandboxId={}, host={},"
+                            + " status={}, body={}",
                     sandboxId,
                     URI.create(baseUrl).getHost(),
                     response.statusCode(),
@@ -145,28 +148,30 @@ public class SandboxHttpClient {
             return false;
         } catch (Exception e) {
             logger.warn(
-                    "[SandboxHttpClient] healthCheck HTTP 请求失败 (sandbox: {}, host: {}): {} - {}",
+                    "Sandbox health check request failed, sandboxId={}, host={}, errorType={},"
+                            + " errorMessage={}",
                     sandboxId,
                     URI.create(baseUrl).getHost(),
                     e.getClass().getSimpleName(),
-                    e.getMessage() != null ? e.getMessage() : e.toString());
+                    e.getMessage());
             return false;
         }
     }
 
     /**
-     * 在沙箱内执行命令。
+     * Executes a command inside the sandbox.
      *
-     * <p>调用 Sidecar POST /exec，请求体为 {"command": command, "args": args}。
-     * 使用调用方传入的 timeout 作为 HTTP 请求超时时间。
+     * <p>Calls Sidecar {@code POST /exec} with request body
+     * {@code {"command": command, "args": args}}. The caller-provided timeout is used as the HTTP
+     * request timeout.
      *
-     * @param baseUrl   Sidecar 基础 URL
-     * @param sandboxId 沙箱标识（用于异常信息）
-     * @param command   要执行的命令
-     * @param args      命令参数列表
-     * @param timeout   HTTP 请求超时时间
-     * @return 命令执行结果
-     * @throws IOException 当 HTTP 响应非 200 或请求失败时
+     * @param baseUrl Sidecar base URL
+     * @param sandboxId sandbox identifier for error messages
+     * @param command command to execute
+     * @param args command argument list
+     * @param timeout HTTP request timeout
+     * @return command execution result
+     * @throws IOException if the HTTP response is not 200 or the request fails
      */
     public ExecResult exec(
             String baseUrl, String sandboxId, String command, List<String> args, Duration timeout)
@@ -176,7 +181,7 @@ public class SandboxHttpClient {
         HttpResponse<String> response = doPost(url, body, timeout);
         if (response.statusCode() != 200) {
             throw new IOException(
-                    "Sidecar exec 失败 (sandbox: "
+                    "Sidecar exec failed (sandbox: "
                             + sandboxId
                             + ", status: "
                             + response.statusCode()
@@ -190,17 +195,15 @@ public class SandboxHttpClient {
                 tree.get("stderr").asText());
     }
 
-    // ===== 内部 HTTP 调用方法 =====
-
     /**
-     * 验证 sidecar 中是否存在指定会话。
+     * Checks whether the specified session exists in the Sidecar.
      *
-     * <p>调用 Sidecar GET /sessions/{sessionId}，检查会话是否仍然有效。
-     * 任何异常（连接超时、网络错误等）均视为会话不存在。
+     * <p>Calls Sidecar {@code GET /sessions/{sessionId}}. Any exception, including connection
+     * timeouts and network errors, is treated as a missing session.
      *
-     * @param baseUrl   Sidecar 基础 URL
-     * @param sessionId sidecar 会话 ID
-     * @return true 表示会话存在，false 表示不存在或请求失败
+     * @param baseUrl Sidecar base URL
+     * @param sessionId Sidecar session ID
+     * @return true if the session exists, false if missing or the request fails
      */
     public boolean sessionExists(String baseUrl, String sessionId) {
         try {
@@ -213,8 +216,10 @@ public class SandboxHttpClient {
     }
 
     /**
-     * 发送 POST 请求（JSON body）。
-     * 统一处理 InterruptedException：恢复中断标志 + 包装为 IOException。
+     * Sends a POST request with a JSON body.
+     *
+     * <p>Handles {@link InterruptedException} by restoring the interrupt flag and wrapping it in
+     * {@link IOException}.
      */
     private HttpResponse<String> doPost(String url, String body, Duration timeout)
             throws IOException {
@@ -228,13 +233,15 @@ public class SandboxHttpClient {
                     HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("HTTP 请求被中断: " + url, e);
+            throw new IOException("HTTP POST request interrupted: " + url, e);
         }
     }
 
     /**
-     * 发送 GET 请求。
-     * 统一处理 InterruptedException：恢复中断标志 + 包装为 IOException。
+     * Sends a GET request.
+     *
+     * <p>Handles {@link InterruptedException} by restoring the interrupt flag and wrapping it in
+     * {@link IOException}.
      */
     private HttpResponse<String> doGet(String url, Duration timeout) throws IOException {
         try {
@@ -243,7 +250,7 @@ public class SandboxHttpClient {
                     HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new IOException("HTTP 请求被中断: " + url, e);
+            throw new IOException("HTTP GET request interrupted: " + url, e);
         }
     }
 }

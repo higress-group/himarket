@@ -32,11 +32,11 @@ public class DocumentConversionService {
 
         Path cached = getCachedPdfIfUpToDate(normalizedSource);
         if (cached != null) {
-            log.debug("Using cached PDF: {}", cached);
+            log.debug("Using cached PDF, path={}", cached);
             return cached;
         }
 
-        // Run LibreOffice headless conversion
+        // Run LibreOffice headless conversion.
         try {
             Path outDir = normalizedSource.getParent();
             ProcessBuilder pb =
@@ -51,14 +51,14 @@ public class DocumentConversionService {
             pb.directory(outDir.toFile());
             pb.redirectErrorStream(true);
 
-            log.info("Converting to PDF: {}", normalizedSource);
+            log.info("Converting document to PDF, source={}", normalizedSource);
             Process process = pb.start();
 
             boolean finished = process.waitFor(CONVERSION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 log.warn(
-                        "LibreOffice conversion timed out after {}s: {}",
+                        "LibreOffice conversion timed out, timeoutSeconds={}, source={}",
                         CONVERSION_TIMEOUT_SECONDS,
                         normalizedSource);
                 return null;
@@ -67,40 +67,48 @@ public class DocumentConversionService {
             if (process.exitValue() != 0) {
                 String output = new String(process.getInputStream().readAllBytes());
                 log.warn(
-                        "LibreOffice conversion failed (exit={}): {}\n{}",
+                        "LibreOffice conversion failed, exitCode={}, source={}, output={}",
                         process.exitValue(),
                         normalizedSource,
                         output);
                 return null;
             }
 
-            // LibreOffice outputs <stem>.pdf in the outdir (e.g. demo.pptx → demo.pdf)
+            // LibreOffice outputs <stem>.pdf in the outdir, such as demo.pptx -> demo.pdf.
             String stem = stripExtension(normalizedSource.getFileName().toString());
             Path generatedPdf = outDir.resolve(stem + ".pdf");
 
             if (!Files.exists(generatedPdf)) {
-                log.warn("Expected PDF not found after conversion: {}", generatedPdf);
+                log.warn("Expected PDF not found after conversion, path={}", generatedPdf);
                 return null;
             }
 
-            // Rename to our cache path to avoid collisions
+            // Rename to the cache path to avoid collisions.
             if (!generatedPdf.equals(cachedPdf)) {
                 Files.move(
                         generatedPdf, cachedPdf, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
 
             log.info(
-                    "Conversion successful: {} → {}",
+                    "Document converted to PDF, sourceFile={}, pdfFile={}",
                     normalizedSource.getFileName(),
                     cachedPdf.getFileName());
             return cachedPdf;
 
         } catch (IOException e) {
-            log.error("LibreOffice conversion I/O error: {}", normalizedSource, e);
+            log.error(
+                    "LibreOffice conversion I/O error, source={}, errorMessage={}",
+                    normalizedSource,
+                    e.getMessage(),
+                    e);
             return null;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.warn("LibreOffice conversion interrupted: {}", normalizedSource);
+            log.warn(
+                    "LibreOffice conversion interrupted, source={}, errorMessage={}",
+                    normalizedSource,
+                    e.getMessage(),
+                    e);
             return null;
         }
     }
@@ -131,7 +139,11 @@ public class DocumentConversionService {
                 return cachedPdf;
             }
         } catch (IOException e) {
-            log.warn("Failed to check cached PDF timestamp for {}", normalizedSource, e);
+            log.warn(
+                    "Failed to check cached PDF timestamp, source={}, errorMessage={}",
+                    normalizedSource,
+                    e.getMessage(),
+                    e);
         }
         return null;
     }

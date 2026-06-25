@@ -16,11 +16,14 @@ Database schema changes are managed by Flyway under
 - Use `V{number}__Description.sql`.
 - Keep version numbers monotonic and unique.
 - Use short English descriptions with underscores: `V18__Add_api_definition_tables.sql`.
+- New migration SQL comments and database `COMMENT` text should be written in English.
 
 **Rules:**
 
 - Never modify a migration script that has been released or applied in a shared environment.
   Add a new migration instead.
+- Changing only comments or database `COMMENT` text still changes the Flyway checksum. If a
+  migration may already have been applied, do not edit the historical file just to update wording.
 - Migrations that exist only in a local, unreleased test environment may be merged or renumbered
   before sharing.
 - Migration scripts should be idempotent where practical and safe to re-run in local or test

@@ -53,6 +53,10 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
 - Controller methods return business objects for ordinary JSON APIs. Do not manually create unified
   response wrappers; `ResponseAdvice` handles that.
 - Use `IdGenerator` for generated business IDs.
+- Keep Stream usage limited to simple, side-effect-free collection transformations.
+- Use Optional only for absent-value boundaries, not as fields, parameters, collection wrappers, or
+  complex business flow control.
+- Prefer JDK, Spring, and existing project helpers before adding utility dependencies.
 
 ## Core API Rules
 
@@ -61,6 +65,8 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
 - OpenAPI text must be in English.
 - Use plural resource nouns and kebab-case paths, for example `/products` and `/mcp-servers`.
 - Avoid verbs in URLs when a clear resource-oriented route exists.
+- Validate request bodies and method parameters at the Controller boundary. Collection ID inputs
+  should validate both the collection and blank elements when blank values are invalid.
 - Use explicit special response annotations only for raw responses such as SSE, file downloads,
   redirects, binary content, or endpoints intentionally bypassing the unified wrapper.
 
@@ -81,6 +87,8 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
   `<pluginManagement>`.
 - Submodule POM files should not declare versions for dependencies managed by the parent POM.
 - Existing direct dependency versions in module POM files are cleanup debt and should not be copied.
+- Do not add broad utility dependencies when JDK, Spring, or existing project helpers provide the
+  needed capability.
 
 ## Core Security and Logging Rules
 
@@ -111,6 +119,7 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
       `@AllArgsConstructor`
 - [ ] DTO implements `InputConverter<T>` or `OutputConverter<Self, T>` when conversion is needed
 - [ ] Param DTO has Jakarta Validation annotations on fields
+- [ ] Collection ID inputs validate blank elements when blank values are invalid
 - [ ] Ordinary JSON Controller methods return business objects, never manually wrapped responses
 - [ ] Business errors throw `BusinessException(ErrorCode.XXX, ...)`
 - [ ] JSON serialization and deserialization use `JsonUtil`
@@ -119,6 +128,8 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
 - [ ] ID generation uses `IdGenerator`
 - [ ] State-changing operations log stable non-secret identifiers when useful
 - [ ] Complex deletions publish domain events when cross-domain cleanup is needed
+- [ ] Stream and Optional usage stays within the documented readability boundaries
+- [ ] Transaction annotations use Spring `org.springframework.transaction.annotation.Transactional`
 
 ### Must Not
 
@@ -133,6 +144,8 @@ himarket-dal (data layer) <- himarket-server (business layer) <- himarket-bootst
 - [ ] Do not put business logic in Entity classes
 - [ ] Do not cross module boundaries against the dependency direction
 - [ ] Do not use `@Autowired`
+- [ ] Do not use wildcard imports
+- [ ] Do not add broad utility libraries for basic JDK or Spring functionality
 
 ## Reference Files
 

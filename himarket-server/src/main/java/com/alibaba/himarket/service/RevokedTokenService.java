@@ -19,7 +19,9 @@
 
 package com.alibaba.himarket.service;
 
-/** Service for managing revoked JWT tokens with database persistence and local caching. */
+/**
+ * Service for managing revoked JWT tokens with database persistence and local caching.
+ */
 public interface RevokedTokenService {
 
     /**
@@ -40,6 +42,8 @@ public interface RevokedTokenService {
      */
     boolean isTokenRevoked(String token);
 
-    /** Delete expired revocation records from the database. */
+    /**
+     * Delete expired revocation records from the database.
+     */
     void cleanupExpiredTokens();
 }

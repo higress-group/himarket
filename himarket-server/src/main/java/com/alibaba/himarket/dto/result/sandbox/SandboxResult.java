@@ -29,8 +29,8 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class SandboxResult implements OutputConverter<SandboxResult, SandboxInstance> {
 
     private String sandboxId;

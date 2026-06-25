@@ -25,36 +25,48 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 沙箱取消部署事件：在事务提交后触发旧 CRD 资源的清理。
+ * Sandbox undeploy event that cleans up old CRD resources after transaction commit.
  *
- * <p>与 {@link McpSandboxDeployEvent} 配合使用：重新部署沙箱时，
- * 旧 CRD 的清理和新 CRD 的部署都在事务提交后异步执行，
- * 避免在事务内执行耗时的 K8s 操作。
+ * <p>This event works with {@link McpSandboxDeployEvent}: when a sandbox is redeployed, old CRD
+ * cleanup and new CRD deployment both run asynchronously after transaction commit, avoiding slow
+ * K8s operations inside the transaction.
  *
- * <p>注意：本类是 POJO，Spring Boot 3.x 会自动包装为
- * {@link org.springframework.context.PayloadApplicationEvent}。
+ * <p>This class is a POJO. Spring Boot 3.x wraps it in {@link
+ * org.springframework.context.PayloadApplicationEvent}.
  */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class McpSandboxUndeployEvent {
 
-    /** 沙箱实例 ID */
+    /**
+     * Sandbox instance ID.
+     */
     private String sandboxId;
 
-    /** MCP Server 名称（用于 CRD 资源标识） */
+    /**
+     * MCP Server name used for CRD resource identity.
+     */
     private String mcpName;
 
-    /** 执行操作的用户 ID */
+    /**
+     * User ID that performs the operation.
+     */
     private String userId;
 
-    /** K8s namespace */
+    /**
+     * K8s namespace.
+     */
     private String namespace;
 
-    /** CRD 资源名称（用于精确删除，避免名称计算不一致） */
+    /**
+     * CRD resource name used for exact deletion and to avoid name calculation drift.
+     */
     private String resourceName;
 
-    /** K8s Secret 名称（为空时跳过 Secret 删除） */
+    /**
+     * K8s Secret name, or blank to skip Secret deletion.
+     */
     private String secretName;
 }

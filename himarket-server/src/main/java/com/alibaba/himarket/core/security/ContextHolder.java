@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.core.security;
 
-import cn.hutool.core.util.EnumUtil;
 import com.alibaba.himarket.core.constant.CommonConstants;
 import com.alibaba.himarket.support.enums.UserType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -69,16 +68,21 @@ public class ContextHolder {
      */
     private UserType getCurrentUserType() {
         Authentication authentication = getAuthenticationFromContext();
-        return authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .filter(authority -> authority.startsWith(CommonConstants.ROLE_PREFIX))
-                .map(authority -> authority.substring(5))
-                .map(role -> EnumUtil.likeValueOf(UserType.class, role))
-                .findFirst()
-                .orElseThrow(
-                        () ->
-                                new AuthenticationCredentialsNotFoundException(
-                                        "User type not found in authentication"));
+        for (GrantedAuthority authority : authentication.getAuthorities()) {
+            String authorityName = authority.getAuthority();
+            if (authorityName == null || !authorityName.startsWith(CommonConstants.ROLE_PREFIX)) {
+                continue;
+            }
+
+            UserType userType =
+                    parseUserType(authorityName.substring(CommonConstants.ROLE_PREFIX.length()));
+            if (userType != null) {
+                return userType;
+            }
+        }
+
+        throw new AuthenticationCredentialsNotFoundException(
+                "User type not found in authentication");
     }
 
     public boolean isAdministrator() {
@@ -110,5 +114,14 @@ public class ContextHolder {
             throw new AuthenticationCredentialsNotFoundException("No authenticated user found");
         }
         return authentication;
+    }
+
+    private static UserType parseUserType(String role) {
+        for (UserType userType : UserType.values()) {
+            if (userType.name().equalsIgnoreCase(role)) {
+                return userType;
+            }
+        }
+        return null;
     }
 }

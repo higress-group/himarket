@@ -32,12 +32,19 @@ import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.nacos.NacosSkillResult;
 import com.alibaba.himarket.service.NacosService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @Tag(
         name = "Nacos Resource Management",
@@ -129,20 +136,19 @@ public class NacosController {
         return nacosService.fetchNamespaces(nacosId, pageable);
     }
 
-    // ==================== Agent APIs ====================
-
-    /** Lists Agents from Nacos. Keep this list-only behavior aligned with GatewayController. */
+    /**
+     * Lists Agents from Nacos.
+     *
+     * <p>Keep this list-only behavior aligned with GatewayController.
+     */
     @Operation(
             summary = "List Agents from Nacos",
             description =
                     "List Agents registered in a Nacos instance, optionally filtered by namespace")
     @GetMapping("/{nacosId}/agents")
     public PageResult<NacosAgentResult> fetchAgents(
-            @Parameter(description = "Nacos instance ID", required = true) @PathVariable
-                    String nacosId,
-            @Parameter(description = "Namespace ID, optional and defaults to public")
-                    @RequestParam(value = "namespaceId", required = false)
-                    String namespaceId,
+            @PathVariable String nacosId,
+            @RequestParam(value = "namespaceId", required = false) String namespaceId,
             Pageable pageable)
             throws Exception {
 
@@ -155,11 +161,8 @@ public class NacosController {
                     "List Skills registered in a Nacos instance, optionally filtered by namespace")
     @GetMapping("/{nacosId}/skills")
     public PageResult<NacosSkillResult> fetchSkills(
-            @Parameter(description = "Nacos instance ID", required = true) @PathVariable
-                    String nacosId,
-            @Parameter(description = "Namespace ID, optional and defaults to public")
-                    @RequestParam(value = "namespaceId", required = false)
-                    String namespaceId,
+            @PathVariable String nacosId,
+            @RequestParam(value = "namespaceId", required = false) String namespaceId,
             Pageable pageable)
             throws Exception {
         return nacosService.fetchSkills(nacosId, namespaceId, pageable);

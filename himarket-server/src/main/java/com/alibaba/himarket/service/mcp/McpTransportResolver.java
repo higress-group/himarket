@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.mcp;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.consumer.ConsumerResult;
@@ -34,6 +33,7 @@ import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
 import com.alibaba.himarket.service.ConsumerService;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpEndpointStatus;
 import com.alibaba.himarket.support.enums.McpHostingType;
 import com.alibaba.himarket.support.enums.McpTransportMode;
@@ -60,8 +60,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
+@RequiredArgsConstructor
 public class McpTransportResolver {
 
     private final McpServerMetaRepository metaRepository;
@@ -86,7 +86,9 @@ public class McpTransportResolver {
             ConsumerResult primaryConsumer = consumerService.getPrimaryConsumer(userId);
             consumerId = primaryConsumer.getConsumerId();
         } catch (Exception e) {
-            log.warn("[resolveTransportConfigs] 用户 {} 无 consumer，无法校验订阅，返回空列表", userId);
+            log.warn(
+                    "User has no consumer, returning empty MCP transport configs, userId={}",
+                    userId);
             return List.of();
         }
 
@@ -105,7 +107,7 @@ public class McpTransportResolver {
                                     return sub != null
                                             && sub.getStatus() == SubscriptionStatus.APPROVED;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
         if (approvedProductIds.isEmpty()) {
             return List.of();
         }
@@ -120,9 +122,7 @@ public class McpTransportResolver {
         }
 
         List<String> mcpServerIds =
-                metaByProduct.values().stream()
-                        .map(McpServerMeta::getMcpServerId)
-                        .collect(Collectors.toList());
+                metaByProduct.values().stream().map(McpServerMeta::getMcpServerId).toList();
         Map<String, List<McpServerEndpoint>> endpointsByServer =
                 endpointRepository
                         .findByMcpServerIdInAndUserIdInAndStatus(
@@ -147,7 +147,9 @@ public class McpTransportResolver {
                     endpointsByServer.getOrDefault(meta.getMcpServerId(), List.of());
             if (endpoints.isEmpty()) {
                 log.debug(
-                        "[resolveTransportConfigs] 产品 {} 用户 {} 无可用 endpoint，跳过", productId, userId);
+                        "Product has no available MCP endpoint for user, productId={}, userId={}",
+                        productId,
+                        userId);
                 continue;
             }
 
@@ -157,12 +159,12 @@ public class McpTransportResolver {
                             .findFirst()
                             .orElse(endpoints.get(0));
 
-            if (StrUtil.isBlank(endpoint.getEndpointUrl())) {
+            if (Strings.isBlank(endpoint.getEndpointUrl())) {
                 continue;
             }
 
             String protocol =
-                    StrUtil.blankToDefault(endpoint.getProtocol(), meta.getProtocolType());
+                    Strings.blankToDefault(endpoint.getProtocol(), meta.getProtocolType());
             McpTransportMode transportMode =
                     McpProtocolUtils.isStreamableHttp(protocol)
                             ? McpTransportMode.STREAMABLE_HTTP
@@ -194,7 +196,7 @@ public class McpTransportResolver {
             McpServerEndpoint endpoint, McpServerMeta meta, String userId) {
         McpHostingType hosting =
                 McpHostingType.valueOf(
-                        StrUtil.blankToDefault(
+                        Strings.blankToDefault(
                                 endpoint.getHostingType(), McpHostingType.DIRECT.name()));
         if (hosting == McpHostingType.GATEWAY || hosting == McpHostingType.NACOS) {
             try {
@@ -202,10 +204,15 @@ public class McpTransportResolver {
                 Map<String, String> headers = credential.copyHeaders();
                 return headers.isEmpty() ? null : headers;
             } catch (Exception e) {
-                log.warn("[resolveAuthHeaders] 获取用户 credential 失败: {}", e.getMessage());
+                log.warn(
+                        "Failed to resolve MCP auth headers from user credential, hostingType={},"
+                                + " userId={}, errorMessage={}",
+                        hosting,
+                        userId,
+                        e.getMessage());
             }
         } else if (hosting == McpHostingType.SANDBOX) {
-            if (StrUtil.isNotBlank(endpoint.getSubscribeParams())) {
+            if (Strings.isNotBlank(endpoint.getSubscribeParams())) {
                 try {
                     com.fasterxml.jackson.databind.node.ObjectNode params =
                             com.alibaba.himarket.utils.JsonUtil.readObjectNode(
@@ -213,20 +220,25 @@ public class McpTransportResolver {
                     String authType = params.path("authType").asText();
                     if ("apikey".equalsIgnoreCase(authType)) {
                         String apiKey = params.path("apiKey").asText();
-                        if (StrUtil.isNotBlank(apiKey)) {
+                        if (Strings.isNotBlank(apiKey)) {
                             return Map.of("Authorization", apiKey);
                         }
                         log.error(
-                                "[resolveAuthHeaders] 沙箱 endpoint authType=apikey 但 apiKey 为空:"
-                                        + " endpointId={}",
+                                "Sandbox endpoint API key is empty, endpointId={}",
                                 endpoint.getEndpointId());
                         throw new BusinessException(
-                                ErrorCode.INTERNAL_ERROR, "沙箱 API Key 鉴权配置异常：apiKey 为空");
+                                ErrorCode.INTERNAL_ERROR,
+                                "Sandbox API key authentication config is invalid: apiKey is"
+                                        + " empty");
                     }
                 } catch (BusinessException e) {
                     throw e;
                 } catch (Exception e) {
-                    log.warn("[resolveAuthHeaders] 解析沙箱 subscribeParams 失败: {}", e.getMessage());
+                    log.warn(
+                            "Failed to parse sandbox subscribe parameters, endpointId={},"
+                                    + " errorMessage={}",
+                            endpoint.getEndpointId(),
+                            e.getMessage());
                 }
             }
         }

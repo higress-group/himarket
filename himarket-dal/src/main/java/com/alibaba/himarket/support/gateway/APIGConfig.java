@@ -19,8 +19,8 @@
 
 package com.alibaba.himarket.support.gateway;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.support.common.Encrypted;
+import com.alibaba.himarket.support.common.Strings;
 import lombok.Data;
 
 @Data
@@ -33,20 +33,21 @@ public class APIGConfig {
     private String region;
 
     public String buildUniqueKey() {
-        return StrUtil.join(":", accessKey, secretKey, region);
+        return String.join(
+                ":", String.valueOf(accessKey), String.valueOf(secretKey), String.valueOf(region));
     }
 
     public boolean validate() {
-        return StrUtil.isNotBlank(accessKey)
-                && StrUtil.isNotBlank(secretKey)
-                && StrUtil.isNotBlank(region);
+        return Strings.isNotBlank(accessKey)
+                && Strings.isNotBlank(secretKey)
+                && Strings.isNotBlank(region);
     }
 
     public boolean matchesGatewayIdentity(APIGConfig other) {
         return other != null
-                && StrUtil.isNotBlank(accessKey)
-                && StrUtil.isNotBlank(region)
-                && StrUtil.equals(accessKey, other.getAccessKey())
-                && StrUtil.equals(region, other.getRegion());
+                && Strings.isNotBlank(accessKey)
+                && Strings.isNotBlank(region)
+                && Strings.equals(accessKey, other.getAccessKey())
+                && Strings.equals(region, other.getRegion());
     }
 }

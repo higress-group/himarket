@@ -11,14 +11,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Skill 下载阶段。
- * 在 ConfigInjectionPhase（300）之后、SidecarConnectPhase（400）之前执行。
- * 按 nacosId 分组，通过 sidecar exec API 调用 nacos-cli skill-get 批量下载 Skill 文件。
+ * Skill download phase.
+ *
+ * <p>Runs after ConfigInjectionPhase (300) and before SidecarConnectPhase (400). Skills are grouped
+ * by nacosId and downloaded in batches through the Sidecar exec API with
+ * {@code nacos-cli skill-get}.
  */
 public class SkillDownloadPhase implements InitPhase {
 
@@ -58,20 +60,22 @@ public class SkillDownloadPhase implements InitPhase {
         SandboxProvider provider = context.getProvider();
         SandboxInfo info = context.getSandboxInfo();
 
-        // exec 不会自动转换相对路径，需要使用绝对路径（writeFile 会做转换，exec 不会）
+        // exec does not convert relative paths automatically, while writeFile does.
         String workspacePath = info.workspacePath();
 
-        // 按 nacosId 分组
+        // Group by nacosId.
         Map<String, List<ResolvedSessionConfig.ResolvedSkillEntry>> byNacosId =
-                skills.stream()
-                        .collect(
-                                Collectors.groupingBy(
-                                        ResolvedSessionConfig.ResolvedSkillEntry::getNacosId,
-                                        LinkedHashMap::new,
-                                        Collectors.toList()));
+                new LinkedHashMap<>();
+        for (ResolvedSessionConfig.ResolvedSkillEntry skill : skills) {
+            String nacosId =
+                    Objects.requireNonNull(
+                            skill.getNacosId(), "element cannot be mapped to a null key");
+            byNacosId.computeIfAbsent(nacosId, key -> new ArrayList<>()).add(skill);
+        }
 
         logger.info(
-                "[SkillDownload] 开始下载 {} 个 Skill ({} 个 Nacos 实例), provider={}, skillsDir={}",
+                "Starting skill download, skillCount={}, nacosInstanceCount={}, provider={},"
+                        + " skillsDir={}",
                 skills.size(),
                 byNacosId.size(),
                 providerKey,
@@ -84,13 +88,13 @@ public class SkillDownloadPhase implements InitPhase {
                     entry.getValue().stream()
                             .map(ResolvedSessionConfig.ResolvedSkillEntry::getSkillName)
                             .toList();
-            // 使用绝对路径，因为 exec 的 cwd 可能不是用户的 workspace 目录
+            // Use absolute paths because exec cwd may not be the user's workspace.
             String nacosEnvPath =
                     toAbsolutePath(
                             workspacePath, NACOS_ENV_DIR + "/nacos-env-" + nacosId + ".yaml");
             String absoluteSkillsDir = toAbsolutePath(workspacePath, skillsDir);
 
-            // 构建参数: skill-get skill1 skill2 ... --config path -o dir
+            // Build args: skill-get skill1 skill2 ... --config path -o dir.
             List<String> args = new ArrayList<>();
             args.add("skill-get");
             args.addAll(skillNames);
@@ -104,7 +108,7 @@ public class SkillDownloadPhase implements InitPhase {
 
                 if (result.exitCode() != 0) {
                     logger.warn(
-                            "[SkillDownload] Skill 下载失败: nacosId={}, skills={}, exitCode={},"
+                            "Skill download command failed, nacosId={}, skills={}, exitCode={},"
                                     + " stderr={}",
                             nacosId,
                             skillNames,
@@ -113,20 +117,23 @@ public class SkillDownloadPhase implements InitPhase {
                 } else {
                     successGroups++;
                     logger.info(
-                            "[SkillDownload] Skill 下载成功: nacosId={}, skills={}",
+                            "Skill download command succeeded, nacosId={}, skills={}",
                             nacosId,
                             skillNames);
                 }
             } catch (Exception e) {
                 logger.warn(
-                        "[SkillDownload] Skill 下载异常: nacosId={}, skills={}, error={}",
+                        "Skill download command error, nacosId={}, skills={}, errorMessage={}",
                         nacosId,
                         skillNames,
                         e.getMessage());
             }
         }
 
-        logger.info("[SkillDownload] 下载完成: {}/{} 分组成功", successGroups, byNacosId.size());
+        logger.info(
+                "Skill download completed, successGroupCount={}, totalGroupCount={}",
+                successGroups,
+                byNacosId.size());
     }
 
     @Override
@@ -140,8 +147,9 @@ public class SkillDownloadPhase implements InitPhase {
     }
 
     /**
-     * 将相对路径转换为基于 workspacePath 的绝对路径。
-     * 与 RemoteSandboxProvider.toAbsolutePath 逻辑一致。
+     * Converts a relative path to an absolute path rooted at workspacePath.
+     *
+     * <p>Matches the logic in RemoteSandboxProvider.toAbsolutePath.
      */
     private static String toAbsolutePath(String workspacePath, String relativePath) {
         if (workspacePath == null || workspacePath.isEmpty()) {
@@ -153,7 +161,7 @@ public class SkillDownloadPhase implements InitPhase {
         } else if (cleaned.startsWith("/")) {
             Path normalized = Paths.get(cleaned).normalize();
             if (!normalized.startsWith(Paths.get(workspacePath).normalize())) {
-                throw new SecurityException("路径越界: " + relativePath);
+                throw new SecurityException("Path escapes workspace: " + relativePath);
             }
             return normalized.toString();
         }
@@ -163,7 +171,7 @@ public class SkillDownloadPhase implements InitPhase {
                         : workspacePath + "/" + cleaned;
         Path normalized = Paths.get(full).normalize();
         if (!normalized.startsWith(Paths.get(workspacePath).normalize())) {
-            throw new SecurityException("路径越界: " + relativePath);
+            throw new SecurityException("Path escapes workspace: " + relativePath);
         }
         return normalized.toString();
     }

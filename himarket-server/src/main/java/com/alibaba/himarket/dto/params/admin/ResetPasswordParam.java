@@ -19,13 +19,20 @@
 
 package com.alibaba.himarket.dto.params.admin;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** 修改密码参数 */
+/**
+ * Password reset parameters.
+ */
 @Data
 public class ResetPasswordParam {
 
+    @NotBlank(message = "Old password cannot be blank")
     private String oldPassword;
 
+    @NotBlank(message = "New password cannot be blank")
+    @Size(min = 6, max = 32, message = "New password must be between 6 and 32 characters")
     private String newPassword;
 }

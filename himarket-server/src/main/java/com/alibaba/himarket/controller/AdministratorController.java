@@ -20,20 +20,25 @@
 package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
-import com.alibaba.himarket.core.utils.TokenUtil;
 import com.alibaba.himarket.dto.params.admin.CreateAdministratorParam;
 import com.alibaba.himarket.dto.params.admin.ResetPasswordParam;
 import com.alibaba.himarket.dto.params.login.LoginParam;
 import com.alibaba.himarket.dto.result.admin.AdminResult;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.service.AdministratorService;
+import com.alibaba.himarket.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Tag(
         name = "Administrator Management",
@@ -45,6 +50,8 @@ import org.springframework.web.bind.annotation.*;
 public class AdministratorController {
 
     private final AdministratorService administratorService;
+
+    private final TokenService tokenService;
 
     @Operation(
             summary = "Log in as administrator",
@@ -58,7 +65,7 @@ public class AdministratorController {
     @PostMapping("/logout")
     @AdminAuth
     public void logout(HttpServletRequest request) {
-        TokenUtil.revokeToken(request);
+        tokenService.revokeRequestToken(request);
     }
 
     @Operation(
@@ -82,7 +89,7 @@ public class AdministratorController {
             description = "Change the password of the current administrator")
     @PatchMapping("/password")
     @AdminAuth
-    public void resetPassword(@RequestBody ResetPasswordParam param) {
+    public void resetPassword(@Valid @RequestBody ResetPasswordParam param) {
         administratorService.resetPassword(param.getOldPassword(), param.getNewPassword());
     }
 

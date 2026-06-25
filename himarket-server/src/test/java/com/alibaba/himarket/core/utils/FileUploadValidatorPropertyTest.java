@@ -19,14 +19,24 @@
 
 package com.alibaba.himarket.core.utils;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.alibaba.himarket.core.exception.BusinessException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Map;
-import net.jqwik.api.*;
+import net.jqwik.api.Arbitraries;
+import net.jqwik.api.Arbitrary;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
+import net.jqwik.api.Provide;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -80,7 +90,9 @@ class FileUploadValidatorPropertyTest {
                     Map.entry(
                             ".mkv", new byte[] {0x1A, 0x45, (byte) 0xDF, (byte) 0xA3, 0x01, 0x00}));
 
-    /** Returns a mock InputStream with correct magic bytes for the given extension. */
+    /**
+     * Returns a mock InputStream with correct magic bytes for the given extension.
+     */
     private static void mockMagicBytes(MultipartFile mockFile, String extension)
             throws IOException {
         byte[] magicBytes = TEST_MAGIC_BYTES.get(extension);

@@ -9,12 +9,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * MCP Server Endpoint 返回结果。
+ * MCP Server endpoint result.
  */
 @Data
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class McpEndpointResult implements OutputConverter<McpEndpointResult, McpServerEndpoint> {
 
     private String endpointId;

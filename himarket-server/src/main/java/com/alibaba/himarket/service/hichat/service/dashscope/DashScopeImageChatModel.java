@@ -18,12 +18,18 @@
  */
 package com.alibaba.himarket.service.hichat.service.dashscope;
 
-import cn.hutool.core.util.BooleanUtil;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeMessage;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeRequest;
 import io.agentscope.core.formatter.dashscope.dto.DashScopeResponse;
 import io.agentscope.core.message.Msg;
-import io.agentscope.core.model.*;
+import io.agentscope.core.model.ChatModelBase;
+import io.agentscope.core.model.ChatResponse;
+import io.agentscope.core.model.DashScopeHttpClient;
+import io.agentscope.core.model.EndpointType;
+import io.agentscope.core.model.GenerateOptions;
+import io.agentscope.core.model.ModelUtils;
+import io.agentscope.core.model.ToolChoice;
+import io.agentscope.core.model.ToolSchema;
 import io.agentscope.core.model.transport.HttpTransport;
 import io.agentscope.core.model.transport.HttpTransportFactory;
 import java.time.Instant;
@@ -149,7 +155,7 @@ public class DashScopeImageChatModel extends ChatModelBase {
                         tools,
                         toolChoice);
 
-        if (BooleanUtil.isTrue(enableSearch)) {
+        if (Boolean.TRUE.equals(enableSearch)) {
             request.getParameters().setEnableSearch(true);
         }
 
@@ -162,12 +168,12 @@ public class DashScopeImageChatModel extends ChatModelBase {
                                         effectiveOptions.getAdditionalHeaders(),
                                         effectiveOptions.getAdditionalBodyParams(),
                                         effectiveOptions.getAdditionalQueryParams());
-                        log.debug("Received HTTP response: {}", response);
+                        log.debug("Received DashScope HTTP response, response={}", response);
                         ChatResponse chatResponse = formatter.parseResponse(response, start);
                         return Flux.just(chatResponse);
                     } catch (Exception e) {
                         log.error(
-                                "DashScope image generation HTTP client error: {}",
+                                "DashScope image generation HTTP client error, errorMessage={}",
                                 e.getMessage(),
                                 e);
                         return Flux.error(

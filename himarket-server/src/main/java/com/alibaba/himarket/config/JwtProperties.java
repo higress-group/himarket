@@ -17,17 +17,37 @@
  * under the License.
  */
 
-package com.alibaba.himarket.support.chat.search;
+package com.alibaba.himarket.config;
 
-import java.util.List;
-import lombok.Data;
-import lombok.experimental.Accessors;
+import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@Data
-@Accessors(chain = true)
-public class SearchInput {
-    private String query;
+@ConfigurationProperties(prefix = "jwt")
+public class JwtProperties {
 
-    /** 时间范围，格式: ["2025-03-31", "2025-04-30"] 空列表或null表示不限制时间 两个元素分别表示开始日期和结束日期 */
-    private List<String> time;
+    /**
+     * JWT signing secret.
+     */
+    private String secret;
+
+    /**
+     * JWT validity duration.
+     */
+    private Duration expiration = Duration.ofDays(7);
+
+    public String getSecret() {
+        return secret;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
+
+    public Duration getExpiration() {
+        return expiration;
+    }
+
+    public void setExpiration(Duration expiration) {
+        this.expiration = expiration;
+    }
 }

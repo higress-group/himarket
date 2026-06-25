@@ -19,8 +19,6 @@
 
 package com.alibaba.himarket.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -37,16 +35,16 @@ import com.alibaba.himarket.entity.ProductCategoryRelation;
 import com.alibaba.himarket.repository.ProductCategoryRelationRepository;
 import com.alibaba.himarket.repository.ProductCategoryRepository;
 import com.alibaba.himarket.service.ProductCategoryService;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +53,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
@@ -75,9 +74,9 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                         category -> {
                             throw new BusinessException(
                                     ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Product category with name `{}` already exists",
-                                            category.getName()));
+                                    "Product category with name `"
+                                            + category.getName()
+                                            + "` already exists");
                         });
 
         String categoryId = IdGenerator.genCategoryId();
@@ -112,17 +111,16 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             String categoryId, UpdateProductCategoryParam param) {
         ProductCategory category = findCategory(categoryId);
 
-        Optional.ofNullable(param.getName())
-                .filter(name -> !name.equals(category.getName()))
-                .flatMap(categoryRepository::findByName)
-                .ifPresent(
-                        p -> {
-                            throw new BusinessException(
-                                    ErrorCode.CONFLICT,
-                                    StrUtil.format(
-                                            "Product category with name `{}` already exists",
-                                            category.getName()));
-                        });
+        String requestedName = param.getName();
+        if (requestedName != null && !requestedName.equals(category.getName())) {
+            ProductCategory existingCategory =
+                    categoryRepository.findByName(requestedName).orElse(null);
+            if (existingCategory != null) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT,
+                        "Product category with name `" + requestedName + "` already exists");
+            }
+        }
 
         param.update(category);
         categoryRepository.saveAndFlush(category);
@@ -136,8 +134,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         if (categoryRelationRepository.existsByCategoryId(categoryId)) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    StrUtil.format(
-                            "Product category with name '{}' is in use", category.getName()));
+                    "Product category with name '" + category.getName() + "' is in use");
         }
 
         categoryRepository.delete(category);
@@ -147,81 +144,66 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     public List<ProductCategoryResult> listCategoriesForProduct(String productId) {
         List<ProductCategoryRelation> relations =
                 categoryRelationRepository.findByProductId(productId);
-        if (CollUtil.isEmpty(relations)) {
-            return CollUtil.newArrayList();
+        if (CollectionUtils.isEmpty(relations)) {
+            return Collections.emptyList();
         }
 
         List<String> categoryIds =
-                relations.stream()
-                        .map(ProductCategoryRelation::getCategoryId)
-                        .collect(Collectors.toList());
+                relations.stream().map(ProductCategoryRelation::getCategoryId).toList();
 
         return categoryRepository.findByCategoryIdIn(categoryIds).stream()
                 .map(category -> new ProductCategoryResult().convertFrom(category))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public Map<String, List<ProductCategoryResult>> listCategoriesForProducts(
             List<String> productIds) {
-        // Return empty map if no product ids provided
-        if (CollUtil.isEmpty(productIds)) {
+        if (CollectionUtils.isEmpty(productIds)) {
             return Collections.emptyMap();
         }
 
-        // Get all category relations for these products
         List<ProductCategoryRelation> relations =
                 categoryRelationRepository.findByProductIdIn(productIds);
-        if (CollUtil.isEmpty(relations)) {
+        if (CollectionUtils.isEmpty(relations)) {
             return Collections.emptyMap();
         }
 
-        // Build categoryId to category mapping
-        Map<String, ProductCategory> categoryMap =
-                relations.stream()
-                        .map(ProductCategoryRelation::getCategoryId)
-                        .distinct()
+        // Resolve existing categories once; stale relations are skipped below.
+        List<String> categoryIds =
+                relations.stream().map(ProductCategoryRelation::getCategoryId).distinct().toList();
+        Map<String, ProductCategory> categoriesById =
+                categoryRepository.findByCategoryIdIn(categoryIds).stream()
                         .collect(
-                                Collectors.collectingAndThen(
-                                        Collectors.toList(),
-                                        ids ->
-                                                categoryRepository.findByCategoryIdIn(ids).stream()
-                                                        .collect(
-                                                                Collectors.toMap(
-                                                                        ProductCategory
-                                                                                ::getCategoryId,
-                                                                        c -> c))));
+                                Collectors.toMap(
+                                        ProductCategory::getCategoryId, category -> category));
 
-        // Build final result: product id -> list of categories
-        return relations.stream()
-                .collect(
-                        Collectors.groupingBy(
-                                ProductCategoryRelation::getProductId,
-                                Collectors.mapping(
-                                        relation ->
-                                                Optional.ofNullable(
-                                                                categoryMap.get(
-                                                                        relation.getCategoryId()))
-                                                        .map(
-                                                                category ->
-                                                                        new ProductCategoryResult()
-                                                                                .convertFrom(
-                                                                                        category))
-                                                        .orElse(null),
-                                        Collectors.filtering(
-                                                Objects::nonNull, Collectors.toList()))));
+        // Preserve relation order while grouping category results by product.
+        Map<String, List<ProductCategoryResult>> result = new HashMap<>();
+        for (ProductCategoryRelation relation : relations) {
+            ProductCategory category = categoriesById.get(relation.getCategoryId());
+            if (category == null) {
+                continue;
+            }
+
+            ProductCategoryResult categoryResult =
+                    new ProductCategoryResult().convertFrom(category);
+            result.computeIfAbsent(relation.getProductId(), productId -> new ArrayList<>())
+                    .add(categoryResult);
+        }
+        return result;
     }
 
     @Override
     public void bindProductCategories(String productId, List<String> categoryIds) {
-        if (CollUtil.isEmpty(categoryIds)) {
+        if (CollectionUtils.isEmpty(categoryIds)) {
             return;
         }
 
         categoryIds =
                 categoryRepository.findByCategoryIdIn(categoryIds).stream()
                         .map(ProductCategory::getCategoryId)
-                        .collect(Collectors.toList());
+                        .toList();
 
         Set<String> existedRelations =
                 categoryRelationRepository.findByProductId(productId).stream()
@@ -240,9 +222,9 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                                     relation.setCategoryId(categoryId);
                                     return relation;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
 
-        if (CollUtil.isNotEmpty(relations)) {
+        if (!CollectionUtils.isEmpty(relations)) {
             categoryRelationRepository.saveAll(relations);
         }
     }
@@ -254,7 +236,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public void unbindProductsFromCategory(List<String> productIds, String categoryId) {
-        if (CollUtil.isEmpty(productIds)) {
+        if (CollectionUtils.isEmpty(productIds)) {
             return;
         }
 
@@ -264,7 +246,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     public void bindProductsToCategory(String categoryId, List<String> productIds) {
-        if (CollUtil.isEmpty(productIds)) {
+        if (CollectionUtils.isEmpty(productIds)) {
             return;
         }
 
@@ -286,13 +268,16 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                                     relation.setCategoryId(categoryId);
                                     return relation;
                                 })
-                        .collect(Collectors.toList());
+                        .toList();
 
-        if (CollUtil.isNotEmpty(newRelations)) {
+        if (!CollectionUtils.isEmpty(newRelations)) {
             categoryRelationRepository.saveAll(newRelations);
         }
 
-        log.info("Bound {} products to category {}", newRelations.size(), categoryId);
+        log.info(
+                "Bound products to category, productCount={}, categoryId={}",
+                newRelations.size(),
+                categoryId);
     }
 
     private ProductCategory findCategory(String categoryId) {
@@ -311,12 +296,12 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (StrUtil.isNotBlank(param.getName())) {
+            if (Strings.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(root.get("name")), likePattern));
             }
 
-            if (StrUtil.isNotBlank(param.getProductType())) {
+            if (Strings.isNotBlank(param.getProductType())) {
                 try {
                     ProductType productType = ProductType.valueOf(param.getProductType());
 
@@ -340,7 +325,9 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                     predicates.add(cb.exists(subquery));
 
                 } catch (IllegalArgumentException e) {
-                    log.warn("Invalid product type provided: {}", param.getProductType());
+                    log.warn(
+                            "Invalid product type provided, productType={}",
+                            param.getProductType());
                     // Return no results for invalid product type
                     predicates.add(cb.disjunction());
                 }

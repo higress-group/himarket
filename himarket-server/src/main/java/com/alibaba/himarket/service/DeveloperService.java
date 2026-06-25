@@ -33,132 +33,131 @@ import org.springframework.data.domain.Pageable;
 public interface DeveloperService {
 
     /**
-     * Register a new developer
+     * Registers a new developer.
      *
-     * @param param
-     * @return
+     * @param param developer registration parameters
+     * @return authentication result for the registered developer
      */
     AuthResult registerDeveloper(CreateDeveloperParam param);
 
     /**
-     * Create a new developer
+     * Creates a new developer.
      *
-     * @param param
-     * @return
+     * @param param developer creation parameters
+     * @return created developer information
      */
     DeveloperResult createDeveloper(CreateDeveloperParam param);
 
     /**
-     * Login by username and password
+     * Authenticates a developer by username and password.
      *
-     * @param username
-     * @param password
-     * @return
+     * @param username developer username
+     * @param password developer password
+     * @return authentication result with access token
      */
     AuthResult login(String username, String password);
 
     /**
-     * If the developer exists
+     * Checks whether a developer exists.
      *
-     * @param developerId
+     * @param developerId developer ID
      */
     void existsDeveloper(String developerId);
 
     /**
-     * Get external developer info
+     * Gets developer information from an external identity.
      *
-     * @param provider
-     * @param subject
-     * @return
+     * @param provider identity provider name
+     * @param subject unique subject identifier from the provider
+     * @return developer information, or {@code null} if no developer matches the external identity
      */
     DeveloperResult getExternalDeveloper(String provider, String subject);
 
     /**
-     * Create a new developer by external identity
+     * Creates a developer by external identity.
      *
-     * @param param
-     * @return
+     * @param param external developer creation parameters
+     * @return created developer information
      */
     DeveloperResult createExternalDeveloper(CreateExternalDeveloperParam param);
 
     /**
-     * Delete a developer
+     * Deletes a developer.
      *
-     * @param developerId
+     * @param developerId developer ID
      */
     void deleteDeveloper(String developerId);
 
     /**
-     * Get a developer
+     * Gets a developer.
      *
-     * @param developerId
-     * @return
+     * @param developerId developer ID
+     * @return developer information
      */
     DeveloperResult getDeveloper(String developerId);
 
     /**
-     * List developers in a portal
+     * Lists developers.
      *
-     * @param param
-     * @param pageable
-     * @return
+     * @param param developer query parameters
+     * @param pageable pagination parameters
+     * @return paged developer results
      */
     PageResult<DeveloperResult> listDevelopers(QueryDeveloperParam param, Pageable pageable);
 
     /**
-     * Set a developer status
+     * Sets developer status.
      *
-     * @param developerId
-     * @param status
-     * @return
+     * @param developerId developer ID
+     * @param status developer status
      */
     void setDeveloperStatus(String developerId, DeveloperStatus status);
 
     /**
-     * Reset password of a developer
+     * Resets a developer password.
      *
-     * @param developerId
-     * @param oldPassword
-     * @param newPassword
-     * @return
+     * @param developerId developer ID
+     * @param oldPassword current password
+     * @param newPassword new password
+     * @return {@code true} if the password is reset successfully
      */
     boolean resetPassword(String developerId, String oldPassword, String newPassword);
 
     /**
-     * Update user info of a developer
+     * Updates the current developer profile.
      *
-     * @param param
+     * @param param profile update parameters
      */
     void updateProfile(UpdateDeveloperParam param);
 
     /**
-     * Update avatar URL of an external developer on login
+     * Updates an external developer avatar URL on login.
      *
-     * @param provider
-     * @param subject
-     * @param avatarUrl
+     * @param provider identity provider name
+     * @param subject unique subject identifier from the provider
+     * @param avatarUrl latest avatar URL
      */
     void updateExternalDeveloperAvatar(String provider, String subject, String avatarUrl);
 
     /**
-     * Logout
+     * Logs out the current developer.
      *
-     * @param request
+     * @param request HTTP request containing the access token
      */
     void logout(HttpServletRequest request);
 
     /**
-     * Get current developer info
+     * Gets the current developer information.
      *
-     * @return
+     * @return current developer information
      */
     DeveloperResult getCurrentDeveloperInfo();
 
     /**
-     * 当前开发者修改密码
+     * Resets the current developer password.
      *
-     * @param oldPassword 旧密码
-     * @param newPassword 新密码
+     * @param oldPassword current password
+     * @param newPassword new password
      */
     void resetDeveloperPassword(String oldPassword, String newPassword);
 }

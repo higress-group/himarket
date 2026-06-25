@@ -23,13 +23,14 @@ import com.alibaba.himarket.dto.result.agent.NacosAgentResult;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
 public class NacosAgentConverter {
 
-    /** 批量转换 AgentCardVersionInfo 列表为 NacosAgentResult 列表 */
+    /**
+     * Converts AgentCardVersionInfo entries into Nacos agent results.
+     */
     public List<NacosAgentResult> convertToAgentResults(
             List<AgentCardVersionInfo> agentCards, String namespaceId) {
 
@@ -37,12 +38,12 @@ public class NacosAgentConverter {
             return Collections.emptyList();
         }
 
-        return agentCards.stream()
-                .map(card -> convertToAgentResult(card, namespaceId))
-                .collect(Collectors.toList());
+        return agentCards.stream().map(card -> convertToAgentResult(card, namespaceId)).toList();
     }
 
-    /** 转换单个 AgentCardVersionInfo 为 NacosAgentResult */
+    /**
+     * Converts one AgentCardVersionInfo entry into a Nacos agent result.
+     */
     public NacosAgentResult convertToAgentResult(
             AgentCardVersionInfo agentCard, String namespaceId) {
 
@@ -50,9 +51,8 @@ public class NacosAgentConverter {
             return null;
         }
 
-        // 只返回必要字段，与 Gateway 保持一致
-        // 注意：AgentCardVersionInfo 继承自 AgentCardBasicInfo
-        // name 和 description 字段来自父类
+        // Return only the required fields and keep the shape aligned with Gateway.
+        // AgentCardVersionInfo extends AgentCardBasicInfo, which owns name and description.
         return NacosAgentResult.builder()
                 .agentName(agentCard.getName())
                 .description(agentCard.getDescription())

@@ -4,14 +4,16 @@ import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
 import java.io.IOException;
 
 /**
- * 文件系统操作异常，包含结构化的错误信息。
- * <p>
- * 统一错误格式包含 errorType（错误类型）和 sandboxType（沙箱类型），
- * 便于上层业务代码进行统一的错误处理和展示。
+ * File system operation exception with structured error details.
+ *
+ * <p>The formatted error contains errorType and sandboxType so callers can handle and display file
+ * system failures consistently.
  */
 public class FileSystemException extends IOException {
 
-    /** 文件系统错误类型枚举 */
+    /**
+     * File system error type.
+     */
     public enum ErrorType {
         FILE_NOT_FOUND,
         PERMISSION_DENIED,

@@ -18,10 +18,6 @@
  */
 package com.alibaba.himarket.service.hichat.service;
 
-import cn.hutool.core.codec.Base64;
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.ArrayUtil;
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.event.ChatSessionDeletingEvent;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
@@ -38,19 +34,34 @@ import com.alibaba.himarket.entity.ChatAttachment;
 import com.alibaba.himarket.entity.ChatSession;
 import com.alibaba.himarket.repository.ChatAttachmentRepository;
 import com.alibaba.himarket.repository.ChatRepository;
-import com.alibaba.himarket.repository.McpServerEndpointRepository;
-import com.alibaba.himarket.repository.McpServerMetaRepository;
-import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.service.ChatSessionService;
+import com.alibaba.himarket.service.ConsumerService;
+import com.alibaba.himarket.service.ProductService;
 import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.chat.mcp.McpTransportConfig;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.ProductType;
-import io.agentscope.core.message.*;
+import io.agentscope.core.message.AudioBlock;
+import io.agentscope.core.message.Base64Source;
+import io.agentscope.core.message.ContentBlock;
+import io.agentscope.core.message.ImageBlock;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.MsgRole;
+import io.agentscope.core.message.TextBlock;
+import io.agentscope.core.message.VideoBlock;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,10 +70,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
-@Slf4j
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ChatService {
 
@@ -79,10 +91,6 @@ public class ChatService {
     private final ProductService productService;
 
     private final ConsumerService consumerService;
-
-    private final McpServerMetaRepository mcpServerMetaRepository;
-
-    private final McpServerEndpointRepository mcpServerEndpointRepository;
 
     public Flux<ChatEvent> chat(CreateChatParam param) {
         performAllChecks(param);
@@ -114,10 +122,10 @@ public class ChatService {
         if (!session.getProducts().contains(param.getProductId())) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST,
-                    StrUtil.format("Product `{}` not in current session", param.getProductId()));
+                    String.format("Product `%s` not in current session", param.getProductId()));
         }
 
-        if (CollUtil.isNotEmpty(param.getMcpProducts())) {
+        if (!CollectionUtils.isEmpty(param.getMcpProducts())) {
             Set<String> subscribedProductIds =
                     consumerService
                             .listConsumerSubscriptions(
@@ -133,7 +141,8 @@ public class ChatService {
 
             if (!unsubscribedProducts.isEmpty()) {
                 log.warn(
-                        "MCP products `{}` are not subscribed, which may cause unauthorized access",
+                        "MCP products are not subscribed, which may cause unauthorized access,"
+                                + " productIds={}",
                         unsubscribedProducts);
             }
         }
@@ -202,8 +211,8 @@ public class ChatService {
                         ChatStatus.SUCCESS,
                         Sort.by(Sort.Direction.ASC, "createAt"));
 
-        if (CollUtil.isEmpty(chats)) {
-            return CollUtil.empty(List.class);
+        if (CollectionUtils.isEmpty(chats)) {
+            return Collections.emptyList();
         }
 
         // 2. Filter and group chats
@@ -212,12 +221,12 @@ public class ChatService {
                         // Filter valid chats (must have both question and answer)
                         .filter(
                                 chat ->
-                                        StrUtil.isNotBlank(chat.getQuestion())
-                                                && StrUtil.isNotBlank(chat.getAnswer()))
+                                        Strings.isNotBlank(chat.getQuestion())
+                                                && Strings.isNotBlank(chat.getAnswer()))
                         // Exclude current conversation
                         .filter(chat -> !param.getConversationId().equals(chat.getConversationId()))
                         // Ensure same product
-                        .filter(chat -> StrUtil.equals(chat.getProductId(), param.getProductId()))
+                        .filter(chat -> Strings.equals(chat.getProductId(), param.getProductId()))
                         .collect(Collectors.groupingBy(Chat::getConversationId));
 
         // 3. Get latest answer for each conversation
@@ -235,7 +244,7 @@ public class ChatService {
                                                     .map(Chat::getQuestionId)
                                                     .orElse(null);
 
-                                    if (StrUtil.isBlank(latestQuestionId)) {
+                                    if (Strings.isBlank(latestQuestionId)) {
                                         return null;
                                     }
 
@@ -267,7 +276,7 @@ public class ChatService {
         messages = truncateMessages(messages);
 
         log.debug(
-                "Built {} AgentScope messages from {} conversations for session: {}",
+                "Built AgentScope messages, messageCount={}, conversationCount={}, sessionId={}",
                 messages.size(),
                 latestChats.size(),
                 param.getSessionId());
@@ -279,25 +288,27 @@ public class ChatService {
 
         // 1. Prepare text content (question)
         StringBuilder textContent = new StringBuilder();
-        if (StrUtil.isNotBlank(chat.getQuestion())) {
+        if (Strings.isNotBlank(chat.getQuestion())) {
             textContent.append(chat.getQuestion());
         }
 
         // 2. Load and process attachments
         List<ChatAttachmentConfig> attachmentConfigs = chat.getAttachments();
-        if (CollUtil.isNotEmpty(attachmentConfigs)) {
+        if (!CollectionUtils.isEmpty(attachmentConfigs)) {
             List<String> attachmentIds =
                     attachmentConfigs.stream()
                             .map(ChatAttachmentConfig::getAttachmentId)
-                            .filter(StrUtil::isNotBlank)
-                            .collect(Collectors.toList());
+                            .filter(Strings::isNotBlank)
+                            .toList();
 
-            if (CollUtil.isNotEmpty(attachmentIds)) {
+            if (!CollectionUtils.isEmpty(attachmentIds)) {
                 List<ChatAttachment> attachments =
                         chatAttachmentRepository.findByAttachmentIdIn(attachmentIds);
 
                 for (ChatAttachment attachment : attachments) {
-                    if (attachment == null || ArrayUtil.isEmpty(attachment.getData())) {
+                    if (attachment == null
+                            || attachment.getData() == null
+                            || attachment.getData().length == 0) {
                         continue;
                     }
 
@@ -335,11 +346,11 @@ public class ChatService {
     private void buildMediaContent(ChatAttachment attachment, List<ContentBlock> contentBlocks) {
 
         // Encode to pure Base64 string (no data URL prefix)
-        String base64Data = Base64.encode(attachment.getData());
+        String base64Data = Base64.getEncoder().encodeToString(attachment.getData());
 
         // Use default mime type if not specified
         String mediaType =
-                StrUtil.isBlank(attachment.getMimeType())
+                Strings.isBlank(attachment.getMimeType())
                         ? "application/octet-stream"
                         : attachment.getMimeType();
 
@@ -358,7 +369,9 @@ public class ChatService {
                 contentBlock = VideoBlock.builder().source(source).build();
                 break;
             default:
-                log.warn("Unsupported media attachment type: {}", attachment.getType());
+                log.warn(
+                        "Unsupported media attachment type, attachmentType={}",
+                        attachment.getType());
                 return;
         }
 
@@ -366,7 +379,7 @@ public class ChatService {
     }
 
     private Msg buildAssistantMsg(Chat chat) {
-        String answer = StrUtil.isBlank(chat.getAnswer()) ? "" : chat.getAnswer();
+        String answer = Strings.isBlank(chat.getAnswer()) ? "" : chat.getAnswer();
         // Use textContent() convenience method for simple text messages
         return Msg.builder().role(MsgRole.ASSISTANT).textContent(answer).build();
     }
@@ -379,7 +392,7 @@ public class ChatService {
         if (messages.size() > maxMessages) {
             int startIndex = messages.size() - maxMessages;
             List<Msg> truncated = messages.subList(startIndex, messages.size());
-            log.debug("Truncated history to last {} conversation pairs", maxHistoryPairs);
+            log.debug("Truncated history, maxConversationPairs={}", maxHistoryPairs);
             return truncated;
         }
 
@@ -388,27 +401,22 @@ public class ChatService {
 
     private List<McpTransportConfig> buildMCPConfigs(
             CreateChatParam param, CredentialContext credentialContext) {
-        if (CollUtil.isEmpty(param.getMcpProducts())) {
-            return CollUtil.empty(List.class);
+        if (CollectionUtils.isEmpty(param.getMcpProducts())) {
+            return Collections.emptyList();
         }
 
-        return productService.getProducts(param.getMcpProducts()).values().stream()
-                .filter(
-                        product ->
-                                product.getType() == ProductType.MCP_SERVER
-                                        || product.getMcpConfig() != null)
-                .map(
-                        product -> {
-                            McpTransportConfig transportConfig =
-                                    product.getMcpConfig().toTransportConfig();
+        List<McpTransportConfig> configs = new ArrayList<>();
+        for (ProductResult product : productService.getProducts(param.getMcpProducts()).values()) {
+            if (product.getType() != ProductType.MCP_SERVER && product.getMcpConfig() == null) {
+                continue;
+            }
 
-                            // Add authentication credentials
-                            transportConfig.setHeaders(credentialContext.copyHeaders());
-                            transportConfig.setQueryParams(credentialContext.copyQueryParams());
-
-                            return transportConfig;
-                        })
-                .collect(Collectors.toList());
+            McpTransportConfig transportConfig = product.getMcpConfig().toTransportConfig();
+            transportConfig.setHeaders(credentialContext.copyHeaders());
+            transportConfig.setQueryParams(credentialContext.copyQueryParams());
+            configs.add(transportConfig);
+        }
+        return configs;
     }
 
     private LlmService getLlmService(InvokeModelParam param) {
@@ -439,14 +447,18 @@ public class ChatService {
         String sessionId = event.getSessionId();
 
         try {
-            log.info("Cleaning chat records and attachments for session: {}", sessionId);
+            log.info("Cleaning chat records and attachments, sessionId={}", sessionId);
 
             // Delete all chat records
             chatRepository.deleteAllBySessionId(sessionId);
 
-            log.info("Successfully cleaned chat records for session: {}", sessionId);
+            log.info("Cleaned chat records and attachments, sessionId={}", sessionId);
         } catch (Exception e) {
-            log.error("Failed to cleanup chat records for session: {}", sessionId, e);
+            log.error(
+                    "Failed to cleanup chat records, sessionId={}, errorMessage={}",
+                    sessionId,
+                    e.getMessage(),
+                    e);
         }
     }
 }

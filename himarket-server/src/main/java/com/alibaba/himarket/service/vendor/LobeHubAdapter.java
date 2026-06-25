@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.service.vendor;
 
-import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.dto.result.common.PageResult;
@@ -28,6 +27,7 @@ import com.alibaba.himarket.support.api.spec.McpConnection;
 import com.alibaba.himarket.support.api.spec.SseConnection;
 import com.alibaba.himarket.support.api.spec.StdioConnection;
 import com.alibaba.himarket.support.api.spec.StreamableHttpConnection;
+import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.McpVendorType;
 import com.alibaba.himarket.utils.JsonUtil;
@@ -60,13 +60,13 @@ import okhttp3.Response;
 import org.springframework.stereotype.Component;
 
 /**
- * LobeHub MCP Market 供应商适配器。
+ * Vendor adapter for the LobeHub MCP Market API.
  *
- * <p>使用 JWT client assertion 方式的 OAuth2 认证（非普通 client_credentials）。 认证流程：注册客户端 →
- * 签发 JWT → 换取 access_token → 调用 API。
+ * <p>LobeHub uses OAuth2 with JWT client assertion instead of plain client credentials. The flow is:
+ * register client => sign JWT => exchange access token => call API.
  */
-@Slf4j
 @Component
+@Slf4j
 public class LobeHubAdapter implements McpVendorAdapter {
 
     private static final String BASE_URL = "https://market.lobehub.com";
@@ -75,15 +75,21 @@ public class LobeHubAdapter implements McpVendorAdapter {
     private static final String LIST_URL = BASE_URL + "/api/v1/plugins";
     private static final MediaType JSON_MEDIA = MediaType.get("application/json; charset=utf-8");
 
-    /** Fixed deviceId generated once at class load. */
+    /**
+     * Fixed deviceId generated once at class load.
+     */
     private static final String DEVICE_ID = "himarket-" + UUID.randomUUID();
 
     private final OkHttpClient httpClient;
 
-    /** Cache for client credentials (client_id + client_secret). Long-term, 24h. */
+    /**
+     * Cache for client credentials (client_id + client_secret). Long-term, 24h.
+     */
     private final Cache<String, String[]> clientCredentialsCache;
 
-    /** Cache for access_token. Expiry is set dynamically per entry (expires_in - 60s). */
+    /**
+     * Cache for access_token. Expiry is set dynamically per entry (expires_in - 60s).
+     */
     private final Cache<String, String> accessTokenCache;
 
     private static final String CACHE_KEY = "lobehub";
@@ -149,8 +155,9 @@ public class LobeHubAdapter implements McpVendorAdapter {
             item.setConnection(buildConnection(item));
             return item;
         } catch (IOException e) {
-            log.warn("LobeHub detail API failed for {}", resourceId, e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "供应商 API 连接超时");
+            log.warn("LobeHub detail API failed, resourceId={}", resourceId, e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Vendor API connection timed out");
         }
     }
 
@@ -167,14 +174,17 @@ public class LobeHubAdapter implements McpVendorAdapter {
             try {
                 return doListMcpServers(keyword, page, size, accessToken);
             } catch (AuthRetryException ex) {
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
             } catch (IOException ex) {
                 log.warn("LobeHub API call failed after token refresh", ex);
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "供应商 API 连接超时");
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR, "Vendor API connection timed out");
             }
         } catch (IOException e) {
             log.warn("LobeHub API call failed", e);
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "供应商 API 连接超时");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "Vendor API connection timed out");
         }
     }
 
@@ -201,7 +211,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
                 throw new AuthRetryException();
             }
             if (!response.isSuccessful() || response.body() == null) {
-                log.warn("LobeHub API returned non-success status: {}", response.code());
+                log.warn("LobeHub API returned non-success status, status={}", response.code());
                 return PageResult.empty(page, size);
             }
 
@@ -224,7 +234,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
                         result.add(mcpItem);
                     }
                 } catch (Exception e) {
-                    log.warn("Failed to parse LobeHub MCP item at index {}", i, e);
+                    log.warn("Failed to parse LobeHub MCP item, index={}", i, e);
                 }
             }
 
@@ -250,7 +260,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
             try (Response response = httpClient.newCall(request).execute()) {
                 if (!response.isSuccessful() || response.body() == null) {
                     log.warn(
-                            "LobeHub detail API failed for {}: {}",
+                            "LobeHub detail API failed, remoteId={}, status={}",
                             item.getRemoteId(),
                             response.code());
                     return item;
@@ -277,7 +287,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
                             item.setProtocolType(connType);
                         }
 
-                        // Extract configSchema → extraParams
+                        // Extract configSchema into extraParams.
                         ObjectNode configSchema =
                                 connection.get("configSchema") != null
                                                 && connection.get("configSchema").isObject()
@@ -294,7 +304,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
                                                     && configSchema.get("required").isArray()
                                             ? (ArrayNode) configSchema.get("required")
                                             : null;
-                            if (properties != null && properties.size() > 0) {
+                            if (properties != null && !properties.isEmpty()) {
                                 ArrayNode params = JsonUtil.createArray();
                                 Iterator<String> propNames = properties.fieldNames();
                                 while (propNames.hasNext()) {
@@ -342,12 +352,10 @@ public class LobeHubAdapter implements McpVendorAdapter {
                 }
             }
         } catch (Exception e) {
-            log.warn("Failed to enrich LobeHub MCP detail for {}", item.getRemoteId(), e);
+            log.warn("Failed to enrich LobeHub MCP detail, remoteId={}", item.getRemoteId(), e);
         }
         return item;
     }
-
-    // ==================== Data Conversion ====================
 
     private RemoteMcpItem convertToRemoteMcpItem(ObjectNode item) {
         String identifier = item.path("identifier").asText();
@@ -429,7 +437,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
     /**
      * Map LobeHub connectionType to platform protocolType.
      *
-     * <p>"local" → "stdio", "hybrid" → "stdio", "cloud" → "sse"
+     * <p>"local" => "stdio", "hybrid" => "stdio", "cloud" => "sse"
      */
     private String mapProtocolType(String connectionType) {
         if (connectionType == null) {
@@ -448,7 +456,7 @@ public class LobeHubAdapter implements McpVendorAdapter {
                     ErrorCode.INVALID_REQUEST, "MCP connection config is empty");
         }
         String command = config.path("command").asText(null);
-        if (StrUtil.isBlank(command)) {
+        if (Strings.isBlank(command)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "stdio MCP command is required");
         }
 
@@ -466,14 +474,14 @@ public class LobeHubAdapter implements McpVendorAdapter {
                             new TypeReference<Map<String, String>>() {}));
         }
         String cwd = config.path("cwd").asText(null);
-        if (StrUtil.isNotBlank(cwd)) {
+        if (Strings.isNotBlank(cwd)) {
             connection.setCwd(cwd);
         }
         return connection;
     }
 
     private McpConnection buildRemoteConnection(McpProtocolType protocol, ObjectNode config) {
-        if (config == null || StrUtil.isBlank(config.path("url").asText(null))) {
+        if (config == null || Strings.isBlank(config.path("url").asText(null))) {
             throw new BusinessException(
                     ErrorCode.INVALID_REQUEST, "MCP connection URL is required");
         }
@@ -487,8 +495,6 @@ public class LobeHubAdapter implements McpVendorAdapter {
         return connection;
     }
 
-    // ==================== Authentication ====================
-
     /**
      * Get a valid access_token, using cache when available. If no cached token, obtains a fresh one
      * via JWT client assertion flow.
@@ -501,7 +507,9 @@ public class LobeHubAdapter implements McpVendorAdapter {
         return refreshAccessToken();
     }
 
-    /** Obtain a fresh access_token via JWT client assertion. */
+    /**
+     * Obtains a fresh access_token via JWT client assertion.
+     */
     private String refreshAccessToken() {
         String[] credentials = getClientCredentials();
         String clientId = credentials[0];
@@ -522,14 +530,18 @@ public class LobeHubAdapter implements McpVendorAdapter {
             try {
                 return exchangeJwtForToken(jwt);
             } catch (AuthRetryException | IOException ex) {
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
             }
         } catch (IOException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
         }
     }
 
-    /** Get client credentials from cache, or register a new client. */
+    /**
+     * Gets client credentials from cache, or registers a new client.
+     */
     private String[] getClientCredentials() {
         String[] cached = clientCredentialsCache.getIfPresent(CACHE_KEY);
         if (cached != null) {
@@ -559,8 +571,9 @@ public class LobeHubAdapter implements McpVendorAdapter {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body() == null) {
-                log.error("LobeHub client registration failed with status: {}", response.code());
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+                log.error("LobeHub client registration failed, status={}", response.code());
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
             }
 
             String responseBody = response.body().string();
@@ -570,7 +583,8 @@ public class LobeHubAdapter implements McpVendorAdapter {
 
             if (clientId.isBlank() || clientSecret.isBlank()) {
                 log.error("LobeHub client registration returned incomplete credentials");
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
             }
 
             String[] credentials = new String[] {clientId, clientSecret};
@@ -578,7 +592,8 @@ public class LobeHubAdapter implements McpVendorAdapter {
             log.info("LobeHub client registered successfully, clientId={}", clientId);
             return credentials;
         } catch (IOException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
         }
     }
 
@@ -632,8 +647,9 @@ public class LobeHubAdapter implements McpVendorAdapter {
                 throw new AuthRetryException();
             }
             if (!response.isSuccessful() || response.body() == null) {
-                log.error("LobeHub token exchange failed with status: {}", response.code());
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+                log.error("LobeHub token exchange failed, status={}", response.code());
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
             }
 
             String responseBody = response.body().string();
@@ -643,7 +659,8 @@ public class LobeHubAdapter implements McpVendorAdapter {
 
             if (accessToken.isBlank()) {
                 log.error("LobeHub token exchange returned empty access_token");
-                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+                throw new BusinessException(
+                        ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
             }
 
             // Cache with expiry = expires_in - 60 seconds (refresh early)
@@ -657,14 +674,16 @@ public class LobeHubAdapter implements McpVendorAdapter {
         }
     }
 
-    // ==================== Crypto Utilities ====================
-
-    /** Base64URL encode (no padding). */
+    /**
+     * Base64URL encodes without padding.
+     */
     static String base64UrlEncode(byte[] data) {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(data);
     }
 
-    /** HMAC-SHA256 sign. */
+    /**
+     * Signs data with HMAC-SHA256.
+     */
     private byte[] hmacSha256(String secret, String data) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
@@ -673,12 +692,13 @@ public class LobeHubAdapter implements McpVendorAdapter {
             mac.init(keySpec);
             return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 认证失败");
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR, "LobeHub OAuth2 authentication failed");
         }
     }
 
-    // ==================== Internal Exception ====================
-
-    /** Marker exception for 401 responses that should trigger a retry. */
+    /**
+     * Marker exception for 401 responses that should trigger a retry.
+     */
     private static class AuthRetryException extends Exception {}
 }

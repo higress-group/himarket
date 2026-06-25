@@ -38,14 +38,16 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import reactor.core.Disposable;
 
 /**
- * WebSocket 事件入口。
- * 仅负责接收 WebSocket 事件并委托给专门的组件处理。
+ * WebSocket event entry point.
  *
- * <p>职责：
+ * <p>Receives WebSocket events and delegates specialized work to focused components.
+ *
+ * <p>Responsibilities:
+ *
  * <ul>
- *   <li>afterConnectionEstablished → 委托 HiCodingConnectionManager + SessionInitializer
- *   <li>handleTextMessage → 委托 HiCodingMessageRouter
- *   <li>afterConnectionClosed / handleTransportError → 委托 HiCodingConnectionManager.cleanup()
+ *   <li>afterConnectionEstablished: delegate to HiCodingConnectionManager and SessionInitializer
+ *   <li>handleTextMessage: delegate to HiCodingMessageRouter
+ *   <li>afterConnectionClosed / handleTransportError: delegate to HiCodingConnectionManager.cleanup()
  * </ul>
  */
 @Component
@@ -63,7 +65,9 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     private final WebSocketPingScheduler pingScheduler;
     private final SandboxHttpClient sandboxHttpClient;
 
-    /** 异步初始化线程池（有界） */
+    /**
+     * Bounded executor for asynchronous initialization.
+     */
     private final ExecutorService podInitExecutor =
             new ThreadPoolExecutor(
                     4,
@@ -117,7 +121,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         String cwd = "/workspace/" + userId;
 
         logger.info(
-                "WebSocket connected: id={}, userId={}, cwd={}, sandboxType={}",
+                "WebSocket connected, sessionId={}, userId={}, cwd={}, sandboxType={}",
                 session.getId(),
                 userId,
                 cwd,
@@ -130,13 +134,15 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         }
         CliProviderConfig providerConfig = properties.getProvider(providerKey);
         if (providerConfig == null) {
-            logger.error("Unknown CLI provider '{}', closing connection", providerKey);
+            logger.error("Unknown CLI provider, closing connection, provider={}", providerKey);
             session.close(CloseStatus.POLICY_VIOLATION);
             return;
         }
 
         logger.info(
-                "Using CLI provider '{}' (command={})", providerKey, providerConfig.getCommand());
+                "Using CLI provider, provider={}, command={}",
+                providerKey,
+                providerConfig.getCommand());
 
         // Build RuntimeConfig from provider configuration
         RuntimeConfig config =
@@ -145,19 +151,19 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         // Resolve sandboxMode from session attributes (set by HiCodingHandshakeInterceptor)
         String sandboxMode = (String) session.getAttributes().get("sandboxMode");
 
-        // 注册连接
+        // Register connection state.
         connectionManager.registerConnection(session.getId(), userId, cwd, sandboxMode);
 
-        // 等待 session/config 消息到达后再启动 pipeline
+        // Wait for the session/config message before starting the pipeline.
         connectionManager.setDeferredInit(
                 session.getId(),
                 new DeferredInitParams(userId, providerKey, config, providerConfig, sandboxType));
         logger.info(
-                "Deferring pipeline init until session/config message: session={}",
+                "Deferring pipeline init until session config message, sessionId={}",
                 session.getId());
         // Non-blocking return for all sandbox types
 
-        // 启动 WebSocket 协议级 ping 定时器，保持前端连接活跃
+        // Start protocol-level ping to keep the frontend connection alive.
         pingScheduler.startPing(session);
     }
 
@@ -166,12 +172,11 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             throws Exception {
         String payload = message.getPayload();
         if (payload.isBlank()) {
-            logger.trace("Ignoring blank message from session {}", session.getId());
+            logger.trace("Ignoring blank message from session, sessionId={}", session.getId());
             return;
         }
 
-        // 拦截 session/config 消息：前端连接后发送的配置（替代 URL query string 传递）
-        // 必须在 pendingMessageMap 检查之前处理，因为此时 pipeline 尚未启动
+        // Intercept session/config before pendingMessageMap because the pipeline is not started.
         DeferredInitParams deferred = connectionManager.getDeferredInit(session.getId());
         if (deferred != null) {
             CliSessionConfig sessionConfig = null;
@@ -183,27 +188,28 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                     if (params != null) {
                         sessionConfig = objectMapper.treeToValue(params, CliSessionConfig.class);
                         logger.info(
-                                "Received session/config via WebSocket message: session={},"
-                                    + " hasModel={}, mcpCount={}, skillCount={}, hasAuthToken={}",
+                                "Received session/config via WebSocket message, sessionId={},"
+                                        + " modelProductId={}, mcpCount={}, skillCount={}",
                                 session.getId(),
-                                sessionConfig.getModelProductId() != null,
+                                sessionConfig.getModelProductId(),
                                 sessionConfig.getMcpServers() != null
                                         ? sessionConfig.getMcpServers().size()
                                         : 0,
                                 sessionConfig.getSkills() != null
                                         ? sessionConfig.getSkills().size()
-                                        : 0,
-                                sessionConfig.getAuthToken() != null
-                                        && !sessionConfig.getAuthToken().isEmpty());
+                                        : 0);
                     }
                 }
             } catch (Exception e) {
                 logger.warn(
-                        "Failed to parse session/config message, proceeding with null config: {}",
-                        e.getMessage());
+                        "Failed to parse session config message, proceeding with null config,"
+                                + " sessionId={}, errorMessage={}",
+                        session.getId(),
+                        e.getMessage(),
+                        e);
             }
 
-            // 无论是否成功解析 session/config，都启动 pipeline（config 可以为 null）
+            // Start the pipeline regardless of whether session/config was parsed successfully.
             final CliSessionConfig fSessionConfig = sessionConfig;
             final DeferredInitParams fDeferred = deferred;
             podInitExecutor.submit(
@@ -217,28 +223,34 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                                     fSessionConfig,
                                     fDeferred.sandboxType()));
 
-            // 如果这条消息是 session/config，已处理完毕，不需要转发给 CLI
+            // session/config has been handled and should not be forwarded to the CLI.
             if (sessionConfig != null) {
                 return;
             }
-            // 不是 session/config 消息，fall through 到下面的 pendingQueue 缓存逻辑
+            // Non-session/config messages fall through into pending queue buffering.
         }
 
-        // 如果 Pod 还在异步初始化中，缓存消息
+        // Queue messages while asynchronous sandbox initialization is still running.
         Queue<String> pendingQueue = connectionManager.getPendingMessages(session.getId());
         if (pendingQueue != null) {
             pendingQueue.add(payload);
-            logger.debug("Pod initializing, queued message for session {}", session.getId());
+            logger.debug(
+                    "Sandbox is initializing, queued inbound message, sessionId={}, payload={}",
+                    session.getId(),
+                    payload);
             return;
         }
 
         RuntimeAdapter runtime = connectionManager.getRuntime(session.getId());
         if (runtime == null) {
-            logger.warn("No runtime for session {}", session.getId());
+            logger.warn("Runtime not found for WebSocket session, sessionId={}", session.getId());
             return;
         }
 
-        logger.debug("Inbound [{}]: {}", session.getId(), payload);
+        logger.debug(
+                "Inbound WebSocket message received, sessionId={}, payload={}",
+                session.getId(),
+                payload);
 
         // Rewrite cwd in session/new and session/load requests to the absolute workspace path
         payload = rewriteSessionCwd(session.getId(), payload);
@@ -246,14 +258,18 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         try {
             messageRouter.forwardToCliAgent(runtime, payload);
         } catch (IOException e) {
-            logger.error("Error writing to runtime stdin for session {}", session.getId(), e);
+            logger.error(
+                    "Failed to write to runtime stdin, sessionId={}, errorMessage={}",
+                    session.getId(),
+                    e.getMessage(),
+                    e);
         }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status)
             throws Exception {
-        logger.info("WebSocket closed: id={}, status={}", session.getId(), status);
+        logger.info("WebSocket closed, sessionId={}, status={}", session.getId(), status);
         pingScheduler.stopPing(session.getId());
         connectionManager.cleanup(session.getId());
     }
@@ -261,14 +277,20 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception)
             throws Exception {
-        logger.error("WebSocket transport error for session {}", session.getId(), exception);
+        logger.error(
+                "WebSocket transport error, sessionId={}, errorMessage={}",
+                session.getId(),
+                exception.getMessage(),
+                exception);
         pingScheduler.stopPing(session.getId());
         connectionManager.cleanup(session.getId());
     }
 
     /**
-     * 在 podInitExecutor 线程池中执行沙箱初始化。
-     * 委托 SessionInitializer 完成初始化，根据结果处理成功/失败。
+     * Runs sandbox initialization in the podInitExecutor.
+     *
+     * <p>Delegates initialization to SessionInitializer and handles success or failure based on the
+     * result.
      */
     private void doInitialize(
             WebSocketSession session,
@@ -279,7 +301,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             CliSessionConfig sessionConfig,
             SandboxType sandboxType) {
         try {
-            // 优先尝试 reattach 到已有的 detached 会话
+            // Prefer reattaching to an existing detached session.
             DetachedSessionInfo detached = connectionManager.takeDetachedSession(userId);
             if (detached != null
                     && detached.adapter() instanceof RemoteRuntimeAdapter remoteAdapter) {
@@ -288,13 +310,20 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                     return;
                 } catch (Exception e) {
                     logger.warn(
-                            "[Sandbox-Init] Reattach 失败，回退到完整初始化: userId={}, error={}",
+                            "Sandbox reattach failed, falling back to full initialization,"
+                                    + " userId={}, errorMessage={}",
                             userId,
-                            e.getMessage());
+                            e.getMessage(),
+                            e);
                     try {
                         remoteAdapter.close();
                     } catch (Exception closeEx) {
-                        logger.debug("Error closing failed reattach adapter", closeEx);
+                        logger.debug(
+                                "Failed to close adapter after reattach failure, userId={},"
+                                        + " errorMessage={}",
+                                userId,
+                                closeEx.getMessage(),
+                                closeEx);
                     }
                 }
             } else if (detached != null) {
@@ -302,15 +331,30 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             }
 
             logger.info(
-                    "[Sandbox-Init] 开始异步沙箱初始化: userId={}, session={}, type={}",
+                    "Starting async sandbox initialization, userId={}, sessionId={},"
+                            + " sandboxType={}",
                     userId,
                     session.getId(),
                     sandboxType);
-            sendSandboxStatus(session, "creating", "正在准备沙箱环境...");
-            sendInitProgress(session, "sandbox-acquire", "executing", "正在获取沙箱实例...", 0, 5, 0);
+            sendSandboxStatus(session, "creating", "Preparing sandbox environment...");
+            sendInitProgress(
+                    session,
+                    "sandbox-acquire",
+                    "executing",
+                    "Acquiring sandbox instance...",
+                    0,
+                    5,
+                    0);
 
-            // 推送进度：沙箱获取中
-            sendInitProgress(session, "sandbox-acquire", "executing", "正在获取沙箱实例...", 10, 5, 0);
+            // Send progress while acquiring the sandbox.
+            sendInitProgress(
+                    session,
+                    "sandbox-acquire",
+                    "executing",
+                    "Acquiring sandbox instance...",
+                    10,
+                    5,
+                    0);
 
             InitializationResult result =
                     sessionInitializer.initialize(
@@ -323,38 +367,46 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                             session);
 
             if (!session.isOpen()) {
-                logger.warn("[Sandbox-Init] WebSocket 已关闭，放弃后续处理: userId={}", userId);
+                logger.warn(
+                        "WebSocket is closed, skipping sandbox follow-up handling, userId={}",
+                        userId);
                 return;
             }
 
             if (result.success()) {
                 RuntimeAdapter adapter = result.adapter();
 
-                // 订阅 stdout 并转发到前端
+                // Subscribe to stdout and forward it to the frontend.
                 Disposable subscription = messageRouter.subscribeAndForward(adapter, session);
 
-                // 注册运行时资源
+                // Register runtime resources.
                 connectionManager.registerRuntime(session.getId(), adapter, subscription);
 
-                // 推送就绪通知
+                // Send ready notification.
                 SandboxInfo sInfo = result.sandboxInfo();
                 String sandboxHost =
                         sInfo != null && sInfo.host() != null && !sInfo.host().isBlank()
                                 ? sInfo.host()
                                 : null;
 
-                sendSandboxStatus(session, "ready", "沙箱环境已就绪", sandboxHost);
-                sendInitProgress(session, "cli-ready", "completed", "沙箱环境已就绪", 100, 5, 5);
-                logger.info(
-                        "[Sandbox-Init] 已发送 sandbox/status: ready, sandboxHost={}", sandboxHost);
+                sendSandboxStatus(session, "ready", "Sandbox environment is ready", sandboxHost);
+                sendInitProgress(
+                        session,
+                        "cli-ready",
+                        "completed",
+                        "Sandbox environment is ready",
+                        100,
+                        5,
+                        5);
+                logger.info("Sent sandbox status ready, sandboxHost={}", sandboxHost);
 
-                // 通知前端实际使用的工作目录
+                // Notify the frontend of the actual working directory.
                 String cwd = connectionManager.getCwd(session.getId());
                 if (cwd != null) {
                     sendWorkspaceInfo(session, cwd);
                 }
 
-                // 回放缓存的消息（先对每条消息做 rewriteSessionCwd 变换）
+                // Replay queued messages after applying rewriteSessionCwd to each payload.
                 Queue<String> pendingQueue = connectionManager.getPendingMessages(session.getId());
                 if (pendingQueue != null) {
                     Queue<String> rewrittenQueue = new ConcurrentLinkedQueue<>();
@@ -364,31 +416,41 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                     }
                     messageRouter.replayPendingMessages(session, adapter, rewrittenQueue);
                 }
-                // 移除 pendingMessageMap 标记，后续消息直接转发
+                // Remove pendingMessageMap so subsequent messages are forwarded directly.
                 connectionManager.removePendingMessages(session.getId());
 
             } else {
-                // 发送详细错误信息，不主动关闭 WebSocket，由前端决定后续行为
+                // Send detailed errors without closing the WebSocket; the frontend decides.
                 sendSandboxError(session, result, sandboxType);
             }
         } catch (Exception e) {
-            logger.error("[Sandbox-Init] 沙箱初始化异常: userId={}, error={}", userId, e.getMessage(), e);
+            logger.error(
+                    "Sandbox initialization error, userId={}, errorMessage={}",
+                    userId,
+                    e.getMessage(),
+                    e);
             connectionManager.removePendingMessages(session.getId());
-            sendSandboxStatus(session, "error", "沙箱创建失败: " + e.getMessage());
+            sendSandboxStatus(session, "error", "Failed to create sandbox: " + e.getMessage());
             try {
                 if (session.isOpen()) {
                     session.close(CloseStatus.SERVER_ERROR);
                 }
             } catch (IOException closeEx) {
-                logger.debug("Error closing WebSocket after sandbox init failure", closeEx);
+                logger.debug(
+                        "Failed to close WebSocket after sandbox init failure, sessionId={},"
+                                + " errorMessage={}",
+                        session.getId(),
+                        closeEx.getMessage(),
+                        closeEx);
             }
         }
     }
 
     /**
-     * 重新连接到已 detach 的 sidecar 会话。
-     * 跳过完整的沙箱初始化流程（acquire、config injection 等），
-     * 直接调用 adapter.reconnect() 恢复 WebSocket 连接。
+     * Reconnects to a detached Sidecar session.
+     *
+     * <p>Skips the full sandbox initialization flow, such as acquire and config injection, and
+     * restores the WebSocket connection directly through adapter.reconnect().
      */
     private void doReattach(
             WebSocketSession session,
@@ -396,32 +458,30 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             DetachedSessionInfo detached,
             RemoteRuntimeAdapter remoteAdapter) {
         logger.info(
-                "[Sandbox-Init] 尝试 reattach: userId={}, sidecarSessionId={}",
+                "Attempting sandbox reattach, userId={}, sidecarSessionId={}",
                 userId,
                 detached.sidecarSessionId());
 
-        sendSandboxStatus(session, "reattaching", "正在恢复已有会话...");
+        sendSandboxStatus(session, "reattaching", "Restoring existing session...");
 
-        // 重新连接到 sidecar（使用 sessionId attach 模式）
+        // Reconnect to the Sidecar in sessionId attach mode.
         remoteAdapter.reconnect();
 
-        // 等待片刻让 reactor 线程处理可能的立即关闭信号
-        // （sidecar 会话过期时会在握手后立即关闭连接）
+        // Wait briefly so reactor can process any immediate close signal from an expired session.
         try {
             Thread.sleep(500);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        // 验证重连后连接是否仍然存活
+        // Verify the connection is still alive after reconnect.
         if (!remoteAdapter.isAlive()) {
             throw new RuntimeException(
                     "Sidecar connection closed immediately after reattach,"
                             + " session may have expired on sidecar side");
         }
 
-        // 通过 REST API 验证 sidecar 会话是否真正存在
-        // sidecar 对任意 sessionId 都接受 WebSocket 连接，即使会话已删除
+        // Validate the Sidecar session through REST because WebSocket accepts any sessionId.
         String sidecarBaseUrl =
                 "http://"
                         + properties.getRemote().getHost()
@@ -429,38 +489,38 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                         + properties.getRemote().getPort();
         if (!sandboxHttpClient.sessionExists(sidecarBaseUrl, detached.sidecarSessionId())) {
             throw new RuntimeException(
-                    "Sidecar session no longer exists: " + detached.sidecarSessionId());
+                    "Sidecar session no longer exists: sidecarSessionId="
+                            + detached.sidecarSessionId());
         }
 
         if (!session.isOpen()) {
-            logger.warn("[Sandbox-Init] WebSocket 已关闭，放弃 reattach: userId={}", userId);
+            logger.warn("WebSocket is closed, skipping sandbox reattach, userId={}", userId);
             remoteAdapter.detach();
-            // 放回 detachedSessionMap 以便下次重试
-            connectionManager.takeDetachedSession(userId); // 确保没有残留
+            // Ensure no stale detached session remains.
+            connectionManager.takeDetachedSession(userId);
             return;
         }
 
-        // 先通知前端：已恢复连接（在订阅 stdout 之前，确保前端先收到状态通知）
-        sendSandboxStatus(session, "ready", "已恢复已有会话");
-        sendInitProgress(session, "cli-ready", "completed", "已恢复已有会话", 100, 5, 5);
+        // Notify the frontend before subscribing to stdout so the status arrives first.
+        sendSandboxStatus(session, "ready", "Existing session restored");
+        sendInitProgress(session, "cli-ready", "completed", "Existing session restored", 100, 5, 5);
 
-        // 通知前端实际使用的工作目录
+        // Notify the frontend of the actual working directory.
         String cwd = connectionManager.getCwd(session.getId());
         if (cwd != null) {
             sendWorkspaceInfo(session, cwd);
         }
 
-        // 通知前端这是一次 reattach
+        // Notify the frontend that this connection was reattached.
         sendReattachNotification(session, detached.sidecarSessionId());
 
-        // 订阅 stdout 并转发到前端
-        // 放在所有通知之后：避免 sidecar 残留消息在前端未就绪时到达
+        // Subscribe after notifications so residual Sidecar output does not arrive too early.
         Disposable subscription = messageRouter.subscribeAndForward(remoteAdapter, session);
 
-        // 注册运行时资源
+        // Register runtime resources.
         connectionManager.registerRuntime(session.getId(), remoteAdapter, subscription);
 
-        // 回放缓存的消息
+        // Replay queued messages.
         Queue<String> pendingQueue = connectionManager.getPendingMessages(session.getId());
         if (pendingQueue != null) {
             Queue<String> rewrittenQueue = new ConcurrentLinkedQueue<>();
@@ -473,14 +533,15 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         connectionManager.removePendingMessages(session.getId());
 
         logger.info(
-                "[Sandbox-Init] Reattach 成功: userId={}, sidecarSessionId={}",
+                "Sandbox reattach succeeded, userId={}, sidecarSessionId={}",
                 userId,
                 detached.sidecarSessionId());
     }
 
     /**
-     * 发送详细的沙箱初始化错误信息（适配 InitializationResult）。
-     * 包含 failedPhase、errorMessage、retryable、diagnostics。
+     * Sends detailed sandbox initialization errors for InitializationResult.
+     *
+     * <p>Includes failedPhase, errorMessage, retryable, and diagnostics.
      */
     private void sendSandboxError(
             WebSocketSession session, InitializationResult result, SandboxType sandboxType) {
@@ -493,7 +554,10 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             params.put("status", "error");
             params.put(
                     "message",
-                    "沙箱初始化失败: " + (result.errorMessage() != null ? result.errorMessage() : "未知错误"));
+                    "Sandbox initialization failed: "
+                            + (result.errorMessage() != null
+                                    ? result.errorMessage()
+                                    : "Unknown error"));
             params.put("failedPhase", result.failedPhase());
             params.put("sandboxType", sandboxType.getValue());
             params.put("retryable", result.retryable());
@@ -501,7 +565,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
             // diagnostics
             ObjectNode diagnostics = objectMapper.createObjectNode();
             List<String> completedPhases = new ArrayList<>();
-            // InitializationResult 不直接持有 phaseDurations，使用 failedPhase 推断
+            // InitializationResult does not hold phaseDurations directly; infer from failedPhase.
             diagnostics.set("completedPhases", objectMapper.valueToTree(completedPhases));
             if (result.totalDuration() != null) {
                 diagnostics.put(
@@ -516,37 +580,48 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
             }
             logger.error(
-                    "[Sandbox-Init] 发送错误通知: failedPhase={}, retryable={}, message={}",
+                    "Sent sandbox error notification, failedPhase={}, retryable={}, message={}",
                     result.failedPhase(),
                     result.retryable(),
                     result.errorMessage());
         } catch (Exception e) {
-            logger.warn("Failed to send sandbox error notification: {}", e.getMessage());
+            logger.warn(
+                    "Failed to send sandbox error notification, errorMessage={}",
+                    e.getMessage(),
+                    e);
         }
     }
 
     /**
-     * 根据失败阶段生成针对性的排查建议。
+     * Builds a targeted troubleshooting suggestion from the failed phase.
      */
     private String buildSuggestion(InitializationResult result) {
         if (result.failedPhase() == null) {
-            return "请检查沙箱配置或联系管理员";
+            return "Check the sandbox configuration or contact an administrator.";
         }
         return switch (result.failedPhase()) {
             case "filesystem-ready" ->
-                    "沙箱服务不可达，请检查: 1) sidecar 服务是否已启动 "
-                            + "2) ACP_REMOTE_HOST 和 ACP_REMOTE_PORT 配置是否正确 "
-                            + "3) 网络是否可达";
-            case "sandbox-acquire" -> "沙箱实例获取失败，请检查沙箱配置或联系管理员";
-            case "config-injection" -> "配置注入失败，请重试连接";
-            case "sidecar-connect" -> "Sidecar WebSocket 连接失败，请检查 sidecar 服务状态后重试";
-            case "cli-ready" -> "CLI 工具启动失败，请检查 CLI 命令配置是否正确";
-            default -> result.retryable() ? "请重试连接" : "请检查沙箱配置或联系管理员";
+                    "Sandbox service is unreachable. Check that the Sidecar service is running, "
+                            + "ACP_REMOTE_HOST and ACP_REMOTE_PORT are correct, and the network is"
+                            + " reachable.";
+            case "sandbox-acquire" ->
+                    "Failed to acquire sandbox instance. Check the sandbox configuration or contact"
+                            + " an administrator.";
+            case "config-injection" -> "Failed to inject configuration. Try reconnecting.";
+            case "sidecar-connect" ->
+                    "Failed to connect to the Sidecar WebSocket. Check the Sidecar service status"
+                            + " and retry.";
+            case "cli-ready" ->
+                    "Failed to start the CLI tool. Check the CLI command configuration.";
+            default ->
+                    result.retryable()
+                            ? "Try reconnecting."
+                            : "Check the sandbox configuration or contact an administrator.";
         };
     }
 
     /**
-     * 向前端推送初始化进度消息。
+     * Sends an initialization progress notification to the frontend.
      */
     private void sendInitProgress(
             WebSocketSession session,
@@ -573,12 +648,15 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
             }
         } catch (Exception e) {
-            logger.warn("Failed to send init progress notification: {}", e.getMessage());
+            logger.warn(
+                    "Failed to send init progress notification, errorMessage={}",
+                    e.getMessage(),
+                    e);
         }
     }
 
     /**
-     * 向前端推送沙箱状态通知（JSON-RPC notification）。
+     * Sends a sandbox status notification to the frontend.
      */
     private void sendSandboxStatus(WebSocketSession session, String status, String message) {
         sendSandboxStatus(session, status, message, null);
@@ -602,12 +680,15 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
             }
         } catch (Exception e) {
-            logger.warn("Failed to send sandbox status notification: {}", e.getMessage());
+            logger.warn(
+                    "Failed to send sandbox status notification, errorMessage={}",
+                    e.getMessage(),
+                    e);
         }
     }
 
     /**
-     * 向前端推送工作目录信息通知（JSON-RPC notification）。
+     * Sends working directory information to the frontend.
      */
     private void sendWorkspaceInfo(WebSocketSession session, String cwd) {
         try {
@@ -622,12 +703,17 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
             }
         } catch (Exception e) {
-            logger.warn("Failed to send workspace info notification: {}", e.getMessage());
+            logger.warn(
+                    "Failed to send workspace info notification, errorMessage={}",
+                    e.getMessage(),
+                    e);
         }
     }
 
     /**
-     * 向前端推送 reattach 通知，告知前端此次连接恢复了已有的 sidecar 会话。
+     * Sends a reattach notification to the frontend.
+     *
+     * <p>Indicates that this connection restored an existing Sidecar session.
      */
     private void sendReattachNotification(WebSocketSession session, String sidecarSessionId) {
         try {
@@ -643,7 +729,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(notification)));
             }
         } catch (Exception e) {
-            logger.warn("Failed to send reattach notification: {}", e.getMessage());
+            logger.warn("Failed to send reattach notification, errorMessage={}", e.getMessage(), e);
         }
     }
 
@@ -658,7 +744,8 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         try {
             return SandboxType.fromValue(runtimeParam);
         } catch (IllegalArgumentException e) {
-            logger.warn("Unknown sandbox type '{}', defaulting to REMOTE", runtimeParam);
+            logger.warn(
+                    "Unknown sandbox type, defaulting to REMOTE, runtimeParam={}", runtimeParam);
             return SandboxType.REMOTE;
         }
     }
@@ -676,8 +763,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
                 providerConfig.getEnv() != null
                         ? new HashMap<>(providerConfig.getEnv())
                         : new HashMap<>();
-        // 将 HOME 指向用户工作目录，确保 CLI 工具的会话文件（JSONL 等）
-        // 存储在持久化卷上，而非容器临时文件系统的 /root 下
+        // Point HOME to the user workspace so CLI session files stay on the persistent volume.
         processEnv.put("HOME", cwd);
         RuntimeConfig config = new RuntimeConfig();
         config.setUserId(userId);
@@ -688,7 +774,7 @@ public class HiCodingWebSocketHandler extends TextWebSocketHandler {
         config.setEnv(processEnv);
 
         if (sandboxType == SandboxType.REMOTE) {
-            logger.info("Remote runtime: host={}", properties.getRemote().getHost());
+            logger.info("Using remote runtime, host={}", properties.getRemote().getHost());
         }
 
         return config;
