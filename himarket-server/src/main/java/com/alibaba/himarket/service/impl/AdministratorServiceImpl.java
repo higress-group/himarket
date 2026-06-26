@@ -73,6 +73,9 @@ public class AdministratorServiceImpl implements AdministratorService {
 
     @Override
     public AdminResult initAdmin(String username, String password) {
+        if (!needInit()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "Administrator already exists");
+        }
         Administrator admin =
                 Administrator.builder()
                         .adminId(generateAdminId())
