@@ -2,14 +2,15 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
-import com.alibaba.himarket.dto.params.worker.PublishWorkerVersionParam;
-import com.alibaba.himarket.dto.params.worker.SetLatestWorkerVersionParam;
-import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionStatusParam;
+import com.alibaba.himarket.dto.params.worker.CreateWorkerDraftParam;
+import com.alibaba.himarket.dto.params.worker.UpdateWorkerDraftParam;
+import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionParam;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
+import com.alibaba.himarket.dto.result.common.WorkerDraftResult;
 import com.alibaba.himarket.service.WorkerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -91,30 +92,45 @@ public class WorkerController {
         return workerService.listVersions(productId);
     }
 
-    @Operation(summary = "Publish Worker version")
-    @PostMapping("/{productId}/versions")
-    @AdminAuth
-    public void publishVersion(
-            @PathVariable String productId, @RequestBody @Valid PublishWorkerVersionParam param) {
-        workerService.publishVersion(productId, param.getVersion());
-    }
-
-    @Operation(summary = "Update Worker version status")
+    @Operation(
+            summary = "Update Worker version",
+            description =
+                    "Update exactly one aspect of a Worker version per request. "
+                            + "Use `{\"status\":\"reviewing\"}` to submit the version for review. "
+                            + "Use `{\"status\":\"online\"}` to publish an approved version, "
+                            + "`{\"status\":\"offline\"}` to take the version offline, "
+                            + "`{\"latest\":true}` to mark it as latest, or "
+                            + "`{\"author\":\"name\"}` to update the version author.")
     @PatchMapping("/{productId}/versions/{version}")
     @AdminAuth
-    public void updateVersionStatus(
+    public void updateVersion(
             @PathVariable String productId,
             @PathVariable String version,
-            @RequestBody @Valid UpdateWorkerVersionStatusParam param) {
-        workerService.changeVersionStatus(productId, version, "online".equals(param.getStatus()));
+            @RequestBody @Valid UpdateWorkerVersionParam param) {
+        workerService.updateVersion(productId, version, param);
     }
 
-    @Operation(summary = "Set latest Worker version")
-    @PutMapping("/{productId}/versions/latest")
+    @Operation(summary = "Create Worker draft")
+    @PostMapping("/{productId}/draft")
     @AdminAuth
-    public void setLatestVersion(
-            @PathVariable String productId, @RequestBody @Valid SetLatestWorkerVersionParam param) {
-        workerService.setLatestVersion(productId, param.getVersion());
+    public void createDraft(
+            @PathVariable String productId, @RequestBody @Valid CreateWorkerDraftParam param) {
+        workerService.createDraft(productId, param);
+    }
+
+    @Operation(summary = "Get Worker draft")
+    @GetMapping("/{productId}/draft")
+    @AdminAuth
+    public WorkerDraftResult getDraft(@PathVariable String productId) {
+        return workerService.getDraft(productId);
+    }
+
+    @Operation(summary = "Update Worker draft")
+    @PutMapping("/{productId}/draft")
+    @AdminAuth
+    public void updateDraft(
+            @PathVariable String productId, @RequestBody @Valid UpdateWorkerDraftParam param) {
+        workerService.updateDraft(productId, param);
     }
 
     @Operation(summary = "Delete Worker draft")

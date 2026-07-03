@@ -37,7 +37,6 @@ import com.alibaba.himarket.dto.params.product.UpdateProductParam;
 import com.alibaba.himarket.dto.params.product.UpdateProductSourceParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
-import com.alibaba.himarket.dto.result.airegistry.AiRegistryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
@@ -52,7 +51,6 @@ import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
-import com.alibaba.himarket.dto.result.setting.AdminSettingResult;
 import com.alibaba.himarket.entity.Consumer;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.entity.ProductCategoryRelation;
@@ -65,7 +63,6 @@ import com.alibaba.himarket.repository.ProductPublicationRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
-import com.alibaba.himarket.service.AdminSettingService;
 import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.McpToolService;
@@ -142,8 +139,6 @@ public class ProductServiceImpl implements ProductService {
 
     private final SkillService skillService;
 
-    private final AdminSettingService adminSettingService;
-
     private final AiRegistryService aiRegistryService;
 
     private final ApplicationEventPublisher eventPublisher;
@@ -202,22 +197,6 @@ public class ProductServiceImpl implements ProductService {
             return;
         }
 
-        if (productType == ProductType.AGENT_SKILL
-                && defaultSkillRegistryType() == SkillRegistryType.AIREGISTRY) {
-            AiRegistryResult aiRegistry = aiRegistryService.getDefaultAiRegistryInstance();
-            if (aiRegistry == null) {
-                return;
-            }
-            feature.setSkillConfig(
-                    SkillConfig.builder()
-                            .registryType(SkillRegistryType.AIREGISTRY)
-                            .aiRegistryId(aiRegistry.getAiRegistryId())
-                            .namespace(aiRegistry.getNamespaceId())
-                            .build());
-            product.setFeature(feature);
-            return;
-        }
-
         NacosResult nacos = nacosService.getDefaultNacosInstance();
         if (nacos == null) {
             return;
@@ -239,19 +218,6 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product.setFeature(feature);
-    }
-
-    private SkillRegistryType defaultSkillRegistryType() {
-        AdminSettingResult setting = adminSettingService.getSetting("defaultSkillRegistryType");
-        String value = setting == null ? null : setting.getSettingValue();
-        if (Strings.isBlank(value)) {
-            return SkillRegistryType.NACOS;
-        }
-        try {
-            return SkillRegistryType.valueOf(value.trim());
-        } catch (IllegalArgumentException e) {
-            return SkillRegistryType.NACOS;
-        }
     }
 
     @Override
@@ -490,18 +456,10 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void cleanupRemoteResources(Product product) {
-        try {
-            switch (product.getType()) {
-                case WORKER -> workerService.deleteAgentSpec(product.getProductId());
-                case AGENT_SKILL -> skillService.deleteSkill(product.getProductId());
-                default -> {}
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "Failed to cleanup remote resources for product, continuing with deletion,"
-                            + " productId={}",
-                    product.getProductId(),
-                    e);
+        switch (product.getType()) {
+            case WORKER -> workerService.deleteAgentSpec(product.getProductId(), true);
+            case AGENT_SKILL -> skillService.deleteSkill(product.getProductId(), true);
+            default -> {}
         }
     }
 
@@ -946,12 +904,48 @@ public class ProductServiceImpl implements ProductService {
             // Fill skill config from feature
             if (product.getFeature() != null && product.getFeature().getSkillConfig() != null) {
                 product.setSkillConfig(product.getFeature().getSkillConfig());
+                fillSkillLatestVersion(product);
             }
 
             // Fill agent spec config from feature
             if (product.getFeature() != null && product.getFeature().getWorkerConfig() != null) {
                 product.setWorkerConfig(product.getFeature().getWorkerConfig());
+                fillWorkerLatestVersion(product);
             }
+        }
+    }
+
+    private void fillSkillLatestVersion(ProductResult product) {
+        try {
+            String latestVersion =
+                    skillService.listVersions(product.getProductId()).stream()
+                            .filter(version -> Boolean.TRUE.equals(version.getIsLatest()))
+                            .map(VersionResult::getVersion)
+                            .findFirst()
+                            .orElse(null);
+            product.getSkillConfig().setLatestVersion(latestVersion);
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to fill Skill latest version, productId={}, errorMessage={}",
+                    product.getProductId(),
+                    e.getMessage());
+        }
+    }
+
+    private void fillWorkerLatestVersion(ProductResult product) {
+        try {
+            String latestVersion =
+                    workerService.listVersions(product.getProductId()).stream()
+                            .filter(version -> Boolean.TRUE.equals(version.getIsLatest()))
+                            .map(VersionResult::getVersion)
+                            .findFirst()
+                            .orElse(null);
+            product.getWorkerConfig().setLatestVersion(latestVersion);
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to fill Worker latest version, productId={}, errorMessage={}",
+                    product.getProductId(),
+                    e.getMessage());
         }
     }
 

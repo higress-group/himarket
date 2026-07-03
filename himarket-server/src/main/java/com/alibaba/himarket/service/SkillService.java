@@ -1,9 +1,13 @@
 package com.alibaba.himarket.service;
 
+import com.alibaba.himarket.dto.params.skill.CreateSkillDraftParam;
+import com.alibaba.himarket.dto.params.skill.UpdateSkillDraftParam;
+import com.alibaba.himarket.dto.params.skill.UpdateSkillVersionParam;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
+import com.alibaba.himarket.dto.result.common.SkillDraftResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,6 +41,14 @@ public interface SkillService {
     void deleteSkill(String productId);
 
     /**
+     * Deletes the Skill associated with the given product.
+     *
+     * @param productId the product identifier
+     * @param ignoreError whether to ignore source deletion errors
+     */
+    void deleteSkill(String productId, boolean ignoreError);
+
+    /**
      * Returns a hierarchical file tree of the Skill contents.
      *
      * @param productId the product identifier
@@ -64,38 +76,37 @@ public interface SkillService {
     List<VersionResult> listVersions(String productId);
 
     /**
-     * Submits the current draft for review (publish pipeline).
-     *
-     * @param productId the product identifier
-     * @param version the draft version to submit
-     */
-    void publishVersion(String productId, String version);
-
-    /**
-     * Publishes a reviewed version.
-     *
-     * @param productId the product identifier
-     * @param version the reviewed version to publish
-     */
-    void publishApprovedVersion(String productId, String version);
-
-    /**
-     * Changes the online status of a specific version.
+     * Updates mutable fields of a specific version.
      *
      * @param productId the product identifier
      * @param version the target version
-     * @param online true to put online, false to take offline
+     * @param param the partial version update request
      */
-    void changeVersionStatus(String productId, String version, boolean online);
+    void updateVersion(String productId, String version, UpdateSkillVersionParam param);
 
     /**
-     * Force-publishes a version, bypassing Nacos pipeline validation.
+     * Creates a draft by copying an existing version.
      *
-     * @param productId        the product identifier
-     * @param version          the version to force-publish
-     * @param updateLatestLabel whether to update the "latest" label, null defaults to true
+     * @param productId the product identifier
+     * @param param the draft creation request
      */
-    void forcePublishVersion(String productId, String version, Boolean updateLatestLabel);
+    void createDraft(String productId, CreateSkillDraftParam param);
+
+    /**
+     * Returns the current draft SkillCard.
+     *
+     * @param productId the product identifier
+     * @return the draft version and SkillCard
+     */
+    SkillDraftResult getDraft(String productId);
+
+    /**
+     * Updates the current draft with a full SkillCard.
+     *
+     * @param productId the product identifier
+     * @param param the draft update request
+     */
+    void updateDraft(String productId, UpdateSkillDraftParam param);
 
     /**
      * Deletes the current editing draft.
@@ -103,14 +114,6 @@ public interface SkillService {
      * @param productId the product identifier
      */
     void deleteDraft(String productId);
-
-    /**
-     * Sets a version as the latest (current) version.
-     *
-     * @param productId the product identifier
-     * @param version the target version
-     */
-    void setLatestVersion(String productId, String version);
 
     /**
      * Downloads the Skill as a ZIP archive.

@@ -1,70 +1,101 @@
 import { DownloadOutlined } from '@ant-design/icons';
+import { ArrowUpRight } from 'lucide-react';
+
+import { ProductIconRenderer } from '../icon/ProductIconRenderer';
 
 interface SkillCardProps {
+  icon: string;
   name: string;
   description: string;
-  releaseDate: string;
-  skillTags?: string[];
-  downloadCount?: number;
+  updatedAt: string;
+  author?: string;
+  authorPrefix: string;
+  skillTags?: string[] | null;
+  downloadCount?: number | null;
   onClick?: () => void;
 }
 
 export function SkillCard({
+  author,
+  authorPrefix,
   description,
   downloadCount,
+  icon,
   name,
   onClick,
-  releaseDate,
   skillTags = [],
+  updatedAt,
 }: SkillCardProps) {
+  const normalizedSkillTags = Array.isArray(skillTags) ? skillTags : [];
+  const formattedAuthor = author ? `@${author.replace(/^@+/, '')}` : undefined;
+
   return (
     <button
       className="
-        group bg-white/70 backdrop-blur-sm rounded-[10px] p-5
-        border border-gray-100/80
+        group rounded-xl border border-[#DDE4EF] bg-[linear-gradient(180deg,#FFFFFF_0%,#FBFCFF_100%)] p-4
         cursor-pointer
-        transition-all duration-300 ease-out
-        hover:bg-white hover:shadow-lg hover:shadow-gray-200/50 hover:-translate-y-0.5 hover:border-gray-200/60
+        transition-all duration-200 ease-out
+        shadow-[0_6px_20px_rgba(31,42,68,0.05)]
+        hover:-translate-y-0.5 hover:border-[#C6D1E3] hover:shadow-[0_14px_34px_rgba(31,42,68,0.09)]
         active:scale-[0.98] active:duration-150
-        h-[200px] flex flex-col
-        w-full text-left border-none
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-colorPrimary/25 focus-visible:ring-offset-2
+        relative
+        overflow-hidden
+        h-[176px]
+        flex flex-col
+        w-full text-left
       "
       onClick={onClick}
       type="button"
     >
-      {/* 名称 + 下载数 */}
-      <div className="flex items-center gap-3 mb-3">
-        <h3 className="text-base font-semibold text-gray-800 truncate flex-1 group-hover:text-gray-900 transition-colors">
-          {name}
-        </h3>
-        <span className="flex items-center gap-1.5 text-gray-400 text-sm flex-shrink-0">
-          <DownloadOutlined className="text-sm text-gray-400" />
-          {downloadCount ?? 0}
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#EDF1F7] bg-[#F3F6FF]">
+            <ProductIconRenderer className="h-full w-full object-cover" iconType={icon} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-bold leading-tight text-gray-950 transition-colors">
+              {name}
+            </h3>
+            <div className="mt-1 flex min-w-0 max-w-full items-center gap-3 text-xs leading-snug text-gray-500">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="flex-shrink-0 truncate">{updatedAt}</span>
+                {formattedAuthor && (
+                  <span className="min-w-0 max-w-[132px] truncate">
+                    {authorPrefix}{' '}
+                    <span className="font-semibold text-[#566176]">{formattedAuthor}</span>
+                  </span>
+                )}
+              </div>
+              <span className="ml-auto inline-flex flex-shrink-0 items-center gap-1.5">
+                <DownloadOutlined className="text-[11px] text-gray-400" />
+                <span className="tabular-nums">{(downloadCount ?? 0).toLocaleString()}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-all duration-200 group-hover:bg-[#F3F6FA] group-hover:text-gray-700 group-hover:opacity-100 group-focus-visible:bg-[#F3F6FA] group-focus-visible:text-gray-700 group-focus-visible:opacity-100">
+          <ArrowUpRight aria-hidden="true" size={15} strokeWidth={2} />
         </span>
       </div>
 
-      {/* 简介 */}
-      <p className="text-sm line-clamp-3 leading-relaxed text-gray-500 flex-1">{description}</p>
-
-      {/* 底部：标签 + 下载数 + 日期 */}
-      <div className="mt-2 space-y-1.5">
-        {(skillTags ?? []).length > 0 && (
-          <div className="flex items-center gap-1 overflow-hidden">
-            {(skillTags ?? []).slice(0, 3).map((tag) => (
-              <span
-                className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-50 text-gray-500 whitespace-nowrap border border-gray-100"
-                key={tag}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
+      <div className="mb-3 flex min-h-6 flex-wrap items-center gap-2">
+        {normalizedSkillTags.slice(0, 3).map((tag) => (
+          <span
+            className="inline-flex min-h-6 items-center rounded-[6px] border border-[#E4EAF3] bg-[#F8FAFD] px-2 text-xs font-semibold text-[#566176]"
+            key={tag}
+          >
+            {tag}
+          </span>
+        ))}
+        {normalizedSkillTags.length > 3 && (
+          <span className="inline-flex min-h-6 items-center rounded-[6px] border border-[#E4EAF3] bg-[#F8FAFD] px-2 text-xs font-semibold text-[#566176]">
+            +{normalizedSkillTags.length - 3}
+          </span>
         )}
-
-        <div className="flex items-center justify-end text-gray-400 text-xs">
-          <span className="tabular-nums tracking-tight">{releaseDate}</span>
-        </div>
       </div>
+
+      <p className="line-clamp-2 flex-1 text-sm leading-relaxed text-gray-600">{description}</p>
     </button>
   );
 }

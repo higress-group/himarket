@@ -19,6 +19,7 @@ import { WorkerCard } from '../components/square/WorkerCard';
 import APIs, { type ICategory } from '../lib/apis';
 import { getIconString } from '../lib/iconUtils';
 import { getProductCardTags } from '../lib/utils/productCardTags';
+import { getSkillLatestAuthor, getWorkerLatestAuthor } from '../lib/utils/skillVersionInfo';
 
 import type { IProductDetail } from '../lib/apis/product';
 
@@ -44,7 +45,9 @@ function Square(props: { activeType: string }) {
     activeType === 'MCP_SERVER' ||
     activeType === 'AGENT_API' ||
     activeType === 'MODEL_API' ||
-    activeType === 'REST_API';
+    activeType === 'REST_API' ||
+    activeType === 'AGENT_SKILL' ||
+    activeType === 'WORKER';
   const enableSortControl = useNewLayout || showSortControl;
 
   // 分页相关状态
@@ -182,9 +185,17 @@ function Square(props: { activeType: string }) {
           title: t('apiMarketTitle'),
         };
       case 'AGENT_SKILL':
-        return { subtitleKey: 'skillMarketSubtitle', title: t('skillMarketTitle') };
+        return {
+          enLabel: 'Agent Skill',
+          slogan: t('skillMarketSlogan'),
+          title: t('skillMarketTitle'),
+        };
       case 'WORKER':
-        return { subtitleKey: 'workerMarketSubtitle', title: t('workerMarketTitle') };
+        return {
+          enLabel: 'OpenClaw Worker',
+          slogan: t('workerMarketSlogan'),
+          title: t('workerMarketTitle'),
+        };
       default:
         return null;
     }
@@ -200,6 +211,10 @@ function Square(props: { activeType: string }) {
         return 'Model Marketplace';
       case 'REST_API':
         return 'API Marketplace';
+      case 'AGENT_SKILL':
+        return 'Skill Marketplace';
+      case 'WORKER':
+        return 'Worker Marketplace';
       default:
         return '';
     }
@@ -242,22 +257,28 @@ function Square(props: { activeType: string }) {
   const productCards = filteredModels.map((product) =>
     product.type === 'AGENT_SKILL' ? (
       <SkillCard
-        description={product.description}
+        author={getSkillLatestAuthor(product.skillConfig)}
+        authorPrefix={t('author')}
+        description={product.description || t('noDescription')}
         downloadCount={product.skillConfig?.downloadCount}
+        icon={getIconString(product.icon, product.name)}
         key={product.productId}
         name={product.name}
         onClick={() => handleViewDetail(product)}
-        releaseDate={dayjs(product.createAt).format('YYYY-MM-DD HH:mm:ss')}
         skillTags={product.skillConfig?.skillTags}
+        updatedAt={getUpdatedAtLabel(product)}
       />
     ) : product.type === 'WORKER' ? (
       <WorkerCard
-        description={product.description}
+        author={getWorkerLatestAuthor(product.workerConfig)}
+        authorPrefix={t('author')}
+        description={product.description || t('noDescription')}
         downloadCount={product.workerConfig?.downloadCount}
+        icon={getIconString(product.icon, product.name)}
         key={product.productId}
         name={product.name}
         onClick={() => handleViewDetail(product)}
-        releaseDate={dayjs(product.createAt).format('YYYY-MM-DD HH:mm:ss')}
+        updatedAt={getUpdatedAtLabel(product)}
         workerTags={product.workerConfig?.tags}
       />
     ) : (
@@ -293,7 +314,7 @@ function Square(props: { activeType: string }) {
         ref={scrollContainerRef}
       >
         {useNewLayout ? (
-          // 产品市场列表：MCP / Agent / Model / API
+          // Product market list: MCP / Agent / Model / API / Skill / Worker
           <ProductMarketLayout
             activeCategory={activeCategory}
             categories={categories}
@@ -324,7 +345,7 @@ function Square(props: { activeType: string }) {
             watermarkLabel={watermarkLabel}
           />
         ) : (
-          // 旧设计：Skill / Worker（完全保持原始版本）
+          // Legacy layout fallback
           <>
             {/* 引导语 */}
             {slogan && slogan.subtitleKey && (

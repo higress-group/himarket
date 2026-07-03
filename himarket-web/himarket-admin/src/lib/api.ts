@@ -23,6 +23,8 @@ import type {
   UpdateNacosRequest,
   UpdateAiRegistryRequest,
   GetNacosMcpServersParams,
+  AgentSpecCard,
+  SkillCard,
 } from '@/types';
 
 import { getToken, removeToken } from './utils';
@@ -500,10 +502,13 @@ export const airegistryApi = {
 };
 
 export const workerApi = {
+  createDraft: (productId: string, data: { baseVersion: string }) =>
+    api.post(`/workers/${productId}/draft`, data),
   delete: (productId: string) => api.delete(`/workers/${productId}`),
   deleteDraft: (productId: string) => api.delete(`/workers/${productId}/draft`),
   getDownloadUrl: (productId: string) =>
     `${import.meta.env.VITE_API_BASE_URL}/workers/${productId}/download`,
+  getDraft: (productId: string) => api.get(`/workers/${productId}/draft`),
   getFileContent: (productId: string, filePath: string, version?: string) =>
     api.get(`/workers/${productId}/files/${filePath}`, { params: { version } }),
   getFiles: (productId: string, version?: string) =>
@@ -517,10 +522,16 @@ export const workerApi = {
     api.patch(`/workers/${productId}/versions/${version}`, { status: 'offline' }),
   onlineVersion: (productId: string, version: string) =>
     api.patch(`/workers/${productId}/versions/${version}`, { status: 'online' }),
-  publishVersion: (productId: string, version: string) =>
-    api.post(`/workers/${productId}/versions`, { version }),
+  publishApprovedVersion: (productId: string, version: string) =>
+    api.patch(`/workers/${productId}/versions/${version}`, { status: 'online' }),
   setLatestVersion: (productId: string, version: string) =>
-    api.put(`/workers/${productId}/versions/latest`, { version }),
+    api.patch(`/workers/${productId}/versions/${version}`, { latest: true }),
+  submitVersion: (productId: string, version: string) =>
+    api.patch(`/workers/${productId}/versions/${version}`, { status: 'reviewing' }),
+  updateDraft: (productId: string, agentSpecCard: AgentSpecCard) =>
+    api.put(`/workers/${productId}/draft`, { agentSpecCard }),
+  updateVersionAuthor: (productId: string, version: string, author: string) =>
+    api.patch(`/workers/${productId}/versions/${version}`, { author }),
   uploadPackage: (productId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -532,11 +543,18 @@ export const workerApi = {
 };
 
 export const skillApi = {
+  createDraft: (productId: string, data: { baseVersion: string; version: string }) =>
+    api.post(`/skills/${productId}/draft`, data),
   deleteDraft: (productId: string) => api.delete(`/skills/${productId}/draft`),
   forcePublishVersion: (productId: string, version: string) =>
-    api.post(`/skills/${productId}/versions/${version}/force-publish`),
+    api.patch(`/skills/${productId}/versions/${version}`, {
+      force: true,
+      status: 'online',
+      updateLatestLabel: true,
+    }),
   getDownloadUrl: (productId: string) =>
     `${import.meta.env.VITE_API_BASE_URL}/skills/${productId}/download`,
+  getDraft: (productId: string) => api.get(`/skills/${productId}/draft`),
   getSkillFileContent: (productId: string, filePath: string, version?: string) =>
     api.get(`/skills/${productId}/files/${filePath}`, { params: { version } }),
   getSkillFiles: (productId: string, version?: string) =>
@@ -551,11 +569,15 @@ export const skillApi = {
   onlineVersion: (productId: string, version: string) =>
     api.patch(`/skills/${productId}/versions/${version}`, { status: 'online' }),
   publishApprovedVersion: (productId: string, version: string) =>
-    api.post(`/skills/${productId}/versions/${version}/publish`),
-  publishVersion: (productId: string, version: string) =>
-    api.post(`/skills/${productId}/versions`, { version }),
+    api.patch(`/skills/${productId}/versions/${version}`, { status: 'online' }),
   setLatestVersion: (productId: string, version: string) =>
-    api.put(`/skills/${productId}/versions/latest`, { version }),
+    api.patch(`/skills/${productId}/versions/${version}`, { latest: true }),
+  submitVersion: (productId: string, version: string) =>
+    api.patch(`/skills/${productId}/versions/${version}`, { status: 'reviewing' }),
+  updateDraft: (productId: string, skillCard: SkillCard) =>
+    api.put(`/skills/${productId}/draft`, { skillCard }),
+  updateVersionAuthor: (productId: string, version: string, author: string) =>
+    api.patch(`/skills/${productId}/versions/${version}`, { author }),
   uploadSkillPackage: (productId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);

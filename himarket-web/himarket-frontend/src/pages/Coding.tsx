@@ -147,8 +147,7 @@ function CodingContent() {
     getCodingFeatures()
       .then((res) => {
         const data = (res as unknown as Record<string, unknown>)?.data as
-          | Record<string, unknown>
-          | undefined;
+          Record<string, unknown> | undefined;
         if (typeof data?.terminalEnabled === 'boolean') {
           setTerminalEnabled(data.terminalEnabled);
         }

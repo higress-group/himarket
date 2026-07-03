@@ -5,15 +5,16 @@ import {
   DownloadOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { Tabs, Button, message, Select } from 'antd';
+import { Button, message, Select } from 'antd';
 import * as yaml from 'js-yaml';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '../components/EmptyState';
-import MarkdownRender from '../components/MarkdownRender';
 import { ProductDetailLayout } from '../components/ProductDetailLayout';
+import { ProductDetailTabLabel, ProductDetailTabs } from '../components/ProductDetailTabs';
+import { ProductOverview } from '../components/ProductOverview';
 import { RestApiDocsViewer } from '../components/RestApiDocsViewer';
 import APIs from '../lib/apis';
 import { copyToClipboard, parseOpenAPISpec } from '../lib/utils';
@@ -173,49 +174,37 @@ function ApiDetailPage() {
   );
 
   const leftContent = apiData ? (
-    <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
-      <Tabs
-        className="[&_.ant-tabs-content-holder]:px-5 [&_.ant-tabs-content-holder]:pb-5 [&_.ant-tabs-nav]:mb-5 [&_.ant-tabs-nav]:px-5 [&_.ant-tabs-tab]:py-4"
-        defaultActiveKey="overview"
-        items={[
-          {
-            children: apiData.document ? (
-              <div className="scrollbar-thin-soft max-h-[720px] min-h-[420px] overflow-y-auto pr-2">
-                <MarkdownRender content={apiData.document} />
-              </div>
-            ) : (
-              <EmptyState description={t('overview.empty')} />
-            ),
-            key: 'overview',
-            label: (
-              <span className="flex items-center gap-1.5 font-semibold">
-                <FileTextOutlined className="text-sm" />
-                {t('tabs.overview')}
-              </span>
-            ),
-          },
-          {
-            children: (
-              <div>
-                {apiData.apiConfig && apiData.apiConfig.spec ? (
-                  <RestApiDocsViewer apiSpec={apiData.apiConfig.spec} />
-                ) : (
-                  <EmptyState description={t('openapi.empty')} />
-                )}
-              </div>
-            ),
-            key: 'openapi-spec',
-            label: (
-              <span className="flex items-center gap-1.5 font-semibold">
-                <ApiOutlined className="text-sm" />
-                {t('tabs.openapiSpec')}
-              </span>
-            ),
-          },
-        ]}
-        size="large"
-      />
-    </div>
+    <ProductDetailTabs
+      defaultActiveKey="overview"
+      items={[
+        {
+          children: <ProductOverview content={apiData.document} emptyText={t('overview.empty')} />,
+          key: 'overview',
+          label: (
+            <ProductDetailTabLabel icon={<FileTextOutlined />}>
+              {t('tabs.overview')}
+            </ProductDetailTabLabel>
+          ),
+        },
+        {
+          children: (
+            <div>
+              {apiData.apiConfig && apiData.apiConfig.spec ? (
+                <RestApiDocsViewer apiSpec={apiData.apiConfig.spec} />
+              ) : (
+                <EmptyState description={t('openapi.empty')} />
+              )}
+            </div>
+          ),
+          key: 'openapi-spec',
+          label: (
+            <ProductDetailTabLabel icon={<ApiOutlined />}>
+              {t('tabs.openapiSpec')}
+            </ProductDetailTabLabel>
+          ),
+        },
+      ]}
+    />
   ) : null;
 
   const usagePanel = (

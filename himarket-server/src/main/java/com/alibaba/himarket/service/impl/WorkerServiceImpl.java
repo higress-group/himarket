@@ -6,12 +6,15 @@ import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.dto.params.worker.CreateWorkerDraftParam;
+import com.alibaba.himarket.dto.params.worker.UpdateWorkerDraftParam;
+import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionParam;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
-import com.alibaba.himarket.entity.NacosInstance;
+import com.alibaba.himarket.dto.result.common.WorkerDraftResult;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.NacosService;
@@ -20,6 +23,7 @@ import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.himarket.support.enums.ProductStatus;
 import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.VersionInfo;
 import com.alibaba.himarket.support.product.WorkerConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.agentspecs.AgentSpec;
@@ -30,10 +34,11 @@ import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AgentSpecMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -43,6 +48,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.Data;
@@ -89,6 +95,8 @@ public class WorkerServiceImpl implements WorkerService {
                             s -> s.uploadAgentSpecFromZip(ref.getNamespace(), zipBytes, true));
             log.info("Uploaded new AgentSpec draft, agentSpecName={}", agentSpecName);
             config.setAgentSpecName(agentSpecName);
+            config.setVersionInfos(null);
+            config.setLatestVersion(null);
         } else {
             // Subsequent upload: use overwrite mode to bypass reviewing version blocking
             execute(
@@ -104,19 +112,38 @@ public class WorkerServiceImpl implements WorkerService {
 
     @Override
     public void deleteAgentSpec(String productId) {
+        deleteAgentSpec(productId, false);
+    }
+
+    @Override
+    public void deleteAgentSpec(String productId, boolean ignoreError) {
         Product product = findProduct(productId);
         AgentSpecRef ref = getAgentSpecRef(productId, false);
         if (ref == null || Strings.isBlank(ref.getAgentSpecName())) {
             return;
         }
-        execute(
-                ref.getNacosId(),
-                s -> {
-                    s.deleteAgentSpec(ref.getNamespace(), ref.getAgentSpecName());
-                    return null;
-                });
+        try {
+            execute(
+                    ref.getNacosId(),
+                    s -> {
+                        s.deleteAgentSpec(ref.getNamespace(), ref.getAgentSpecName());
+                        return null;
+                    });
+        } catch (RuntimeException e) {
+            if (!ignoreError) {
+                throw e;
+            }
+            log.warn(
+                    "Failed to delete source AgentSpec, ignoring error, productId={},"
+                            + " agentSpecName={}",
+                    productId,
+                    ref.getAgentSpecName(),
+                    e);
+        }
         WorkerConfig config = product.getFeature().getWorkerConfig();
         config.setAgentSpecName(null);
+        config.setVersionInfos(null);
+        config.setLatestVersion(null);
         productRepository.save(product);
     }
 
@@ -182,6 +209,11 @@ public class WorkerServiceImpl implements WorkerService {
             latestLabel = meta.getLabels().get("latest");
         }
         final String latestVersion = latestLabel;
+        WorkerConfig config = product.getFeature().getWorkerConfig();
+        if (!Objects.equals(config.getLatestVersion(), latestVersion)) {
+            config.setLatestVersion(latestVersion);
+            productRepository.save(product);
+        }
 
         List<VersionResult> results =
                 meta.getVersions().stream()
@@ -198,9 +230,13 @@ public class WorkerServiceImpl implements WorkerService {
                                                 .status(
                                                         VersionResult.resolveStatus(
                                                                 v.getStatus(),
-                                                                v.getPublishPipelineInfo()))
+                                                                v.getPublishPipelineInfo(),
+                                                                false))
                                                 .updateTime(v.getUpdateTime())
                                                 .downloadCount(v.getDownloadCount())
+                                                .author(
+                                                        resolveVersionAuthor(
+                                                                config, v.getVersion()))
                                                 .publishPipelineInfo(v.getPublishPipelineInfo())
                                                 .isLatest(v.getVersion().equals(latestVersion))
                                                 .build())
@@ -232,8 +268,13 @@ public class WorkerServiceImpl implements WorkerService {
         return results;
     }
 
-    @Override
-    public void publishVersion(String productId, String version) {
+    private String resolveVersionAuthor(WorkerConfig config, String version) {
+        VersionInfo info =
+                config.getVersionInfos() == null ? null : config.getVersionInfos().get(version);
+        return info == null ? null : info.getAuthor();
+    }
+
+    private void submitVersion(String productId, String version) {
         AgentSpecRef ref = getAgentSpecRef(productId, true);
         if (Strings.isBlank(ref.getAgentSpecName())) {
             throw new BusinessException(
@@ -250,146 +291,66 @@ public class WorkerServiceImpl implements WorkerService {
                 submittedVersion);
     }
 
+    private void publishApprovedVersion(String productId, String version) {
+        Product product = findProduct(productId);
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+
+        execute(
+                ref.getNacosId(),
+                s -> {
+                    s.publish(ref.getNamespace(), ref.getAgentSpecName(), version, true);
+                    return null;
+                });
+        log.info(
+                "Published AgentSpec, agentSpecName={}, version={}",
+                ref.getAgentSpecName(),
+                version);
+
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
     @Override
     public void downloadPackage(String productId, String version, HttpServletResponse response)
             throws IOException {
-        AgentSpecRef ref = getAgentSpecRef(productId, true);
-
-        // Download through the Nacos HTTP API first so Nacos can update its download count.
-        downloadFromNacos(ref, version, response);
-    }
-
-    /**
-     * Downloads the Worker ZIP package through the Nacos HTTP API so Nacos can update its download
-     * count.
-     * API: GET /v3/console/ai/agentspecs/version/download?namespaceId=xxx&agentSpecName=xxx&version=xxx
-     */
-    private void downloadFromNacos(AgentSpecRef ref, String version, HttpServletResponse response)
-            throws IOException {
-        try {
-            NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
-            // Prefer the display URL and fall back to serverUrl.
-            String nacosBaseUrl =
-                    Strings.isNotBlank(nacosInstance.getDisplayServerUrl())
-                            ? nacosInstance.getDisplayServerUrl()
-                            : nacosInstance.getServerUrl();
-
-            // Build the Nacos download URL:
-            // /v3/console/ai/agentspecs/version/download?namespaceId=xxx&agentSpecName=xxx&version=xxx
-            StringBuilder urlBuilder = new StringBuilder();
-            urlBuilder.append(nacosBaseUrl);
-            if (!nacosBaseUrl.endsWith("/")) {
-                urlBuilder.append("/");
+        if (Strings.isBlank(version)) {
+            Product product = findProduct(productId);
+            AgentSpecRef ref = getAgentSpecRef(productId, true);
+            AgentSpecMeta meta =
+                    execute(
+                            ref.getNacosId(),
+                            s ->
+                                    s.getAgentSpecAdminDetail(
+                                            ref.getNamespace(), ref.getAgentSpecName()));
+            version =
+                    meta == null || meta.getLabels() == null
+                            ? null
+                            : meta.getLabels().get("latest");
+            if (Strings.isBlank(version)) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        "version is required when latest version is not configured");
             }
-            urlBuilder.append("v3/console/ai/agentspecs/version/download?");
-            urlBuilder.append("namespaceId=").append(ref.getNamespace());
-            urlBuilder
-                    .append("&agentSpecName=")
-                    .append(
-                            java.net.URLEncoder.encode(
-                                    ref.getAgentSpecName(), StandardCharsets.UTF_8));
-            if (Strings.isNotBlank(version)) {
-                urlBuilder
-                        .append("&version=")
-                        .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8));
+            WorkerConfig config = product.getFeature().getWorkerConfig();
+            if (!Objects.equals(config.getLatestVersion(), version)) {
+                config.setLatestVersion(version);
+                productRepository.save(product);
             }
-
-            // Add authentication parameters when Nacos username and password are configured.
-            if (Strings.isNotBlank(nacosInstance.getUsername())
-                    && Strings.isNotBlank(nacosInstance.getPassword())) {
-                urlBuilder
-                        .append("&username=")
-                        .append(
-                                java.net.URLEncoder.encode(
-                                        nacosInstance.getUsername(), StandardCharsets.UTF_8));
-                urlBuilder
-                        .append("&password=")
-                        .append(
-                                java.net.URLEncoder.encode(
-                                        nacosInstance.getPassword(), StandardCharsets.UTF_8));
-            }
-
-            String downloadUrl = urlBuilder.toString();
-            log.info(
-                    "Calling Nacos worker download API, dependency=Nacos,"
-                            + " operation=downloadWorkerZip, nacosId={}, namespace={},"
-                            + " agentSpecName={}, version={}, serverUrl={}, username={}",
-                    ref.getNacosId(),
-                    ref.getNamespace(),
-                    ref.getAgentSpecName(),
-                    version,
-                    nacosInstance.getServerUrl(),
-                    nacosInstance.getUsername());
-
-            // Create the HTTP connection.
-            URL url = new URL(downloadUrl);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(30000);
-            conn.setReadTimeout(60000);
-
-            int responseCode = conn.getResponseCode();
-            if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                // Set response headers.
-                response.setContentType("application/zip");
-                String encodedName =
-                        java.net.URLEncoder.encode(
-                                        ref.getAgentSpecName() + ".zip", StandardCharsets.UTF_8)
-                                .replace("+", "%20");
-                response.setHeader(
-                        "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
-
-                // Stream the ZIP file.
-                try (var input = conn.getInputStream();
-                        var output = response.getOutputStream()) {
-                    input.transferTo(output);
-                }
-                log.info(
-                        "Downloaded worker ZIP from Nacos, dependency=Nacos,"
-                                + " operation=downloadWorkerZip, nacosId={}, namespace={},"
-                                + " agentSpecName={}, version={}",
-                        ref.getNacosId(),
-                        ref.getNamespace(),
-                        ref.getAgentSpecName(),
-                        version);
-            } else {
-                log.warn(
-                        "Nacos worker download API returned non-OK status, dependency=Nacos,"
-                                + " operation=downloadWorkerZip, nacosId={}, namespace={},"
-                                + " agentSpecName={}, status={}",
-                        ref.getNacosId(),
-                        ref.getNamespace(),
-                        ref.getAgentSpecName(),
-                        responseCode);
-                // Fall back to local ZIP generation.
-                fallbackToLocalDownload(ref, version, response);
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "Failed to download worker ZIP from Nacos, falling back to local generation,"
-                            + " dependency=Nacos, operation=downloadWorkerZip, nacosId={},"
-                            + " namespace={}, agentSpecName={}, errorType={}, errorMessage={}",
-                    ref.getNacosId(),
-                    ref.getNamespace(),
-                    ref.getAgentSpecName(),
-                    e.getClass().getSimpleName(),
-                    e.getMessage(),
-                    e);
-            // Fall back to local ZIP generation.
-            fallbackToLocalDownload(ref, version, response);
         }
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+        downloadLocally(ref, version, response);
     }
 
     /**
-     * Fallback path: generates the ZIP package locally without increasing the Nacos download count.
+     * Generates the ZIP package locally because Nacos does not provide an AgentSpec ZIP download
+     * API.
      */
-    private void fallbackToLocalDownload(
-            AgentSpecRef ref, String version, HttpServletResponse response) throws IOException {
+    private void downloadLocally(AgentSpecRef ref, String version, HttpServletResponse response)
+            throws IOException {
         AgentSpec spec = fetchAgentSpec(ref, version);
 
         response.setContentType("application/zip");
         String encodedName =
-                java.net.URLEncoder.encode(spec.getName() + ".zip", StandardCharsets.UTF_8)
+                URLEncoder.encode(spec.getName() + ".zip", StandardCharsets.UTF_8)
                         .replace("+", "%20");
         response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
 
@@ -427,7 +388,210 @@ public class WorkerServiceImpl implements WorkerService {
     }
 
     @Override
-    public void changeVersionStatus(String productId, String version, boolean online) {
+    public void updateVersion(String productId, String version, UpdateWorkerVersionParam param) {
+        if (param.getAuthor() != null) {
+            updateVersionAuthor(productId, version, param.getAuthor());
+            return;
+        }
+
+        if (Boolean.TRUE.equals(param.getLatest())) {
+            setLatestVersion(productId, version);
+            return;
+        }
+
+        String status = param.getStatus();
+        if ("reviewing".equals(status)) {
+            submitVersion(productId, version);
+            return;
+        }
+        if ("online".equals(status)) {
+            // "online" means publishing an approved review result for approved versions,
+            // but only toggling online status for versions that already left the review pipeline.
+            boolean approved =
+                    listVersions(productId).stream()
+                            .anyMatch(
+                                    item ->
+                                            version.equals(item.getVersion())
+                                                    && "approved".equals(item.getStatus()));
+            if (approved) {
+                publishApprovedVersion(productId, version);
+            } else {
+                changeVersionStatus(productId, version, true);
+            }
+            return;
+        }
+        if ("offline".equals(status)) {
+            changeVersionStatus(productId, version, false);
+            return;
+        }
+        throw new BusinessException(
+                ErrorCode.INVALID_PARAMETER, "Unsupported Worker version update");
+    }
+
+    private void updateVersionAuthor(String productId, String version, String author) {
+        Product product = findProduct(productId);
+        WorkerConfig config = product.getFeature().getWorkerConfig();
+        boolean versionExists =
+                listVersions(productId).stream()
+                        .anyMatch(item -> version.equals(item.getVersion()));
+        if (!versionExists) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", version);
+        }
+        Map<String, VersionInfo> versionInfos = config.getVersionInfos();
+        if (Strings.isBlank(author)) {
+            if (versionInfos != null) {
+                versionInfos.remove(version);
+                if (versionInfos.isEmpty()) {
+                    config.setVersionInfos(null);
+                }
+            }
+        } else {
+            if (versionInfos == null) {
+                versionInfos = new HashMap<>();
+                config.setVersionInfos(versionInfos);
+            }
+            VersionInfo info = versionInfos.getOrDefault(version, VersionInfo.builder().build());
+            info.setAuthor(author.trim());
+            versionInfos.put(version, info);
+        }
+        productRepository.save(product);
+        log.info("Updated Worker version author, productId={}, version={}", productId, version);
+    }
+
+    @Override
+    public void createDraft(String productId, CreateWorkerDraftParam param) {
+        Product product = findProduct(productId);
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+        if (Strings.isBlank(ref.getAgentSpecName())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, productId);
+        }
+
+        String baseVersion = param.getBaseVersion().trim();
+        AgentSpecMeta meta =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.getAgentSpecAdminDetail(ref.getNamespace(), ref.getAgentSpecName()));
+        validateDraftCreation(meta, baseVersion);
+
+        String draftVersion =
+                execute(
+                        ref.getNacosId(),
+                        s ->
+                                s.createDraft(
+                                        ref.getNamespace(), ref.getAgentSpecName(), baseVersion));
+        log.info(
+                "Created AgentSpec draft, agentSpecName={}, baseVersion={}, version={}",
+                ref.getAgentSpecName(),
+                baseVersion,
+                draftVersion);
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
+    @Override
+    public WorkerDraftResult getDraft(String productId) {
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+        if (Strings.isBlank(ref.getAgentSpecName())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, productId);
+        }
+
+        AgentSpecMeta meta =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.getAgentSpecAdminDetail(ref.getNamespace(), ref.getAgentSpecName()));
+        String draftVersion = findDraftVersion(meta);
+        if (Strings.isBlank(draftVersion)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "draft", productId);
+        }
+
+        AgentSpec agentSpec = fetchAgentSpec(ref, draftVersion);
+        return WorkerDraftResult.builder()
+                .version(draftVersion)
+                .agentSpecCard(JsonUtil.convert(agentSpec, JsonNode.class))
+                .build();
+    }
+
+    @Override
+    public void updateDraft(String productId, UpdateWorkerDraftParam param) {
+        AgentSpecRef ref = getAgentSpecRef(productId, true);
+        if (Strings.isBlank(ref.getAgentSpecName())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.AGENT_SPEC, productId);
+        }
+
+        AgentSpec agentSpec = JsonUtil.convert(param.getAgentSpecCard(), AgentSpec.class);
+        if (agentSpec == null || Strings.isBlank(agentSpec.getName())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "AgentSpec card name cannot be blank");
+        }
+        if (!ref.getAgentSpecName().equals(agentSpec.getName())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER,
+                    "AgentSpec card name must match current AgentSpec name");
+        }
+
+        AgentSpecMeta meta =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.getAgentSpecAdminDetail(ref.getNamespace(), ref.getAgentSpecName()));
+        String draftVersion = findDraftVersion(meta);
+        if (Strings.isBlank(draftVersion)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "draft", productId);
+        }
+
+        boolean updated =
+                execute(
+                        ref.getNacosId(),
+                        s ->
+                                s.updateDraft(
+                                        ref.getNamespace(),
+                                        JsonUtil.toJson(param.getAgentSpecCard()),
+                                        false));
+        if (!updated) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Failed to update AgentSpec draft");
+        }
+        log.info(
+                "Updated AgentSpec draft, agentSpecName={}, version={}",
+                ref.getAgentSpecName(),
+                draftVersion);
+    }
+
+    private void validateDraftCreation(AgentSpecMeta meta, String baseVersion) {
+        if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", baseVersion);
+        }
+
+        AgentSpecMeta.AgentSpecVersionSummary base = null;
+        for (AgentSpecMeta.AgentSpecVersionSummary item : meta.getVersions()) {
+            if ("draft".equals(item.getStatus()) || "reviewing".equals(item.getStatus())) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT, "AgentSpec already has a draft or reviewing version");
+            }
+            if (baseVersion.equals(item.getVersion())) {
+                base = item;
+            }
+        }
+
+        if (base == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", baseVersion);
+        }
+    }
+
+    private String findDraftVersion(AgentSpecMeta meta) {
+        if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
+            return null;
+        }
+        for (AgentSpecMeta.AgentSpecVersionSummary item : meta.getVersions()) {
+            if ("draft"
+                    .equals(
+                            VersionResult.resolveStatus(
+                                    item.getStatus(), item.getPublishPipelineInfo(), false))) {
+                return item.getVersion();
+            }
+        }
+        return null;
+    }
+
+    private void changeVersionStatus(String productId, String version, boolean online) {
         Product product = findProduct(productId);
         AgentSpecRef ref = getAgentSpecRef(productId, true);
 
@@ -513,8 +677,8 @@ public class WorkerServiceImpl implements WorkerService {
                                                         .equals(
                                                                 VersionResult.resolveStatus(
                                                                         v.getStatus(),
-                                                                        v
-                                                                                .getPublishPipelineInfo())));
+                                                                        v.getPublishPipelineInfo(),
+                                                                        false)));
             }
 
             ProductStatus current = product.getStatus();
@@ -586,6 +750,8 @@ public class WorkerServiceImpl implements WorkerService {
 
                 WorkerConfig config = product.getFeature().getWorkerConfig();
                 config.setAgentSpecName(null);
+                config.setVersionInfos(null);
+                config.setLatestVersion(null);
                 productRepository.save(product);
             } else {
                 // Versions still remain, so sync Product status.
@@ -600,6 +766,8 @@ public class WorkerServiceImpl implements WorkerService {
                     ref.getAgentSpecName());
             WorkerConfig config = product.getFeature().getWorkerConfig();
             config.setAgentSpecName(null);
+            config.setVersionInfos(null);
+            config.setLatestVersion(null);
             if (product.getStatus() != ProductStatus.PUBLISHED) {
                 product.setStatus(ProductStatus.PENDING);
             }
@@ -607,8 +775,7 @@ public class WorkerServiceImpl implements WorkerService {
         }
     }
 
-    @Override
-    public void setLatestVersion(String productId, String version) {
+    private void setLatestVersion(String productId, String version) {
         AgentSpecRef ref = getAgentSpecRef(productId, true);
 
         // If the target version is still marked as "reviewing" in Nacos metadata
@@ -627,6 +794,11 @@ public class WorkerServiceImpl implements WorkerService {
                                 ref.getNamespace(),
                                 ref.getAgentSpecName(),
                                 JsonUtil.toJson(labels)));
+
+        Product product = findProduct(productId);
+        WorkerConfig config = product.getFeature().getWorkerConfig();
+        config.setLatestVersion(version);
+        productRepository.save(product);
 
         log.info(
                 "Set latest AgentSpec version, agentSpecName={}, version={}",

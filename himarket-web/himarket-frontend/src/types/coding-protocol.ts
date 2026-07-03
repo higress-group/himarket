@@ -73,11 +73,7 @@ export interface EmbeddedResource {
 }
 
 export type ContentBlock =
-  | TextContent
-  | ImageContent
-  | AudioContent
-  | ResourceLink
-  | EmbeddedResource;
+  TextContent | ImageContent | AudioContent | ResourceLink | EmbeddedResource;
 
 // ===== Model / Mode =====
 
@@ -187,9 +183,7 @@ export interface ToolCallContentTerminalItem {
 }
 
 export type ToolCallContentItem =
-  | ToolCallContentTextItem
-  | ToolCallContentDiffItem
-  | ToolCallContentTerminalItem;
+  ToolCallContentTextItem | ToolCallContentDiffItem | ToolCallContentTerminalItem;
 
 export interface ToolCallLocationItem {
   path: string;
@@ -389,12 +383,7 @@ export interface ChatItemUser {
 }
 
 export type ChatItem =
-  | ChatItemUser
-  | ChatItemAgent
-  | ChatItemThought
-  | ChatItemToolCall
-  | ChatItemPlan
-  | ChatItemError;
+  ChatItemUser | ChatItemAgent | ChatItemThought | ChatItemToolCall | ChatItemPlan | ChatItemError;
 
 export interface ChatItemAgent {
   type: 'agent';

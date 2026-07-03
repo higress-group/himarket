@@ -194,8 +194,7 @@ export function ConfigDropdowns({ config, hideModel, onConfigChange }: ConfigDro
           ? res.data
           : (((
               (res as unknown as Record<string, unknown>).data as
-                | Record<string, unknown>
-                | undefined
+                Record<string, unknown> | undefined
             )?.data ?? []) as ICliProvider[]);
         setProviders(list);
       })

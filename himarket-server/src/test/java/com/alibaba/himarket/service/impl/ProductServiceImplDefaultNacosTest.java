@@ -28,9 +28,8 @@ import static org.mockito.Mockito.when;
 
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.dto.params.product.CreateProductParam;
-import com.alibaba.himarket.dto.result.airegistry.AiRegistryResult;
+import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
-import com.alibaba.himarket.dto.result.setting.AdminSettingResult;
 import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ApiDefinitionRepository;
 import com.alibaba.himarket.repository.ConsumerRepository;
@@ -38,7 +37,6 @@ import com.alibaba.himarket.repository.ProductPublicationRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
-import com.alibaba.himarket.service.AdminSettingService;
 import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.McpToolService;
@@ -55,17 +53,17 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
-class ProductServiceImplAiRegistryDefaultTest {
+class ProductServiceImplDefaultNacosTest {
 
     private static final String ADMIN_ID = "admin-a";
 
     @Test
-    void createAgentSkillUsesDefaultAiRegistryWhenConfigured() {
+    void createAgentSkillUsesDefaultNacos() {
         ContextHolder contextHolder = mock(ContextHolder.class);
         ProductRepository productRepository = mock(ProductRepository.class);
         ProductRefRepository productRefRepository = mock(ProductRefRepository.class);
         ProductCategoryService productCategoryService = mock(ProductCategoryService.class);
-        AdminSettingService adminSettingService = mock(AdminSettingService.class);
+        NacosService nacosService = mock(NacosService.class);
         AiRegistryService aiRegistryService = mock(AiRegistryService.class);
         AtomicReference<Product> savedProduct = new AtomicReference<>();
 
@@ -86,16 +84,10 @@ class ProductServiceImplAiRegistryDefaultTest {
         when(productRefRepository.findByProductIdIn(anyList())).thenReturn(Collections.emptyList());
         when(productCategoryService.listCategoriesForProducts(anyList()))
                 .thenReturn(Collections.emptyMap());
-        when(adminSettingService.getSetting("defaultSkillRegistryType"))
-                .thenReturn(
-                        AdminSettingResult.builder()
-                                .settingKey("defaultSkillRegistryType")
-                                .settingValue("AIREGISTRY")
-                                .build());
-        AiRegistryResult defaultAiRegistry = new AiRegistryResult();
-        defaultAiRegistry.setAiRegistryId("airegistry-prod");
-        defaultAiRegistry.setNamespaceId("ns-prod");
-        when(aiRegistryService.getDefaultAiRegistryInstance()).thenReturn(defaultAiRegistry);
+        NacosResult defaultNacos = new NacosResult();
+        defaultNacos.setNacosId("nacos-prod");
+        defaultNacos.setDefaultNamespace("public");
+        when(nacosService.getDefaultNacosInstance()).thenReturn(defaultNacos);
 
         ProductServiceImpl service =
                 new ProductServiceImpl(
@@ -108,12 +100,11 @@ class ProductServiceImplAiRegistryDefaultTest {
                         mock(ProductPublicationRepository.class),
                         mock(SubscriptionRepository.class),
                         mock(ConsumerRepository.class),
-                        mock(NacosService.class),
+                        nacosService,
                         productCategoryService,
                         mock(McpToolService.class),
                         mock(WorkerService.class),
                         mock(SkillService.class),
-                        adminSettingService,
                         aiRegistryService,
                         mock(ApplicationEventPublisher.class));
 
@@ -124,9 +115,9 @@ class ProductServiceImplAiRegistryDefaultTest {
                                 .type(ProductType.AGENT_SKILL)
                                 .build());
 
-        assertEquals(SkillRegistryType.AIREGISTRY, result.getSkillConfig().getRegistryType());
-        assertEquals("airegistry-prod", result.getSkillConfig().getAiRegistryId());
-        assertEquals("ns-prod", result.getSkillConfig().getNamespace());
-        assertNull(result.getSkillConfig().getNacosId());
+        assertEquals(SkillRegistryType.NACOS, result.getSkillConfig().getRegistryType());
+        assertEquals("nacos-prod", result.getSkillConfig().getNacosId());
+        assertEquals("public", result.getSkillConfig().getNamespace());
+        assertNull(result.getSkillConfig().getAiRegistryId());
     }
 }

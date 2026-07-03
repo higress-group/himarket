@@ -158,8 +158,7 @@ function convertOasToToolsConfig(oas: Record<string, unknown>): ParseResult | nu
         if (schema) {
           body = generateBodyTemplate(schema);
           const properties = schema.properties as
-            | Record<string, Record<string, unknown>>
-            | undefined;
+            Record<string, Record<string, unknown>> | undefined;
           const requiredList = schema.required as string[] | undefined;
           if (properties) {
             for (const [propName, propSchema] of Object.entries(properties)) {

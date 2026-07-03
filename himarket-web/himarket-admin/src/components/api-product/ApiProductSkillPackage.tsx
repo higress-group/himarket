@@ -1,142 +1,65 @@
 import {
   UploadOutlined,
-  FolderFilled,
-  FolderOpenFilled,
   FileFilled,
-  FileMarkdownFilled,
-  FileTextFilled,
-  CodeFilled,
-  SettingFilled,
-  Html5Filled,
-  FileZipFilled,
-  FileImageFilled,
-  JavaScriptOutlined,
-  JavaOutlined,
-  PythonOutlined,
-  DockerOutlined,
-  RightOutlined,
-  DownOutlined,
   ExclamationCircleFilled,
   CheckCircleFilled,
   CloseCircleFilled,
+  ClockCircleOutlined,
+  EditOutlined,
   LinkOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
+import Editor from '@monaco-editor/react';
 import {
-  Upload,
-  message,
-  Spin,
-  Tooltip,
   Button,
-  Select,
-  Tag,
-  Modal,
-  Space,
   Form,
   Input,
+  message,
+  Modal,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Tooltip,
+  Upload,
+  type UploadProps,
 } from 'antd';
 import hljs from 'highlight.js';
 import { useState, useEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
-import remarkGfm from 'remark-gfm';
 
 import { useLocale } from '@/contexts/LocaleContext';
 import { airegistryApi, apiProductApi, nacosApi } from '@/lib/api';
 import { skillApi } from '@/lib/api';
-import type { ApiProduct } from '@/types/api-product';
+import type { ApiProduct, SkillCard, SkillDraft } from '@/types/api-product';
 import type { AiRegistryInstance } from '@/types/gateway';
 
-import 'github-markdown-css/github-markdown-light.css';
+import {
+  compareDraftVersion,
+  isSupportedDraftVersion,
+  suggestNextVersionFromBase,
+} from './package-management/draftVersion';
+import { parseFrontMatter } from './package-management/frontMatter';
+import { PackageContentPanel } from './package-management/PackageContentPanel';
+import { findPackageFileNode, getEditorLanguage } from './package-management/packageFileUtils';
+import {
+  cloneSkillCard,
+  findSkillResourceKey,
+  getSkillCardFileContent,
+} from './package-management/skillCardFiles';
+
+import type {
+  PackageFileContent,
+  PackageFileTreeNode,
+  PackagePipelineNode,
+  PackageVersionItem,
+} from './package-management/types';
+
 import 'highlight.js/styles/github.css';
-import type { UploadProps } from 'antd';
 
-// ── Parse YAML front matter from markdown (supports | and > multiline) ──
-function parseFrontMatter(content: string): { frontmatter: Record<string, string>; body: string } {
-  const trimmed = content.trim();
-  if (!trimmed.startsWith('---')) return { body: trimmed, frontmatter: {} };
-  const secondDash = trimmed.indexOf('---', 3);
-  if (secondDash === -1) return { body: trimmed, frontmatter: {} };
-  const yamlBlock = trimmed.substring(3, secondDash).trim();
-  const body = trimmed.substring(secondDash + 3).trim();
-  const frontmatter: Record<string, string> = {};
-  const lines = yamlBlock.split('\n');
-  let currentKey = '';
-  let currentValue = '';
-  let multilineIndent = -1;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line === undefined) continue;
-    if (multilineIndent >= 0) {
-      const stripped = line.replace(/^\s*/, '');
-      const indent = line.length - stripped.length;
-      if (indent > multilineIndent || stripped === '') {
-        currentValue += (currentValue ? '\n' : '') + stripped;
-        continue;
-      }
-      frontmatter[currentKey] = currentValue.trim();
-      multilineIndent = -1;
-    }
-    const colonIdx = line.indexOf(':');
-    if (
-      colonIdx > 0 &&
-      line.substring(0, colonIdx).trim() === line.substring(0, colonIdx).trimStart()
-    ) {
-      const key = line.substring(0, colonIdx).trim();
-      let value = line.substring(colonIdx + 1).trim();
-      if (value === '|' || value === '>' || value === '|-' || value === '>-') {
-        currentKey = key;
-        currentValue = '';
-        multilineIndent = line.length - line.trimStart().length;
-        continue;
-      }
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      frontmatter[key] = value;
-    }
-  }
-  if (multilineIndent >= 0 && currentKey) {
-    frontmatter[currentKey] = currentValue.trim();
-  }
-  return { body, frontmatter };
-}
-
-interface SkillFileTreeNode {
-  name: string;
-  path: string;
-  type: 'file' | 'directory';
-  encoding?: string;
-  size?: number;
-  children?: SkillFileTreeNode[];
-}
-
-interface FileContent {
-  path: string;
-  content: string;
-  encoding: string;
-  size: number;
-}
-
-interface VersionItem {
-  version: string;
-  updateTime?: number;
-  status?: string; // draft, reviewing, online, offline
-  downloadCount?: number;
-  publishPipelineInfo?: string;
-  isLatest?: boolean;
-}
-
-interface PipelineNode {
-  nodeId?: string;
-  passed?: boolean;
-  durationMs?: number | null;
-  message?: string;
-  executedAt?: string | number;
-}
+type SkillFileTreeNode = PackageFileTreeNode;
+type FileContent = PackageFileContent;
+type VersionItem = PackageVersionItem;
+type PipelineNode = PackagePipelineNode;
 
 interface NacosInstance {
   nacosId: string;
@@ -153,221 +76,6 @@ interface ApiProductSkillPackageProps {
   apiProduct: ApiProduct;
   onUploadSuccess?: () => void;
   handleRefresh: () => void;
-}
-
-// ── File icon by extension ───────────────
-const iconClass = 'flex-shrink-0';
-const iconStyle = { fontSize: 14 };
-
-function FileIcon({ name }: { name: string }) {
-  const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  const lowerName = name.toLowerCase();
-
-  if (lowerName === 'dockerfile')
-    return <DockerOutlined className={iconClass} style={{ ...iconStyle, color: '#1a9ad0' }} />;
-  if (lowerName === '.gitignore')
-    return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: '#999' }} />;
-  if (lowerName === 'license' || lowerName === 'notice')
-    return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: '#999' }} />;
-
-  switch (ext) {
-    case 'md':
-      return (
-        <FileMarkdownFilled className={iconClass} style={{ ...iconStyle, color: '#1a72bd' }} />
-      );
-    case 'json':
-      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: '#7568b8' }} />;
-    case 'yaml':
-    case 'yml':
-      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: '#c88a0a' }} />;
-    case 'toml':
-      return <SettingFilled className={iconClass} style={{ ...iconStyle, color: '#c88a0a' }} />;
-    case 'xml':
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#cc5e1e' }} />;
-    case 'html':
-      return <Html5Filled className={iconClass} style={{ ...iconStyle, color: '#d94020' }} />;
-    case 'css':
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#2060b0' }} />;
-    case 'js':
-    case 'jsx':
-      return (
-        <JavaScriptOutlined className={iconClass} style={{ ...iconStyle, color: '#c89008' }} />
-      );
-    case 'ts':
-    case 'tsx':
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#1e68b0' }} />;
-    case 'py':
-      return <PythonOutlined className={iconClass} style={{ ...iconStyle, color: '#2060a0' }} />;
-    case 'java':
-      return <JavaOutlined className={iconClass} style={{ ...iconStyle, color: '#cc5818' }} />;
-    case 'sh':
-    case 'bash':
-      return <CodeFilled className={iconClass} style={{ ...iconStyle, color: '#208848' }} />;
-    case 'zip':
-    case 'tar':
-    case 'gz':
-      return <FileZipFilled className={iconClass} style={{ ...iconStyle, color: '#b88520' }} />;
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'svg':
-      return <FileImageFilled className={iconClass} style={{ ...iconStyle, color: '#5848b0' }} />;
-    case 'txt':
-    case 'log':
-    case 'csv':
-      return <FileTextFilled className={iconClass} style={{ ...iconStyle, color: '#999' }} />;
-    default:
-      return <FileFilled className={iconClass} style={{ ...iconStyle, color: '#3880c0' }} />;
-  }
-}
-
-// ── File tree components ─────────────────
-interface TreeNodeProps {
-  node: SkillFileTreeNode;
-  selectedPath?: string;
-  onSelect: (path: string) => void;
-  depth: number;
-}
-
-function TreeNode({ depth, node, onSelect, selectedPath }: TreeNodeProps) {
-  const [expanded, setExpanded] = useState(true);
-  const isDir = node.type === 'directory';
-  const isSelected = node.path === selectedPath;
-
-  return (
-    <div>
-      <Tooltip mouseEnterDelay={0.8} placement="right" title={node.name}>
-        <div
-          className={`
-            flex items-center gap-1 px-1 py-[2px] rounded cursor-pointer text-[13px] select-none
-            transition-colors duration-100
-            ${isSelected ? 'bg-blue-100 text-gray-900' : 'hover:bg-gray-100 text-gray-700'}
-          `}
-          onClick={() => (isDir ? setExpanded((v) => !v) : onSelect(node.path))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              if (isDir) {
-                setExpanded((v) => !v);
-              } else {
-                onSelect(node.path);
-              }
-            }
-          }}
-          role="button"
-          style={{ paddingLeft: `${4 + depth * 16}px` }}
-          tabIndex={0}
-        >
-          {isDir ? (
-            <span className="w-4 flex items-center justify-center flex-shrink-0 text-[10px] text-gray-400">
-              {expanded ? <DownOutlined /> : <RightOutlined />}
-            </span>
-          ) : (
-            <span className="w-4 flex-shrink-0" />
-          )}
-          {isDir ? (
-            expanded ? (
-              <FolderOpenFilled className="text-amber-500 flex-shrink-0 text-sm" />
-            ) : (
-              <FolderFilled className="text-amber-400 flex-shrink-0 text-sm" />
-            )
-          ) : (
-            <FileIcon name={node.name} />
-          )}
-          <span className="truncate ml-0.5">{node.name}</span>
-        </div>
-      </Tooltip>
-      {isDir && expanded && node.children && node.children.length > 0 && (
-        <div>
-          {node.children.map((child) => (
-            <TreeNode
-              depth={depth + 1}
-              key={child.path}
-              node={child}
-              onSelect={onSelect}
-              selectedPath={selectedPath}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SkillFileTree({
-  nodes,
-  onSelect,
-  selectedPath,
-}: {
-  nodes: SkillFileTreeNode[];
-  selectedPath?: string;
-  onSelect: (p: string) => void;
-}) {
-  return (
-    <div className="py-1">
-      {nodes.map((node) => (
-        <TreeNode
-          depth={0}
-          key={node.path}
-          node={node}
-          onSelect={onSelect}
-          selectedPath={selectedPath}
-        />
-      ))}
-    </div>
-  );
-}
-
-function findNode(nodes: SkillFileTreeNode[], path: string): SkillFileTreeNode | null {
-  for (const node of nodes) {
-    if (node.path === path) return node;
-    if (node.children) {
-      const f = findNode(node.children, path);
-      if (f) return f;
-    }
-  }
-  return null;
-}
-
-function SkillOverview({ content }: { content: string }) {
-  const { body, frontmatter } = parseFrontMatter(content);
-  const fmEntries = Object.entries(frontmatter);
-  return (
-    <div className="markdown-body text-sm">
-      {fmEntries.length > 0 && (
-        <table className="mb-6 w-full text-[13px] border-collapse">
-          <thead>
-            <tr className="bg-[#f6f8fa]">
-              {fmEntries.map(([k]) => (
-                <th
-                  className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]"
-                  key={k}
-                >
-                  {k}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              {fmEntries.map(([k, v]) => (
-                <td
-                  className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top"
-                  key={k}
-                >
-                  {v}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      )}
-      <ReactMarkdown rehypePlugins={[rehypeHighlight]} remarkPlugins={[remarkGfm]}>
-        {body}
-      </ReactMarkdown>
-    </div>
-  );
 }
 
 export function ApiProductSkillPackage({
@@ -398,6 +106,20 @@ export function ApiProductSkillPackage({
   const [overviewContent, setOverviewContent] = useState<string | null>(null);
   const [loadingOverview] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [createDraftModalVisible, setCreateDraftModalVisible] = useState(false);
+  const [createDraftBaseVersion, setCreateDraftBaseVersion] = useState('');
+  const [createDraftVersion, setCreateDraftVersion] = useState('');
+  const [authorModalVisible, setAuthorModalVisible] = useState(false);
+  const [versionAuthor, setVersionAuthor] = useState('');
+  const [draftSkillCard, setDraftSkillCard] = useState<SkillCard | null>(null);
+  const [draftWorkingCard, setDraftWorkingCard] = useState<SkillCard | null>(null);
+  const [draftEditedPaths, setDraftEditedPaths] = useState<string[]>([]);
+  const [draftEditContent, setDraftEditContent] = useState('');
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [draftFileDirty, setDraftFileDirty] = useState(false);
+  const [draftEditing, setDraftEditing] = useState(false);
+  const [loadingDraft, setLoadingDraft] = useState(false);
+  const draftSeqRef = useRef(0);
 
   // Nacos modal state
   const [nacosModalVisible, setNacosModalVisible] = useState(false);
@@ -584,14 +306,94 @@ export function ApiProductSkillPackage({
     }
   };
 
+  const rememberDraftEditedPath = (path: string) => {
+    setDraftEditedPaths((paths) => (paths.includes(path) ? paths : [...paths, path]));
+  };
+
+  const buildDraftCardWithCurrentFile = (baseSkillCard: SkillCard) => {
+    if (!selectedFile) {
+      return null;
+    }
+
+    const nextSkillCard = cloneSkillCard(baseSkillCard);
+    if (selectedFile.path === 'SKILL.md') {
+      const { frontmatter } = parseFrontMatter(draftEditContent);
+      const nextName = frontmatter.name?.trim();
+      const currentName = draftSkillCard?.name || baseSkillCard.name;
+      if (nextName && currentName && nextName !== currentName) {
+        message.warning(t('product.package.draftNameReadonly'));
+        return null;
+      }
+      if (frontmatter.description !== undefined) {
+        nextSkillCard.description = frontmatter.description;
+      }
+      nextSkillCard.skillMd = draftEditContent;
+      return nextSkillCard;
+    }
+
+    const resourceKey = findSkillResourceKey(nextSkillCard, selectedFile.path);
+    if (!resourceKey || !nextSkillCard.resource?.[resourceKey]) {
+      return null;
+    }
+
+    nextSkillCard.resource = {
+      ...nextSkillCard.resource,
+      [resourceKey]: {
+        ...nextSkillCard.resource[resourceKey],
+        content: draftEditContent,
+      },
+    };
+    return nextSkillCard;
+  };
+
+  const commitCurrentDraftFile = () => {
+    if (!draftEditing || !draftFileDirty) {
+      return draftWorkingCard;
+    }
+    if (!draftWorkingCard || !selectedFile) {
+      return null;
+    }
+
+    const nextSkillCard = buildDraftCardWithCurrentFile(draftWorkingCard);
+    if (!nextSkillCard) {
+      return null;
+    }
+
+    setDraftWorkingCard(nextSkillCard);
+    rememberDraftEditedPath(selectedFile.path);
+    setDraftFileDirty(false);
+    return nextSkillCard;
+  };
+
   const loadFileContent = async (path: string, version?: string) => {
+    const skillCardWithCurrentEdit = commitCurrentDraftFile();
+    if (draftEditing && draftFileDirty && !skillCardWithCurrentEdit) {
+      return;
+    }
+
     setSelectedPath(path);
     setLoadingFile(true);
     try {
       const res = (await skillApi.getSkillFileContent(productId, path, version)) as {
         data?: FileContent;
       };
-      setSelectedFile(res.data ?? null);
+      const nextFile = res.data ?? null;
+      const hasEditedContent =
+        draftEditedPaths.includes(path) ||
+        (draftEditing && draftFileDirty && selectedFile?.path === path);
+      const editedContent =
+        draftEditing && skillCardWithCurrentEdit && hasEditedContent
+          ? getSkillCardFileContent(skillCardWithCurrentEdit, path)
+          : undefined;
+
+      setSelectedFile(nextFile);
+      setDraftEditContent(editedContent ?? nextFile?.content ?? '');
+      setDraftFileDirty(false);
+      if (!draftEditing) {
+        setDraftDirty(false);
+        setDraftWorkingCard(null);
+        setDraftEditedPaths([]);
+      }
     } catch {
     } finally {
       setLoadingFile(false);
@@ -606,6 +408,12 @@ export function ApiProductSkillPackage({
     setLoadingTree(true);
     setSelectedPath(undefined);
     setSelectedFile(null);
+    setDraftEditContent('');
+    setDraftDirty(false);
+    setDraftFileDirty(false);
+    setDraftEditing(false);
+    setDraftWorkingCard(null);
+    setDraftEditedPaths([]);
     setOverviewContent(null);
     lastFetchedVersion.current = version;
     try {
@@ -615,7 +423,7 @@ export function ApiProductSkillPackage({
       if (seq !== fetchSeqRef.current) return;
       const nodes: SkillFileTreeNode[] = res.data || [];
       setFileTree(nodes);
-      if (findNode(nodes, 'SKILL.md')) {
+      if (findPackageFileNode(nodes, 'SKILL.md')) {
         const ovRes = (await skillApi.getSkillFileContent(productId, 'SKILL.md', version)) as {
           data?: { content?: string };
         };
@@ -677,23 +485,178 @@ export function ApiProductSkillPackage({
   const isOnline = previewItem?.status === 'online';
   const isReviewing = previewItem?.status === 'reviewing';
   const isApproved = previewItem?.status === 'approved';
+  const hasRejectedReview = pipelineStatus?.status === 'REJECTED';
+  // AIRegistry may keep the lifecycle status as unpublished while the review result is rejected.
   const isRejected =
     previewItem?.status === 'rejected' ||
-    (previewItem?.status === 'draft' && pipelineStatus?.status === 'REJECTED');
+    (hasRejectedReview && !isOnline && !isOffline && !isApproved);
   const supportsDeleteDraft = registryType !== 'AIREGISTRY';
+  const hasDraftOrReviewing = versions.some(
+    (item) => item.status === 'draft' || item.status === 'reviewing',
+  );
   const canPublish = !!previewVersion && isDraft;
   const canPublishApproved = !!previewVersion && isApproved;
   const canOnline = !!previewVersion && isOffline;
   const canOffline = !!previewVersion && isOnline;
   const canDeleteDraft = supportsDeleteDraft && !!previewVersion && isDraft;
   const canForcePublish = !!previewVersion && isRejected;
+  const showCreateDraft = !!previewVersion;
+  const canCreateDraft =
+    showCreateDraft && (isOnline || isOffline) && !hasDraftOrReviewing && hasSkillRegistry;
+  const showEditDraft = isDraft && registryType !== 'AIREGISTRY';
+  const hasEditableDraftFile = selectedFile
+    ? selectedFile.encoding !== 'base64'
+    : !!overviewContent;
+  const canEditDraft =
+    showEditDraft && hasEditableDraftFile && !!draftSkillCard && !loadingDraft && !draftEditing;
+  const createDraftDisabledTip = !hasSkillRegistry
+    ? t('product.package.createDraftRegistryRequired')
+    : !isOnline && !isOffline
+      ? t('product.package.createDraftBaseStatusTip')
+      : hasDraftOrReviewing
+        ? t('product.package.createDraftDisabledTip')
+        : undefined;
+  const editDraftDisabledTip =
+    !selectedFile && !overviewContent
+      ? t('product.package.editDraftFileRequired')
+      : selectedFile?.encoding === 'base64'
+        ? t('product.package.editDraftBinaryUnsupported')
+        : undefined;
   const showPublishActions = canPublish || isReviewing;
   const totalDownloads = versions.reduce((sum, item) => sum + (item.downloadCount ?? 0), 0);
+  const infoChipClass =
+    'inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs leading-none';
+  const neutralInfoChipClass = `${infoChipClass} border-gray-100 bg-gray-50 text-gray-500`;
+  const statusInfoChipClass = `${infoChipClass} ${
+    previewItem?.status === 'online'
+      ? 'border-green-100 bg-green-50 text-green-600'
+      : previewItem?.status === 'reviewing'
+        ? 'border-blue-100 bg-blue-50 text-blue-600'
+        : previewItem?.status === 'approved'
+          ? 'border-amber-100 bg-amber-50 text-amber-600'
+          : 'border-gray-100 bg-gray-50 text-gray-500'
+  }`;
+  const statusText =
+    previewItem?.status === 'online'
+      ? t('product.package.statusOnline')
+      : previewItem?.status === 'reviewing'
+        ? t('product.package.statusReviewing')
+        : previewItem?.status === 'approved'
+          ? t('product.package.statusApproved')
+          : t('product.package.statusUnpublished');
 
-  const handlePublishVersion = async (version: string) => {
-    setActionLoading('publish');
+  useEffect(() => {
+    const seq = ++draftSeqRef.current;
+    if (!isDraft || !previewVersion || registryType === 'AIREGISTRY') {
+      setDraftSkillCard(null);
+      setDraftWorkingCard(null);
+      setDraftEditedPaths([]);
+      setDraftEditing(false);
+      setDraftDirty(false);
+      setDraftFileDirty(false);
+      setLoadingDraft(false);
+      return;
+    }
+
+    setLoadingDraft(true);
+    skillApi
+      .getDraft(productId)
+      .then((res: unknown) => {
+        if (seq !== draftSeqRef.current) return;
+        const draft = (res as { data?: SkillDraft }).data;
+        setDraftSkillCard(draft?.skillCard ?? null);
+      })
+      .catch(() => {
+        if (seq !== draftSeqRef.current) return;
+        setDraftSkillCard(null);
+        setDraftWorkingCard(null);
+        setDraftEditedPaths([]);
+        setDraftDirty(false);
+        setDraftFileDirty(false);
+        setDraftEditing(false);
+      })
+      .finally(() => {
+        if (seq === draftSeqRef.current) {
+          setLoadingDraft(false);
+        }
+      });
+  }, [isDraft, previewVersion, productId, registryType]);
+
+  const confirmDiscardDraftChanges = (next: () => void) => {
+    if (!draftDirty) {
+      next();
+      return;
+    }
+    Modal.confirm({
+      cancelText: t('product.package.cancelDraftDiscard'),
+      content: t('product.package.discardDraftChangesConfirm'),
+      okText: t('product.package.discardDraftChangesOk'),
+      okType: 'danger',
+      onOk: next,
+      title: t('product.package.discardDraftChangesTitle'),
+    });
+  };
+
+  const startDraftEdit = () => {
+    const fileToEdit =
+      selectedFile ??
+      (overviewContent
+        ? {
+            content: overviewContent,
+            encoding: 'text',
+            path: 'SKILL.md',
+            size: new Blob([overviewContent]).size,
+          }
+        : null);
+
+    if (!fileToEdit || !draftSkillCard) {
+      return;
+    }
+    setActiveTab('file');
+    setSelectedFile(fileToEdit);
+    setSelectedPath(fileToEdit.path);
+    setDraftWorkingCard(cloneSkillCard(draftSkillCard));
+    setDraftEditedPaths([]);
+    setDraftEditContent(fileToEdit.content);
+    setDraftDirty(false);
+    setDraftFileDirty(false);
+    setDraftEditing(true);
+  };
+
+  const cancelDraftEdit = () => {
+    confirmDiscardDraftChanges(() => {
+      setDraftEditContent(selectedFile?.content ?? '');
+      setDraftDirty(false);
+      setDraftFileDirty(false);
+      setDraftEditing(false);
+      setDraftWorkingCard(null);
+      setDraftEditedPaths([]);
+    });
+  };
+
+  const switchContentTab = (tab: 'overview' | 'file') => {
+    if (tab === activeTab) {
+      return;
+    }
+    if (!draftEditing) {
+      setActiveTab(tab);
+      return;
+    }
+    confirmDiscardDraftChanges(() => {
+      setDraftEditContent(selectedFile?.content ?? '');
+      setDraftDirty(false);
+      setDraftFileDirty(false);
+      setDraftEditing(false);
+      setDraftWorkingCard(null);
+      setDraftEditedPaths([]);
+      setActiveTab(tab);
+    });
+  };
+
+  const handleSubmitVersion = async (version: string) => {
+    setActionLoading('submitReview');
     try {
-      await skillApi.publishVersion(productId, version);
+      await skillApi.submitVersion(productId, version);
       message.success(t('product.package.reviewSubmitSuccess', { version }));
       setPreviewVersion(version);
       await Promise.all([fetchVersions(), fetchFileTree(version)]);
@@ -858,6 +821,126 @@ export function ApiProductSkillPackage({
     });
   };
 
+  const getDraftVersionError = (version: string) => {
+    const targetVersion = version.trim();
+    if (!targetVersion) {
+      return t('product.package.newVersionRequired');
+    }
+    if (!isSupportedDraftVersion(targetVersion)) {
+      return t('product.package.versionInvalid');
+    }
+    if (versions.some((item) => item.version === targetVersion)) {
+      return t('product.package.versionExists', { version: targetVersion });
+    }
+    const compared = compareDraftVersion(targetVersion, createDraftBaseVersion);
+    if (compared !== null && compared <= 0) {
+      return t('product.package.versionMustGreater', { version: createDraftBaseVersion });
+    }
+    return null;
+  };
+
+  const handleOpenCreateDraft = () => {
+    if (!previewVersion || !canCreateDraft) {
+      if (createDraftDisabledTip) {
+        message.warning(createDraftDisabledTip);
+      }
+      return;
+    }
+    setCreateDraftBaseVersion(previewVersion);
+    setCreateDraftVersion(suggestNextVersionFromBase(previewVersion));
+    setCreateDraftModalVisible(true);
+  };
+
+  const handleCreateDraft = async () => {
+    const versionError = getDraftVersionError(createDraftVersion);
+    if (versionError) {
+      message.warning(versionError);
+      return;
+    }
+    const targetVersion = createDraftVersion.trim();
+    setActionLoading('createDraft');
+    try {
+      await skillApi.createDraft(productId, {
+        baseVersion: createDraftBaseVersion,
+        version: targetVersion,
+      });
+      message.success(t('product.package.createDraftSuccess'));
+      setCreateDraftModalVisible(false);
+      const versionItems = await fetchVersions();
+      const draftVersion = versionItems.find((item) => item.status === 'draft')?.version;
+      const nextVersion = draftVersion || targetVersion;
+      setPreviewVersion(nextVersion);
+      await fetchFileTree(nextVersion);
+      onUploadSuccess?.();
+    } catch (error: unknown) {
+      const errMsg =
+        error instanceof Error ? error.message : t('product.package.createDraftFailed');
+      message.error(errMsg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleOpenAuthorModal = () => {
+    if (!previewVersion) return;
+    setVersionAuthor(previewItem?.author || '');
+    setAuthorModalVisible(true);
+  };
+
+  const handleSaveAuthor = async () => {
+    if (!previewVersion) return;
+    setActionLoading('author');
+    try {
+      await skillApi.updateVersionAuthor(productId, previewVersion, versionAuthor.trim());
+      message.success(t('product.package.saveAuthorSuccess'));
+      setAuthorModalVisible(false);
+      await fetchVersions();
+      onUploadSuccess?.();
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : t('product.package.saveAuthorFailed');
+      message.error(errMsg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    const nextSkillCard = commitCurrentDraftFile();
+    if (!selectedFile || !nextSkillCard) {
+      message.error(t('product.package.saveDraftFailed'));
+      return;
+    }
+
+    setActionLoading('draft');
+    try {
+      await skillApi.updateDraft(productId, nextSkillCard);
+      setDraftSkillCard(nextSkillCard);
+      setDraftDirty(false);
+      setDraftFileDirty(false);
+      setDraftWorkingCard(null);
+      setDraftEditedPaths([]);
+      setSelectedFile({
+        ...selectedFile,
+        content: getSkillCardFileContent(nextSkillCard, selectedFile.path) ?? draftEditContent,
+        size: new Blob([
+          getSkillCardFileContent(nextSkillCard, selectedFile.path) ?? draftEditContent,
+        ]).size,
+      });
+      const nextOverviewContent = getSkillCardFileContent(nextSkillCard, 'SKILL.md');
+      if (nextOverviewContent !== undefined) {
+        setOverviewContent(nextOverviewContent);
+      }
+      setDraftEditing(false);
+      message.success(t('product.package.saveDraftSuccess'));
+      await fetchVersions(true);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : t('product.package.saveDraftFailed');
+      message.error(errMsg);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Auto-poll version list when any version is in reviewing state
   const hasReviewing = versions.some((item) => item.status === 'reviewing');
   useEffect(() => {
@@ -867,18 +950,11 @@ export function ApiProductSkillPackage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasReviewing, productId]);
 
-  const customRequest: NonNullable<UploadProps['customRequest']> = async (options) => {
-    const { file, onError, onSuccess } = options;
+  const handleUploadSkillPackage = async (file: File) => {
     setUploading(true);
     try {
-      // file 可能是 UploadRequestFile 类型 (string | RcFile)，需要转换为 File
-      const fileToUpload =
-        typeof file === 'string' ? new File([], file) : (file as unknown as File);
-      const res = (await skillApi.uploadSkillPackage(productId, fileToUpload)) as {
-        data?: unknown;
-      };
+      await skillApi.uploadSkillPackage(productId, file);
       message.success(t('product.package.uploadSuccess'));
-      onSuccess?.(res);
       const versionItems = await fetchVersions();
       const firstVersion = versionItems[0]?.version;
       setPreviewVersion(firstVersion);
@@ -888,11 +964,30 @@ export function ApiProductSkillPackage({
       message.destroy();
       const errMsg = error instanceof Error ? error.message : t('product.package.uploadFailed');
       message.error(errMsg);
-      const errObj = error instanceof Error ? error : new Error(String(error));
-      onError?.(errObj);
+      throw error;
     } finally {
       setUploading(false);
     }
+  };
+
+  const uploadProps: UploadProps = {
+    accept: '.zip,.tar.gz',
+    capture: undefined,
+    customRequest: async ({ file, onError, onSuccess }) => {
+      try {
+        const fileToUpload =
+          typeof file === 'string' ? new File([], file) : (file as unknown as File);
+        await handleUploadSkillPackage(fileToUpload);
+        onSuccess?.({});
+      } catch (error) {
+        onError?.(error instanceof Error ? error : new Error(String(error)));
+      }
+    },
+    disabled: uploading || !hasSkillRegistry || draftEditing,
+    hasControlInside: false,
+    maxCount: 1,
+    pastable: false,
+    showUploadList: false,
   };
 
   const renderPreview = () => {
@@ -920,6 +1015,49 @@ export function ApiProductSkillPackage({
         </div>
       );
 
+    if (showEditDraft && draftEditing) {
+      if (loadingDraft || !draftWorkingCard) {
+        return (
+          <div className="flex items-center justify-center h-full">
+            <Spin />
+          </div>
+        );
+      }
+      return (
+        <div className="flex h-full flex-col bg-white">
+          <div className="flex h-11 items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-3">
+            <div className="min-w-0 truncate text-xs text-gray-500">{selectedFile.path}</div>
+            {draftDirty && (
+              <span className="text-xs font-medium text-amber-600">
+                {t('product.package.unsavedDraft')}
+              </span>
+            )}
+          </div>
+          <div className="min-h-0 flex-1">
+            <Editor
+              height="100%"
+              language={getEditorLanguage(selectedFile.path)}
+              onChange={(value) => {
+                setDraftEditContent(value || '');
+                setDraftDirty(true);
+                setDraftFileDirty(true);
+              }}
+              options={{
+                automaticLayout: true,
+                fontSize: 13,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                tabSize: 2,
+                wordWrap: 'on',
+              }}
+              theme="vs-light"
+              value={draftEditContent}
+            />
+          </div>
+        </div>
+      );
+    }
+
     if (selectedFile.path.endsWith('.md')) {
       const highlighted = (() => {
         try {
@@ -937,25 +1075,27 @@ export function ApiProductSkillPackage({
       const lineCount = selectedFile.content.split('\n').length;
       const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace";
       return (
-        <div className="flex-1 overflow-auto bg-white h-full">
-          <div className="flex min-h-full">
-            <div
-              className="select-none text-right pr-3 pt-4 pb-4 pl-3 text-xs text-gray-400 bg-[#f6f8fa] border-r border-[#d0d7de] flex-shrink-0"
-              style={{ fontFamily: codeFont, lineHeight: '1.6', minWidth: 48 }}
-            >
-              {Array.from({ length: lineCount }, (_, i) => (
-                <div key={i + 1}>{i + 1}</div>
-              ))}
+        <div className="flex h-full flex-col bg-white">
+          <div className="flex-1 overflow-auto">
+            <div className="flex min-h-full">
+              <div
+                className="select-none text-right pr-3 pt-4 pb-4 pl-3 text-xs text-gray-400 bg-[#f6f8fa] border-r border-[#d0d7de] flex-shrink-0"
+                style={{ fontFamily: codeFont, lineHeight: '1.6', minWidth: 48 }}
+              >
+                {Array.from({ length: lineCount }, (_, i) => (
+                  <div key={i + 1}>{i + 1}</div>
+                ))}
+              </div>
+              <pre
+                className="flex-1 m-0 pt-4 pb-4 pl-4 pr-4 text-xs overflow-x-auto"
+                style={{ background: 'transparent', fontFamily: codeFont, lineHeight: '1.6' }}
+              >
+                <code
+                  className="hljs language-markdown"
+                  dangerouslySetInnerHTML={{ __html: highlighted }}
+                />
+              </pre>
             </div>
-            <pre
-              className="flex-1 m-0 pt-4 pb-4 pl-4 pr-4 text-xs overflow-x-auto"
-              style={{ background: 'transparent', fontFamily: codeFont, lineHeight: '1.6' }}
-            >
-              <code
-                className="hljs language-markdown"
-                dangerouslySetInnerHTML={{ __html: highlighted }}
-              />
-            </pre>
           </div>
         </div>
       );
@@ -1015,38 +1155,44 @@ export function ApiProductSkillPackage({
     const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace";
 
     return (
-      <div className="flex-1 overflow-auto bg-white h-full">
-        <div className="flex min-h-full">
-          <div
-            className="flex-shrink-0 py-3 pr-3 pl-4 text-right select-none border-r border-gray-100 sticky left-0 bg-white z-10"
-            style={{ fontFamily: codeFont, fontSize: '13px', lineHeight: '20px' }}
-          >
-            {Array.from({ length: lineCount }, (_, i) => (
-              <div className="text-gray-300" key={i}>
-                {i + 1}
-              </div>
-            ))}
+      <div className="flex h-full flex-col bg-white">
+        <div className="flex-1 overflow-auto">
+          <div className="flex min-h-full">
+            <div
+              className="flex-shrink-0 py-3 pr-3 pl-4 text-right select-none border-r border-gray-100 sticky left-0 bg-white z-10"
+              style={{ fontFamily: codeFont, fontSize: '13px', lineHeight: '20px' }}
+            >
+              {Array.from({ length: lineCount }, (_, i) => (
+                <div className="text-gray-300" key={i}>
+                  {i + 1}
+                </div>
+              ))}
+            </div>
+            <pre
+              className="flex-1 py-3 pl-5 pr-4 m-0 bg-white"
+              style={{
+                fontFamily: codeFont,
+                fontSize: '13px',
+                lineHeight: '20px',
+                whiteSpace: 'pre',
+                wordBreak: 'normal',
+              }}
+            >
+              <code
+                className="hljs"
+                dangerouslySetInnerHTML={{ __html: highlighted }}
+                style={{ background: 'transparent', padding: 0 }}
+              />
+            </pre>
           </div>
-          <pre
-            className="flex-1 py-3 pl-5 pr-4 m-0 bg-white"
-            style={{
-              fontFamily: codeFont,
-              fontSize: '13px',
-              lineHeight: '20px',
-              whiteSpace: 'pre',
-              wordBreak: 'normal',
-            }}
-          >
-            <code
-              className="hljs"
-              dangerouslySetInnerHTML={{ __html: highlighted }}
-              style={{ background: 'transparent', padding: 0 }}
-            />
-          </pre>
         </div>
       </div>
     );
   };
+
+  const draftVersionError = createDraftModalVisible
+    ? getDraftVersionError(createDraftVersion)
+    : null;
 
   return (
     <div className="p-6 space-y-4 h-full flex flex-col">
@@ -1073,7 +1219,7 @@ export function ApiProductSkillPackage({
                 ? `${t('nav.airegistryInstances')} / ${currentAiRegistryName || apiProduct.skillConfig?.airegistryId || '-'} / ${
                     apiProduct.skillConfig?.namespace || '-'
                   }`
-                : `${currentNacosName || apiProduct.skillConfig?.nacosId || '-'} / ${
+                : `${t('nav.nacosInstances')} / ${currentNacosName || apiProduct.skillConfig?.nacosId || '-'} / ${
                     apiProduct.skillConfig?.namespace || 'public'
                   }`}
             </Tag>
@@ -1093,9 +1239,12 @@ export function ApiProductSkillPackage({
             <Space.Compact size="large">
               <Select
                 className="w-48"
+                disabled={draftEditing}
                 onChange={(value) => {
-                  setPreviewVersion(value);
-                  fetchFileTree(value);
+                  confirmDiscardDraftChanges(() => {
+                    setPreviewVersion(value);
+                    fetchFileTree(value);
+                  });
                 }}
                 options={versions.map((item) => ({
                   label: (
@@ -1115,7 +1264,9 @@ export function ApiProductSkillPackage({
               />
               <Button
                 className="!bg-gray-100 !text-gray-700 !border-gray-300 hover:!bg-gray-200 disabled:!bg-gray-50 disabled:!text-gray-400"
-                disabled={!previewVersion || !isOnline || previewVersion === latestVersion}
+                disabled={
+                  draftEditing || !previewVersion || !isOnline || previewVersion === latestVersion
+                }
                 loading={actionLoading === 'setLatest'}
                 onClick={() => previewVersion && handleSetLatest(previewVersion)}
               >
@@ -1123,25 +1274,57 @@ export function ApiProductSkillPackage({
               </Button>
             </Space.Compact>
             {loadingVersions && <Spin size="small" />}
-            {showPublishActions && (
-              <Button
-                disabled={isReviewing}
-                loading={actionLoading === 'publish'}
-                onClick={() => previewVersion && handlePublishVersion(previewVersion)}
-                type="primary"
-              >
-                {t('product.package.submitReview')}
-              </Button>
-            )}
-            {supportsDeleteDraft && (canDeleteDraft || isReviewing) && (
-              <Button
-                danger
-                disabled={isReviewing}
-                loading={actionLoading === 'deleteDraft'}
-                onClick={handleDeleteDraft}
-              >
-                {t('product.package.deleteDraft')}
-              </Button>
+            {draftEditing ? (
+              <>
+                <Button
+                  disabled={!draftDirty}
+                  loading={actionLoading === 'draft'}
+                  onClick={handleSaveDraft}
+                  type="primary"
+                >
+                  {t('product.package.saveDraft')}
+                </Button>
+                <Button danger onClick={cancelDraftEdit}>
+                  {t('product.package.cancelDraftEdit')}
+                </Button>
+              </>
+            ) : (
+              <>
+                {showPublishActions && (
+                  <Button
+                    disabled={isReviewing}
+                    loading={actionLoading === 'submitReview'}
+                    onClick={() => previewVersion && handleSubmitVersion(previewVersion)}
+                    type="primary"
+                  >
+                    {t('product.package.submitReview')}
+                  </Button>
+                )}
+                {showEditDraft && (
+                  <Tooltip title={!canEditDraft ? editDraftDisabledTip : undefined}>
+                    <span>
+                      <Button
+                        disabled={!canEditDraft}
+                        loading={loadingDraft}
+                        onClick={startDraftEdit}
+                        type="primary"
+                      >
+                        {t('product.package.editDraft')}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                )}
+                {supportsDeleteDraft && (canDeleteDraft || isReviewing) && (
+                  <Button
+                    danger
+                    disabled={isReviewing}
+                    loading={actionLoading === 'deleteDraft'}
+                    onClick={handleDeleteDraft}
+                  >
+                    {t('product.package.deleteDraft')}
+                  </Button>
+                )}
+              </>
             )}
             {canForcePublish && (
               <Button
@@ -1180,75 +1363,52 @@ export function ApiProductSkillPackage({
                 {t('product.package.versionOffline')}
               </Button>
             )}
+            {canCreateDraft && (
+              <Button onClick={handleOpenCreateDraft} type="primary">
+                {t('product.package.createDraft')}
+              </Button>
+            )}
           </div>
 
-          <Upload
-            accept=".zip,.tar.gz"
-            capture={undefined}
-            customRequest={customRequest}
-            disabled={uploading || !hasSkillRegistry}
-            hasControlInside={false}
-            pastable={false}
-            showUploadList={false}
-          >
-            <Button
-              className="!h-auto !px-4 !py-2.5"
-              disabled={!hasSkillRegistry}
-              icon={<UploadOutlined />}
-              loading={uploading}
-              style={
-                !hasSkillRegistry
-                  ? { background: '#f5f5f5', borderColor: '#d9d9d9', color: '#bfbfbf' }
-                  : {}
-              }
-            >
-              <div className="leading-snug text-left">
-                <div className="text-sm">{t('product.package.uploadSkill')}</div>
-                <div className="text-xs text-gray-400">{t('product.package.uploadSkillHint')}</div>
-              </div>
-            </Button>
-          </Upload>
+          <div className="flex items-center gap-3">
+            <Upload {...uploadProps}>
+              <Button
+                className="!h-auto !px-4 !py-2.5"
+                disabled={!hasSkillRegistry || draftEditing}
+                icon={<UploadOutlined />}
+                loading={uploading}
+                style={
+                  !hasSkillRegistry
+                    ? { background: '#f5f5f5', borderColor: '#d9d9d9', color: '#bfbfbf' }
+                    : {}
+                }
+              >
+                <div className="leading-snug text-left">
+                  <div className="text-sm">{t('product.package.uploadSkill')}</div>
+                  <div className="text-xs text-gray-400">
+                    {t('product.package.uploadSkillHint')}
+                  </div>
+                </div>
+              </Button>
+            </Upload>
+          </div>
         </div>
 
-        {/* Row 2: Status + downloads + pipeline result */}
-        <div className="flex items-center gap-3 text-sm" style={{ minHeight: 32 }}>
-          <Tag
-            bordered={false}
-            className={`!m-0 ${
-              previewItem?.status === 'online'
-                ? '!bg-green-50 !text-green-600'
-                : previewItem?.status === 'reviewing'
-                  ? '!bg-blue-50 !text-blue-600'
-                  : previewItem?.status === 'approved'
-                    ? '!bg-amber-50 !text-amber-600'
-                    : '!bg-gray-100 !text-gray-500'
-            }`}
-          >
-            {previewItem?.status === 'online'
-              ? t('product.package.statusOnline')
-              : previewItem?.status === 'reviewing'
-                ? t('product.package.statusReviewing')
-                : previewItem?.status === 'approved'
-                  ? t('product.package.statusApproved')
-                  : t('product.package.statusUnpublished')}
-          </Tag>
-          <span className="text-gray-400">
-            {t('product.package.downloads')}{' '}
-            <strong className="text-gray-600">{totalDownloads}</strong>
-          </span>
+        {/* Row 2: Status + review result + downloads + author */}
+        <div className="flex flex-wrap items-center gap-2 text-sm" style={{ minHeight: 32 }}>
+          <span className={statusInfoChipClass}>{statusText}</span>
           {(() => {
             const pStatus = pipelineStatus?.status;
-            const isApproved =
-              pStatus === 'APPROVED' ||
-              previewItem?.status === 'online' ||
-              previewItem?.status === 'approved';
+            const hasReviewInfo = !!pipelineStatus;
+            // Review info is independent from lifecycle status such as online/offline.
+            const isApproved = pStatus === 'APPROVED';
             const isRejected = pStatus === 'REJECTED';
-            const isInProgress = isReviewing && !isApproved && !isRejected;
+            const isInProgress = hasReviewInfo && !isApproved && !isRejected;
             const pipelineNodes = pipelineStatus?.pipeline as PipelineNode[] | undefined;
 
             if (isInProgress) {
               return (
-                <span className="inline-flex items-center gap-1.5 text-xs text-blue-600">
+                <span className={`${infoChipClass} border-blue-100 bg-blue-50 text-blue-600`}>
                   <Spin size="small" />
                   {pipelineNodes && pipelineNodes.length > 0 && (
                     <span className="text-blue-400">
@@ -1258,9 +1418,9 @@ export function ApiProductSkillPackage({
                 </span>
               );
             }
-            if (isApproved && (isOnline || previewItem?.publishPipelineInfo)) {
+            if (isApproved) {
               return (
-                <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                <span className={`${infoChipClass} border-green-100 bg-green-50 text-green-600`}>
                   <CheckCircleFilled />
                   <span className="font-medium">{t('product.package.reviewApproved')}</span>
                 </span>
@@ -1268,11 +1428,11 @@ export function ApiProductSkillPackage({
             }
             if (isRejected) {
               return (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-100 rounded-lg text-xs text-red-500 ml-6">
+                <span className={`${infoChipClass} border-red-100 bg-red-50 text-red-500`}>
                   <CloseCircleFilled />
                   <span className="font-medium">{t('product.package.reviewRejected')}</span>
                   <Button
-                    className="!p-0 !text-red-500 !text-xs"
+                    className="!h-auto !p-0 !text-red-500 !text-xs !leading-none"
                     onClick={() =>
                       Modal.info({
                         content: (
@@ -1302,7 +1462,7 @@ export function ApiProductSkillPackage({
                                       )}
                                       {node.executedAt && (
                                         <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
-                                          <span>⏱</span>
+                                          <ClockCircleOutlined />
                                           <span>
                                             {new Date(node.executedAt).toLocaleString(locale)}
                                           </span>
@@ -1329,88 +1489,123 @@ export function ApiProductSkillPackage({
             }
             return null;
           })()}
+          <span className={neutralInfoChipClass}>
+            <span>{t('product.package.downloads')}</span>
+            <strong className="font-semibold text-gray-700">{totalDownloads}</strong>
+          </span>
+          {previewVersion && (
+            <span className={neutralInfoChipClass}>
+              <span>{t('product.package.author')}</span>
+              <Tooltip
+                title={
+                  previewItem?.author
+                    ? t('product.package.editAuthor')
+                    : t('product.package.setAuthor')
+                }
+              >
+                <button
+                  aria-label={
+                    previewItem?.author
+                      ? t('product.package.editAuthor')
+                      : t('product.package.setAuthor')
+                  }
+                  className={`group inline-flex items-center gap-1 rounded-sm transition-colors hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-400 ${
+                    previewItem?.author
+                      ? 'font-semibold text-gray-700'
+                      : 'font-medium text-gray-500'
+                  }`}
+                  onClick={handleOpenAuthorModal}
+                  type="button"
+                >
+                  <span>{previewItem?.author || ''}</span>
+                  <EditOutlined className="text-[11px] text-gray-400 transition-colors group-hover:text-blue-500" />
+                </button>
+              </Tooltip>
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Card 2: Overview / File Preview */}
-      <div
-        className="border rounded-lg overflow-hidden bg-white flex-1 flex flex-col"
-        style={{ minHeight: 600 }}
+      <PackageContentPanel
+        activeTab={activeTab}
+        fileTree={fileTree}
+        loadingOverview={loadingOverview}
+        loadingTree={loadingTree}
+        noFilesText={t('product.package.noFiles')}
+        onFileSelect={(path) => loadFileContent(path, previewVersion)}
+        onResizeStart={handleDragStart}
+        onTabChange={switchContentTab}
+        overviewContent={overviewContent}
+        overviewEmptyText={t('product.package.skillMissingOverview')}
+        renderPreview={renderPreview}
+        selectedPath={selectedPath}
+        treeWidth={treeWidth}
+      />
+
+      {/* Create Draft Modal */}
+      <Modal
+        cancelText={t('common.cancel')}
+        confirmLoading={actionLoading === 'createDraft'}
+        okButtonProps={{ disabled: !!draftVersionError }}
+        okText={t('product.package.createDraft')}
+        onCancel={() => setCreateDraftModalVisible(false)}
+        onOk={handleCreateDraft}
+        open={createDraftModalVisible}
+        title={t('product.package.createDraftTitle')}
       >
-        {/* Tab header */}
-        <div className="flex gap-6 px-4 pt-3 border-b">
-          <button
-            className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'overview'
-                ? 'text-blue-600 border-blue-600'
-                : 'text-gray-500 border-transparent hover:text-gray-700'
-            }`}
-            onClick={() => setActiveTab('overview')}
+        <Form layout="vertical">
+          <Form.Item
+            label={
+              <span className="inline-flex items-center gap-1">
+                {t('product.package.baseVersion')}
+                <Tooltip title={t('product.package.createDraftBaseVersionTip')}>
+                  <QuestionCircleOutlined className="text-gray-400" />
+                </Tooltip>
+              </span>
+            }
           >
-            Overview
-          </button>
-          <button
-            className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'file'
-                ? 'text-blue-600 border-blue-600'
-                : 'text-gray-500 border-transparent hover:text-gray-700'
-            }`}
-            onClick={() => setActiveTab('file')}
+            <Input disabled value={createDraftBaseVersion} />
+          </Form.Item>
+          <Form.Item
+            help={draftVersionError}
+            label={t('product.package.newVersion')}
+            required
+            validateStatus={draftVersionError ? 'error' : undefined}
           >
-            File
-          </button>
-        </div>
-
-        {/* Tab content */}
-        {activeTab === 'overview' ? (
-          <div className="flex-1 overflow-auto p-6" style={{ height: 560 }}>
-            {loadingOverview ? (
-              <div className="flex justify-center pt-8">
-                <Spin size="small" />
-              </div>
-            ) : overviewContent ? (
-              <SkillOverview content={overviewContent} />
-            ) : (
-              <div className="text-gray-400 text-sm text-center pt-8">
-                {t('product.package.skillMissingOverview')}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-1 min-h-0" style={{ height: 560 }}>
-            <div
-              className="border-r bg-white overflow-y-auto overflow-x-hidden flex-shrink-0 p-2"
-              style={{ width: treeWidth }}
-            >
-              {loadingTree ? (
-                <div className="flex items-center justify-center h-full">
-                  <Spin size="small" />
-                </div>
-              ) : fileTree.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                  {t('product.package.noFiles')}
-                </div>
-              ) : (
-                <SkillFileTree
-                  nodes={fileTree}
-                  onSelect={(path) => loadFileContent(path, previewVersion)}
-                  selectedPath={selectedPath}
-                />
-              )}
-            </div>
-            {/* 拖拽分隔条 */}
-            <div
-              className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
-              onMouseDown={handleDragStart}
-              role="slider"
-              tabIndex={0}
+            <Input
+              autoFocus
+              onChange={(event) => setCreateDraftVersion(event.target.value)}
+              placeholder={t('product.package.newVersionPlaceholder')}
+              value={createDraftVersion}
             />
-            <div className="flex-1 overflow-auto flex flex-col" style={{ height: 560 }}>
-              {renderPreview()}
-            </div>
-          </div>
-        )}
-      </div>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Version Author Modal */}
+      <Modal
+        cancelText={t('common.cancel')}
+        confirmLoading={actionLoading === 'author'}
+        okText={t('product.package.saveAuthor')}
+        onCancel={() => setAuthorModalVisible(false)}
+        onOk={handleSaveAuthor}
+        open={authorModalVisible}
+        title={
+          previewItem?.author ? t('product.package.editAuthor') : t('product.package.setAuthor')
+        }
+      >
+        <Form layout="vertical">
+          <Form.Item label={t('product.package.author')}>
+            <Input
+              allowClear
+              maxLength={64}
+              onChange={(event) => setVersionAuthor(event.target.value)}
+              placeholder={t('product.package.authorPlaceholder')}
+              value={versionAuthor}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Skill Registry Modal */}
       <Modal

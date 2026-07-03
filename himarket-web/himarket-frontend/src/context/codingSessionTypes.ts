@@ -83,11 +83,7 @@ export interface CodingState {
   /** 沙箱初始化进度：5阶段详细进度信息 */
   initProgress: {
     phase:
-      | 'sandbox-acquire'
-      | 'filesystem-ready'
-      | 'config-injection'
-      | 'sidecar-connect'
-      | 'cli-ready';
+      'sandbox-acquire' | 'filesystem-ready' | 'config-injection' | 'sidecar-connect' | 'cli-ready';
     status: 'executing' | 'completed';
     message: string;
     progress: number;

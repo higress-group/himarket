@@ -1,5 +1,6 @@
 {
   "allCategory": "全部",
+  "author": "作者",
   "agentMarketSlogan": "可编排的智能体服务，让 AI 自主理解并执行复杂任务",
   "agentMarketTitle": "Agent 市场",
   "apiMarketSlogan": "标准化 REST API 集合，快速构建应用数据底座",
@@ -36,8 +37,10 @@
   "videoGeneration": "视频",
   "webSearch": "联网搜索",
   "skillMarketTitle": "Skill 市场",
+  "skillMarketSlogan": "发现和分享可复用的 Agent Skills，让智能体快速获得专业能力",
   "skillMarketSubtitle": "发现和分享 Agent Skills · 找到 <1>{{count}}</1> 项技能",
   "workerMarketTitle": "Worker 市场",
+  "workerMarketSlogan": "领养你的 OpenClaw，即刻获得可运行的 Worker 能力",
   "workerMarketSubtitle": "领养你的 OpenClaw，即刻上岗 · 找到 <1>{{count}}</1> 个 Workers",
   "unknownProductType": "未知的产品类型",
   "loginPromptContext": "登录后即可试用 AI 模型，体验智能对话能力"

@@ -20,8 +20,7 @@ export function CliProviderSelect({ onChange, value }: CliProviderSelectProps) {
           ? res.data
           : (((
               (res as unknown as Record<string, unknown>).data as
-                | Record<string, unknown>
-                | undefined
+                Record<string, unknown> | undefined
             )?.data ?? []) as ICliProvider[]);
         setProviders(list);
         // 如果当前没有选中值，自动选中默认且可用的 provider

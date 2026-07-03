@@ -4,6 +4,8 @@ import {
   CopyOutlined,
   CheckOutlined,
   FileFilled,
+  FileTextOutlined,
+  FolderOpenOutlined,
   CodeOutlined,
   EyeOutlined,
   CloudUploadOutlined,
@@ -19,8 +21,8 @@ import { ProductIconRenderer } from '../components/icon/ProductIconRenderer';
 import { Layout } from '../components/Layout';
 import 'highlight.js/styles/github.css';
 import { SkillWorkerDetailSkeleton } from '../components/loading';
-import MarkdownRender from '../components/MarkdownRender';
-import RelatedSkills from '../components/skill/RelatedSkills';
+import { ProductDetailTabLabel, ProductDetailTabs } from '../components/ProductDetailTabs';
+import { ProductOverview } from '../components/ProductOverview';
 import SkillFileTree from '../components/skill/SkillFileTree';
 import APIs from '../lib/apis';
 import {
@@ -32,8 +34,8 @@ import {
 } from '../lib/apis/cliProvider';
 import { getIconString } from '../lib/iconUtils';
 import { buildNacosCliCommand } from '../lib/nacosCliCommand';
-import { parseSkillMd } from '../lib/skillMdUtils';
 import { copyToClipboard } from '../lib/utils';
+import { formatSkillAuthor, getSelectedSkillVersionAuthor } from '../lib/utils/skillVersionInfo';
 
 import type { IProductDetail } from '../lib/apis';
 import type {
@@ -52,11 +54,11 @@ type IdeType =
   | 'cursor'
   | 'kiro'
   | 'lingma'
-  | 'copaw'
+  | 'qwenpaw'
   | 'openclaw';
 
 const IDE_OPTIONS: { value: IdeType; label: string; icon: string }[] = [
-  { icon: '/copaw.png', label: 'CoPaw', value: 'copaw' },
+  { icon: '/qwenpaw-symbol.svg', label: 'QwenPaw', value: 'qwenpaw' },
   { icon: '/openclaw.svg', label: 'OpenClaw', value: 'openclaw' },
   { icon: 'https://g.alicdn.com/qbase/qoder/0.0.65/favIcon.svg', label: 'Qoder', value: 'qoder' },
   {
@@ -91,13 +93,13 @@ const getDefaultOutputDir = (ide: IdeType): string => {
   const dirMap: Record<IdeType, string> = {
     claude: '~/.claude/skills',
     codex: '~/.codex/skills',
-    copaw: '~/.copaw/skill_pool',
     cursor: '~/.cursor/skills',
     kiro: '~/.kiro/skills',
     lingma: '~/.lingma/skills',
     openclaw: '~/.openclaw/skills',
     qoder: '~/.qoder/skills',
     qoderwork: '~/.qoderwork/skills',
+    qwenpaw: '~/.qwenpaw/skill_pool',
   };
   return dirMap[ide];
 };
@@ -139,48 +141,10 @@ function inferLanguage(path: string): string {
   return map[ext] ?? 'plaintext';
 }
 
-function SkillOverview({ content }: { content: string }) {
-  const { body, frontmatter } = parseSkillMd(content);
-  const fmEntries = Object.entries(frontmatter);
-  return (
-    <div className="text-sm">
-      {fmEntries.length > 0 && (
-        <table className="mb-6 w-full text-[13px] border-collapse">
-          <thead>
-            <tr className="bg-[#f6f8fa]">
-              {fmEntries.map(([k]) => (
-                <th
-                  className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]"
-                  key={k}
-                >
-                  {k}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              {fmEntries.map(([k, v]) => (
-                <td
-                  className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top"
-                  key={k}
-                >
-                  {v}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      )}
-      <MarkdownRender content={body} />
-    </div>
-  );
-}
-
 function SkillDetail() {
   const { skillProductId } = useParams<{ skillProductId: string }>();
   const navigate = useNavigate();
-  const { t } = useTranslation('skillDetail');
+  const { i18n, t } = useTranslation('skillDetail');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState<IProductDetail>();
@@ -202,8 +166,8 @@ function SkillDetail() {
   const [versions, setVersions] = useState<SkillVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
   const [cliInfo, setCliInfo] = useState<SkillCliInfo | null>(null);
-  const [selectedIde, setSelectedIde] = useState<IdeType>('copaw');
-  const [outputDir, setOutputDir] = useState<string>('~/.copaw/skill_pool');
+  const [selectedIde, setSelectedIde] = useState<IdeType>('qwenpaw');
+  const [outputDir, setOutputDir] = useState<string>('~/.qwenpaw/skill_pool');
 
   const handleDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -303,8 +267,10 @@ function SkillDetail() {
         const onlineVersions = allVersions.filter((v: SkillVersion) => v.status === 'online');
         setVersions(onlineVersions);
 
-        // Default to latest online version
-        const defaultVersion = onlineVersions[0]?.version;
+        // Prefer the backend-labeled latest version; otherwise keep the existing list order.
+        const defaultVersion =
+          onlineVersions.find((version: SkillVersion) => version.isLatest)?.version ??
+          onlineVersions[0]?.version;
         setSelectedVersion(defaultVersion);
 
         // Load file tree for the default version
@@ -363,6 +329,12 @@ function SkillDetail() {
     document.body.removeChild(a);
   }, [skillProductId, selectedVersion]);
 
+  const handleTabChange = useCallback((key: string) => {
+    if (key === 'overview' || key === 'file') {
+      setActiveTab(key);
+    }
+  }, []);
+
   if (loading) {
     return (
       <Layout>
@@ -387,13 +359,38 @@ function SkillDetail() {
   }
 
   const { description, name } = data;
-  const skillTags = skillConfig?.skillTags || [];
   const hasFiles = fileTree.length > 0;
   const isAiRegistrySkill = skillConfig?.registryType === 'AIREGISTRY';
   const installResourceName = cliInfo?.resourceName || skillConfig?.skillName || name;
   const showNpxInstall = Boolean(cliInfo) || isAiRegistrySkill;
   const showHttpDownload = versions.length > 0;
   const selectedVersionInfo = versions.find((v) => v.version === selectedVersion);
+  const latestVersion = versions.find((v) => v.isLatest)?.version;
+  const downloadCount = Math.max(
+    skillConfig?.downloadCount ?? 0,
+    selectedVersionInfo?.downloadCount ?? 0,
+  );
+  const selectedAuthorLabel = formatSkillAuthor(
+    getSelectedSkillVersionAuthor(versions, selectedVersion),
+  );
+  const formattedUpdatedAt = data.updatedAt
+    ? new Date(data.updatedAt)
+        .toLocaleDateString(i18n.language, {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+        .replace(/\//g, '.')
+    : undefined;
+  const updatedAtLabel = data.updatedAt
+    ? t('updatedAt', {
+        date: formattedUpdatedAt,
+      })
+    : undefined;
+  const headerMetaItems = [
+    updatedAtLabel,
+    selectedAuthorLabel ? `${t('author')} ${selectedAuthorLabel}` : undefined,
+  ].filter(Boolean);
   const selectedInstallVersion =
     selectedVersion && !selectedVersionInfo?.isLatest ? selectedVersion : undefined;
   const skillGetCommand = buildNacosCliCommand({
@@ -406,15 +403,15 @@ function SkillDetail() {
   const httpDownloadUrl = `${
     typeof window !== 'undefined' ? window.location.origin : ''
   }/api/v1/skills/${skillProductId}/download${
-    selectedInstallVersion ? `?version=${encodeURIComponent(selectedInstallVersion)}` : ''
+    selectedVersion ? `?version=${encodeURIComponent(selectedVersion)}` : ''
   }`;
 
   const renderFilePreview = () => {
     if (!selectedFilePath) {
       return (
-        <div className="flex items-center justify-center h-full text-gray-400">
+        <div className="flex h-full items-center justify-center bg-[#FBFCFE] text-gray-400">
           <div className="text-center">
-            <FileFilled className="text-5xl mb-3 text-gray-300" />
+            <FileFilled className="mb-3 text-5xl text-gray-300" />
             <p className="text-sm text-gray-400">{t('clickFileToView')}</p>
           </div>
         </div>
@@ -423,7 +420,7 @@ function SkillDetail() {
     if (fileLoading) {
       return (
         <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-colorPrimary" />
         </div>
       );
     }
@@ -452,25 +449,26 @@ function SkillDetail() {
       const lineCount = fileContent.content.split('\n').length;
       const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace";
       return (
-        <div className="flex-1 overflow-auto bg-white h-full flex flex-col relative">
+        <div className="relative flex h-full flex-1 flex-col overflow-auto bg-white">
           {/* Toggle button - floats top-right */}
-          <div className="absolute top-2 right-3 z-20">
+          <div className="absolute right-3 top-2 z-20">
             <Tooltip title={mdRawMode ? t('renderPreview') : t('sourceCode')}>
               <button
-                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-1 rounded-[7px] border border-[#E8EDF5] bg-white/90 px-2 py-1 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-[#F7F9FC] hover:text-gray-700"
                 onClick={() => setMdRawMode(!mdRawMode)}
+                type="button"
               >
                 {mdRawMode ? <EyeOutlined /> : <CodeOutlined />}
-                <span>{mdRawMode ? 'Preview' : 'Source'}</span>
+                <span>{mdRawMode ? t('previewMode') : t('sourceMode')}</span>
               </button>
             </Tooltip>
           </div>
           {mdRawMode ? (
             <div className="flex flex-1 overflow-auto">
               <div
-                className="flex-shrink-0 py-3 pr-3 pl-4 text-right select-none sticky left-0 bg-white z-10"
+                className="sticky left-0 z-10 flex-shrink-0 select-none bg-white py-3 pl-4 pr-3 text-right"
                 style={{
-                  borderRight: '1px solid #f0f0f0',
+                  borderRight: '1px solid #E8EEF6',
                   fontFamily: codeFont,
                   fontSize: '13px',
                   lineHeight: '20px',
@@ -483,7 +481,7 @@ function SkillDetail() {
                 ))}
               </div>
               <pre
-                className="flex-1 py-3 pl-5 pr-4 m-0 bg-white"
+                className="m-0 flex-1 bg-white py-3 pl-5 pr-4"
                 style={{ fontFamily: codeFont, fontSize: '13px', lineHeight: '20px' }}
               >
                 <code
@@ -493,9 +491,12 @@ function SkillDetail() {
               </pre>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto px-6 pb-6 pt-8">
-              <SkillOverview content={fileContent.content} />
-            </div>
+            <ProductOverview
+              className="flex-1 px-6 pb-6 pt-10"
+              content={fileContent.content}
+              emptyText={t('noContent')}
+              showFrontmatterTable
+            />
           )}
         </div>
       );
@@ -519,12 +520,12 @@ function SkillDetail() {
     const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace";
 
     return (
-      <div className="flex-1 overflow-auto bg-white h-full">
+      <div className="h-full flex-1 overflow-auto bg-white">
         <div className="flex min-h-full">
           <div
-            className="flex-shrink-0 py-3 pr-3 pl-4 text-right select-none sticky left-0 bg-white z-10"
+            className="sticky left-0 z-10 flex-shrink-0 select-none bg-white py-3 pl-4 pr-3 text-right"
             style={{
-              borderRight: '1px solid #f0f0f0',
+              borderRight: '1px solid #E8EEF6',
               fontFamily: codeFont,
               fontSize: '13px',
               lineHeight: '20px',
@@ -537,7 +538,7 @@ function SkillDetail() {
             ))}
           </div>
           <pre
-            className="flex-1 py-3 pl-5 pr-4 m-0 bg-white"
+            className="m-0 flex-1 bg-white py-3 pl-5 pr-4"
             style={{
               fontFamily: codeFont,
               fontSize: '13px',
@@ -559,329 +560,326 @@ function SkillDetail() {
 
   return (
     <Layout>
-      <div className="py-8 flex flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-5 py-5 sm:py-7">
         {/* Page header */}
         <div className="flex-shrink-0">
           <button
-            className="flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px] text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
+            className="mb-4 inline-flex h-9 items-center gap-2 rounded-[10px] px-3 text-sm font-medium text-gray-600 transition-all duration-200 hover:bg-white/80 hover:text-gray-950 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-colorPrimary/30 active:translate-y-px"
             onClick={() => navigate(-1)}
+            type="button"
           >
-            <ArrowLeftOutlined />
+            <ArrowLeftOutlined className="text-xs" />
             <span>{t('back')}</span>
           </button>
 
-          <div className="flex items-center gap-4 mb-3">
-            {data.icon && data.icon.value ? (
-              <div className="w-16 h-16 rounded-[10px] flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-colorPrimary/10 to-colorPrimary/5 border border-gray-200 overflow-hidden">
-                <ProductIconRenderer
-                  className="w-full h-full object-cover"
-                  iconType={getIconString(data.icon)}
-                />
-              </div>
-            ) : (
-              <div className="w-16 h-16 rounded-[10px] flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
-                <ThunderboltOutlined className="text-2xl" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-semibold text-gray-900 mb-1">{name}</h1>
-              {data.updatedAt && (
-                <div className="text-sm text-gray-400">
-                  {new Date(data.updatedAt)
-                    .toLocaleDateString('zh-CN', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })
-                    .replace(/\//g, '.')}{' '}
-                  updated
+          <div className="rounded-[14px] border border-[#DDE5F0] bg-white/90 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                  {data.icon && data.icon.value ? (
+                    <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-[#E1E7F0] bg-[#F7F9FC]">
+                      <ProductIconRenderer
+                        className="h-full w-full object-cover"
+                        iconType={getIconString(data.icon)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-[12px] border border-[#E1E7F0] bg-[#F7F9FC] text-colorPrimary">
+                      <ThunderboltOutlined className="text-2xl" />
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-2xl font-semibold leading-tight text-gray-950">{name}</h1>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                      {headerMetaItems.map((item, index) => (
+                        <span className="min-w-0 truncate" key={`${item}-${index}`}>
+                          {item}
+                        </span>
+                      ))}
+                      <span className="inline-flex flex-shrink-0 items-center gap-1.5">
+                        <DownloadOutlined className="text-xs text-gray-400" />
+                        <span className="tabular-nums">{downloadCount.toLocaleString()}</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
+              </div>
+
+              {description && (
+                <p className="m-0 max-w-5xl break-words text-sm leading-6 text-gray-600">
+                  {description}
+                </p>
               )}
             </div>
           </div>
-
-          <p className="text-gray-600 text-sm leading-relaxed mb-3">{description}</p>
-
-          {skillTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {skillTags.map((tag) => (
-                <Tag color="purple" key={tag}>
-                  {tag}
-                </Tag>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Main content */}
-        <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex flex-col gap-5 xl:flex-row">
           {/* Left: file viewer with Overview / File tabs */}
-          <div className="flex-1 min-w-0">
-            <div
-              className="bg-white rounded-lg overflow-hidden flex flex-col"
-              style={{ border: '1px solid #f0f0f0', height: 'calc(100vh - 280px)', minHeight: 500 }}
-            >
-              {/* Tab header */}
-              <div
-                className="flex gap-6 px-4 pt-3 flex-shrink-0"
-                style={{ borderBottom: '1px solid #f0f0f0' }}
-              >
-                <button
-                  className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
-                    activeTab === 'overview'
-                      ? 'text-blue-600 border-blue-600'
-                      : 'text-gray-500 border-transparent hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('overview')}
-                >
-                  Overview
-                </button>
-                <button
-                  className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
-                    activeTab === 'file'
-                      ? 'text-blue-600 border-blue-600'
-                      : 'text-gray-500 border-transparent hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('file')}
-                >
-                  File
-                </button>
-              </div>
-
-              {/* Overview tab */}
-              {activeTab === 'overview' && (
-                <div className="flex-1 overflow-auto p-6">
-                  {overviewLoading ? (
-                    <div className="flex justify-center pt-8">
-                      <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-                    </div>
-                  ) : overviewContent ? (
-                    <SkillOverview content={overviewContent} />
-                  ) : (
-                    <div className="text-gray-400 text-sm text-center pt-8">{t('noSkillMd')}</div>
-                  )}
-                </div>
-              )}
-
-              {/* File tab */}
-              {activeTab === 'file' && (
-                <div className="flex flex-1 min-h-0">
-                  {/* File tree */}
-                  <div
-                    className="bg-white overflow-y-auto overflow-x-hidden flex-shrink-0 p-2"
-                    style={{ borderRight: '1px solid #f0f0f0', width: treeWidth }}
-                  >
-                    {hasFiles ? (
-                      <SkillFileTree
-                        nodes={fileTree}
-                        onSelect={handleSelectFile}
-                        selectedPath={selectedFilePath}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                        {t('noFiles')}
-                      </div>
-                    )}
-                  </div>
-                  {/* Drag handle */}
-                  <div
-                    aria-orientation="vertical"
-                    className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
-                    onMouseDown={handleDragStart}
-                    role="separator"
-                  />
-                  {/* File preview */}
-                  <div className="flex-1 overflow-auto flex flex-col">{renderFilePreview()}</div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right sidebar: download card + related */}
-          <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2 space-y-3">
-            <div
-              className="bg-white rounded-[10px] overflow-hidden shadow-sm"
-              style={{ border: '1px solid #e8eaef' }}
-            >
-              {/* Card header: title + version selector */}
-              <div
-                className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: '1px solid #edeef3' }}
-              >
-                <span className="text-sm font-semibold text-gray-800">{t('download')}</span>
-                <Select
-                  disabled={versions.length === 0}
-                  onChange={handleVersionChange}
-                  options={versions.map((v) => ({
-                    label: (
-                      <div className="flex items-center gap-1.5">
-                        <span>{v.version}</span>
-                        {v.version === versions[0]?.version && (
-                          <Tag className="!m-0 !text-xs !px-1.5 !py-0 !leading-5" color="blue">
-                            latest
-                          </Tag>
+          <div className="min-w-0 flex-1">
+            <ProductDetailTabs
+              activeKey={activeTab}
+              cardClassName="flex flex-col"
+              items={[
+                {
+                  children: (
+                    <ProductOverview
+                      className="h-full min-h-[420px]"
+                      content={overviewContent}
+                      emptyText={t('noSkillMd')}
+                      loading={overviewLoading}
+                      showFrontmatterTable
+                    />
+                  ),
+                  key: 'overview',
+                  label: (
+                    <ProductDetailTabLabel icon={<FileTextOutlined />}>
+                      {t('overviewTab')}
+                    </ProductDetailTabLabel>
+                  ),
+                },
+                {
+                  children: (
+                    <div className="flex h-full min-h-0 overflow-hidden rounded-[10px] border border-[#E8EEF6]">
+                      {/* File tree */}
+                      <div
+                        className="scrollbar-thin-soft flex-shrink-0 overflow-y-auto overflow-x-hidden border-r border-[#E8EEF6] bg-[#FBFCFE] p-2"
+                        style={{ width: treeWidth }}
+                      >
+                        {hasFiles ? (
+                          <SkillFileTree
+                            nodes={fileTree}
+                            onSelect={handleSelectFile}
+                            selectedPath={selectedFilePath}
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                            {t('noFiles')}
+                          </div>
                         )}
                       </div>
-                    ),
-                    value: v.version,
-                  }))}
-                  placeholder={t('noVersion')}
-                  size="large"
-                  style={{ fontSize: 15, width: 180 }}
-                  value={selectedVersion}
-                />
-              </div>
-
-              {/* Action buttons */}
-              <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-                <Button
-                  block
-                  disabled={versions.length === 0}
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownload}
-                  size="middle"
-                  type="primary"
-                >
-                  {t('downloadSkillPackage')}
-                </Button>
-              </div>
-
-              {/* NPX download command */}
-              {showNpxInstall && (
-                <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <CodeOutlined className="text-indigo-400/80 text-[13px]" />
-                    <span className="text-xs font-semibold text-gray-600 tracking-wide">
-                      {t('npxDownload')}
-                    </span>
-                  </div>
-
-                  {isAiRegistrySkill && (
-                    <div className="mb-3">
-                      <div className="text-xs font-semibold text-gray-700 mb-1.5">
-                        {t('cliCredentialStep')}
-                        <a
-                          className="ml-1 text-blue-600 hover:text-blue-700"
-                          href="https://help.aliyun.com/zh/mse/user-guide/nacos-cli-access-ai-registry-login-credential-configuration-guide?spm=5176.mse-prod.console-base_help.dexternal.66a72675UrvmaY"
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          {t('cliUserDoc')}
-                        </a>
-                      </div>
-                      <div className="relative rounded-md bg-gray-900 border border-gray-800 pl-3 pr-9 py-2.5">
-                        <button
-                          className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all"
-                          onClick={() => {
-                            copyToClipboard('npx @nacos-group/cli profile edit').then(() => {
-                              setCopiedProfile(true);
-                              setTimeout(() => setCopiedProfile(false), 2000);
-                            });
-                          }}
-                        >
-                          {copiedProfile ? (
-                            <CheckOutlined className="text-green-400" />
-                          ) : (
-                            <CopyOutlined />
-                          )}
-                        </button>
-                        <code
-                          className="text-[12px] text-gray-100 break-all"
-                          style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
-                        >
-                          npx @nacos-group/cli profile edit
-                        </code>
+                      {/* Drag handle */}
+                      <div
+                        aria-orientation="vertical"
+                        className="w-1 flex-shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-colorPrimary/20"
+                        onMouseDown={handleDragStart}
+                        role="separator"
+                      />
+                      {/* File preview */}
+                      <div className="flex min-w-0 flex-1 flex-col overflow-auto">
+                        {renderFilePreview()}
                       </div>
                     </div>
-                  )}
+                  ),
+                  key: 'file',
+                  label: (
+                    <ProductDetailTabLabel icon={<FolderOpenOutlined />}>
+                      {t('fileTab')}
+                    </ProductDetailTabLabel>
+                  ),
+                },
+              ]}
+              onChange={handleTabChange}
+              style={{ height: 'calc(100vh - 280px)', minHeight: 520 }}
+              tabsClassName="flex min-h-0 flex-1 flex-col [&_.ant-tabs-content-holder]:min-h-0 [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-content-holder]:overflow-hidden [&_.ant-tabs-content]:h-full [&_.ant-tabs-tabpane]:h-full"
+            />
+          </div>
 
-                  {/* IDE/Tool Selection */}
-                  <div className="mb-3">
-                    <div className="flex flex-wrap gap-2">
+          {/* Right sidebar: download card */}
+          <div className="order-1 w-full flex-shrink-0 xl:order-2 xl:sticky xl:top-24 xl:w-[390px] xl:self-start">
+            <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+              <div className="border-b border-[#E8EEF6] bg-[#FBFCFE] p-3">
+                <div className="mb-1.5 text-xs font-semibold text-gray-500">{t('version')}</div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    className="h-8 min-w-0 flex-1 [&_.ant-select-selection-item]:!leading-8 [&_.ant-select-selection-placeholder]:!leading-8 [&_.ant-select-selection-search-input]:!h-8 [&_.ant-select-selector]:!h-8 [&_.ant-select-selector]:!rounded-[9px] [&_.ant-select-selector]:!border-[#DDE5F0]"
+                    disabled={versions.length === 0}
+                    onChange={handleVersionChange}
+                    options={versions.map((v) => ({
+                      label: (
+                        <div className="flex items-center gap-1.5">
+                          <span>{v.version}</span>
+                          {v.version === latestVersion && (
+                            <Tag className="!m-0 !text-xs !px-1.5 !py-0 !leading-5" color="blue">
+                              latest
+                            </Tag>
+                          )}
+                        </div>
+                      ),
+                      value: v.version,
+                    }))}
+                    placeholder={t('noVersion')}
+                    size="middle"
+                    value={selectedVersion}
+                  />
+                  <Tooltip color="#111827" title={t('downloadSkillPackage')}>
+                    <Button
+                      aria-label={t('downloadSkillPackage')}
+                      className="!h-8 !rounded-[9px] !border-[#DDE5F0] !px-2.5 !text-xs !font-medium !text-gray-600 hover:!border-colorPrimary/40 hover:!text-colorPrimary"
+                      disabled={versions.length === 0}
+                      icon={<DownloadOutlined />}
+                      onClick={handleDownload}
+                    >
+                      {t('downloadPackage')}
+                    </Button>
+                  </Tooltip>
+                </div>
+              </div>
+
+              {showNpxInstall && (
+                <>
+                  <div className="border-b border-[#E8EEF6] px-4 py-3">
+                    <div className="mb-3 flex items-center gap-1.5">
+                      <CodeOutlined className="text-[13px] text-gray-400" />
+                      <span className="text-xs font-semibold text-gray-600">
+                        {t('npxDownload')}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-3">
                       {IDE_OPTIONS.map((ide) => (
                         <button
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-all ${
+                          className={`flex h-8 min-w-0 items-center gap-1.5 rounded-[8px] border px-2 text-xs font-medium transition-all ${
                             selectedIde === ide.value
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                              ? 'border-colorPrimary bg-colorPrimaryBg text-colorPrimary shadow-[0_4px_12px_rgba(99,102,241,0.12)]'
+                              : 'border-[#E3E9F3] bg-white text-gray-600 hover:border-[#C6D1E3] hover:bg-[#FAFBFF] hover:text-gray-900'
                           }`}
                           key={ide.value}
                           onClick={() => {
                             setSelectedIde(ide.value);
                             setOutputDir(getDefaultOutputDir(ide.value));
                           }}
+                          type="button"
                         >
                           {ide.icon && (
                             <img
                               alt={ide.label}
-                              className="w-4 h-4 object-contain"
+                              className="h-4 w-4 flex-shrink-0 object-contain"
                               src={ide.icon}
                             />
                           )}
-                          <span>{ide.label}</span>
+                          <span className="truncate">{ide.label}</span>
                         </button>
                       ))}
                     </div>
-                  </div>
 
-                  {/* Output Directory */}
-                  <div className="mb-3">
-                    <div className="text-xs font-medium text-gray-600 mb-1.5">{t('outputDir')}</div>
-                    <input
-                      className="w-full px-3 py-2 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
-                      onChange={(e) => setOutputDir(e.target.value)}
-                      placeholder={t('outputDirPlaceholder')}
-                      type="text"
-                      value={outputDir}
-                    />
-                  </div>
+                    <div className="mt-3">
+                      <div className="mb-1.5 text-xs font-semibold text-gray-600">
+                        {t('outputDir')}
+                      </div>
+                      <input
+                        className="w-full rounded-[10px] border border-[#DDE5F0] bg-white px-3 py-2 text-xs text-gray-700 transition-colors focus:border-colorPrimary focus:outline-none focus:ring-2 focus:ring-colorPrimary/15"
+                        onChange={(e) => setOutputDir(e.target.value)}
+                        placeholder={t('outputDirPlaceholder')}
+                        type="text"
+                        value={outputDir}
+                      />
+                    </div>
 
-                  <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
-                    <button
-                      className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
-                      onClick={() => {
-                        copyToClipboard(skillGetCommand).then(() => {
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        });
-                      }}
-                    >
-                      {copied ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                    </button>
-                    <code
-                      className="text-[12px] text-gray-700 break-all"
-                      style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
-                    >
-                      {skillGetCommand}
-                    </code>
+                    <div className="mt-3 space-y-3">
+                      {isAiRegistrySkill && (
+                        <div>
+                          <div className="mb-1.5 text-xs font-semibold text-gray-700">
+                            {t('cliCredentialStep')}
+                            <a
+                              className="ml-1 text-colorPrimary hover:text-colorPrimaryHover"
+                              href="https://help.aliyun.com/zh/mse/user-guide/nacos-cli-access-ai-registry-login-credential-configuration-guide?spm=5176.mse-prod.console-base_help.dexternal.66a72675UrvmaY"
+                              rel="noreferrer"
+                              target="_blank"
+                            >
+                              {t('cliUserDoc')}
+                            </a>
+                          </div>
+                          <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827] py-2.5 pl-3 pr-9">
+                            <Button
+                              aria-label={t('copyCommand')}
+                              className="absolute right-2 top-2 z-10 !h-6 !w-6 !min-w-6 !p-0 !text-gray-400 hover:!text-white [&_.anticon]:!text-xs"
+                              icon={
+                                copiedProfile ? (
+                                  <CheckOutlined className="text-green-400" />
+                                ) : (
+                                  <CopyOutlined />
+                                )
+                              }
+                              onClick={() => {
+                                copyToClipboard('npx @nacos-group/cli profile edit').then(() => {
+                                  setCopiedProfile(true);
+                                  setTimeout(() => setCopiedProfile(false), 2000);
+                                });
+                              }}
+                              size="small"
+                              title={t('copyCommand')}
+                              type="text"
+                            />
+                            <code
+                              className="break-all text-[12px] leading-5 text-gray-100"
+                              style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
+                            >
+                              npx @nacos-group/cli profile edit
+                            </code>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827] py-2.5 pl-3 pr-9">
+                        <Button
+                          aria-label={t('copyCommand')}
+                          className="absolute right-2 top-2 z-10 !h-6 !w-6 !min-w-6 !p-0 !text-gray-400 hover:!text-white [&_.anticon]:!text-xs"
+                          icon={
+                            copied ? <CheckOutlined className="text-green-400" /> : <CopyOutlined />
+                          }
+                          onClick={() => {
+                            copyToClipboard(skillGetCommand).then(() => {
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 2000);
+                            });
+                          }}
+                          size="small"
+                          title={t('copyCommand')}
+                          type="text"
+                        />
+                        <code
+                          className="break-all text-[12px] leading-5 text-gray-100"
+                          style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
+                        >
+                          {skillGetCommand}
+                        </code>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
 
-              {/* HTTP 下载 */}
+              {/* HTTP download */}
               {showHttpDownload && (
                 <div className="px-4 py-3">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                    <span className="text-xs font-semibold text-gray-600 tracking-wide">
-                      {t('httpDownload')}
-                    </span>
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <CloudUploadOutlined className="text-[13px] text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-600">{t('httpDownload')}</span>
                   </div>
-                  <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
-                    <button
-                      className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
+                  <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827] py-2.5 pl-3 pr-9">
+                    <Button
+                      aria-label={t('copyDownloadUrl')}
+                      className="absolute right-2 top-2 z-10 !h-6 !w-6 !min-w-6 !p-0 !text-gray-400 hover:!text-white [&_.anticon]:!text-xs"
                       disabled={!selectedVersion}
+                      icon={
+                        copiedHttp ? <CheckOutlined className="text-green-400" /> : <CopyOutlined />
+                      }
                       onClick={() => {
                         copyToClipboard(httpDownloadUrl).then(() => {
                           setCopiedHttp(true);
                           setTimeout(() => setCopiedHttp(false), 2000);
                         });
                       }}
-                    >
-                      {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                    </button>
+                      size="small"
+                      title={t('copyDownloadUrl')}
+                      type="text"
+                    />
                     <code
-                      className="text-[12px] text-gray-700 break-all"
+                      className="break-all text-[12px] leading-5 text-gray-100"
                       style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
                     >
                       {httpDownloadUrl}
@@ -890,11 +888,6 @@ function SkillDetail() {
                 </div>
               )}
             </div>
-
-            <RelatedSkills
-              currentProductId={skillProductId ?? ''}
-              currentSkillTags={skillConfig?.skillTags}
-            />
           </div>
         </div>
       </div>

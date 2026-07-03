@@ -121,8 +121,11 @@ export interface ApiProductModelConfig {
 }
 
 export interface ApiProductSkillConfig {
-  skillTags?: string[];
-  downloadCount?: number;
+  skillTags?: string[] | null;
+  downloadCount?: number | null;
+  versionInfos?: Record<string, { author?: string | null } | null>;
+  currentVersion?: string;
+  latestVersion?: string;
 }
 
 export interface ApiProductWorkerConfig {
@@ -131,6 +134,9 @@ export interface ApiProductWorkerConfig {
   workerName?: string;
   downloadCount?: number;
   tags?: string[];
+  versionInfos?: Record<string, { author?: string | null } | null>;
+  currentVersion?: string;
+  latestVersion?: string;
 }
 
 export interface ApiProduct {

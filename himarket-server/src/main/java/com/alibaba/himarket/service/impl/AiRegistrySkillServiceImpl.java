@@ -31,6 +31,8 @@ import com.alibaba.himarket.support.common.Strings;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillResource;
 import com.aliyun.airegistry20260317.Client;
+import com.aliyun.airegistry20260317.models.CreateSkillDraftRequest;
+import com.aliyun.airegistry20260317.models.CreateSkillDraftResponseBody;
 import com.aliyun.airegistry20260317.models.DataResourceValue;
 import com.aliyun.airegistry20260317.models.DeleteSkillRequest;
 import com.aliyun.airegistry20260317.models.DownloadSkillVersionViaOssRequest;
@@ -136,6 +138,31 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                                     .setSkillName(skillName));
         } catch (Exception e) {
             throw toAiRegistryException("Failed to delete AIRegistry Skill", e);
+        }
+    }
+
+    @Override
+    public String createDraft(
+            String aiRegistryId,
+            String namespaceId,
+            String skillName,
+            String baseVersion,
+            String version) {
+        AiRegistryInstance instance = findInstance(aiRegistryId);
+        try {
+            CreateSkillDraftResponseBody body =
+                    buildClient(instance)
+                            .createSkillDraft(
+                                    new CreateSkillDraftRequest()
+                                            .setNamespaceId(namespaceId)
+                                            .setSkillName(skillName)
+                                            .setBasedOnVersion(baseVersion)
+                                            .setTargetVersion(version)
+                                            .setCommitMsg("Create draft from Himarket"))
+                            .getBody();
+            return body == null || Strings.isBlank(body.getData()) ? version : body.getData();
+        } catch (Exception e) {
+            throw toAiRegistryException("Failed to create AIRegistry Skill draft", e);
         }
     }
 
@@ -520,6 +547,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                                 version.getStatus(), version.getPublishPipelineInfo(), false))
                 .updateTime(version.getUpdateTime())
                 .downloadCount(version.getDownloadCount())
+                .author(version.getAuthor())
                 .publishPipelineInfo(version.getPublishPipelineInfo())
                 .isLatest(version.getVersion().equals(latestVersion))
                 .build();

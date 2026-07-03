@@ -233,14 +233,12 @@ export function LinkApiModal({
               ? {
                   fromGatewayType: 'HIGRESS' as const,
                   modelRouteName: (selectedApi as Record<string, unknown>).modelRouteName as
-                    | string
-                    | undefined,
+                    string | undefined,
                 }
               : {
                   fromGatewayType: 'HIGRESS' as const,
                   mcpServerName: (selectedApi as Record<string, unknown>).mcpServerName as
-                    | string
-                    | undefined,
+                    string | undefined,
                 }
             : undefined,
         nacosId: st === 'NACOS' ? nacosId : undefined,

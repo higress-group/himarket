@@ -1,10 +1,14 @@
 package com.alibaba.himarket.service;
 
+import com.alibaba.himarket.dto.params.worker.CreateWorkerDraftParam;
+import com.alibaba.himarket.dto.params.worker.UpdateWorkerDraftParam;
+import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionParam;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
+import com.alibaba.himarket.dto.result.common.WorkerDraftResult;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
@@ -27,6 +31,14 @@ public interface WorkerService {
      * @param productId the product identifier
      */
     void deleteAgentSpec(String productId);
+
+    /**
+     * Deletes the AgentSpec associated with the given product.
+     *
+     * @param productId the product identifier
+     * @param ignoreError whether to ignore source deletion errors
+     */
+    void deleteAgentSpec(String productId, boolean ignoreError);
 
     /**
      * Returns a hierarchical file tree of the AgentSpec contents.
@@ -54,21 +66,37 @@ public interface WorkerService {
     List<VersionResult> listVersions(String productId);
 
     /**
-     * Publishes a specific version.
+     * Updates mutable fields of a specific version.
      *
      * @param productId the product identifier
      * @param version the target version
+     * @param param the partial version update request
      */
-    void publishVersion(String productId, String version);
+    void updateVersion(String productId, String version, UpdateWorkerVersionParam param);
 
     /**
-     * Changes the online status of a specific version.
+     * Creates a draft by copying an existing AgentSpec version.
      *
      * @param productId the product identifier
-     * @param version the target version
-     * @param online true to put online, false to take offline
+     * @param param the draft creation request
      */
-    void changeVersionStatus(String productId, String version, boolean online);
+    void createDraft(String productId, CreateWorkerDraftParam param);
+
+    /**
+     * Returns the current draft AgentSpec card.
+     *
+     * @param productId the product identifier
+     * @return the draft version and AgentSpec card
+     */
+    WorkerDraftResult getDraft(String productId);
+
+    /**
+     * Updates the current draft with a full AgentSpec card.
+     *
+     * @param productId the product identifier
+     * @param param the draft update request
+     */
+    void updateDraft(String productId, UpdateWorkerDraftParam param);
 
     /**
      * Deletes the current editing draft.
@@ -76,14 +104,6 @@ public interface WorkerService {
      * @param productId the product identifier
      */
     void deleteDraft(String productId);
-
-    /**
-     * Sets a version as the latest (current) version.
-     *
-     * @param productId the product identifier
-     * @param version the target version
-     */
-    void setLatestVersion(String productId, String version);
 
     /**
      * Downloads the AgentSpec as a ZIP archive.

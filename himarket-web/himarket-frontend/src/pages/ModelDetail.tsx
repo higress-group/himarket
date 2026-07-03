@@ -7,14 +7,15 @@ import {
   MessageOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
-import { Button, message, Tabs, Collapse, Select } from 'antd';
+import { Button, message, Collapse, Select } from 'antd';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { LoginPrompt } from '../components/LoginPrompt';
-import MarkdownRender from '../components/MarkdownRender';
 import { ProductDetailLayout } from '../components/ProductDetailLayout';
+import { ProductDetailTabLabel, ProductDetailTabs } from '../components/ProductDetailTabs';
+import { ProductOverview } from '../components/ProductOverview';
 import { useAuth } from '../hooks/useAuth';
 import APIs from '../lib/apis';
 import { resolveEndpointPath } from '../lib/modelEndpoint';
@@ -264,281 +265,262 @@ function ModelDetail() {
   };
 
   const leftContent = data ? (
-    <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
-      <Tabs
-        className="[&_.ant-tabs-content-holder]:px-5 [&_.ant-tabs-content-holder]:pb-5 [&_.ant-tabs-nav]:mb-5 [&_.ant-tabs-nav]:px-5 [&_.ant-tabs-tab]:py-4"
-        defaultActiveKey="overview"
-        items={[
-          {
-            children: data?.document ? (
-              <div className="scrollbar-thin-soft max-h-[720px] min-h-[420px] overflow-y-auto pr-2">
-                <MarkdownRender content={data.document} />
-              </div>
-            ) : (
-              <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-16">
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                  <InboxOutlined className="text-base text-gray-400" />
-                </div>
-                <div className="text-sm text-gray-500">{t('overview.empty')}</div>
-              </div>
-            ),
-            key: 'overview',
-            label: (
-              <span className="flex items-center gap-1.5 font-semibold">
-                <FileTextOutlined className="text-sm" />
-                {t('tabs.overview')}
-              </span>
-            ),
-          },
-          {
-            children: modelConfig?.modelAPIConfig ? (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {modelConfig.modelAPIConfig.modelCategory && (
-                    <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
-                      <div className="text-sm text-gray-500 mb-1">
-                        {t('configuration.applicationScenario')}
-                      </div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
-                      </div>
-                    </div>
-                  )}
+    <ProductDetailTabs
+      defaultActiveKey="overview"
+      items={[
+        {
+          children: <ProductOverview content={data?.document} emptyText={t('overview.empty')} />,
+          key: 'overview',
+          label: (
+            <ProductDetailTabLabel icon={<FileTextOutlined />}>
+              {t('tabs.overview')}
+            </ProductDetailTabLabel>
+          ),
+        },
+        {
+          children: modelConfig?.modelAPIConfig ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {modelConfig.modelAPIConfig.modelCategory && (
                   <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
-                    <div className="text-sm text-gray-500 mb-1">{t('configuration.protocol')}</div>
+                    <div className="text-sm text-gray-500 mb-1">
+                      {t('configuration.applicationScenario')}
+                    </div>
                     <div className="text-sm font-medium text-gray-900">
-                      {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
+                      {getModelCategoryText(modelConfig.modelAPIConfig.modelCategory)}
                     </div>
                   </div>
+                )}
+                <div className="rounded-[12px] border border-[#E8EDF5] bg-[#FBFCFE] p-4">
+                  <div className="text-sm text-gray-500 mb-1">{t('configuration.protocol')}</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {modelConfig.modelAPIConfig.aiProtocols?.join(', ') || 'DashScope'}
+                  </div>
                 </div>
+              </div>
 
-                {modelConfig.modelAPIConfig.routes &&
-                  modelConfig.modelAPIConfig.routes.length > 0 && (
-                    <div>
-                      <div className="text-sm font-semibold text-gray-900 mb-4">
-                        {t('configuration.routeConfig')}
-                      </div>
+              {modelConfig.modelAPIConfig.routes &&
+                modelConfig.modelAPIConfig.routes.length > 0 && (
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900 mb-4">
+                      {t('configuration.routeConfig')}
+                    </div>
 
-                      {modelDomainOptions.length > 0 && (
-                        <div className="mb-4">
-                          <div className="flex overflow-hidden rounded-[10px] border border-[#DDE5F0] bg-white">
-                            <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-[#E8EDF5] bg-[#FBFCFE] px-3 py-2 text-xs font-medium text-gray-600">
-                              {t('configuration.domain')}:
-                            </span>
-                            <div className="flex-1">
-                              <Select
-                                className="w-full"
-                                labelRender={() => (
-                                  <div className="inline-flex max-w-full items-center gap-1.5">
-                                    <span className="min-w-0 truncate font-mono text-xs text-gray-900">
-                                      {selectedModelDomain?.label ||
-                                        t('configuration.selectDomain')}
-                                    </span>
-                                    <Button
-                                      aria-label={t('configuration.copyDomain')}
-                                      disabled={!selectedModelDomain?.label}
-                                      icon={<CopyOutlined />}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        handleCopySelectedModelDomain();
-                                      }}
-                                      onMouseDown={(event) => event.stopPropagation()}
-                                      size="small"
-                                      title={t('configuration.copyDomain')}
-                                      type="text"
-                                    />
-                                  </div>
-                                )}
-                                onChange={setSelectedModelDomainIndex}
-                                optionLabelProp="label"
-                                placeholder={t('configuration.selectDomain')}
-                                size="middle"
-                                value={selectedModelDomainIndex}
-                                variant="borderless"
-                              >
-                                {modelDomainOptions.map((option) => (
-                                  <Select.Option
-                                    key={option.value}
-                                    label={option.label}
-                                    value={option.value}
-                                  >
-                                    <span className="text-xs text-gray-900 font-mono">
-                                      {option.label}
-                                    </span>
-                                  </Select.Option>
-                                ))}
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
-                        <Collapse expandIconPosition="end" ghost>
-                          {modelConfig.modelAPIConfig.routes.map((route, index) => (
-                            <Panel
-                              className={
-                                index < modelConfig.modelAPIConfig.routes.length - 1
-                                  ? 'border-b border-gray-100'
-                                  : ''
-                              }
-                              header={
-                                <div className="flex items-center justify-between py-2">
-                                  <div className="flex-1">
-                                    <div className="font-mono text-sm font-medium text-blue-600 mb-1">
-                                      {getRouteDisplayText(route, selectedModelDomainIndex)}
-                                      {route.builtin && (
-                                        <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
-                                          {t('configuration.defaultRoute')}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {t('configuration.method')}:{' '}
-                                      <span className="font-medium text-gray-700">
-                                        {getMethodsText(route)}
-                                      </span>
-                                    </div>
-                                  </div>
+                    {modelDomainOptions.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex overflow-hidden rounded-[10px] border border-[#DDE5F0] bg-white">
+                          <span className="flex flex-shrink-0 items-center whitespace-nowrap border-r border-[#E8EDF5] bg-[#FBFCFE] px-3 py-2 text-xs font-medium text-gray-600">
+                            {t('configuration.domain')}:
+                          </span>
+                          <div className="flex-1">
+                            <Select
+                              className="w-full"
+                              labelRender={() => (
+                                <div className="inline-flex max-w-full items-center gap-1.5">
+                                  <span className="min-w-0 truncate font-mono text-xs text-gray-900">
+                                    {selectedModelDomain?.label || t('configuration.selectDomain')}
+                                  </span>
                                   <Button
+                                    aria-label={t('configuration.copyDomain')}
+                                    disabled={!selectedModelDomain?.label}
                                     icon={<CopyOutlined />}
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      if (
-                                        allUniqueDomains.length > 0 &&
-                                        allUniqueDomains.length > selectedModelDomainIndex
-                                      ) {
-                                        const selectedDomain =
-                                          allUniqueDomains[selectedModelDomainIndex];
-                                        if (selectedDomain) {
-                                          const path = resolveEndpointPath(
-                                            route.match?.path?.value || '/',
-                                            route.match?.path?.type,
-                                            modelConfig.modelAPIConfig.aiProtocols,
-                                          );
-                                          const formattedDomain = formatDomainWithPort(
-                                            selectedDomain.domain,
-                                            selectedDomain.port,
-                                            selectedDomain.protocol,
-                                          );
-                                          const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
-                                          copyToClipboard(fullUrl)
-                                            .then(() => message.success(t('messages.linkCopied')))
-                                            .catch(() => message.error(t('messages.copyFailed')));
-                                        }
-                                      } else if (route.domains && route.domains.length > 0) {
-                                        const domain = route.domains[0];
-                                        if (domain) {
-                                          const path = resolveEndpointPath(
-                                            route.match?.path?.value || '/',
-                                            route.match?.path?.type,
-                                            modelConfig.modelAPIConfig.aiProtocols,
-                                          );
-                                          const formattedDomain = formatDomainWithPort(
-                                            domain.domain,
-                                            domain.port,
-                                            domain.protocol,
-                                          );
-                                          const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
-                                          copyToClipboard(fullUrl)
-                                            .then(() => message.success(t('messages.linkCopied')))
-                                            .catch(() => message.error(t('messages.copyFailed')));
-                                        }
-                                      }
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleCopySelectedModelDomain();
                                     }}
+                                    onMouseDown={(event) => event.stopPropagation()}
                                     size="small"
+                                    title={t('configuration.copyDomain')}
                                     type="text"
                                   />
                                 </div>
-                              }
-                              key={index}
+                              )}
+                              onChange={setSelectedModelDomainIndex}
+                              optionLabelProp="label"
+                              placeholder={t('configuration.selectDomain')}
+                              size="middle"
+                              value={selectedModelDomainIndex}
+                              variant="borderless"
                             >
-                              <div className="pl-4 space-y-4 pb-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-1">
-                                      {t('configuration.path')}:
-                                    </div>
-                                    <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
-                                      {getMatchTypePrefix(route.match?.path?.type)}{' '}
-                                      {route.match?.path?.value}
-                                    </div>
+                              {modelDomainOptions.map((option) => (
+                                <Select.Option
+                                  key={option.value}
+                                  label={option.label}
+                                  value={option.value}
+                                >
+                                  <span className="text-xs text-gray-900 font-mono">
+                                    {option.label}
+                                  </span>
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="overflow-hidden rounded-[12px] border border-[#DDE5F0] bg-white">
+                      <Collapse expandIconPosition="end" ghost>
+                        {modelConfig.modelAPIConfig.routes.map((route, index) => (
+                          <Panel
+                            className={
+                              index < modelConfig.modelAPIConfig.routes.length - 1
+                                ? 'border-b border-gray-100'
+                                : ''
+                            }
+                            header={
+                              <div className="flex items-center justify-between py-2">
+                                <div className="flex-1">
+                                  <div className="font-mono text-sm font-medium text-blue-600 mb-1">
+                                    {getRouteDisplayText(route, selectedModelDomainIndex)}
+                                    {route.builtin && (
+                                      <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
+                                        {t('configuration.defaultRoute')}
+                                      </span>
+                                    )}
                                   </div>
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-1">
-                                      {t('configuration.method')}:
-                                    </div>
-                                    <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
+                                  <div className="text-xs text-gray-500">
+                                    {t('configuration.method')}:{' '}
+                                    <span className="font-medium text-gray-700">
                                       {getMethodsText(route)}
-                                    </div>
+                                    </span>
                                   </div>
                                 </div>
-
-                                {route.match?.headers && route.match.headers.length > 0 && (
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-2">
-                                      {t('configuration.headerMatch')}:
-                                    </div>
-                                    <div className="space-y-1">
-                                      {route.match.headers.map((header, headerIndex: number) => (
-                                        <div
-                                          className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
-                                          key={headerIndex}
-                                        >
-                                          {header.name} {getMatchTypePrefix(header.type)}{' '}
-                                          {header.value}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {route.match?.queryParams && route.match.queryParams.length > 0 && (
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-2">
-                                      {t('configuration.queryParamMatch')}:
-                                    </div>
-                                    <div className="space-y-1">
-                                      {route.match.queryParams.map((param, paramIndex: number) => (
-                                        <div
-                                          className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
-                                          key={paramIndex}
-                                        >
-                                          {param.name} {getMatchTypePrefix(param.type)}{' '}
-                                          {param.value}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
+                                <Button
+                                  icon={<CopyOutlined />}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (
+                                      allUniqueDomains.length > 0 &&
+                                      allUniqueDomains.length > selectedModelDomainIndex
+                                    ) {
+                                      const selectedDomain =
+                                        allUniqueDomains[selectedModelDomainIndex];
+                                      if (selectedDomain) {
+                                        const path = resolveEndpointPath(
+                                          route.match?.path?.value || '/',
+                                          route.match?.path?.type,
+                                          modelConfig.modelAPIConfig.aiProtocols,
+                                        );
+                                        const formattedDomain = formatDomainWithPort(
+                                          selectedDomain.domain,
+                                          selectedDomain.port,
+                                          selectedDomain.protocol,
+                                        );
+                                        const fullUrl = `${selectedDomain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+                                        copyToClipboard(fullUrl)
+                                          .then(() => message.success(t('messages.linkCopied')))
+                                          .catch(() => message.error(t('messages.copyFailed')));
+                                      }
+                                    } else if (route.domains && route.domains.length > 0) {
+                                      const domain = route.domains[0];
+                                      if (domain) {
+                                        const path = resolveEndpointPath(
+                                          route.match?.path?.value || '/',
+                                          route.match?.path?.type,
+                                          modelConfig.modelAPIConfig.aiProtocols,
+                                        );
+                                        const formattedDomain = formatDomainWithPort(
+                                          domain.domain,
+                                          domain.port,
+                                          domain.protocol,
+                                        );
+                                        const fullUrl = `${domain.protocol.toLowerCase()}://${formattedDomain}${path}`;
+                                        copyToClipboard(fullUrl)
+                                          .then(() => message.success(t('messages.linkCopied')))
+                                          .catch(() => message.error(t('messages.copyFailed')));
+                                      }
+                                    }
+                                  }}
+                                  size="small"
+                                  type="text"
+                                />
                               </div>
-                            </Panel>
-                          ))}
-                        </Collapse>
-                      </div>
+                            }
+                            key={index}
+                          >
+                            <div className="pl-4 space-y-4 pb-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-1">
+                                    {t('configuration.path')}:
+                                  </div>
+                                  <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
+                                    {getMatchTypePrefix(route.match?.path?.type)}{' '}
+                                    {route.match?.path?.value}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-1">
+                                    {t('configuration.method')}:
+                                  </div>
+                                  <div className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg">
+                                    {getMethodsText(route)}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {route.match?.headers && route.match.headers.length > 0 && (
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-2">
+                                    {t('configuration.headerMatch')}:
+                                  </div>
+                                  <div className="space-y-1">
+                                    {route.match.headers.map((header, headerIndex: number) => (
+                                      <div
+                                        className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
+                                        key={headerIndex}
+                                      >
+                                        {header.name} {getMatchTypePrefix(header.type)}{' '}
+                                        {header.value}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {route.match?.queryParams && route.match.queryParams.length > 0 && (
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-2">
+                                    {t('configuration.queryParamMatch')}:
+                                  </div>
+                                  <div className="space-y-1">
+                                    {route.match.queryParams.map((param, paramIndex: number) => (
+                                      <div
+                                        className="text-sm font-mono bg-gray-50 px-3 py-2 rounded-lg"
+                                        key={paramIndex}
+                                      >
+                                        {param.name} {getMatchTypePrefix(param.type)} {param.value}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </Panel>
+                        ))}
+                      </Collapse>
                     </div>
-                  )}
+                  </div>
+                )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                <InboxOutlined className="text-base text-gray-400" />
               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16">
-                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                  <InboxOutlined className="text-base text-gray-400" />
-                </div>
-                <div className="text-sm text-gray-500">{t('configuration.empty')}</div>
-              </div>
-            ),
-            key: 'configuration',
-            label: (
-              <span className="flex items-center gap-1.5 font-semibold">
-                <SettingOutlined className="text-sm" />
-                {`${t('tabs.configuration')}${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`}
-              </span>
-            ),
-          },
-        ]}
-        size="large"
-      />
-    </div>
+              <div className="text-sm text-gray-500">{t('configuration.empty')}</div>
+            </div>
+          ),
+          key: 'configuration',
+          label: (
+            <ProductDetailTabLabel icon={<SettingOutlined />}>
+              {`${t('tabs.configuration')}${modelConfig?.modelAPIConfig?.routes ? ` (${modelConfig.modelAPIConfig.routes.length})` : ''}`}
+            </ProductDetailTabLabel>
+          ),
+        },
+      ]}
+    />
   ) : null;
 
   const curlExample = generateCurlExample();

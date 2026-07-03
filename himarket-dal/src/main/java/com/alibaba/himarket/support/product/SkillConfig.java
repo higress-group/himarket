@@ -22,6 +22,7 @@ package com.alibaba.himarket.support.product;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -42,6 +43,16 @@ public class SkillConfig {
      * Download count
      */
     private Long downloadCount;
+
+    /**
+     * Version-scoped information keyed by version.
+     */
+    private Map<String, VersionInfo> versionInfos;
+
+    /**
+     * Version labeled as latest by the backing registry.
+     */
+    private String latestVersion;
 
     /**
      * Skill registry backend type. Empty value is treated as NACOS for old data.

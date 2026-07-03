@@ -37,6 +37,13 @@ public interface AiRegistrySkillService {
 
     void deleteSkill(String aiRegistryId, String namespaceId, String skillName);
 
+    String createDraft(
+            String aiRegistryId,
+            String namespaceId,
+            String skillName,
+            String baseVersion,
+            String version);
+
     String submit(String aiRegistryId, String namespaceId, String skillName, String version);
 
     void forcePublish(

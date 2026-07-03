@@ -37,8 +37,7 @@ export function MarketMcpSelector({ onChange }: MarketMcpSelectorProps) {
       setMcpServers(data.mcpServers ?? []);
     } catch (err: unknown) {
       const response = (err as Record<string, unknown>)?.response as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       if (response?.status === 401) {
         setError(t('marketMcp.loginRequired'));
       } else {

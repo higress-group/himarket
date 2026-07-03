@@ -28,6 +28,11 @@ public class VersionResult {
     private Long downloadCount;
 
     /**
+     * Version author.
+     */
+    private String author;
+
+    /**
      * Pipeline info (JSON string from Nacos, null when no pipeline configured).
      */
     private String publishPipelineInfo;

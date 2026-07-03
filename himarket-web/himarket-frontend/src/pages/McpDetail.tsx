@@ -12,8 +12,9 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { EmptyState } from '../components/EmptyState';
-import MarkdownRender from '../components/MarkdownRender';
 import { ProductDetailLayout } from '../components/ProductDetailLayout';
+import { ProductDetailTabLabel, ProductDetailTabs } from '../components/ProductDetailTabs';
+import { ProductOverview } from '../components/ProductOverview';
 import APIs from '../lib/apis';
 import { copyToClipboard, formatDomainWithPort } from '../lib/utils';
 import { ProductType } from '../types';
@@ -370,111 +371,97 @@ function McpDetail() {
   };
 
   const leftContent = data ? (
-    <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
-      <Tabs
-        className="[&_.ant-tabs-content-holder]:px-5 [&_.ant-tabs-content-holder]:pb-5 [&_.ant-tabs-nav]:mb-5 [&_.ant-tabs-nav]:px-5 [&_.ant-tabs-tab]:py-4"
-        defaultActiveKey="overview"
-        items={[
-          {
-            children: data.document ? (
-              <div className="scrollbar-thin-soft max-h-[720px] min-h-[420px] overflow-y-auto pr-2">
-                <MarkdownRender content={data.document} />
+    <ProductDetailTabs
+      defaultActiveKey="overview"
+      items={[
+        {
+          children: <ProductOverview content={data.document} emptyText={t('empty.overview')} />,
+          key: 'overview',
+          label: (
+            <ProductDetailTabLabel icon={<FileTextOutlined />}>
+              {t('tabs.overview')}
+            </ProductDetailTabLabel>
+          ),
+        },
+        {
+          children:
+            parsedTools.length > 0 ? (
+              <div className="rounded-lg border border-gray-200 bg-gray-50">
+                {parsedTools.map((tool, idx) => (
+                  <div
+                    className={idx < parsedTools.length - 1 ? 'border-b border-gray-200' : ''}
+                    key={idx}
+                  >
+                    <Collapse
+                      expandIconPosition="end"
+                      ghost
+                      items={[
+                        {
+                          children: (
+                            <div className="px-4 pb-2">
+                              <div className="mb-4 text-gray-600">{tool.description}</div>
+
+                              {tool.args && tool.args.length > 0 && (
+                                <div>
+                                  <p className="mb-3 font-medium text-gray-700">
+                                    {t('tools.inputParameters')}:
+                                  </p>
+                                  {tool.args.map((arg, argIdx) => (
+                                    <div className="mb-3" key={argIdx}>
+                                      <div className="mb-2 flex items-center">
+                                        <span className="mr-2 font-medium text-gray-800">
+                                          {arg.name}
+                                        </span>
+                                        <span className="mr-2 rounded bg-gray-200 px-2 py-1 text-xs text-gray-600">
+                                          {arg.type}
+                                        </span>
+                                        {arg.required && (
+                                          <span className="mr-2 text-xs text-red-500">*</span>
+                                        )}
+                                        {arg.description && (
+                                          <span className="text-xs text-gray-500">
+                                            {arg.description}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <input
+                                        className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder={
+                                          arg.description ||
+                                          t('tools.inputPlaceholder', { name: arg.name })
+                                        }
+                                        type="text"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {(!tool.args || tool.args.length === 0) && (
+                                <div className="text-sm text-gray-500">No parameters required</div>
+                              )}
+                            </div>
+                          ),
+                          key: idx.toString(),
+                          label: tool.name,
+                        },
+                      ]}
+                    />
+                  </div>
+                ))}
               </div>
             ) : (
-              <EmptyState description={t('empty.overview')} />
+              <EmptyState description={t('empty.tools')} />
             ),
-            key: 'overview',
-            label: (
-              <span className="flex items-center gap-1.5 font-semibold">
-                <FileTextOutlined className="text-sm" />
-                {t('tabs.overview')}
-              </span>
-            ),
-          },
-          {
-            children:
-              parsedTools.length > 0 ? (
-                <div className="rounded-lg border border-gray-200 bg-gray-50">
-                  {parsedTools.map((tool, idx) => (
-                    <div
-                      className={idx < parsedTools.length - 1 ? 'border-b border-gray-200' : ''}
-                      key={idx}
-                    >
-                      <Collapse
-                        expandIconPosition="end"
-                        ghost
-                        items={[
-                          {
-                            children: (
-                              <div className="px-4 pb-2">
-                                <div className="mb-4 text-gray-600">{tool.description}</div>
-
-                                {tool.args && tool.args.length > 0 && (
-                                  <div>
-                                    <p className="mb-3 font-medium text-gray-700">
-                                      {t('tools.inputParameters')}:
-                                    </p>
-                                    {tool.args.map((arg, argIdx) => (
-                                      <div className="mb-3" key={argIdx}>
-                                        <div className="mb-2 flex items-center">
-                                          <span className="mr-2 font-medium text-gray-800">
-                                            {arg.name}
-                                          </span>
-                                          <span className="mr-2 rounded bg-gray-200 px-2 py-1 text-xs text-gray-600">
-                                            {arg.type}
-                                          </span>
-                                          {arg.required && (
-                                            <span className="mr-2 text-xs text-red-500">*</span>
-                                          )}
-                                          {arg.description && (
-                                            <span className="text-xs text-gray-500">
-                                              {arg.description}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <input
-                                          className="w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                          placeholder={
-                                            arg.description ||
-                                            t('tools.inputPlaceholder', { name: arg.name })
-                                          }
-                                          type="text"
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {(!tool.args || tool.args.length === 0) && (
-                                  <div className="text-sm text-gray-500">
-                                    No parameters required
-                                  </div>
-                                )}
-                              </div>
-                            ),
-                            key: idx.toString(),
-                            label: tool.name,
-                          },
-                        ]}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState description={t('empty.tools')} />
-              ),
-            key: 'tools',
-            label: (
-              <span className="flex items-center gap-1.5 font-semibold">
-                <ToolOutlined className="text-sm" />
-                {t('tabs.toolsWithCount', { count: parsedTools.length })}
-              </span>
-            ),
-          },
-        ]}
-        size="large"
-      />
-    </div>
+          key: 'tools',
+          label: (
+            <ProductDetailTabLabel icon={<ToolOutlined />}>
+              {t('tabs.toolsWithCount', { count: parsedTools.length })}
+            </ProductDetailTabLabel>
+          ),
+        },
+      ]}
+    />
   ) : null;
 
   const renderConfigCodeBlock = (value: string) => (

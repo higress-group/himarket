@@ -2,13 +2,14 @@ package com.alibaba.himarket.controller;
 
 import com.alibaba.himarket.core.annotation.AdminAuth;
 import com.alibaba.himarket.core.annotation.PublicAccess;
-import com.alibaba.himarket.dto.params.worker.PublishWorkerVersionParam;
-import com.alibaba.himarket.dto.params.worker.SetLatestWorkerVersionParam;
-import com.alibaba.himarket.dto.params.worker.UpdateWorkerVersionStatusParam;
+import com.alibaba.himarket.dto.params.skill.CreateSkillDraftParam;
+import com.alibaba.himarket.dto.params.skill.UpdateSkillDraftParam;
+import com.alibaba.himarket.dto.params.skill.UpdateSkillVersionParam;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
+import com.alibaba.himarket.dto.result.common.SkillDraftResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.service.SkillService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -91,51 +92,46 @@ public class SkillController {
         return skillService.listVersions(productId);
     }
 
-    @Operation(summary = "Publish Skill version")
-    @PostMapping("/{productId}/versions")
-    @AdminAuth
-    public void publishVersion(
-            @PathVariable String productId, @RequestBody @Valid PublishWorkerVersionParam param) {
-        skillService.publishVersion(productId, param.getVersion());
-    }
-
-    @Operation(summary = "Publish approved Skill version")
-    @PostMapping("/{productId}/versions/{version}/publish")
-    @AdminAuth
-    public void publishApprovedVersion(
-            @PathVariable String productId, @PathVariable String version) {
-        skillService.publishApprovedVersion(productId, version);
-    }
-
-    @Operation(summary = "Update Skill version status")
+    @Operation(
+            summary = "Update Skill version",
+            description =
+                    "Update exactly one aspect of a Skill version per request. Use"
+                        + " `{\"status\":\"reviewing\"}` to submit the version for review and"
+                        + " trigger the Skill package scan. Use `{\"status\":\"online\"}` to"
+                        + " publish an approved version, `{\"status\":\"online\",\"force\":true}`"
+                        + " to force publish a rejected version, `{\"status\":\"offline\"}` to take"
+                        + " the version offline, `{\"latest\":true}` to mark it as latest, or"
+                        + " `{\"author\":\"name\"}` to update the version author.")
     @PatchMapping("/{productId}/versions/{version}")
     @AdminAuth
-    public void updateVersionStatus(
+    public void updateVersion(
             @PathVariable String productId,
             @PathVariable String version,
-            @RequestBody @Valid UpdateWorkerVersionStatusParam param) {
-        skillService.changeVersionStatus(productId, version, "online".equals(param.getStatus()));
+            @RequestBody @Valid UpdateSkillVersionParam param) {
+        skillService.updateVersion(productId, version, param);
     }
 
-    @Operation(
-            summary = "Force-publish Skill version",
-            description =
-                    "Publish an existing Skill version and optionally update the latest label")
-    @PostMapping("/{productId}/versions/{version}/force-publish")
+    @Operation(summary = "Create Skill draft")
+    @PostMapping("/{productId}/draft")
     @AdminAuth
-    public void forcePublishVersion(
-            @PathVariable String productId,
-            @PathVariable String version,
-            @RequestParam(required = false, defaultValue = "true") Boolean updateLatestLabel) {
-        skillService.forcePublishVersion(productId, version, updateLatestLabel);
+    public void createDraft(
+            @PathVariable String productId, @RequestBody @Valid CreateSkillDraftParam param) {
+        skillService.createDraft(productId, param);
     }
 
-    @Operation(summary = "Set latest Skill version")
-    @PutMapping("/{productId}/versions/latest")
+    @Operation(summary = "Get Skill draft")
+    @GetMapping("/{productId}/draft")
     @AdminAuth
-    public void setLatestVersion(
-            @PathVariable String productId, @RequestBody @Valid SetLatestWorkerVersionParam param) {
-        skillService.setLatestVersion(productId, param.getVersion());
+    public SkillDraftResult getDraft(@PathVariable String productId) {
+        return skillService.getDraft(productId);
+    }
+
+    @Operation(summary = "Update Skill draft")
+    @PutMapping("/{productId}/draft")
+    @AdminAuth
+    public void updateDraft(
+            @PathVariable String productId, @RequestBody @Valid UpdateSkillDraftParam param) {
+        skillService.updateDraft(productId, param);
     }
 
     @Operation(summary = "Delete Skill draft")

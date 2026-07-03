@@ -99,8 +99,7 @@ const MERGEABLE_KINDS = new Set([
 ]);
 
 type ToolCallGroup =
-  | { type: 'single'; item: ChatItem }
-  | { type: 'merged'; kind: string; items: ChatItemToolCall[] };
+  { type: 'single'; item: ChatItem } | { type: 'merged'; kind: string; items: ChatItemToolCall[] };
 
 function groupConsecutiveToolCalls(items: ChatItem[]): ToolCallGroup[] {
   const groups: ToolCallGroup[] = [];

@@ -3,8 +3,9 @@ import {
   DownloadOutlined,
   CopyOutlined,
   CheckOutlined,
-  UserOutlined,
   FileFilled,
+  FileTextOutlined,
+  FolderOpenOutlined,
   CodeOutlined,
   EyeOutlined,
   CloudUploadOutlined,
@@ -15,10 +16,12 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 
+import { ProductIconRenderer } from '../components/icon/ProductIconRenderer';
 import { Layout } from '../components/Layout';
 import 'highlight.js/styles/github.css';
 import { SkillWorkerDetailSkeleton } from '../components/loading';
-import MarkdownRender from '../components/MarkdownRender';
+import { ProductDetailTabLabel, ProductDetailTabs } from '../components/ProductDetailTabs';
+import { ProductOverview } from '../components/ProductOverview';
 import SkillFileTree from '../components/skill/SkillFileTree';
 import APIs from '../lib/apis';
 import {
@@ -28,13 +31,13 @@ import {
   getWorkerPackageUrl,
   getWorkerCliInfo,
 } from '../lib/apis/workerTemplateApi';
+import { getIconString } from '../lib/iconUtils';
 import { buildNacosCliCommand } from '../lib/nacosCliCommand';
-import { parseSkillMd } from '../lib/skillMdUtils';
 import { copyToClipboard } from '../lib/utils';
+import { formatSkillAuthor, getSelectedSkillVersionAuthor } from '../lib/utils/skillVersionInfo';
 
 import type { IProductDetail } from '../lib/apis';
 import type { SkillFileTreeNode } from '../lib/apis/cliProvider';
-import type { IProductIcon } from '../lib/apis/typing';
 import type { IWorkerConfig } from '../lib/apis/typing';
 import type {
   WorkerFileTreeNode,
@@ -42,44 +45,6 @@ import type {
   WorkerVersion,
   WorkerCliInfo,
 } from '../lib/apis/workerTemplateApi';
-
-function MdPreview({ content }: { content: string }) {
-  const { body, frontmatter } = parseSkillMd(content);
-  const fmEntries = Object.entries(frontmatter);
-  return (
-    <div className="text-sm">
-      {fmEntries.length > 0 && (
-        <table className="mb-6 w-full text-[13px] border-collapse">
-          <thead>
-            <tr className="bg-[#f6f8fa]">
-              {fmEntries.map(([k]) => (
-                <th
-                  className="border border-[#d0d7de] px-3 py-1.5 text-left font-semibold text-[#1f2328]"
-                  key={k}
-                >
-                  {k}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              {fmEntries.map(([k, v]) => (
-                <td
-                  className="border border-[#d0d7de] px-3 py-1.5 text-[#1f2328] align-top"
-                  key={k}
-                >
-                  {v}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      )}
-      <MarkdownRender content={body} />
-    </div>
-  );
-}
 
 function inferLanguage(path: string): string {
   const fileName = path.split('/').pop()?.toLowerCase() ?? '';
@@ -118,40 +83,8 @@ function inferLanguage(path: string): string {
   return map[ext] ?? 'plaintext';
 }
 
-function getIconUrl(icon?: IProductIcon): string | null {
-  if (!icon) return null;
-  if (icon.type === 'URL' && icon.value) return icon.value;
-  if (icon.type === 'BASE64' && icon.value) {
-    return icon.value.startsWith('data:') ? icon.value : `data:image/png;base64,${icon.value}`;
-  }
-  return null;
-}
-
-function ProductIcon({ icon, name }: { name: string; icon?: IProductIcon }) {
-  const iconUrl = getIconUrl(icon);
-
-  if (iconUrl) {
-    return (
-      <img
-        alt={name}
-        className="w-16 h-16 rounded-[10px] flex-shrink-0 object-cover border border-gray-200"
-        onError={(e) => {
-          (e.target as HTMLImageElement).style.display = 'none';
-        }}
-        src={iconUrl}
-      />
-    );
-  }
-
-  return (
-    <div className="w-16 h-16 rounded-[10px] flex-shrink-0 flex items-center justify-center bg-gray-50 border border-gray-200">
-      <UserOutlined className="text-3xl text-black" />
-    </div>
-  );
-}
-
 function WorkerDetail() {
-  const { t } = useTranslation('workerDetail');
+  const { i18n, t } = useTranslation('workerDetail');
   const { workerProductId } = useParams<{ workerProductId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -278,8 +211,10 @@ function WorkerDetail() {
             : [];
         setVersions(onlineVersions);
 
-        // Default to latest online version
-        const defaultVersion = onlineVersions[0]?.version;
+        // Prefer the backend-labeled latest version; otherwise keep the existing list order.
+        const defaultVersion =
+          onlineVersions.find((version: WorkerVersion) => version.isLatest)?.version ??
+          onlineVersions[0]?.version;
         setSelectedVersion(defaultVersion);
 
         // Load file tree for the default version
@@ -344,6 +279,12 @@ function WorkerDetail() {
     document.body.removeChild(a);
   }, [workerProductId, selectedVersion]);
 
+  const handleTabChange = useCallback((key: string) => {
+    if (key === 'overview' || key === 'file') {
+      setActiveTab(key);
+    }
+  }, []);
+
   if (loading) {
     return (
       <Layout>
@@ -368,15 +309,42 @@ function WorkerDetail() {
   }
 
   const { description, name } = data;
-  const workerTags = workerConfig?.tags || [];
+  const workerTags = Array.isArray(workerConfig?.tags) ? workerConfig.tags : [];
   const hasFiles = fileTree.length > 0;
+  const latestVersion = versions.find((v) => v.isLatest)?.version;
+  const selectedWorkerVersion = versions.find((v) => v.version === selectedVersion);
+  const workerDownloadCount = Math.max(
+    workerConfig?.downloadCount ?? 0,
+    selectedWorkerVersion?.downloadCount ?? 0,
+  );
+  const selectedAuthorLabel = formatSkillAuthor(
+    getSelectedSkillVersionAuthor(versions, selectedVersion),
+  );
+  const formattedUpdatedAt = data.updatedAt
+    ? new Date(data.updatedAt)
+        .toLocaleDateString(i18n.language, {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+        .replace(/\//g, '.')
+    : undefined;
+  const updatedAtLabel = data.updatedAt
+    ? t('updatedAt', {
+        date: formattedUpdatedAt,
+      })
+    : undefined;
+  const headerMetaItems = [
+    updatedAtLabel,
+    selectedAuthorLabel ? `${t('author')} ${selectedAuthorLabel}` : undefined,
+  ].filter(Boolean);
 
   const renderFilePreview = () => {
     if (!selectedFilePath) {
       return (
-        <div className="flex items-center justify-center h-full text-gray-400">
+        <div className="flex h-full items-center justify-center bg-[#FBFCFE] text-gray-400">
           <div className="text-center">
-            <FileFilled className="text-5xl mb-3 text-gray-300" />
+            <FileFilled className="mb-3 text-5xl text-gray-300" />
             <p className="text-sm text-gray-400">{t('clickFileToView')}</p>
           </div>
         </div>
@@ -385,7 +353,7 @@ function WorkerDetail() {
     if (fileLoading) {
       return (
         <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-colorPrimary" />
         </div>
       );
     }
@@ -414,25 +382,26 @@ function WorkerDetail() {
       const lineCount = fileContent.content.split('\n').length;
       const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace";
       return (
-        <div className="flex-1 overflow-auto bg-white h-full flex flex-col relative">
+        <div className="relative flex h-full flex-1 flex-col overflow-auto bg-white">
           {/* Toggle button - floats top-right */}
-          <div className="absolute top-2 right-3 z-20">
+          <div className="absolute right-3 top-2 z-20">
             <Tooltip title={mdRawMode ? t('renderPreview') : t('sourceCode')}>
               <button
-                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-1 rounded-[7px] border border-[#E8EDF5] bg-white/90 px-2 py-1 text-xs font-medium text-gray-500 shadow-sm transition-colors hover:bg-[#F7F9FC] hover:text-gray-700"
                 onClick={() => setMdRawMode(!mdRawMode)}
+                type="button"
               >
                 {mdRawMode ? <EyeOutlined /> : <CodeOutlined />}
-                <span>{mdRawMode ? 'Preview' : 'Source'}</span>
+                <span>{mdRawMode ? t('previewMode') : t('sourceMode')}</span>
               </button>
             </Tooltip>
           </div>
           {mdRawMode ? (
             <div className="flex flex-1 overflow-auto">
               <div
-                className="flex-shrink-0 py-3 pr-3 pl-4 text-right select-none sticky left-0 bg-white z-10"
+                className="sticky left-0 z-10 flex-shrink-0 select-none bg-white py-3 pl-4 pr-3 text-right"
                 style={{
-                  borderRight: '1px solid #f0f0f0',
+                  borderRight: '1px solid #E8EEF6',
                   fontFamily: codeFont,
                   fontSize: '13px',
                   lineHeight: '20px',
@@ -445,7 +414,7 @@ function WorkerDetail() {
                 ))}
               </div>
               <pre
-                className="flex-1 py-3 pl-5 pr-4 m-0 bg-white"
+                className="m-0 flex-1 bg-white py-3 pl-5 pr-4"
                 style={{ fontFamily: codeFont, fontSize: '13px', lineHeight: '20px' }}
               >
                 <code
@@ -455,9 +424,12 @@ function WorkerDetail() {
               </pre>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto px-6 pb-6 pt-8">
-              <MdPreview content={fileContent.content} />
-            </div>
+            <ProductOverview
+              className="flex-1 px-6 pb-6 pt-8"
+              content={fileContent.content}
+              emptyText={t('noContent')}
+              showFrontmatterTable
+            />
           )}
         </div>
       );
@@ -481,12 +453,12 @@ function WorkerDetail() {
     const codeFont = "'Menlo', 'Monaco', 'Courier New', monospace";
 
     return (
-      <div className="flex-1 overflow-auto bg-white h-full">
+      <div className="h-full flex-1 overflow-auto bg-white">
         <div className="flex min-h-full">
           <div
-            className="flex-shrink-0 py-3 pr-3 pl-4 text-right select-none sticky left-0 bg-white z-10"
+            className="sticky left-0 z-10 flex-shrink-0 select-none bg-white py-3 pl-4 pr-3 text-right"
             style={{
-              borderRight: '1px solid #f0f0f0',
+              borderRight: '1px solid #E8EEF6',
               fontFamily: codeFont,
               fontSize: '13px',
               lineHeight: '20px',
@@ -499,7 +471,7 @@ function WorkerDetail() {
             ))}
           </div>
           <pre
-            className="flex-1 py-3 pl-5 pr-4 m-0 bg-white"
+            className="m-0 flex-1 bg-white py-3 pl-5 pr-4"
             style={{
               fontFamily: codeFont,
               fontSize: '13px',
@@ -521,214 +493,215 @@ function WorkerDetail() {
 
   return (
     <Layout>
-      <div className="py-8 flex flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-5 py-5 sm:py-7">
         {/* Page header */}
         <div className="flex-shrink-0">
           <button
-            className="flex items-center gap-2 mb-4 px-4 py-2 rounded-[10px] text-gray-600 hover:text-colorPrimary hover:bg-colorPrimaryBgHover transition-all duration-200"
+            className="mb-4 inline-flex h-9 items-center gap-2 rounded-[10px] px-3 text-sm font-medium text-gray-600 transition-all duration-200 hover:bg-white/80 hover:text-gray-950 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-colorPrimary/30 active:translate-y-px"
             onClick={() => navigate(-1)}
+            type="button"
           >
-            <ArrowLeftOutlined />
+            <ArrowLeftOutlined className="text-xs" />
             <span>{t('back')}</span>
           </button>
 
-          <div className="flex items-center gap-4 mb-3">
-            <ProductIcon icon={data.icon} name={name} />
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-semibold text-gray-900 mb-1">{name}</h1>
-              {data.updatedAt && (
-                <div className="text-sm text-gray-400">
-                  {new Date(data.updatedAt)
-                    .toLocaleDateString('zh-CN', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })
-                    .replace(/\//g, '.')}{' '}
-                  updated
+          <div className="rounded-[14px] border border-[#DDE5F0] bg-white/90 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur-sm">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 items-start gap-4">
+                  <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-[#E1E7F0] bg-[#F7F9FC]">
+                    <ProductIconRenderer
+                      className="h-full w-full object-cover"
+                      iconType={getIconString(data.icon, name)}
+                    />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-2xl font-semibold leading-tight text-gray-950">{name}</h1>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                      {headerMetaItems.map((item, index) => (
+                        <span className="min-w-0 truncate" key={`${item}-${index}`}>
+                          {item}
+                        </span>
+                      ))}
+                      <span className="inline-flex flex-shrink-0 items-center gap-1.5">
+                        <DownloadOutlined className="text-xs text-gray-400" />
+                        <span className="tabular-nums">{workerDownloadCount.toLocaleString()}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {description && (
+                <p className="m-0 max-w-5xl break-words text-sm leading-6 text-gray-600">
+                  {description}
+                </p>
+              )}
+
+              {workerTags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {workerTags.map((tag) => (
+                    <span
+                      className="inline-flex min-h-6 items-center rounded-[6px] border border-[#E4EAF3] bg-[#F8FAFD] px-2 text-xs font-semibold text-[#566176]"
+                      key={tag}
+                    >
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
           </div>
-
-          <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
-
-          {workerTags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {workerTags.map((tag) => (
-                <Tag color="purple" key={tag}>
-                  {tag}
-                </Tag>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Main content */}
-        <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex flex-col gap-5 xl:flex-row">
           {/* Left: file viewer with Overview / File tabs */}
-          <div className="flex-1 min-w-0">
-            <div
-              className="bg-white rounded-lg overflow-hidden flex flex-col"
-              style={{ border: '1px solid #f0f0f0', height: 'calc(100vh - 280px)', minHeight: 500 }}
-            >
-              {/* Tab header */}
-              <div
-                className="flex gap-6 px-4 pt-3 flex-shrink-0"
-                style={{ borderBottom: '1px solid #f0f0f0' }}
-              >
-                <button
-                  className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
-                    activeTab === 'overview'
-                      ? 'text-blue-600 border-blue-600'
-                      : 'text-gray-500 border-transparent hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('overview')}
-                >
-                  Overview
-                </button>
-                <button
-                  className={`pb-2 text-sm font-medium transition-colors border-b-2 ${
-                    activeTab === 'file'
-                      ? 'text-blue-600 border-blue-600'
-                      : 'text-gray-500 border-transparent hover:text-gray-700'
-                  }`}
-                  onClick={() => setActiveTab('file')}
-                >
-                  File
-                </button>
-              </div>
-
-              {/* Overview tab */}
-              {activeTab === 'overview' && (
-                <div className="flex-1 overflow-auto p-6">
-                  {overviewLoading ? (
-                    <div className="flex justify-center pt-8">
-                      <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-                    </div>
-                  ) : overviewContent ? (
-                    <MdPreview content={overviewContent} />
-                  ) : (
-                    <div className="text-gray-400 text-sm text-center pt-8">{t('noAgentsMd')}</div>
-                  )}
-                </div>
-              )}
-
-              {/* File tab */}
-              {activeTab === 'file' && (
-                <div className="flex flex-1 min-h-0">
-                  {/* File tree */}
-                  <div
-                    className="bg-white overflow-y-auto overflow-x-hidden flex-shrink-0 p-2"
-                    style={{ borderRight: '1px solid #f0f0f0', width: treeWidth }}
-                  >
-                    {hasFiles ? (
-                      <SkillFileTree
-                        nodes={fileTree as unknown as SkillFileTreeNode[]}
-                        onSelect={handleSelectFile}
-                        selectedPath={selectedFilePath}
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                        {t('noFiles')}
+          <div className="min-w-0 flex-1">
+            <ProductDetailTabs
+              activeKey={activeTab}
+              cardClassName="flex flex-col"
+              items={[
+                {
+                  children: (
+                    <ProductOverview
+                      className="h-full min-h-[420px]"
+                      content={overviewContent}
+                      emptyText={t('noAgentsMd')}
+                      loading={overviewLoading}
+                      showFrontmatterTable
+                    />
+                  ),
+                  key: 'overview',
+                  label: (
+                    <ProductDetailTabLabel icon={<FileTextOutlined />}>
+                      {t('overviewTab')}
+                    </ProductDetailTabLabel>
+                  ),
+                },
+                {
+                  children: (
+                    <div className="flex h-full min-h-0 overflow-hidden rounded-[10px] border border-[#E8EEF6]">
+                      {/* File tree */}
+                      <div
+                        className="scrollbar-thin-soft flex-shrink-0 overflow-y-auto overflow-x-hidden border-r border-[#E8EEF6] bg-[#FBFCFE] p-2"
+                        style={{ width: treeWidth }}
+                      >
+                        {hasFiles ? (
+                          <SkillFileTree
+                            nodes={fileTree as unknown as SkillFileTreeNode[]}
+                            onSelect={handleSelectFile}
+                            selectedPath={selectedFilePath}
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                            {t('noFiles')}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  {/* Drag handle */}
-                  <div
-                    aria-hidden="true"
-                    className="w-1 flex-shrink-0 cursor-col-resize hover:bg-blue-200 transition-colors bg-transparent"
-                    onMouseDown={handleDragStart}
-                    role="separator"
-                  />
-                  {/* File preview */}
-                  <div className="flex-1 overflow-auto flex flex-col">{renderFilePreview()}</div>
-                </div>
-              )}
-            </div>
+                      {/* Drag handle */}
+                      <div
+                        aria-hidden="true"
+                        aria-orientation="vertical"
+                        className="w-1 flex-shrink-0 cursor-col-resize bg-transparent transition-colors hover:bg-colorPrimary/20"
+                        onMouseDown={handleDragStart}
+                        role="separator"
+                      />
+                      {/* File preview */}
+                      <div className="flex min-w-0 flex-1 flex-col overflow-auto">
+                        {renderFilePreview()}
+                      </div>
+                    </div>
+                  ),
+                  key: 'file',
+                  label: (
+                    <ProductDetailTabLabel icon={<FolderOpenOutlined />}>
+                      {t('fileTab')}
+                    </ProductDetailTabLabel>
+                  ),
+                },
+              ]}
+              onChange={handleTabChange}
+              style={{ height: 'calc(100vh - 280px)', minHeight: 520 }}
+              tabsClassName="flex min-h-0 flex-1 flex-col [&_.ant-tabs-content-holder]:min-h-0 [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-content-holder]:overflow-hidden [&_.ant-tabs-content]:h-full [&_.ant-tabs-tabpane]:h-full"
+            />
           </div>
 
           {/* Right sidebar: download card */}
-          <div className="w-full lg:w-[420px] flex-shrink-0 order-1 lg:order-2 lg:sticky lg:top-4 lg:self-start">
-            <div
-              className="bg-white rounded-[10px] overflow-hidden shadow-sm"
-              style={{ border: '1px solid #e8eaef' }}
-            >
+          <div className="order-1 w-full flex-shrink-0 xl:order-2 xl:sticky xl:top-24 xl:w-[390px] xl:self-start">
+            <div className="overflow-hidden rounded-[14px] border border-[#DDE5F0] bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.05)] backdrop-blur-sm">
               {/* Card header: title + version selector */}
-              <div
-                className="flex items-center justify-between px-4 py-3"
-                style={{ borderBottom: '1px solid #edeef3' }}
-              >
-                <span className="text-sm font-semibold text-gray-800">{t('download')}</span>
-                <Select
-                  disabled={versions.length === 0}
-                  onChange={handleVersionChange}
-                  options={versions.map((v) => ({
-                    label: (
-                      <div className="flex items-center gap-1.5">
-                        <span>{v.version}</span>
-                        {v.version === versions[0]?.version && (
-                          <Tag className="!m-0 !text-xs !px-1.5 !py-0 !leading-5" color="blue">
-                            latest
-                          </Tag>
-                        )}
-                      </div>
-                    ),
-                    value: v.version,
-                  }))}
-                  placeholder={t('noVersion')}
-                  size="large"
-                  style={{ fontSize: 15, width: 180 }}
-                  value={selectedVersion}
-                />
+              <div className="border-b border-[#E8EEF6] bg-[#FBFCFE] p-3">
+                <div className="mb-1.5 text-xs font-semibold text-gray-500">{t('version')}</div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    className="h-8 min-w-0 flex-1 [&_.ant-select-selection-item]:!leading-8 [&_.ant-select-selection-placeholder]:!leading-8 [&_.ant-select-selection-search-input]:!h-8 [&_.ant-select-selector]:!h-8 [&_.ant-select-selector]:!rounded-[9px] [&_.ant-select-selector]:!border-[#DDE5F0]"
+                    disabled={versions.length === 0}
+                    onChange={handleVersionChange}
+                    options={versions.map((v) => ({
+                      label: (
+                        <div className="flex items-center gap-1.5">
+                          <span>{v.version}</span>
+                          {v.version === latestVersion && (
+                            <Tag className="!m-0 !text-xs !px-1.5 !py-0 !leading-5" color="blue">
+                              latest
+                            </Tag>
+                          )}
+                        </div>
+                      ),
+                      value: v.version,
+                    }))}
+                    placeholder={t('noVersion')}
+                    size="middle"
+                    value={selectedVersion}
+                  />
+                  <Tooltip color="#111827" title={t('downloadWorkerPackage')}>
+                    <Button
+                      aria-label={t('downloadWorkerPackage')}
+                      className="!h-8 !rounded-[9px] !border-[#DDE5F0] !px-2.5 !text-xs !font-medium !text-gray-600 hover:!border-colorPrimary/40 hover:!text-colorPrimary"
+                      disabled={versions.length === 0}
+                      icon={<DownloadOutlined />}
+                      onClick={handleDownload}
+                    >
+                      {t('downloadPackage')}
+                    </Button>
+                  </Tooltip>
+                </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-                <Button
-                  block
-                  disabled={versions.length === 0}
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownload}
-                  size="middle"
-                  type="primary"
-                >
-                  {t('downloadWorkerPackage')}
-                </Button>
-              </div>
-
-              {/* HiClaw 安装 */}
+              {/* AgentTeams install */}
               {cliInfo && (
-                <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                    <span className="text-xs font-semibold text-gray-600 tracking-wide">
+                <div className="border-b border-[#E8EEF6] px-4 py-3">
+                  <div className="mb-3 flex items-center gap-1.5">
+                    <CloudUploadOutlined className="text-[13px] text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-600">
                       {t('installToHiClaw')}
-                    </span>
-                    <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 ml-auto">
-                      {t('requiresHiClaw')}
                     </span>
                   </div>
 
                   {/* 安装方式切换 Tab */}
-                  <div className="flex bg-gray-100 rounded-lg p-1 mb-3">
+                  <div className="mb-3 flex rounded-[10px] border border-[#E8EDF5] bg-[#F7F9FC] p-1">
                     <button
-                      className={`flex-1 py-2 text-xs rounded-md transition-all ${
+                      className={`flex-1 rounded-[8px] py-2 text-xs font-medium transition-all ${
                         installMethod === 'nl'
-                          ? 'bg-white text-gray-800 font-medium shadow-sm'
+                          ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-500 hover:text-gray-700'
                       }`}
                       onClick={() => setInstallMethod('nl')}
+                      type="button"
                     >
                       {t('naturalLanguage')}
                     </button>
                     <button
-                      className={`flex-1 py-2 text-xs rounded-md transition-all ${
+                      className={`flex-1 rounded-[8px] py-2 text-xs font-medium transition-all ${
                         installMethod === 'script'
-                          ? 'bg-white text-gray-800 font-medium shadow-sm'
+                          ? 'bg-white text-gray-900 shadow-sm'
                           : 'text-gray-500 hover:text-gray-700'
                       }`}
                       onClick={() => setInstallMethod('script')}
+                      type="button"
                     >
                       {t('scriptCommand')}
                     </button>
@@ -737,12 +710,22 @@ function WorkerDetail() {
                   {/* 自然语言面板 */}
                   {installMethod === 'nl' && (
                     <div>
-                      <div className="relative bg-indigo-50/40 border border-dashed border-indigo-200/60 rounded-lg pl-4 pr-9 py-3">
-                        <div className="text-sm text-gray-700">
-                          {t('nlImportCommand', { name: cliInfo.resourceName })}
-                        </div>
-                        <button
-                          className="absolute top-2.5 right-2.5 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                      <div className="relative rounded-[12px] border border-dashed border-[#DDE5F0] bg-[#FBFCFE] py-3 pl-4 pr-10">
+                        <Tooltip color="#111827" title={t('nlInstallHint')}>
+                          <div className="cursor-help text-sm leading-6 text-gray-700">
+                            {t('nlImportCommand', { name: cliInfo.resourceName })}
+                          </div>
+                        </Tooltip>
+                        <Button
+                          aria-label={t('copyCommand')}
+                          className="absolute right-2 top-2.5 z-10 !h-6 !w-6 !min-w-6 !p-0 !text-gray-400 hover:!text-colorPrimary [&_.anticon]:!text-xs"
+                          icon={
+                            copiedNl ? (
+                              <CheckOutlined className="text-green-500" />
+                            ) : (
+                              <CopyOutlined />
+                            )
+                          }
                           onClick={() => {
                             const text = t('nlImportCommand', { name: cliInfo.resourceName });
                             copyToClipboard(text).then(() => {
@@ -750,46 +733,52 @@ function WorkerDetail() {
                               setTimeout(() => setCopiedNl(false), 2000);
                             });
                           }}
-                        >
-                          {copiedNl ? (
-                            <CheckOutlined className="text-green-500" />
-                          ) : (
-                            <CopyOutlined />
-                          )}
-                        </button>
+                          size="small"
+                          title={t('copyCommand')}
+                          type="text"
+                        />
                       </div>
-                      <div className="text-xs text-gray-500 mt-2 ml-1">{t('nlInstallHint')}</div>
                     </div>
                   )}
 
                   {/* 脚本命令面板 */}
                   {installMethod === 'script' && (
                     <div>
-                      <div className="flex gap-2 mb-2">
+                      <div className="mb-2 flex gap-2">
                         <button
-                          className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                          className={`rounded-[7px] px-2.5 py-1 text-xs font-medium transition-colors ${
                             hiclawPlatform === 'unix'
-                              ? 'bg-blue-500 text-white'
+                              ? 'bg-colorPrimary text-white'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                           onClick={() => setHiclawPlatform('unix')}
+                          type="button"
                         >
                           Linux / Mac
                         </button>
                         <button
-                          className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                          className={`rounded-[7px] px-2.5 py-1 text-xs font-medium transition-colors ${
                             hiclawPlatform === 'windows'
-                              ? 'bg-blue-500 text-white'
+                              ? 'bg-colorPrimary text-white'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                           onClick={() => setHiclawPlatform('windows')}
+                          type="button"
                         >
                           Windows
                         </button>
                       </div>
-                      <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
-                        <button
-                          className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                      <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827] py-2.5 pl-3 pr-9">
+                        <Button
+                          aria-label={t('copyCommand')}
+                          className="absolute right-2 top-2 z-10 !h-6 !w-6 !min-w-6 !p-0 !text-gray-400 hover:!text-white [&_.anticon]:!text-xs"
+                          icon={
+                            copiedHiclaw ? (
+                              <CheckOutlined className="text-green-400" />
+                            ) : (
+                              <CopyOutlined />
+                            )
+                          }
                           onClick={() => {
                             const version = selectedVersion || 'v1';
                             const encodedName = encodeURIComponent(cliInfo.resourceName);
@@ -812,15 +801,12 @@ function WorkerDetail() {
                               setTimeout(() => setCopiedHiclaw(false), 2002);
                             });
                           }}
-                        >
-                          {copiedHiclaw ? (
-                            <CheckOutlined className="text-green-500" />
-                          ) : (
-                            <CopyOutlined />
-                          )}
-                        </button>
+                          size="small"
+                          title={t('copyCommand')}
+                          type="text"
+                        />
                         <code
-                          className="text-[12px] text-gray-700 break-all"
+                          className="break-all text-[12px] leading-5 text-gray-100"
                           style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
                         >
                           {(() => {
@@ -847,69 +833,20 @@ function WorkerDetail() {
                 </div>
               )}
 
-              {/* HTTP 下载 */}
-              {cliInfo && (
-                <div className="px-4 py-3" style={{ borderBottom: '1px solid #edeef3' }}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <CloudUploadOutlined className="text-indigo-400/80 text-[13px]" />
-                    <span className="text-xs font-semibold text-gray-600 tracking-wide">
-                      {t('httpDownload')}
-                    </span>
-                  </div>
-                  <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
-                    <button
-                      className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all disabled:opacity-50"
-                      disabled={!selectedVersion}
-                      onClick={() => {
-                        const selectedVersionInfo = versions.find(
-                          (v) => v.version === selectedVersion,
-                        );
-                        const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionParam =
-                          selectedVersion && !isLatest
-                            ? `?version=${encodeURIComponent(selectedVersion)}`
-                            : '';
-                        const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${versionParam}`;
-                        copyToClipboard(url).then(() => {
-                          setCopiedHttp(true);
-                          setTimeout(() => setCopiedHttp(false), 2000);
-                        });
-                      }}
-                    >
-                      {copiedHttp ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                    </button>
-                    <code
-                      className="text-[12px] text-gray-700 break-all"
-                      style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
-                    >
-                      {(() => {
-                        const selectedVersionInfo = versions.find(
-                          (v) => v.version === selectedVersion,
-                        );
-                        const isLatest = selectedVersionInfo?.isLatest ?? false;
-                        const versionParam =
-                          selectedVersion && !isLatest
-                            ? `?version=${encodeURIComponent(selectedVersion)}`
-                            : '';
-                        return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${versionParam}`;
-                      })()}
-                    </code>
-                  </div>
-                </div>
-              )}
-
               {/* Nacos CLI command */}
               {cliInfo && (
-                <div className="px-4 py-3">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <CodeOutlined className="text-indigo-400/80 text-[13px]" />
-                    <span className="text-xs font-semibold text-gray-600 tracking-wide">
-                      {t('npxDownload')}
-                    </span>
+                <div className="border-b border-[#E8EEF6] px-4 py-3">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <CodeOutlined className="text-[13px] text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-600">{t('npxDownload')}</span>
                   </div>
-                  <div className="relative rounded-md bg-gray-50/80 border border-gray-200 border-l-[2.5px] border-l-indigo-300/60 pl-3 pr-9 py-2.5">
-                    <button
-                      className="absolute top-2 right-2 p-1 rounded text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                  <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827] py-2.5 pl-3 pr-9">
+                    <Button
+                      aria-label={t('copyCommand')}
+                      className="absolute right-2 top-2 z-10 !h-6 !w-6 !min-w-6 !p-0 !text-gray-400 hover:!text-white [&_.anticon]:!text-xs"
+                      icon={
+                        copiedCmd ? <CheckOutlined className="text-green-400" /> : <CopyOutlined />
+                      }
                       onClick={() => {
                         const selectedVersionInfo = versions.find(
                           (v) => v.version === selectedVersion,
@@ -926,11 +863,12 @@ function WorkerDetail() {
                           setTimeout(() => setCopiedCmd(false), 2000);
                         });
                       }}
-                    >
-                      {copiedCmd ? <CheckOutlined className="text-green-500" /> : <CopyOutlined />}
-                    </button>
+                      size="small"
+                      title={t('copyCommand')}
+                      type="text"
+                    />
                     <code
-                      className="text-[12px] text-gray-700 break-all"
+                      className="break-all text-[12px] leading-5 text-gray-100"
                       style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
                     >
                       {(() => {
@@ -944,6 +882,50 @@ function WorkerDetail() {
                           server: cliInfo,
                           version: isLatest ? undefined : selectedVersion,
                         });
+                      })()}
+                    </code>
+                  </div>
+                </div>
+              )}
+
+              {/* HTTP download */}
+              {cliInfo && (
+                <div className="px-4 py-3">
+                  <div className="mb-2 flex items-center gap-1.5">
+                    <CloudUploadOutlined className="text-[13px] text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-600">{t('httpDownload')}</span>
+                  </div>
+                  <div className="relative overflow-hidden rounded-[12px] border border-[#172033] bg-[#111827] py-2.5 pl-3 pr-9">
+                    <Button
+                      aria-label={t('copyDownloadUrl')}
+                      className="absolute right-2 top-2 z-10 !h-6 !w-6 !min-w-6 !p-0 !text-gray-400 hover:!text-white disabled:!opacity-50 [&_.anticon]:!text-xs"
+                      disabled={!selectedVersion}
+                      icon={
+                        copiedHttp ? <CheckOutlined className="text-green-400" /> : <CopyOutlined />
+                      }
+                      onClick={() => {
+                        const versionParam = selectedVersion
+                          ? `?version=${encodeURIComponent(selectedVersion)}`
+                          : '';
+                        const url = `${window.location.origin}/api/v1/workers/${workerProductId}/download${versionParam}`;
+                        copyToClipboard(url).then(() => {
+                          setCopiedHttp(true);
+                          setTimeout(() => setCopiedHttp(false), 2000);
+                        });
+                      }}
+                      size="small"
+                      title={t('copyDownloadUrl')}
+                      type="text"
+                    />
+                    <code
+                      className="break-all text-[12px] leading-5 text-gray-100"
+                      style={{ fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace" }}
+                    >
+                      {(() => {
+                        const versionParam = selectedVersion
+                          ? `?version=${encodeURIComponent(selectedVersion)}`
+                          : '';
+                        return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/workers/${workerProductId}/download${versionParam}`;
                       })()}
                     </code>
                   </div>

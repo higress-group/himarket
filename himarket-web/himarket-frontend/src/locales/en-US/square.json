@@ -1,5 +1,6 @@
 {
   "allCategory": "All",
+  "author": "Author",
   "agentMarketSlogan": "Composable agent services that help AI understand and complete complex tasks.",
   "agentMarketTitle": "Agent Market",
   "apiMarketSlogan": "Standardized REST APIs for quickly building application data foundations.",
@@ -36,8 +37,10 @@
   "videoGeneration": "Video",
   "webSearch": "Web search",
   "skillMarketTitle": "Skill Market",
+  "skillMarketSlogan": "Discover reusable Agent Skills that give agents focused capabilities quickly.",
   "skillMarketSubtitle": "Discover and share Agent Skills · Found <1>{{count}}</1> Skills",
   "workerMarketTitle": "Worker Market",
+  "workerMarketSlogan": "Adopt OpenClaw workers that are ready to run.",
   "workerMarketSubtitle": "Adopt your OpenClaw, ready to work · Found <1>{{count}}</1> Workers",
   "unknownProductType": "Unknown product type",
   "loginPromptContext": "Log in to try AI models and experience intelligent conversations"

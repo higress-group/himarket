@@ -31,7 +31,7 @@ Himarket 现有 Agent Skill 管理能力基于开源 Nacos：
 
 1. 管理员可以在 Himarket 中新增、编辑、删除 AIRegistry 连接配置。
 2. AIRegistry 连接配置包含：显示名称、Region、Endpoint、NamespaceId、AccessKeyId、AccessKeySecret，可选 SecurityToken。
-3. 新建 Agent Skill 产品时，可以选择默认后端来源为 Nacos 或 AIRegistry。
+3. 新建 Agent Skill 产品默认绑定 Nacos，之后可在包管理页切换为 AIRegistry。
 4. Agent Skill 产品绑定 AIRegistry 后，现有 Skill 包管理页面继续可用：
    - 上传 ZIP 包。
    - 删除 Skill。
@@ -145,23 +145,17 @@ private String airegistryId;            // AIRegistry 连接配置 ID
 - 列表和详情接口只返回 `accessKeyId` 的脱敏值，不返回 secret。
 - 日志不得打印完整 AK/SK、SecurityToken、Authorization Header。
 
-### 4.4 默认 Skill 仓库类型
+### 4.4 新建 Agent Skill 默认仓库
 
-仅有“默认 Nacos”和“默认 AIRegistry 工作空间”还不够。新建 Agent Skill 产品时，后端需要知道默认选择哪一种 Skill 仓库。
-
-新增一个管理员配置，复用现有 `AdminSetting` 能力。注意当前 `AdminSetting` 按 `admin_id + setting_key` 保存，不是系统全局配置：
-
-```text
-defaultSkillRegistryType=NACOS|AIREGISTRY
-```
+新建 Agent Skill 产品默认沿用现有行为：自动绑定管理员默认 Nacos + 默认 namespace。
+AIRegistry 作为产品级 Skill 仓库来源，在 Skill 包管理页手动切换。
 
 规则：
 
-- 未配置时默认 `NACOS`，兼容当前行为。
-- `defaultSkillRegistryType=NACOS`：新建 Agent Skill 产品沿用默认 Nacos + 默认 namespace。
-- `defaultSkillRegistryType=AIREGISTRY`：新建 Agent Skill 产品绑定默认 AIRegistry 工作空间 + 默认 NamespaceId。
-- 如果选择 `AIREGISTRY` 但没有默认 AIRegistry 配置，则新建产品不自动绑定仓库，并在前端引导管理员先配置。
-- 配置接口使用现有 `/admin-settings/defaultSkillRegistryType`，值写入 `settingValue`。不要为了这个 key 新增单独表。
+- 新建 Agent Skill 产品默认绑定默认 Nacos，兼容当前行为。
+- 如果没有默认 Nacos，则新建产品不自动绑定仓库，并在前端引导管理员先配置。
+- 不提供管理员级仓库类型偏好配置，避免隐藏偏好影响后续新建产品。
+- 默认 AIRegistry 配置只表示 AIRegistry 配置列表中的默认项，不参与新建 Agent Skill 的自动仓库选择。
 
 ## 5. 后端设计
 
@@ -358,7 +352,7 @@ private String namespace;
 
 - `validateNacosOnlineVersion` 改成按产品类型/仓库来源校验在线版本，错误消息不要写死 “Nacos”。
 - `cleanupNacosResources` 改成按产品类型清理远端资源；`AGENT_SKILL` 走 Skill registry operator，`WORKER` 继续走 Nacos Worker 逻辑。
-- `initDefaultFeature` 只在 `ProductType.AGENT_SKILL` 且 `defaultSkillRegistryType=AIREGISTRY` 时绑定默认 AIRegistry；`WORKER` 永远继续使用默认 Nacos。
+- `initDefaultFeature` 对 `AGENT_SKILL` 和 `WORKER` 都继续使用默认 Nacos；AIRegistry 只通过产品包管理页的仓库配置切换。
 
 ### 5.7 下载量同步
 
@@ -420,7 +414,6 @@ namespace=...
 - 设置默认配置。
 - 配置连接测试。
 - 默认 NamespaceId 展示和修改。
-- 默认 Skill 仓库类型设置：允许管理员选择新建 Agent Skill 产品默认使用 Nacos 还是 AIRegistry。
 
 表单字段：
 
@@ -438,7 +431,7 @@ namespace=...
 
 - Secret 字段编辑时默认不回显。
 - 保存后可点击“连接测试”。
-- 默认配置是否用于新建 Agent Skill 产品，取决于 `defaultSkillRegistryType`。
+- 默认 AIRegistry 配置不影响新建 Agent Skill 产品；新建产品默认仍使用 Nacos。
 - 删除前端操作前需要二次确认。
 - 删除失败时展示后端返回原因，例如仍有 Skill 产品引用。
 - 列表中展示 `airegistryId`，支持一键复制，交互可参考 Nacos 配置页。
@@ -562,13 +555,13 @@ skillApi.importFromRegistry({
 
 ### 6.4 新建 Agent Skill 产品默认配置
 
-现有新建 Agent Skill 产品会由后端绑定默认 Nacos。支持 AIRegistry 后，前端需要补充默认 Skill 仓库类型配置。
+现有新建 Agent Skill 产品会由后端绑定默认 Nacos。支持 AIRegistry 后，继续保持新建默认 Nacos，避免新建流程引入额外选择。
 
 首期采用简单方案：
 
 1. 新建产品表单不强制选择仓库。
-2. 后端根据 `defaultSkillRegistryType` 自动绑定默认 Nacos 或默认 AIRegistry 工作空间。
-3. 用户需要切换来源时，在 Skill 包管理页修改仓库配置。
+2. 后端自动绑定默认 Nacos 和默认 namespace。
+3. 用户需要切换到 AIRegistry 时，在 Skill 包管理页修改仓库配置。
 
 暂不在 `ApiProductFormModal` 中增加完整仓库选择表单，避免把新建产品流程复杂化。
 
@@ -576,7 +569,7 @@ skillApi.importFromRegistry({
 
 1. 左侧导航可以进入 AIRegistry 配置页。
 2. 管理员可以新增 AIRegistry 配置，填写 NamespaceId 和访问凭证。
-3. 管理员可以设置默认 AIRegistry 工作空间、默认 NamespaceId 和默认 Skill 仓库类型。
+3. 管理员可以设置默认 AIRegistry 工作空间和默认 NamespaceId。
 4. Agent Skill 包管理页可以从 Nacos 切换到 AIRegistry 并保存。
 5. 保存后页面刷新仍展示 AIRegistry 配置名称和 NamespaceId。
 6. AIRegistry 来源下，上传 ZIP、查看版本、下载包仍走原有按钮和接口。
@@ -607,12 +600,11 @@ skillApi.importFromRegistry({
 P0 必测行为：
 
 1. 管理员可以配置 AIRegistry 工作空间，连接测试通过，查询响应不返回完整 secret。
-2. 未配置 `defaultSkillRegistryType` 时，新建 Agent Skill 产品仍自动绑定默认 Nacos。
-3. 配置 `defaultSkillRegistryType=AIREGISTRY` 后，新建 Agent Skill 产品自动绑定默认 AIRegistry 工作空间和 NamespaceId。
-4. Agent Skill 产品可以从 Nacos 切换到 AIRegistry；Worker 切换到 AIRegistry 会被拒绝。
-5. AIRegistry 来源的 Agent Skill 可以通过现有 `/skills/{productId}/package` 上传 ZIP，返回的 `skillName` 被保存到产品配置。
-6. AIRegistry 来源的 Agent Skill 可以通过现有文件树、文件内容、版本列表、下载接口读取内容。
-7. 原有 Nacos Skill 上传、版本、下载链路不回归。
+2. 新建 Agent Skill 产品仍自动绑定默认 Nacos。
+3. Agent Skill 产品可以从 Nacos 切换到 AIRegistry；Worker 切换到 AIRegistry 会被拒绝。
+4. AIRegistry 来源的 Agent Skill 可以通过现有 `/skills/{productId}/package` 上传 ZIP，返回的 `skillName` 被保存到产品配置。
+5. AIRegistry 来源的 Agent Skill 可以通过现有文件树、文件内容、版本列表、下载接口读取内容。
+6. 原有 Nacos Skill 上传、版本、下载链路不回归。
 8. AIRegistry 来源产品通过 AIRegistry `ListSkills` 同步下载量，不会被 `DownloadCountSyncTask` 当成 Nacos 产品处理。
 9. AIRegistry 来源产品发布前会校验存在 online 版本，删除产品时会清理 AIRegistry 中的 Skill。
 
@@ -649,23 +641,20 @@ GREEN：
 - 增加实体、Repository、DTO、Controller、Service 和迁移脚本的最少实现。
 - AIRegistry SDK 只在 validate 中通过外部边界 mock 验证调用参数。
 
-#### Slice 2：默认 Skill 仓库类型
+#### Slice 2：新建 Agent Skill 默认 Nacos
 
 公开接口：
 
 - 新建产品接口。
-- 管理配置接口：`GET /admin-settings/defaultSkillRegistryType`、`PUT /admin-settings/defaultSkillRegistryType`。
 
 RED：
 
-- 写一个 API 测试：不设置 `defaultSkillRegistryType` 时，新建 `AGENT_SKILL` 仍绑定默认 Nacos。
-- 再写一个 API 测试：设置为 `AIREGISTRY` 后，新建 `AGENT_SKILL` 绑定默认 AIRegistry 工作空间。
+- 写一个 API 测试：新建 `AGENT_SKILL` 绑定默认 Nacos。
 
 GREEN：
 
-- 在产品创建默认 feature 初始化逻辑中读取 `AdminSetting`。
-- 没有默认 AIRegistry 时不自动绑定，并返回现有产品创建成功结果。
-- `AdminSetting` 按当前管理员生效，测试需要使用同一个管理员身份保存设置和创建产品。
+- 在产品创建默认 feature 初始化逻辑中继续读取默认 Nacos。
+- 没有默认 Nacos 时不自动绑定，并返回现有产品创建成功结果。
 
 #### Slice 3：产品来源切换
 
@@ -778,7 +767,7 @@ GREEN：
 
 1. 在 AIRegistry 创建 Namespace。
 2. 在 Himarket 新建 AIRegistry 配置并连接测试成功。
-3. 设置 `defaultSkillRegistryType=AIREGISTRY` 后新建 Agent Skill 产品，确认自动绑定默认 AIRegistry 工作空间；或在包管理页手动切换到 AIRegistry 来源。
+3. 新建 Agent Skill 产品确认自动绑定默认 Nacos；需要使用 AIRegistry 时，在包管理页手动切换来源。
 4. 上传一个合法 Skill ZIP。
 5. 查看文件树、版本列表。
 6. 强制发布版本并设置 latest。
@@ -791,7 +780,7 @@ GREEN：
 
 1. 准备 SDK 依赖：在 Himarket 后端 Maven 依赖中加入 `airegistry20260317:1.0.0`，只验证能编译，不写业务代码。
 2. Slice 1：AIRegistry 工作空间配置。
-3. Slice 2：默认 Skill 仓库类型。
+3. Slice 2：新建 Agent Skill 默认 Nacos。
 4. Slice 3：产品来源切换。
 5. Slice 4：AIRegistry 上传 ZIP。
 6. Slice 5：AIRegistry 读取与下载。

@@ -185,15 +185,21 @@ export interface ITool {
   inputSchema: IInputSchema;
 }
 
+export interface IVersionInfo {
+  author?: string | null;
+}
+
 export interface ISkillConfig {
-  skillTags?: string[];
-  downloadCount?: number;
+  skillTags?: string[] | null;
+  downloadCount?: number | null;
+  versionInfos?: Record<string, IVersionInfo | null>;
   registryType?: 'NACOS' | 'AIREGISTRY';
   airegistryId?: string;
   nacosId?: string;
   namespace?: string;
   skillName?: string;
   currentVersion?: string;
+  latestVersion?: string;
 }
 
 export interface IWorkerConfig {
@@ -202,4 +208,7 @@ export interface IWorkerConfig {
   workerName?: string;
   downloadCount?: number;
   tags?: string[];
+  versionInfos?: Record<string, IVersionInfo | null>;
+  currentVersion?: string;
+  latestVersion?: string;
 }

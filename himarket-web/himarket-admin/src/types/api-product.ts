@@ -8,6 +8,50 @@ export interface ApiProductConfig {
   };
 }
 
+export interface SkillResource {
+  content?: string;
+  metadata?: Record<string, unknown>;
+  name?: string;
+  resourceIdentifier?: string;
+  type?: string;
+}
+
+export interface SkillCard {
+  description?: string;
+  name?: string;
+  resource?: Record<string, SkillResource>;
+  skillMd?: string;
+  [key: string]: unknown;
+}
+
+export interface SkillDraft {
+  skillCard?: SkillCard;
+  version?: string;
+}
+
+export interface AgentSpecResource {
+  content?: string;
+  metadata?: Record<string, unknown>;
+  name?: string;
+  resourceIdentifier?: string;
+  type?: string;
+}
+
+export interface AgentSpecCard {
+  bizTags?: string;
+  content?: string;
+  description?: string;
+  name?: string;
+  namespaceId?: string;
+  resource?: Record<string, AgentSpecResource>;
+  [key: string]: unknown;
+}
+
+export interface WorkerDraft {
+  agentSpecCard?: AgentSpecCard;
+  version?: string;
+}
+
 // 产品图标类型
 export interface ProductIcon {
   type: 'URL' | 'BASE64';
@@ -264,6 +308,8 @@ export interface ProductFeature {
 export interface ApiProductSkillConfig {
   skillTags?: string[];
   downloadCount?: number;
+  versionInfos?: Record<string, ApiProductVersionInfo>;
+  latestVersion?: string;
   registryType?: 'NACOS' | 'AIREGISTRY';
   nacosId?: string;
   airegistryId?: string;
@@ -271,13 +317,19 @@ export interface ApiProductSkillConfig {
   skillName?: string;
 }
 
+export interface ApiProductVersionInfo {
+  author?: string;
+}
+
 export interface ApiProductWorkerConfig {
   nacosId?: string;
   namespace?: string;
   workerName?: string;
   currentVersion?: string;
+  latestVersion?: string;
   tags?: string[];
   downloadCount?: number;
+  versionInfos?: Record<string, ApiProductVersionInfo>;
 }
 
 export interface ApiProduct {

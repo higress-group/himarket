@@ -51,8 +51,7 @@ export function MarketModelSelector({ enabled, onChange }: MarketModelSelectorPr
     } catch (err: unknown) {
       // 401 未登录
       const response = (err as Record<string, unknown>)?.response as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       if (response?.status === 401) {
         setError(t('marketModel.loginRequired'));
       } else {

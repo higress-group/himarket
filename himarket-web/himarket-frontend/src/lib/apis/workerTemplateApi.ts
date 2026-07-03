@@ -21,6 +21,7 @@ export interface WorkerVersion {
   status: string;
   updateTime?: number;
   downloadCount?: number;
+  author?: string | null;
   isLatest?: boolean;
 }
 

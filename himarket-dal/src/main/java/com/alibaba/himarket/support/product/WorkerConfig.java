@@ -20,6 +20,7 @@
 package com.alibaba.himarket.support.product;
 
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -50,6 +51,16 @@ public class WorkerConfig {
      * Worker tags for categorization and search
      */
     private List<String> tags;
+
+    /**
+     * Version-scoped information keyed by version.
+     */
+    private Map<String, VersionInfo> versionInfos;
+
+    /**
+     * Version labeled as latest by the backing registry.
+     */
+    private String latestVersion;
 
     /**
      * Worker download count

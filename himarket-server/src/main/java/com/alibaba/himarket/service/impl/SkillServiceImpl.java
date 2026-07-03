@@ -8,10 +8,14 @@ import com.alibaba.himarket.core.skill.FileTreeBuilder;
 import com.alibaba.himarket.core.skill.SkillMdBuilder;
 import com.alibaba.himarket.core.utils.IdGenerator;
 import com.alibaba.himarket.dto.converter.OutputConverter;
+import com.alibaba.himarket.dto.params.skill.CreateSkillDraftParam;
+import com.alibaba.himarket.dto.params.skill.UpdateSkillDraftParam;
+import com.alibaba.himarket.dto.params.skill.UpdateSkillVersionParam;
 import com.alibaba.himarket.dto.result.cli.CliDownloadInfo;
 import com.alibaba.himarket.dto.result.common.FileContentResult;
 import com.alibaba.himarket.dto.result.common.FileTreeNode;
 import com.alibaba.himarket.dto.result.common.ImportResult;
+import com.alibaba.himarket.dto.result.common.SkillDraftResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.entity.Product;
@@ -25,6 +29,7 @@ import com.alibaba.himarket.support.enums.ProductType;
 import com.alibaba.himarket.support.enums.SkillRegistryType;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.himarket.support.product.VersionInfo;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillMeta;
@@ -34,9 +39,12 @@ import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.api.model.Page;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
@@ -44,6 +52,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import lombok.AllArgsConstructor;
@@ -96,6 +105,8 @@ public class SkillServiceImpl implements SkillService {
                             true);
             if (Strings.isBlank(config.getSkillName())) {
                 config.setSkillName(skillName);
+                config.setVersionInfos(null);
+                config.setLatestVersion(null);
             }
             productRepository.save(product);
             return;
@@ -111,6 +122,9 @@ public class SkillServiceImpl implements SkillService {
                             s -> s.uploadSkillFromZip(ref.getNamespace(), zipBytes, true));
             log.info("Uploaded new Skill draft, skillName={}", skillName);
             config.setSkillName(skillName);
+            config.setVersionInfos(null);
+            config.setLatestVersion(null);
+            ref.setSkillName(skillName);
         } else {
             // Subsequent upload: use overwrite mode to bypass reviewing version blocking
             execute(
@@ -132,13 +146,32 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     public void deleteSkill(String productId) {
+        deleteSkill(productId, false);
+    }
+
+    @Override
+    public void deleteSkill(String productId, boolean ignoreError) {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
             if (Strings.isNotBlank(config.getSkillName())) {
-                aiRegistrySkillService.deleteSkill(
-                        config.getAiRegistryId(), config.getNamespace(), config.getSkillName());
+                try {
+                    aiRegistrySkillService.deleteSkill(
+                            config.getAiRegistryId(), config.getNamespace(), config.getSkillName());
+                } catch (RuntimeException e) {
+                    if (!ignoreError) {
+                        throw e;
+                    }
+                    log.warn(
+                            "Failed to delete source AIRegistry Skill, ignoring error,"
+                                    + " productId={}, skillName={}",
+                            productId,
+                            config.getSkillName(),
+                            e);
+                }
                 config.setSkillName(null);
+                config.setVersionInfos(null);
+                config.setLatestVersion(null);
                 productRepository.save(product);
             }
             return;
@@ -149,14 +182,27 @@ public class SkillServiceImpl implements SkillService {
         if (ref == null || Strings.isBlank(ref.getSkillName())) {
             return;
         }
-        execute(
-                ref.getNacosId(),
-                s -> {
-                    s.deleteSkill(ref.getNamespace(), ref.getSkillName());
-                    return null;
-                });
+        try {
+            execute(
+                    ref.getNacosId(),
+                    s -> {
+                        s.deleteSkill(ref.getNamespace(), ref.getSkillName());
+                        return null;
+                    });
+        } catch (RuntimeException e) {
+            if (!ignoreError) {
+                throw e;
+            }
+            log.warn(
+                    "Failed to delete source Skill, ignoring error, productId={}, skillName={}",
+                    productId,
+                    ref.getSkillName(),
+                    e);
+        }
 
         config.setSkillName(null);
+        config.setVersionInfos(null);
+        config.setLatestVersion(null);
 
         productRepository.save(product);
     }
@@ -274,6 +320,19 @@ public class SkillServiceImpl implements SkillService {
             List<VersionResult> results =
                     aiRegistrySkillService.listVersions(
                             config.getAiRegistryId(), config.getNamespace(), config.getSkillName());
+            String latestVersion =
+                    results.stream()
+                            .filter(version -> Boolean.TRUE.equals(version.getIsLatest()))
+                            .map(VersionResult::getVersion)
+                            .findFirst()
+                            .orElse(null);
+            if (!Objects.equals(config.getLatestVersion(), latestVersion)) {
+                config.setLatestVersion(latestVersion);
+                productRepository.save(product);
+            }
+            results.forEach(
+                    version ->
+                            version.setAuthor(resolveVersionAuthor(config, version.getVersion())));
             syncProductStatus(product, results);
             if (!contextHolder.isAdministrator()) {
                 results = results.stream().filter(v -> "online".equals(v.getStatus())).toList();
@@ -309,6 +368,10 @@ public class SkillServiceImpl implements SkillService {
             latestLabel = meta.getLabels().get("latest");
         }
         final String latestVersion = latestLabel;
+        if (!Objects.equals(config.getLatestVersion(), latestVersion)) {
+            config.setLatestVersion(latestVersion);
+            productRepository.save(product);
+        }
 
         List<VersionResult> results =
                 meta.getVersions().stream()
@@ -328,6 +391,9 @@ public class SkillServiceImpl implements SkillService {
                                                                 false))
                                                 .updateTime(v.getUpdateTime())
                                                 .downloadCount(v.getDownloadCount())
+                                                .author(
+                                                        resolveVersionAuthor(
+                                                                config, v.getVersion()))
                                                 .publishPipelineInfo(v.getPublishPipelineInfo())
                                                 .isLatest(v.getVersion().equals(latestVersion))
                                                 .build())
@@ -359,6 +425,12 @@ public class SkillServiceImpl implements SkillService {
         return results;
     }
 
+    private String resolveVersionAuthor(SkillConfig config, String version) {
+        VersionInfo info =
+                config.getVersionInfos() == null ? null : config.getVersionInfos().get(version);
+        return info == null ? null : info.getAuthor();
+    }
+
     private void syncProductStatus(Product product, List<VersionResult> versions) {
         boolean hasOnline = versions.stream().anyMatch(v -> "online".equals(v.getStatus()));
         ProductStatus current = product.getStatus();
@@ -377,8 +449,7 @@ public class SkillServiceImpl implements SkillService {
         }
     }
 
-    @Override
-    public void publishVersion(String productId, String version) {
+    private void submitVersion(String productId, String version) {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
@@ -404,8 +475,7 @@ public class SkillServiceImpl implements SkillService {
         log.info("Submitted Skill, skillName={}, version={}", ref.getSkillName(), submittedVersion);
     }
 
-    @Override
-    public void publishApprovedVersion(String productId, String version) {
+    private void publishApprovedVersion(String productId, String version) {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
@@ -432,7 +502,287 @@ public class SkillServiceImpl implements SkillService {
     }
 
     @Override
-    public void changeVersionStatus(String productId, String version, boolean online) {
+    public void updateVersion(String productId, String version, UpdateSkillVersionParam param) {
+        if (param.getAuthor() != null) {
+            updateVersionAuthor(productId, version, param.getAuthor());
+            return;
+        }
+
+        if (Boolean.TRUE.equals(param.getLatest())) {
+            setLatestVersion(productId, version);
+            return;
+        }
+
+        String status = param.getStatus();
+        if ("reviewing".equals(status)) {
+            submitVersion(productId, version);
+            return;
+        }
+        if ("online".equals(status)) {
+            // Force publish bypasses the normal review pipeline and can update the latest label.
+            if (Boolean.TRUE.equals(param.getForce())) {
+                forcePublishVersion(productId, version, param.getUpdateLatestLabel());
+                return;
+            }
+
+            // "online" means publishing an approved review result for approved versions,
+            // but only toggling online status for versions that already left the review pipeline.
+            boolean approved =
+                    listVersions(productId).stream()
+                            .anyMatch(
+                                    item ->
+                                            version.equals(item.getVersion())
+                                                    && "approved".equals(item.getStatus()));
+            if (approved) {
+                publishApprovedVersion(productId, version);
+            } else {
+                changeVersionStatus(productId, version, true);
+            }
+            return;
+        }
+        if ("offline".equals(status)) {
+            changeVersionStatus(productId, version, false);
+            return;
+        }
+        throw new BusinessException(
+                ErrorCode.INVALID_PARAMETER, "Unsupported Skill version update");
+    }
+
+    private void updateVersionAuthor(String productId, String version, String author) {
+        Product product = findProduct(productId);
+        SkillConfig config = resolveSkillConfig(product);
+        boolean versionExists =
+                listVersions(productId).stream()
+                        .anyMatch(item -> version.equals(item.getVersion()));
+        if (!versionExists) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", version);
+        }
+        Map<String, VersionInfo> versionInfos = config.getVersionInfos();
+        if (Strings.isBlank(author)) {
+            if (versionInfos != null) {
+                versionInfos.remove(version);
+                if (versionInfos.isEmpty()) {
+                    config.setVersionInfos(null);
+                }
+            }
+        } else {
+            if (versionInfos == null) {
+                versionInfos = new HashMap<>();
+                config.setVersionInfos(versionInfos);
+            }
+            VersionInfo info = versionInfos.getOrDefault(version, VersionInfo.builder().build());
+            info.setAuthor(author.trim());
+            versionInfos.put(version, info);
+        }
+        productRepository.save(product);
+        log.info("Updated Skill version author, productId={}, version={}", productId, version);
+    }
+
+    @Override
+    public void createDraft(String productId, CreateSkillDraftParam param) {
+        Product product = findProduct(productId);
+        SkillConfig config = resolveSkillConfig(product);
+        String baseVersion = param.getBaseVersion().trim();
+        String version = param.getVersion().trim();
+        if (config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            if (Strings.isBlank(config.getAiRegistryId())
+                    || Strings.isBlank(config.getNamespace())
+                    || Strings.isBlank(config.getSkillName())) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_REQUEST, "AIRegistry skill config not found");
+            }
+            validateDraftCreation(
+                    aiRegistrySkillService.listVersions(
+                            config.getAiRegistryId(), config.getNamespace(), config.getSkillName()),
+                    baseVersion,
+                    version);
+            String draftVersion =
+                    aiRegistrySkillService.createDraft(
+                            config.getAiRegistryId(),
+                            config.getNamespace(),
+                            config.getSkillName(),
+                            baseVersion,
+                            version);
+            log.info(
+                    "Created AIRegistry Skill draft, skillName={}, baseVersion={}, version={}",
+                    config.getSkillName(),
+                    baseVersion,
+                    draftVersion);
+            syncProductStatus(product, listVersions(productId));
+            return;
+        }
+
+        SkillRef ref = getSkillRef(productId, true);
+        if (Strings.isBlank(ref.getSkillName())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, productId);
+        }
+        SkillMeta meta =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+        validateDraftCreation(meta, baseVersion, version);
+
+        String draftVersion =
+                execute(
+                        ref.getNacosId(),
+                        s ->
+                                s.createDraft(
+                                        ref.getNamespace(),
+                                        ref.getSkillName(),
+                                        baseVersion,
+                                        version));
+        log.info(
+                "Created Skill draft, skillName={}, baseVersion={}, version={}",
+                ref.getSkillName(),
+                baseVersion,
+                draftVersion);
+        syncProductStatusAfterVersionChange(product, ref);
+    }
+
+    @Override
+    public SkillDraftResult getDraft(String productId) {
+        Product product = findProduct(productId);
+        SkillConfig config = resolveSkillConfig(product);
+        if (config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "AIRegistry does not support reading draft");
+        }
+
+        SkillRef ref = getSkillRef(productId, true);
+        if (Strings.isBlank(ref.getSkillName())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, productId);
+        }
+
+        SkillMeta meta =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+        String draftVersion = findDraftVersion(meta);
+        if (Strings.isBlank(draftVersion)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "draft", productId);
+        }
+
+        Skill skill = fetchSkill(ref, draftVersion);
+        return SkillDraftResult.builder()
+                .version(draftVersion)
+                .skillCard(JsonUtil.convert(skill, JsonNode.class))
+                .build();
+    }
+
+    @Override
+    public void updateDraft(String productId, UpdateSkillDraftParam param) {
+        Product product = findProduct(productId);
+        SkillConfig config = resolveSkillConfig(product);
+        if (config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "AIRegistry does not support updating draft");
+        }
+
+        SkillRef ref = getSkillRef(productId, true);
+        if (Strings.isBlank(ref.getSkillName())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, Resources.SKILL, productId);
+        }
+
+        Skill skill = JsonUtil.convert(param.getSkillCard(), Skill.class);
+        if (skill == null || Strings.isBlank(skill.getName())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "Skill card name cannot be blank");
+        }
+        if (!ref.getSkillName().equals(skill.getName())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_PARAMETER, "Skill card name must match current Skill name");
+        }
+
+        SkillMeta meta =
+                execute(
+                        ref.getNacosId(),
+                        s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+        String draftVersion = findDraftVersion(meta);
+        if (Strings.isBlank(draftVersion)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "draft", productId);
+        }
+
+        boolean updated =
+                execute(
+                        ref.getNacosId(),
+                        s ->
+                                s.updateDraft(
+                                        ref.getNamespace(),
+                                        JsonUtil.toJson(param.getSkillCard()),
+                                        false));
+        if (!updated) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Failed to update Skill draft");
+        }
+        log.info("Updated Skill draft, skillName={}, version={}", ref.getSkillName(), draftVersion);
+    }
+
+    private void validateDraftCreation(SkillMeta meta, String baseVersion, String version) {
+        if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", baseVersion);
+        }
+
+        SkillMeta.SkillVersionSummary base = null;
+        for (SkillMeta.SkillVersionSummary item : meta.getVersions()) {
+            if (version.equals(item.getVersion())) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT, "Skill version already exists: " + version);
+            }
+            if ("draft".equals(item.getStatus()) || "reviewing".equals(item.getStatus())) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT, "Skill already has a draft or reviewing version");
+            }
+            if (baseVersion.equals(item.getVersion())) {
+                base = item;
+            }
+        }
+
+        if (base == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", baseVersion);
+        }
+    }
+
+    private void validateDraftCreation(
+            List<VersionResult> versions, String baseVersion, String version) {
+        if (CollectionUtils.isEmpty(versions)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", baseVersion);
+        }
+
+        VersionResult base = null;
+        for (VersionResult item : versions) {
+            if (version.equals(item.getVersion())) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT, "Skill version already exists: " + version);
+            }
+            if ("draft".equals(item.getStatus()) || "reviewing".equals(item.getStatus())) {
+                throw new BusinessException(
+                        ErrorCode.CONFLICT, "Skill already has a draft or reviewing version");
+            }
+            if (baseVersion.equals(item.getVersion())) {
+                base = item;
+            }
+        }
+
+        if (base == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "version", baseVersion);
+        }
+    }
+
+    private String findDraftVersion(SkillMeta meta) {
+        if (meta == null || CollectionUtils.isEmpty(meta.getVersions())) {
+            return null;
+        }
+        for (SkillMeta.SkillVersionSummary item : meta.getVersions()) {
+            if ("draft"
+                    .equals(
+                            VersionResult.resolveStatus(
+                                    item.getStatus(), item.getPublishPipelineInfo(), false))) {
+                return item.getVersion();
+            }
+        }
+        return null;
+    }
+
+    private void changeVersionStatus(String productId, String version, boolean online) {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
@@ -464,8 +814,9 @@ public class SkillServiceImpl implements SkillService {
         syncProductStatusAfterVersionChange(product, ref);
     }
 
-    @Override
-    public void forcePublishVersion(String productId, String version, Boolean updateLatestLabel) {
+    private void forcePublishVersion(String productId, String version, Boolean updateLatestLabel) {
+        Boolean effectiveUpdateLatestLabel =
+                updateLatestLabel == null ? Boolean.TRUE : updateLatestLabel;
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
@@ -474,7 +825,7 @@ public class SkillServiceImpl implements SkillService {
                     config.getNamespace(),
                     config.getSkillName(),
                     version,
-                    updateLatestLabel);
+                    effectiveUpdateLatestLabel);
             syncProductStatus(product, listVersions(productId));
             return;
         }
@@ -488,7 +839,7 @@ public class SkillServiceImpl implements SkillService {
                                 ref.getNamespace(),
                                 ref.getSkillName(),
                                 version,
-                                updateLatestLabel));
+                                effectiveUpdateLatestLabel));
         log.info("Force-published Skill, skillName={}, version={}", ref.getSkillName(), version);
 
         syncProductStatusAfterVersionChange(product, ref);
@@ -632,6 +983,8 @@ public class SkillServiceImpl implements SkillService {
                     product.setStatus(ProductStatus.PENDING);
                 }
                 config.setSkillName(null);
+                config.setVersionInfos(null);
+                config.setLatestVersion(null);
                 productRepository.save(product);
             } else {
                 // Versions still remain — sync Product status
@@ -644,12 +997,13 @@ public class SkillServiceImpl implements SkillService {
                     "Skill not found after draft deletion, clearing reference, skillName={}",
                     ref.getSkillName());
             config.setSkillName(null);
+            config.setVersionInfos(null);
+            config.setLatestVersion(null);
             productRepository.save(product);
         }
     }
 
-    @Override
-    public void setLatestVersion(String productId, String version) {
+    private void setLatestVersion(String productId, String version) {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
@@ -658,6 +1012,8 @@ public class SkillServiceImpl implements SkillService {
                     config.getNamespace(),
                     config.getSkillName(),
                     version);
+            config.setLatestVersion(version);
+            productRepository.save(product);
             return;
         }
 
@@ -676,6 +1032,8 @@ public class SkillServiceImpl implements SkillService {
                 s ->
                         s.updateLabels(
                                 ref.getNamespace(), ref.getSkillName(), JsonUtil.toJson(labels)));
+        config.setLatestVersion(version);
+        productRepository.save(product);
         log.info("Set latest Skill version, skillName={}, version={}", ref.getSkillName(), version);
     }
 
@@ -713,12 +1071,35 @@ public class SkillServiceImpl implements SkillService {
         Product product = findProduct(productId);
         SkillConfig config = product.getFeature().getSkillConfig();
         if (config != null && config.getRegistryType() == SkillRegistryType.AIREGISTRY) {
+            String resolvedVersion = version;
+            if (Strings.isBlank(resolvedVersion)) {
+                List<VersionResult> versions =
+                        aiRegistrySkillService.listVersions(
+                                config.getAiRegistryId(),
+                                config.getNamespace(),
+                                config.getSkillName());
+                resolvedVersion =
+                        versions.stream()
+                                .filter(item -> Boolean.TRUE.equals(item.getIsLatest()))
+                                .map(VersionResult::getVersion)
+                                .findFirst()
+                                .orElse(null);
+                if (Strings.isBlank(resolvedVersion)) {
+                    throw new BusinessException(
+                            ErrorCode.INVALID_PARAMETER,
+                            "version is required when latest version is not configured");
+                }
+                if (!Objects.equals(config.getLatestVersion(), resolvedVersion)) {
+                    config.setLatestVersion(resolvedVersion);
+                    productRepository.save(product);
+                }
+            }
             byte[] zipBytes =
                     aiRegistrySkillService.downloadZip(
                             config.getAiRegistryId(),
                             config.getNamespace(),
                             config.getSkillName(),
-                            version);
+                            resolvedVersion);
             response.setContentType("application/zip");
             response.setHeader(
                     "Content-Disposition",
@@ -728,61 +1109,75 @@ public class SkillServiceImpl implements SkillService {
         }
 
         SkillRef ref = getSkillRef(productId, true);
+        String resolvedVersion = version;
+        if (Strings.isBlank(resolvedVersion)) {
+            SkillMeta meta =
+                    execute(
+                            ref.getNacosId(),
+                            s -> s.getSkillMeta(ref.getNamespace(), ref.getSkillName()));
+            resolvedVersion =
+                    meta == null || meta.getLabels() == null
+                            ? null
+                            : meta.getLabels().get("latest");
+            if (Strings.isBlank(resolvedVersion)) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_PARAMETER,
+                        "version is required when latest version is not configured");
+            }
+            if (!Objects.equals(config.getLatestVersion(), resolvedVersion)) {
+                config.setLatestVersion(resolvedVersion);
+                productRepository.save(product);
+            }
+        }
 
         // Download through the Nacos HTTP API first so Nacos can update its download count.
-        downloadFromNacos(ref, version, response);
+        downloadFromNacos(ref, resolvedVersion, response);
     }
 
     /**
      * Downloads the Skill ZIP package through the Nacos HTTP API so Nacos can update its download
      * count.
-     * API: GET /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
+     * API: GET /nacos/v3/admin/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
      */
     private void downloadFromNacos(SkillRef ref, String version, HttpServletResponse response)
             throws IOException {
+        if (Strings.isBlank(version)) {
+            throw new BusinessException(ErrorCode.INVALID_PARAMETER, "version is required");
+        }
         try {
             NacosInstance nacosInstance = nacosService.findNacosInstanceById(ref.getNacosId());
-            // Prefer the display URL and fall back to serverUrl.
             String nacosBaseUrl =
                     Strings.isNotBlank(nacosInstance.getDisplayServerUrl())
                             ? nacosInstance.getDisplayServerUrl()
                             : nacosInstance.getServerUrl();
+            String normalizedBaseUrl =
+                    nacosBaseUrl.endsWith("/") ? nacosBaseUrl : nacosBaseUrl + "/";
+            String nacosContextPath = normalizedBaseUrl.endsWith("/nacos/") ? "" : "nacos/";
 
-            // Build the Nacos download URL:
-            // /v3/console/ai/skills/version/download?namespaceId=xxx&skillName=xxx&version=xxx
             StringBuilder urlBuilder = new StringBuilder();
-            urlBuilder.append(nacosBaseUrl);
-            if (!nacosBaseUrl.endsWith("/")) {
-                urlBuilder.append("/");
-            }
-            urlBuilder.append("v3/console/ai/skills/version/download?");
-            urlBuilder.append("namespaceId=").append(ref.getNamespace());
             urlBuilder
+                    .append(normalizedBaseUrl)
+                    .append(nacosContextPath)
+                    .append("v3/admin/ai/skills/version/download?")
+                    .append("namespaceId=")
+                    .append(URLEncoder.encode(ref.getNamespace(), StandardCharsets.UTF_8))
                     .append("&skillName=")
-                    .append(
-                            java.net.URLEncoder.encode(
-                                    ref.getSkillName(), StandardCharsets.UTF_8.name()));
-            if (Strings.isNotBlank(version)) {
-                urlBuilder
-                        .append("&version=")
-                        .append(java.net.URLEncoder.encode(version, StandardCharsets.UTF_8.name()));
-            }
+                    .append(URLEncoder.encode(ref.getSkillName(), StandardCharsets.UTF_8))
+                    .append("&version=")
+                    .append(URLEncoder.encode(version, StandardCharsets.UTF_8));
 
-            // Add authentication parameters when Nacos username and password are configured.
             if (Strings.isNotBlank(nacosInstance.getUsername())
                     && Strings.isNotBlank(nacosInstance.getPassword())) {
                 urlBuilder
                         .append("&username=")
                         .append(
-                                java.net.URLEncoder.encode(
-                                        nacosInstance.getUsername(),
-                                        StandardCharsets.UTF_8.name()));
+                                URLEncoder.encode(
+                                        nacosInstance.getUsername(), StandardCharsets.UTF_8));
                 urlBuilder
                         .append("&password=")
                         .append(
-                                java.net.URLEncoder.encode(
-                                        nacosInstance.getPassword(),
-                                        StandardCharsets.UTF_8.name()));
+                                URLEncoder.encode(
+                                        nacosInstance.getPassword(), StandardCharsets.UTF_8));
             }
 
             String downloadUrl = urlBuilder.toString();
@@ -797,49 +1192,62 @@ public class SkillServiceImpl implements SkillService {
                     nacosInstance.getServerUrl(),
                     nacosInstance.getUsername());
 
-            // Create the HTTP connection.
-            java.net.URL url = new java.net.URL(downloadUrl);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            URL url = new URL(downloadUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(30000);
             conn.setReadTimeout(60000);
 
             int responseCode = conn.getResponseCode();
-            if (responseCode == java.net.HttpURLConnection.HTTP_OK) {
-                // Set response headers.
-                response.setContentType("application/zip");
-                String encodedName =
-                        java.net.URLEncoder.encode(
-                                        ref.getSkillName() + ".zip", StandardCharsets.UTF_8)
-                                .replace("+", "%20");
-                response.setHeader(
-                        "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
-
-                // Stream the ZIP file.
-                try (var input = conn.getInputStream();
-                        var output = response.getOutputStream()) {
-                    input.transferTo(output);
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                String responseBody = "";
+                try (var errorStream = conn.getErrorStream()) {
+                    if (errorStream != null) {
+                        byte[] bodyBytes = errorStream.readNBytes(2048);
+                        responseBody =
+                                new String(bodyBytes, StandardCharsets.UTF_8)
+                                        .replace('\n', ' ')
+                                        .replace('\r', ' ')
+                                        .trim();
+                        if (bodyBytes.length == 2048) {
+                            responseBody += "...(truncated)";
+                        }
+                    }
+                } catch (IOException readError) {
+                    responseBody = "Failed to read response body: " + readError.getMessage();
                 }
-                log.info(
-                        "Downloaded skill ZIP from Nacos, dependency=Nacos,"
-                                + " operation=downloadSkillZip, nacosId={}, namespace={},"
-                                + " skillName={}, version={}",
-                        ref.getNacosId(),
-                        ref.getNamespace(),
-                        ref.getSkillName(),
-                        version);
-            } else {
                 log.warn(
                         "Nacos skill download API returned non-OK status, dependency=Nacos,"
                                 + " operation=downloadSkillZip, nacosId={}, namespace={},"
-                                + " skillName={}, status={}",
+                                + " skillName={}, status={}, responseBody={}",
                         ref.getNacosId(),
                         ref.getNamespace(),
                         ref.getSkillName(),
-                        responseCode);
-                // Fall back to local ZIP generation.
+                        responseCode,
+                        responseBody);
                 fallbackToLocalDownload(ref, version, response);
+                return;
             }
+
+            response.setContentType("application/zip");
+            String encodedName =
+                    URLEncoder.encode(ref.getSkillName() + ".zip", StandardCharsets.UTF_8)
+                            .replace("+", "%20");
+            response.setHeader(
+                    "Content-Disposition", "attachment; filename*=UTF-8''" + encodedName);
+
+            try (var input = conn.getInputStream();
+                    var output = response.getOutputStream()) {
+                input.transferTo(output);
+            }
+            log.info(
+                    "Downloaded skill ZIP from Nacos, dependency=Nacos,"
+                            + " operation=downloadSkillZip, nacosId={}, namespace={},"
+                            + " skillName={}, version={}",
+                    ref.getNacosId(),
+                    ref.getNamespace(),
+                    ref.getSkillName(),
+                    version);
         } catch (Exception e) {
             log.warn(
                     "Failed to download skill ZIP from Nacos, falling back to local generation,"
@@ -851,7 +1259,6 @@ public class SkillServiceImpl implements SkillService {
                     e.getClass().getSimpleName(),
                     e.getMessage(),
                     e);
-            // Fall back to local ZIP generation.
             fallbackToLocalDownload(ref, version, response);
         }
     }

@@ -34,8 +34,7 @@ export interface ActivityGroup {
 }
 
 export type RenderItem =
-  | { type: 'single'; item: ChatItem }
-  | { type: 'activity_group'; group: ActivityGroup };
+  { type: 'single'; item: ChatItem } | { type: 'activity_group'; group: ActivityGroup };
 
 // ===== Helpers =====
 

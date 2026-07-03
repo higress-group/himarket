@@ -102,8 +102,7 @@ export function ApiProductPortal({ apiProduct }: ApiProductPortalProps) {
         res.data.content?.map((item: unknown) => {
           const record = item as Record<string, unknown>;
           const portalSettingConfig = record.portalSettingConfig as
-            | Record<string, unknown>
-            | undefined;
+            Record<string, unknown> | undefined;
           return {
             ...record,
             autoApproveSubscription:

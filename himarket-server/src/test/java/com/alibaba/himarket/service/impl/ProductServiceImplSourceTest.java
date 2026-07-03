@@ -37,7 +37,6 @@ import com.alibaba.himarket.repository.ProductPublicationRepository;
 import com.alibaba.himarket.repository.ProductRefRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.repository.SubscriptionRepository;
-import com.alibaba.himarket.service.AdminSettingService;
 import com.alibaba.himarket.service.AiRegistryService;
 import com.alibaba.himarket.service.GatewayService;
 import com.alibaba.himarket.service.McpToolService;
@@ -114,7 +113,6 @@ class ProductServiceImplSourceTest {
                 mock(McpToolService.class),
                 mock(WorkerService.class),
                 mock(SkillService.class),
-                mock(AdminSettingService.class),
                 aiRegistryService,
                 mock(ApplicationEventPublisher.class));
     }

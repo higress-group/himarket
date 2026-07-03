@@ -1,12 +1,12 @@
 import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Form, Input, message, Modal, Select, Tooltip } from 'antd';
+import { Button, Form, Input, message, Modal, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { AdminPageHeader } from '@/components/common';
 import { DataTable } from '@/components/common/DataTable';
 import { useLocale } from '@/contexts/LocaleContext';
-import { adminSettingApi, airegistryApi } from '@/lib/api';
+import { airegistryApi } from '@/lib/api';
 import { copyToClipboard } from '@/lib/utils';
 import type { CreateAiRegistryRequest, UpdateAiRegistryRequest } from '@/types';
 import type { AiRegistryInstance } from '@/types/gateway';
@@ -18,8 +18,6 @@ type FormValues = CreateAiRegistryRequest & {
   endpoint?: string;
   securityToken?: string;
 };
-
-type SkillRegistryType = 'NACOS' | 'AIREGISTRY';
 
 export default function AiRegistryConsoles() {
   const { t } = useLocale();
@@ -33,8 +31,6 @@ export default function AiRegistryConsoles() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
-  const [defaultRegistryType, setDefaultRegistryType] = useState<SkillRegistryType>('NACOS');
-  const [defaultRegistrySaving, setDefaultRegistrySaving] = useState(false);
   const lastAutoFetchKeyRef = useRef('');
 
   const fetchInstances = useCallback(async () => {
@@ -56,17 +52,6 @@ export default function AiRegistryConsoles() {
     lastAutoFetchKeyRef.current = key;
     fetchInstances();
   }, [currentPage, fetchInstances, pageSize]);
-
-  useEffect(() => {
-    adminSettingApi
-      .getSetting('defaultSkillRegistryType')
-      .then((response: { data?: { settingValue?: string } }) => {
-        setDefaultRegistryType(
-          response.data?.settingValue === 'AIREGISTRY' ? 'AIREGISTRY' : 'NACOS',
-        );
-      })
-      .catch(() => {});
-  }, []);
 
   const handlePageChange = (page: number, size?: number) => {
     setCurrentPage(page);
@@ -122,17 +107,6 @@ export default function AiRegistryConsoles() {
     await airegistryApi.setDefault(record.airegistryId, record.namespaceId);
     message.success(t('page.airegistry.saveDefault'));
     fetchInstances();
-  };
-
-  const handleDefaultRegistryTypeChange = async (value: SkillRegistryType) => {
-    setDefaultRegistryType(value);
-    setDefaultRegistrySaving(true);
-    try {
-      await adminSettingApi.saveSetting('defaultSkillRegistryType', value);
-      message.success(t('page.airegistry.defaultRegistrySaved'));
-    } finally {
-      setDefaultRegistrySaving(false);
-    }
   };
 
   const handleSave = async () => {
@@ -280,27 +254,6 @@ export default function AiRegistryConsoles() {
         description={t('page.airegistry.description')}
         title={t('page.airegistry.title')}
       />
-
-      <div className="rounded-lg border border-gray-100 bg-white p-4 flex items-center justify-between gap-4">
-        <div>
-          <div className="text-sm font-medium text-gray-900">
-            {t('page.airegistry.defaultRegistryType')}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {t('page.airegistry.defaultRegistryDescription')}
-          </div>
-        </div>
-        <Select
-          loading={defaultRegistrySaving}
-          onChange={handleDefaultRegistryTypeChange}
-          options={[
-            { label: 'Nacos', value: 'NACOS' },
-            { label: t('nav.airegistryInstances'), value: 'AIREGISTRY' },
-          ]}
-          style={{ minWidth: 180 }}
-          value={defaultRegistryType}
-        />
-      </div>
 
       <DataTable<AiRegistryInstance>
         columns={columns}
