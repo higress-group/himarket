@@ -19,7 +19,10 @@
 
 package com.alibaba.himarket.service.gateway;
 
+import com.alibaba.higress.sdk.model.route.CorsConfig;
+import com.alibaba.higress.sdk.model.route.HeaderControlConfig;
 import com.alibaba.higress.sdk.model.route.KeyedRoutePredicate;
+import com.alibaba.higress.sdk.model.route.ProxyNextUpstreamConfig;
 import com.alibaba.higress.sdk.model.route.RoutePredicate;
 import com.alibaba.himarket.dto.result.agent.AgentAPIResult;
 import com.alibaba.himarket.dto.result.common.DomainResult;
@@ -53,10 +56,13 @@ import com.alibaba.himarket.support.mcp.OpenAPIToolsConfigConverter;
 import com.alibaba.himarket.support.product.HigressRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.aliyun.sdk.service.apig20240327.models.HttpApiApiInfo;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -707,6 +713,22 @@ public class HigressOperator extends GatewayOperator<HigressClient> {
         private List<AiModelPredicate> modelPredicates;
         private RouteAuthConfig authConfig;
         private AiRouteFallbackConfig fallbackConfig;
+        private ProxyNextUpstreamConfig proxyNextUpstream;
+        private CorsConfig cors;
+        private HeaderControlConfig headerControl;
+        private Map<String, String> customConfigs;
+
+        private Map<String, Object> additionalProperties = new HashMap<>();
+
+        @JsonAnySetter
+        public void setAdditionalProperty(String key, Object value) {
+            additionalProperties.put(key, value);
+        }
+
+        @JsonAnyGetter
+        public Map<String, Object> getAdditionalProperties() {
+            return additionalProperties;
+        }
     }
 
     public static class AiModelPredicate extends RoutePredicate {}
