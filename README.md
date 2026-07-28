@@ -1,3 +1,5 @@
+[![MCP Toplist](https://mcptoplist.com/badge/pulsemcp%2Fhigress-group-himarket.svg)](https://mcptoplist.com/server/pulsemcp%2Fhigress-group-himarket)
+
 <a name="readme-top"></a>
 
 <div align="center">
