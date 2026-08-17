@@ -234,4 +234,4 @@ Thanks to all the developers who have contributed to HiMarket!
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=higress-group/himarket&type=Date)](https://star-history.com/#higress-group/himarket&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=higress-group/himarket&type=Date)](https://star-history.dera.page/#higress-group/himarket&Date)
