@@ -20,22 +20,29 @@
 package com.alibaba.himarket.service.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.dto.result.airegistry.AiRegistrySkillResult;
 import com.alibaba.himarket.entity.AiRegistryInstance;
 import com.alibaba.himarket.repository.AiRegistryInstanceRepository;
 import com.aliyun.airegistry20260317.Client;
+import com.aliyun.airegistry20260317.models.GetSkillImportFileUrlRequest;
 import com.aliyun.airegistry20260317.models.ListSkillsRequest;
 import com.aliyun.airegistry20260317.models.ListSkillsResponse;
 import com.aliyun.airegistry20260317.models.ListSkillsResponseBody;
+import com.aliyun.tea.TeaException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +91,152 @@ class AiRegistrySkillServiceImplTest {
         assertEquals(
                 List.of(100, 100),
                 requestCaptor.getAllValues().stream().map(ListSkillsRequest::getPageSize).toList());
+    }
+
+    @Test
+    void uploadFromZipReturnsActionableTeaValidationMessage() throws Exception {
+        AiRegistryInstanceRepository repository = mock(AiRegistryInstanceRepository.class);
+        AiRegistryInstance instance =
+                AiRegistryInstance.builder().aiRegistryId("airegistry-1").build();
+        Client client = mock(Client.class);
+        AiRegistrySkillServiceImpl service = spy(new AiRegistrySkillServiceImpl(repository));
+        when(repository.findByAiRegistryId("airegistry-1")).thenReturn(Optional.of(instance));
+        doReturn(client).when(service).buildClient(instance);
+
+        TeaException teaException = new TeaException();
+        teaException.setCode("InvalidParameter");
+        teaException.setStatusCode(400);
+        teaException.setMessage("Skill package manifest is invalid: name is required");
+        doThrow(teaException)
+                .when(client)
+                .getSkillImportFileUrl(any(GetSkillImportFileUrlRequest.class));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                service.uploadFromZip(
+                                        "airegistry-1",
+                                        "namespace-1",
+                                        new byte[] {1},
+                                        "skill.zip",
+                                        false));
+
+        assertEquals("INVALID_PARAMETER", exception.getCode());
+        assertEquals(
+                "Invalid request parameter: Failed to upload AIRegistry Skill package: "
+                        + "InvalidParameter: Skill package manifest is invalid: name is required",
+                exception.getMessage());
+    }
+
+    @Test
+    void uploadFromZipRedactsSensitiveTeaDetails() throws Exception {
+        AiRegistryInstanceRepository repository = mock(AiRegistryInstanceRepository.class);
+        AiRegistryInstance instance =
+                AiRegistryInstance.builder().aiRegistryId("airegistry-1").build();
+        Client client = mock(Client.class);
+        AiRegistrySkillServiceImpl service = spy(new AiRegistrySkillServiceImpl(repository));
+        when(repository.findByAiRegistryId("airegistry-1")).thenReturn(Optional.of(instance));
+        doReturn(client).when(service).buildClient(instance);
+
+        TeaException teaException = new TeaException();
+        teaException.setCode("InvalidParameter");
+        teaException.setStatusCode(400);
+        teaException.setMessage(
+                "Skill package is invalid;"
+                        + " uploadUrl=https://oss.example.com/upload?token=secret-token,"
+                        + " {\"token\":\"json-secret\",\"accessKeyId\":\"JSON-AKID\"},"
+                        + " accessKeyId=AKIDEXAMPLE, accessKeySecret=secret-value");
+        doThrow(teaException)
+                .when(client)
+                .getSkillImportFileUrl(any(GetSkillImportFileUrlRequest.class));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                service.uploadFromZip(
+                                        "airegistry-1",
+                                        "namespace-1",
+                                        new byte[] {1},
+                                        "skill.zip",
+                                        false));
+
+        assertEquals("INVALID_PARAMETER", exception.getCode());
+        assertFalse(exception.getMessage().contains("https://oss.example.com"));
+        assertFalse(exception.getMessage().contains("secret-token"));
+        assertFalse(exception.getMessage().contains("json-secret"));
+        assertFalse(exception.getMessage().contains("JSON-AKID"));
+        assertFalse(exception.getMessage().contains("AKIDEXAMPLE"));
+        assertFalse(exception.getMessage().contains("secret-value"));
+    }
+
+    @Test
+    void uploadFromZipKeepsUnknownFailuresGeneric() throws Exception {
+        AiRegistryInstanceRepository repository = mock(AiRegistryInstanceRepository.class);
+        AiRegistryInstance instance =
+                AiRegistryInstance.builder().aiRegistryId("airegistry-1").build();
+        Client client = mock(Client.class);
+        AiRegistrySkillServiceImpl service = spy(new AiRegistrySkillServiceImpl(repository));
+        when(repository.findByAiRegistryId("airegistry-1")).thenReturn(Optional.of(instance));
+        doReturn(client).when(service).buildClient(instance);
+        doThrow(new IOException("connection details should not be exposed"))
+                .when(client)
+                .getSkillImportFileUrl(any(GetSkillImportFileUrlRequest.class));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                service.uploadFromZip(
+                                        "airegistry-1",
+                                        "namespace-1",
+                                        new byte[] {1},
+                                        "skill.zip",
+                                        false));
+
+        assertEquals("INTERNAL_ERROR", exception.getCode());
+        assertEquals(
+                "Internal server error: Failed to upload AIRegistry Skill package",
+                exception.getMessage());
+        assertFalse(exception.getMessage().contains("connection details"));
+    }
+
+    @Test
+    void uploadFromZipKeepsUnknownTeaFailuresGeneric() throws Exception {
+        AiRegistryInstanceRepository repository = mock(AiRegistryInstanceRepository.class);
+        AiRegistryInstance instance =
+                AiRegistryInstance.builder().aiRegistryId("airegistry-1").build();
+        Client client = mock(Client.class);
+        AiRegistrySkillServiceImpl service = spy(new AiRegistrySkillServiceImpl(repository));
+        when(repository.findByAiRegistryId("airegistry-1")).thenReturn(Optional.of(instance));
+        doReturn(client).when(service).buildClient(instance);
+
+        TeaException teaException = new TeaException();
+        teaException.setCode("InternalError");
+        teaException.setStatusCode(500);
+        teaException.setMessage("Internal storage endpoint=https://internal.example.invalid");
+        doThrow(teaException)
+                .when(client)
+                .getSkillImportFileUrl(any(GetSkillImportFileUrlRequest.class));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                service.uploadFromZip(
+                                        "airegistry-1",
+                                        "namespace-1",
+                                        new byte[] {1},
+                                        "skill.zip",
+                                        false));
+
+        assertEquals("INTERNAL_ERROR", exception.getCode());
+        assertEquals(
+                "Internal server error: Failed to upload AIRegistry Skill package",
+                exception.getMessage());
+        assertFalse(exception.getMessage().contains("internal storage"));
+        assertFalse(exception.getMessage().contains("internal.example.invalid"));
     }
 
     private ListSkillsResponseBody.ListSkillsResponseBodyDataPageItems skill(

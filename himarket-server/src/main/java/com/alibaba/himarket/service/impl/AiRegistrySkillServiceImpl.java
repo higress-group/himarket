@@ -60,6 +60,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
@@ -77,6 +78,13 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
     private static final String DEFAULT_CONTENT_TYPE = "application/zip";
     private static final int PAGE_SIZE = 100;
     private static final String DEFAULT_ENDPOINT_TEMPLATE = "airegistry.%s.aliyuncs.com";
+    private static final Pattern URL_PATTERN =
+            Pattern.compile("(?i)\\bhttps?://[^\\s,;]+|\\bftp://[^\\s,;]+");
+    private static final Pattern SENSITIVE_ASSIGNMENT_PATTERN =
+            Pattern.compile(
+                    "(?i)(?<![A-Za-z0-9])([\\\"']?(?:accessKeyId|accessKeySecret|securityToken|token|secret|password|authorization|credential|api(?:\\s|[-_])?key)[\\\"']?\\s*[:=]\\s*)([\\\"'][^\\\"']*[\\\"']|[^,;\\r"
+                        + "\\n"
+                        + "}]+)");
 
     private final AiRegistryInstanceRepository aiRegistryInstanceRepository;
 
@@ -117,13 +125,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.warn(
-                    "Failed to upload AIRegistry Skill package, aiRegistryId={}, namespaceId={}",
-                    aiRegistryId,
-                    namespaceId,
-                    e);
-            throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR, "Failed to upload AIRegistry Skill package");
+            throw toAiRegistryException("Failed to upload AIRegistry Skill package", e);
         }
     }
 
@@ -611,14 +613,22 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
         if (e instanceof TeaException teaException) {
             ErrorCode errorCode = mapTeaErrorCode(teaException);
             String code = Strings.blankToDefault(teaException.getCode(), "Unknown");
+            String detail = sanitizeTeaMessage(teaException);
             log.warn(
                     "AIRegistry request failed, operation={}, errorCode={}, status={},"
                             + " errorMessage={}",
                     message,
                     code,
                     teaException.getStatusCode(),
-                    teaException.getMessage());
-            return new BusinessException(errorCode, String.format("%s: %s", message, code));
+                    detail);
+            if (errorCode == ErrorCode.INTERNAL_ERROR) {
+                return new BusinessException(ErrorCode.INTERNAL_ERROR, message);
+            }
+            return new BusinessException(
+                    errorCode,
+                    Strings.isBlank(detail)
+                            ? String.format("%s: %s", message, code)
+                            : String.format("%s: %s: %s", message, code, detail));
         }
         log.warn(
                 "AIRegistry request failed, operation={}, errorType={}, errorMessage={}",
@@ -627,6 +637,21 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                 e.getMessage(),
                 e);
         return new BusinessException(ErrorCode.INTERNAL_ERROR, message);
+    }
+
+    private String sanitizeTeaMessage(TeaException teaException) {
+        String rawMessage =
+                Strings.isNotBlank(teaException.getMessage())
+                        ? teaException.getMessage()
+                        : teaException.getDescription();
+        if (Strings.isBlank(rawMessage)) {
+            return "";
+        }
+        String sanitized = rawMessage.replaceAll("[\\r\\n\\t]+", " ").trim();
+        sanitized = SENSITIVE_ASSIGNMENT_PATTERN.matcher(sanitized).replaceAll("$1[redacted]");
+        sanitized = URL_PATTERN.matcher(sanitized).replaceAll("[redacted URL]");
+        sanitized = sanitized.replaceAll("\\s{2,}", " ").trim();
+        return sanitized.length() > 240 ? sanitized.substring(0, 240).trim() : sanitized;
     }
 
     private ErrorCode mapTeaErrorCode(TeaException e) {
