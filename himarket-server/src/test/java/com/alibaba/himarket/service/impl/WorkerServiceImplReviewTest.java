@@ -52,6 +52,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.web.multipart.MultipartFile;
 
 class WorkerServiceImplReviewTest {
@@ -127,12 +129,13 @@ class WorkerServiceImplReviewTest {
                         anyString(), anyString(), anyString(), anyString(), anyBoolean());
     }
 
-    @Test
-    void updateVersionWhenApprovedVersionTargetsOnlinePublishes() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"reviewing", "reviewed"})
+    void updateVersionWhenApprovedVersionTargetsOnlinePublishes(String rawStatus) throws Exception {
         Product product = workerProduct();
         AgentSpecMaintainerService agentSpecMaintainerService = mockAgentSpecMaintainer();
         AgentSpecMeta meta =
-                agentSpecMeta(version(VERSION, "reviewing", "{\"status\":\"APPROVED\"}"));
+                agentSpecMeta(version(VERSION, rawStatus, "{\"status\":\"APPROVED\"}"));
         when(productRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.of(product));
         when(agentSpecMaintainerService.getAgentSpecAdminDetail(NAMESPACE, AGENT_SPEC_NAME))
                 .thenReturn(meta);

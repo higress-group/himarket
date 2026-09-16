@@ -26,8 +26,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,7 +40,9 @@ import com.alibaba.himarket.dto.params.skill.UpdateSkillDraftParam;
 import com.alibaba.himarket.dto.params.skill.UpdateSkillVersionParam;
 import com.alibaba.himarket.dto.result.common.SkillDraftResult;
 import com.alibaba.himarket.dto.result.common.VersionResult;
+import com.alibaba.himarket.entity.AiRegistryInstance;
 import com.alibaba.himarket.entity.Product;
+import com.alibaba.himarket.repository.AiRegistryInstanceRepository;
 import com.alibaba.himarket.repository.ProductRepository;
 import com.alibaba.himarket.service.AiRegistrySkillService;
 import com.alibaba.himarket.service.NacosService;
@@ -52,6 +56,12 @@ import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.ai.model.skills.SkillMeta;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
+import com.aliyun.airegistry20260317.Client;
+import com.aliyun.airegistry20260317.models.GetSkillDetailRequest;
+import com.aliyun.airegistry20260317.models.GetSkillDetailResponse;
+import com.aliyun.airegistry20260317.models.GetSkillDetailResponseBody;
+import com.aliyun.airegistry20260317.models.OnlineSkillRequest;
+import com.aliyun.airegistry20260317.models.PublishSkillVersionRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletResponse;
@@ -60,6 +70,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 class SkillServiceImplReviewTest {
@@ -119,11 +131,12 @@ class SkillServiceImplReviewTest {
                 .forcePublish(anyString(), anyString(), anyString(), any());
     }
 
-    @Test
-    void updateVersionWhenApprovedVersionTargetsOnlinePublishes() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"reviewing", "reviewed"})
+    void updateVersionWhenApprovedVersionTargetsOnlinePublishes(String rawStatus) throws Exception {
         Product product = nacosProduct();
         SkillMaintainerService skillMaintainerService = mockNacosSkillMaintainer();
-        SkillMeta meta = skillMeta(version(VERSION, "reviewing", "{\"status\":\"APPROVED\"}"));
+        SkillMeta meta = skillMeta(version(VERSION, rawStatus, "{\"status\":\"APPROVED\"}"));
         when(productRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.of(product));
         when(skillMaintainerService.getSkillMeta(NAMESPACE, SKILL_NAME)).thenReturn(meta);
         when(skillMaintainerService.publish(NAMESPACE, SKILL_NAME, VERSION, true)).thenReturn(true);
@@ -134,6 +147,53 @@ class SkillServiceImplReviewTest {
         verify(skillMaintainerService, never())
                 .changeOnlineStatus(
                         anyString(), anyString(), anyString(), anyString(), anyBoolean());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"reviewing", "reviewed"})
+    void aiRegistryApprovedVersionIsListedAndPublishedThroughPublishApi(String rawStatus)
+            throws Exception {
+        Product product = aiRegistryProduct();
+        AiRegistryInstanceRepository registryRepository = mock(AiRegistryInstanceRepository.class);
+        AiRegistryInstance instance =
+                AiRegistryInstance.builder().aiRegistryId("airegistry-prod").build();
+        Client client = mock(Client.class);
+        AiRegistrySkillServiceImpl registry =
+                spy(new AiRegistrySkillServiceImpl(registryRepository));
+        when(registryRepository.findByAiRegistryId("airegistry-prod"))
+                .thenReturn(Optional.of(instance));
+        doReturn(client).when(registry).buildClient(instance);
+        GetSkillDetailResponseBody.GetSkillDetailResponseBodyDataVersions remoteVersion =
+                new GetSkillDetailResponseBody.GetSkillDetailResponseBodyDataVersions()
+                        .setVersion(VERSION)
+                        .setStatus(rawStatus)
+                        .setPublishPipelineInfo("{\"status\":\"APPROVED\"}");
+        when(client.getSkillDetail(any(GetSkillDetailRequest.class)))
+                .thenReturn(
+                        new GetSkillDetailResponse()
+                                .setBody(
+                                        new GetSkillDetailResponseBody()
+                                                .setData(
+                                                        new GetSkillDetailResponseBody
+                                                                        .GetSkillDetailResponseBodyData()
+                                                                .setVersions(
+                                                                        List.of(remoteVersion)))));
+        when(productRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.of(product));
+        service = new SkillServiceImpl(nacosService, productRepository, contextHolder, registry);
+
+        assertEquals("approved", service.listVersions(PRODUCT_ID).get(0).getStatus());
+        service.updateVersion(PRODUCT_ID, VERSION, statusUpdate("online"));
+
+        ArgumentCaptor<PublishSkillVersionRequest> request =
+                ArgumentCaptor.forClass(PublishSkillVersionRequest.class);
+        verify(client).publishSkillVersion(request.capture());
+        assertEquals(NAMESPACE, request.getValue().getNamespaceId());
+        assertEquals(SKILL_NAME, request.getValue().getSkillName());
+        assertEquals(VERSION, request.getValue().getSkillVersion());
+        verify(client, never()).onlineSkill(any(OnlineSkillRequest.class));
+
+        when(contextHolder.isAdministrator()).thenReturn(false);
+        assertEquals(List.of(), service.listVersions(PRODUCT_ID));
     }
 
     @Test
