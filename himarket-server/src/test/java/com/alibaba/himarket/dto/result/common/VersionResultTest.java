@@ -22,6 +22,9 @@ package com.alibaba.himarket.dto.result.common;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class VersionResultTest {
 
@@ -36,5 +39,44 @@ class VersionResultTest {
     void approvedReviewingVersionCanRemainPendingOnlineForAiRegistry() {
         assertEquals(
                 "approved", VersionResult.resolveStatus("reviewing", APPROVED_PIPELINE, false));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void reviewedApprovalAlwaysRequiresExplicitPublish(boolean approvedAsOnline) {
+        assertEquals(
+                "approved",
+                VersionResult.resolveStatus("reviewed", APPROVED_PIPELINE, approvedAsOnline));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "reviewing, APPROVED, approved",
+        "reviewed, APPROVED, approved",
+        "reviewing, REJECTED, rejected",
+        "reviewed, REJECTED, rejected",
+        "reviewing, IN_PROGRESS, reviewing",
+        "reviewed, IN_PROGRESS, reviewed",
+        "online, APPROVED, online",
+        "offline, APPROVED, offline",
+        "draft, APPROVED, draft",
+        "online, REJECTED, online",
+        "offline, REJECTED, offline",
+        "draft, REJECTED, draft"
+    })
+    void resolvesReviewResultWithoutChangingOtherLifecycleStates(
+            String rawStatus, String pipelineStatus, String expectedStatus) {
+        assertEquals(
+                expectedStatus,
+                VersionResult.resolveStatus(
+                        rawStatus, "{\"status\":\"" + pipelineStatus + "\"}", false));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"reviewing", "reviewed"})
+    void preservesStatusWhenReviewResultIsUnavailable(String rawStatus) {
+        assertEquals(rawStatus, VersionResult.resolveStatus(rawStatus, null, false));
+        assertEquals(rawStatus, VersionResult.resolveStatus(rawStatus, "invalid-json", false));
+        assertEquals(rawStatus, VersionResult.resolveStatus(rawStatus, "{}", false));
     }
 }

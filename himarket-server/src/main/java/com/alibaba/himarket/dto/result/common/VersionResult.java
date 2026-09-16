@@ -18,7 +18,7 @@ public class VersionResult {
     private Long updateTime;
 
     /**
-     * Version status: draft, reviewing, online, offline.
+     * Version status: draft, reviewing, reviewed, approved, rejected, online, offline.
      */
     private String status;
 
@@ -45,9 +45,9 @@ public class VersionResult {
     /**
      * Resolves effective version status by reconciling raw version status with pipeline result.
      *
-     * <p>When pipeline is APPROVED but Nacos hasn't yet transitioned version status to "online",
-     * returns "online" to eliminate the inconsistency window where the UI would simultaneously show
-     * reviewing status from the version and approved status from the pipeline result.
+     * <p>For legacy "reviewing" versions, an APPROVED result resolves to "online" by default,
+     * or "approved" when explicit publishing is required. A "reviewed" version always resolves
+     * to "approved" on approval because review completion does not publish the version.
      *
      * <p>When pipeline is REJECTED, returns "rejected" so the UI can correctly display
      * rejection status instead of misleadingly showing reviewing status.
@@ -58,14 +58,15 @@ public class VersionResult {
 
     public static String resolveStatus(
             String rawStatus, String publishPipelineInfo, boolean approvedAsOnline) {
-        if (!"reviewing".equals(rawStatus) || publishPipelineInfo == null) {
+        boolean reviewed = "reviewed".equals(rawStatus);
+        if ((!"reviewing".equals(rawStatus) && !reviewed) || publishPipelineInfo == null) {
             return rawStatus;
         }
         try {
             JsonNode pipeline = JsonUtil.readTree(publishPipelineInfo);
             String pipelineStatus = pipeline.path("status").asText();
             if ("APPROVED".equals(pipelineStatus)) {
-                return approvedAsOnline ? "online" : "approved";
+                return approvedAsOnline && !reviewed ? "online" : "approved";
             }
             if ("REJECTED".equals(pipelineStatus)) {
                 return "rejected";
