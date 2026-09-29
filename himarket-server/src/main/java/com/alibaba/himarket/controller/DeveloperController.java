@@ -32,6 +32,7 @@ import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.developer.DeveloperResult;
 import com.alibaba.himarket.service.DeveloperService;
+import com.alibaba.himarket.service.LdapService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,6 +59,8 @@ public class DeveloperController {
 
     private final DeveloperService developerService;
 
+    private final LdapService ldapService;
+
     @Operation(summary = "Register developer", description = "Register a new developer account")
     @PostMapping
     public AuthResult register(@Valid @RequestBody CreateDeveloperParam param) {
@@ -75,6 +78,17 @@ public class DeveloperController {
     @DeveloperAuth
     public void logout(HttpServletRequest request) {
         developerService.logout(request);
+    }
+
+    @Operation(
+            summary = "Log in with enterprise LDAP",
+            description =
+                    "Authenticate with enterprise LDAP credentials when the portal has LDAP"
+                            + " enabled")
+    @PostMapping("/ldap/login")
+    @PublicAccess
+    public AuthResult ldapLogin(@Valid @RequestBody LoginParam param) {
+        return ldapService.login(param.getUsername(), param.getPassword());
     }
 
     @Operation(

@@ -49,4 +49,9 @@ public class PortalSettingConfig {
      * OAuth2 configurations
      */
     private List<OAuth2Config> oauth2Configs;
+
+    /**
+     * LDAP authentication configuration (T-34)
+     */
+    private LdapConfig ldap;
 }

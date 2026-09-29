@@ -31,6 +31,11 @@ public enum DeveloperAuthType {
     OIDC,
 
     OAUTH2,
+
+    /**
+     * Enterprise LDAP bind authentication (T-34).
+     */
+    LDAP,
     ;
 
     public boolean isBuiltIn() {
