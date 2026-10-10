@@ -101,7 +101,9 @@ public class SkillController {
                         + " publish an approved version, `{\"status\":\"online\",\"force\":true}`"
                         + " to force publish a rejected version, `{\"status\":\"offline\"}` to take"
                         + " the version offline, `{\"latest\":true}` to mark it as latest, or"
-                        + " `{\"author\":\"name\"}` to update the version author.")
+                        + " `{\"author\":\"name\"}` to update the version author. Use"
+                        + " `{\"status\":\"draft\"}` to return an AIRegistry reviewed version to"
+                        + " draft for editing.")
     @PatchMapping("/{productId}/versions/{version}")
     @AdminAuth
     public void updateVersion(

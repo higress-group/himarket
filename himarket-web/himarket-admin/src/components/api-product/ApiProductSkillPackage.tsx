@@ -483,7 +483,8 @@ export function ApiProductSkillPackage({
     const raw = previewItem?.publishPipelineInfo;
     if (!raw) return null;
     try {
-      return typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const pipeline = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return pipeline?.historical ? null : pipeline;
     } catch {
       return null;
     }
@@ -505,6 +506,8 @@ export function ApiProductSkillPackage({
   );
   const canPublish = !!previewVersion && isDraft;
   const canPublishApproved = !!previewVersion && isApproved;
+  const canRedraft =
+    registryType === 'AIREGISTRY' && !!previewVersion && previewItem?.canRedraft === true;
   const canOnline = !!previewVersion && isOffline;
   const canOffline = !!previewVersion && isOnline;
   const canDeleteDraft = supportsDeleteDraft && !!previewVersion && isDraft;
@@ -751,6 +754,29 @@ export function ApiProductSkillPackage({
         }
       },
       title: t('product.package.publishApprovedTitle'),
+    });
+  };
+
+  const handleRedraftVersion = (version: string) => {
+    Modal.confirm({
+      cancelText: t('common.cancel'),
+      content: t('product.package.redraftConfirm', { version }),
+      icon: <ExclamationCircleFilled />,
+      okText: t('product.package.redraftOk'),
+      onOk: async () => {
+        setActionLoading('redraft');
+        try {
+          await skillApi.redraftVersion(productId, version);
+          message.success(t('product.package.redraftSuccess', { version }));
+          await Promise.all([fetchVersions(), fetchFileTree(version)]);
+          onUploadSuccess?.();
+        } catch (error: unknown) {
+          message.error(getApiErrorMessage(error, t('product.package.redraftFailed')));
+        } finally {
+          setActionLoading(null);
+        }
+      },
+      title: t('product.package.redraftOk'),
     });
   };
 
@@ -1352,6 +1378,16 @@ export function ApiProductSkillPackage({
                 type="primary"
               >
                 {t('product.package.publishApprovedOk')}
+              </Button>
+            )}
+            {canRedraft && (
+              <Button
+                disabled={actionLoading !== null}
+                icon={<EditOutlined />}
+                loading={actionLoading === 'redraft'}
+                onClick={() => previewVersion && handleRedraftVersion(previewVersion)}
+              >
+                {t('product.package.redraftOk')}
               </Button>
             )}
             {canOnline && (

@@ -23,6 +23,11 @@ public class VersionResult {
     private String status;
 
     /**
+     * Whether the registry's raw version state supports returning to draft.
+     */
+    private Boolean canRedraft;
+
+    /**
      * Download count for this version.
      */
     private Long downloadCount;

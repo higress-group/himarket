@@ -48,8 +48,10 @@ import com.aliyun.airegistry20260317.models.ListSkillsResponseBody;
 import com.aliyun.airegistry20260317.models.OfflineSkillRequest;
 import com.aliyun.airegistry20260317.models.OnlineSkillRequest;
 import com.aliyun.airegistry20260317.models.PublishSkillVersionRequest;
+import com.aliyun.airegistry20260317.models.RedraftSkillVersionRequest;
 import com.aliyun.airegistry20260317.models.SubmitSkillVersionRequest;
 import com.aliyun.airegistry20260317.models.UpdateSkillLabelsRequest;
+import com.aliyun.airegistry20260317.models.UpdateSkillScopeRequest;
 import com.aliyun.airegistry20260317.models.UploadSkillViaOssRequest;
 import com.aliyun.tea.TeaException;
 import com.aliyun.teaopenapi.models.Config;
@@ -114,14 +116,17 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                             .getData();
             validateUploadInfo(uploadInfo, zipBytes.length, aiRegistryId);
             putZip(uploadInfo.getUploadUrl(), uploadInfo.getContentType(), zipBytes, aiRegistryId);
-            return client.uploadSkillViaOss(
-                            new UploadSkillViaOssRequest()
-                                    .setNamespaceId(namespaceId)
-                                    .setOssObjectName(uploadInfo.getOssObjectName())
-                                    .setOverwrite(overwrite)
-                                    .setCommitMsg("Upload from Himarket"))
-                    .getBody()
-                    .getData();
+            String skillName =
+                    client.uploadSkillViaOss(
+                                    new UploadSkillViaOssRequest()
+                                            .setNamespaceId(namespaceId)
+                                            .setOssObjectName(uploadInfo.getOssObjectName())
+                                            .setOverwrite(overwrite)
+                                            .setCommitMsg("Upload from Himarket"))
+                            .getBody()
+                            .getData();
+            setSkillPublic(client, namespaceId, skillName, "AIRegistry Skill package was uploaded");
+            return skillName;
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
@@ -187,6 +192,21 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
     }
 
     @Override
+    public void redraft(String aiRegistryId, String namespaceId, String skillName, String version) {
+        AiRegistryInstance instance = findInstance(aiRegistryId);
+        try {
+            buildClient(instance)
+                    .redraftSkillVersion(
+                            new RedraftSkillVersionRequest()
+                                    .setNamespaceId(namespaceId)
+                                    .setSkillName(skillName)
+                                    .setSkillVersion(version));
+        } catch (Exception e) {
+            throw toAiRegistryException("Failed to redraft AIRegistry Skill version", e);
+        }
+    }
+
+    @Override
     public void forcePublish(
             String aiRegistryId,
             String namespaceId,
@@ -195,13 +215,15 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
             Boolean updateLatestLabel) {
         AiRegistryInstance instance = findInstance(aiRegistryId);
         try {
-            buildClient(instance)
-                    .forcePublishSkillVersion(
-                            new ForcePublishSkillVersionRequest()
-                                    .setNamespaceId(namespaceId)
-                                    .setSkillName(skillName)
-                                    .setSkillVersion(version)
-                                    .setUpdateLatestLabel(updateLatestLabel));
+            Client client = buildClient(instance);
+            client.forcePublishSkillVersion(
+                    new ForcePublishSkillVersionRequest()
+                            .setNamespaceId(namespaceId)
+                            .setSkillName(skillName)
+                            .setSkillVersion(version)
+                            .setUpdateLatestLabel(updateLatestLabel));
+            setSkillPublic(
+                    client, namespaceId, skillName, "AIRegistry Skill version was published");
         } catch (Exception e) {
             throw toAiRegistryException("Failed to force publish AIRegistry Skill version", e);
         }
@@ -216,15 +238,45 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
             Boolean updateLatestLabel) {
         AiRegistryInstance instance = findInstance(aiRegistryId);
         try {
-            buildClient(instance)
-                    .publishSkillVersion(
-                            new PublishSkillVersionRequest()
-                                    .setNamespaceId(namespaceId)
-                                    .setSkillName(skillName)
-                                    .setSkillVersion(version)
-                                    .setUpdateLatestLabel(updateLatestLabel));
+            Client client = buildClient(instance);
+            client.publishSkillVersion(
+                    new PublishSkillVersionRequest()
+                            .setNamespaceId(namespaceId)
+                            .setSkillName(skillName)
+                            .setSkillVersion(version)
+                            .setUpdateLatestLabel(updateLatestLabel));
+            setSkillPublic(
+                    client, namespaceId, skillName, "AIRegistry Skill version was published");
         } catch (Exception e) {
             throw toAiRegistryException("Failed to publish AIRegistry Skill version", e);
+        }
+    }
+
+    private void setSkillPublic(
+            Client client, String namespaceId, String skillName, String completedOperation) {
+        try {
+            client.updateSkillScope(
+                    new UpdateSkillScopeRequest()
+                            .setNamespaceId(namespaceId)
+                            .setSkillName(skillName)
+                            .setScope("PUBLIC"));
+        } catch (Exception e) {
+            String errorCode =
+                    e instanceof TeaException teaException
+                            ? teaException.getCode()
+                            : e.getClass().getSimpleName();
+            String detail =
+                    e instanceof TeaException teaException
+                            ? sanitizeTeaMessage(teaException)
+                            : "Unexpected SDK error";
+            log.warn(
+                    "{}; failed to set Skill scope to PUBLIC, namespaceId={}, skillName={},"
+                            + " errorCode={}, errorMessage={}",
+                    completedOperation,
+                    namespaceId,
+                    skillName,
+                    errorCode,
+                    detail);
         }
     }
 
@@ -549,6 +601,7 @@ public class AiRegistrySkillServiceImpl implements AiRegistrySkillService {
                 .status(
                         VersionResult.resolveStatus(
                                 version.getStatus(), version.getPublishPipelineInfo(), false))
+                .canRedraft("reviewed".equalsIgnoreCase(version.getStatus()))
                 .updateTime(version.getUpdateTime())
                 .downloadCount(version.getDownloadCount())
                 .author(version.getAuthor())

@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -75,6 +76,30 @@ class SkillControllerTest {
         verify(skillService).updateVersion(eq("product-a"), eq("1.0.0"), param.capture());
         assertEquals("reviewing", param.getValue().getStatus());
         assertNull(param.getValue().getLatest());
+    }
+
+    @Test
+    void redraftVersionUsesPatchRoute() throws Exception {
+        mockMvc.perform(
+                        patch("/skills/product-a/versions/1.0.0")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"draft\"}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UpdateSkillVersionParam> param =
+                ArgumentCaptor.forClass(UpdateSkillVersionParam.class);
+        verify(skillService).updateVersion(eq("product-a"), eq("1.0.0"), param.capture());
+        assertEquals("draft", param.getValue().getStatus());
+    }
+
+    @Test
+    void redraftCannotBeCombinedWithForcePublish() throws Exception {
+        mockMvc.perform(
+                        patch("/skills/product-a/versions/1.0.0")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"draft\",\"force\":true}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(skillService);
     }
 
     @Test

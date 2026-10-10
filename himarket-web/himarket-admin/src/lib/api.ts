@@ -570,6 +570,8 @@ export const skillApi = {
     api.patch(`/skills/${productId}/versions/${version}`, { status: 'online' }),
   publishApprovedVersion: (productId: string, version: string) =>
     api.patch(`/skills/${productId}/versions/${version}`, { status: 'online' }),
+  redraftVersion: (productId: string, version: string) =>
+    api.patch(`/skills/${productId}/versions/${version}`, { status: 'draft' }),
   setLatestVersion: (productId: string, version: string) =>
     api.patch(`/skills/${productId}/versions/${version}`, { latest: true }),
   submitVersion: (productId: string, version: string) =>

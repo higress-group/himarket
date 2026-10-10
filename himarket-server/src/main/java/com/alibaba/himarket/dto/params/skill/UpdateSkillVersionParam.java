@@ -13,10 +13,11 @@ public class UpdateSkillVersionParam {
             description =
                     "Target version status. `reviewing` submits the version for review and"
                             + " triggers the Skill package scan; `online` publishes the version;"
-                            + " `offline` takes the version offline")
+                            + " `offline` takes the version offline; `draft` returns an AIRegistry"
+                            + " reviewed version to draft for editing")
     @Pattern(
-            regexp = "reviewing|online|offline",
-            message = "Status must be 'reviewing', 'online', or 'offline'")
+            regexp = "draft|reviewing|online|offline",
+            message = "Status must be 'draft', 'reviewing', 'online', or 'offline'")
     private String status;
 
     @Schema(

@@ -18,6 +18,7 @@ export interface PackageVersionItem {
   version: string;
   updateTime?: number;
   status?: string;
+  canRedraft?: boolean;
   downloadCount?: number;
   author?: string;
   publishPipelineInfo?: string;
