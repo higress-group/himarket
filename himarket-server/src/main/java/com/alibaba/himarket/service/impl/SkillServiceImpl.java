@@ -592,6 +592,42 @@ public class SkillServiceImpl implements SkillService {
         syncProductStatusAfterVersionChange(product, ref);
     }
 
+    private void redraftVersion(String productId, String version) {
+        Product product = findProduct(productId);
+        SkillConfig config = resolveSkillConfig(product);
+        if (config.getRegistryType() != SkillRegistryType.AIREGISTRY) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Redraft is only supported for AIRegistry Skills");
+        }
+        VersionResult target =
+                aiRegistrySkillService
+                        .listVersions(
+                                config.getAiRegistryId(),
+                                config.getNamespace(),
+                                config.getSkillName())
+                        .stream()
+                        .filter(item -> version.equals(item.getVersion()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.NOT_FOUND, Resources.SKILL, version));
+        if ("draft".equals(target.getStatus())) {
+            return;
+        }
+        if (!Boolean.TRUE.equals(target.getCanRedraft())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_REQUEST, "Only reviewed Skill versions can return to draft");
+        }
+        aiRegistrySkillService.redraft(
+                config.getAiRegistryId(), config.getNamespace(), config.getSkillName(), version);
+        log.info(
+                "Redrafted AIRegistry Skill, productId={}, skillName={}, version={}",
+                productId,
+                config.getSkillName(),
+                version);
+    }
+
     @Override
     public void updateVersion(String productId, String version, UpdateSkillVersionParam param) {
         if (param.getAuthor() != null) {
@@ -605,6 +641,10 @@ public class SkillServiceImpl implements SkillService {
         }
 
         String status = param.getStatus();
+        if ("draft".equals(status)) {
+            redraftVersion(productId, version);
+            return;
+        }
         if ("reviewing".equals(status)) {
             submitVersion(productId, version);
             return;

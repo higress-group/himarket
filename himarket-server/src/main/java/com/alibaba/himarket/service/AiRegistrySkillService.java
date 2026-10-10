@@ -46,6 +46,8 @@ public interface AiRegistrySkillService {
 
     String submit(String aiRegistryId, String namespaceId, String skillName, String version);
 
+    void redraft(String aiRegistryId, String namespaceId, String skillName, String version);
+
     void forcePublish(
             String aiRegistryId,
             String namespaceId,
