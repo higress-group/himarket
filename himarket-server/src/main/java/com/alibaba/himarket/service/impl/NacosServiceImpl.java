@@ -31,6 +31,7 @@ import com.alibaba.himarket.dto.params.nacos.QueryNacosParam;
 import com.alibaba.himarket.dto.params.nacos.UpdateNacosParam;
 import com.alibaba.himarket.dto.result.agent.AgentConfigResult;
 import com.alibaba.himarket.dto.result.agent.NacosAgentResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
 import com.alibaba.himarket.dto.result.mcp.McpConfigResult;
 import com.alibaba.himarket.dto.result.mcp.NacosMCPServerResult;
@@ -42,12 +43,14 @@ import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.repository.NacosInstanceRepository;
 import com.alibaba.himarket.service.NacosService;
 import com.alibaba.himarket.support.common.Strings;
+import com.alibaba.himarket.support.enums.McpProtocolType;
 import com.alibaba.himarket.support.enums.SourceType;
 import com.alibaba.himarket.support.product.NacosRefConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
+import com.alibaba.nacos.api.ai.model.mcp.McpEndpointInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerBasicInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
 import com.alibaba.nacos.api.ai.model.skills.SkillSummary;
@@ -334,19 +337,24 @@ public class NacosServiceImpl implements NacosService {
         }
     }
 
-    private McpConfigResult buildMCPConfigResult(McpServerDetailInfo detail) {
+    McpConfigResult buildMCPConfigResult(McpServerDetailInfo detail) {
         McpConfigResult mcpConfig = new McpConfigResult();
         mcpConfig.setMcpServerName(detail.getName());
 
         McpConfigResult.McpServerConfig serverConfig = new McpConfigResult.McpServerConfig();
+        McpProtocolType protocol = resolveProtocol(detail);
 
         if (detail.getLocalServerConfig() != null) {
             serverConfig.setRawConfig(detail.getLocalServerConfig());
+            if (protocol == null) {
+                protocol = McpProtocolType.STDIO;
+            }
         } else if (detail.getRemoteServerConfig() != null
                 || (detail.getBackendEndpoints() != null
                         && !detail.getBackendEndpoints().isEmpty())) {
-            Object remoteConfig = buildRemoteConnectionConfig(detail);
-            serverConfig.setRawConfig(remoteConfig);
+            McpEndpointInfo endpoint = firstBackendEndpoint(detail);
+            fillDomainAndPath(serverConfig, endpoint);
+            serverConfig.setRawConfig(buildRemoteConnectionConfig(detail, endpoint));
         } else {
             Map<String, Object> defaultConfig = new HashMap<>();
             defaultConfig.put("type", "unknown");
@@ -355,6 +363,7 @@ public class NacosServiceImpl implements NacosService {
         }
 
         mcpConfig.setMcpServerConfig(serverConfig);
+        mcpConfig.setProtocol(protocol);
 
         if (detail.getToolSpec() != null) {
             try {
@@ -376,22 +385,79 @@ public class NacosServiceImpl implements NacosService {
 
         McpConfigResult.McpMetadata meta = new McpConfigResult.McpMetadata();
         meta.setSource(SourceType.NACOS.name());
+        if (protocol != null) {
+            meta.setProtocol(protocol.getValue());
+        }
         mcpConfig.setMeta(meta);
 
         return mcpConfig;
     }
 
-    private Object buildRemoteConnectionConfig(McpServerDetailInfo detail) {
-        List<?> backendEndpoints = detail.getBackendEndpoints();
+    private McpProtocolType resolveProtocol(McpServerDetailInfo detail) {
+        McpProtocolType type = McpProtocolType.fromString(detail.getFrontProtocol());
+        if (type == null) {
+            type = McpProtocolType.fromString(detail.getProtocol());
+        }
+        return type;
+    }
 
-        if (backendEndpoints != null && !backendEndpoints.isEmpty()) {
-            Object firstEndpoint = backendEndpoints.get(0);
+    private McpEndpointInfo firstBackendEndpoint(McpServerDetailInfo detail) {
+        List<McpEndpointInfo> endpoints = detail.getBackendEndpoints();
+        return endpoints == null || endpoints.isEmpty() ? null : endpoints.get(0);
+    }
 
+    private void fillDomainAndPath(
+            McpConfigResult.McpServerConfig serverConfig, McpEndpointInfo endpoint) {
+        if (endpoint == null || Strings.isBlank(endpoint.getAddress())) {
+            return;
+        }
+        String address = endpoint.getAddress().trim();
+        String scheme = "http";
+        int port = endpoint.getPort();
+        String host = address;
+
+        int schemeIdx = address.indexOf("://");
+        if (schemeIdx > 0) {
+            scheme = address.substring(0, schemeIdx);
+            host = address.substring(schemeIdx + 3);
+        }
+        int slashIdx = host.indexOf('/');
+        if (slashIdx >= 0) {
+            host = host.substring(0, slashIdx);
+        }
+        int colonIdx = host.lastIndexOf(':');
+        if (colonIdx > 0 && host.indexOf(']') < colonIdx) {
+            try {
+                port = Integer.parseInt(host.substring(colonIdx + 1));
+                host = host.substring(0, colonIdx);
+            } catch (NumberFormatException ignored) {
+                // Keep the address as is when the suffix is not a port.
+            }
+        }
+        if (Strings.isBlank(host)) {
+            return;
+        }
+
+        serverConfig.setDomains(
+                List.of(
+                        DomainResult.builder()
+                                .domain(host)
+                                .port(port > 0 ? port : null)
+                                .protocol(scheme)
+                                .build()));
+        if (Strings.isNotBlank(endpoint.getPath())) {
+            serverConfig.setPath(endpoint.getPath());
+        }
+    }
+
+    private Object buildRemoteConnectionConfig(
+            McpServerDetailInfo detail, McpEndpointInfo endpoint) {
+        if (endpoint != null) {
             Map<String, Object> connectionConfig = new HashMap<>();
             Map<String, Object> mcpServers = new HashMap<>();
             Map<String, Object> serverConfig = new HashMap<>();
 
-            String endpointUrl = extractEndpointUrl(firstEndpoint);
+            String endpointUrl = buildEndpointUrl(endpoint);
             if (endpointUrl != null) {
                 serverConfig.put("url", endpointUrl);
             }
@@ -409,132 +475,49 @@ public class NacosServiceImpl implements NacosService {
         return basicConfig;
     }
 
-    private String extractEndpointUrl(Object endpoint) {
-        if (endpoint == null) {
+    private String buildEndpointUrl(McpEndpointInfo endpoint) {
+        String address = endpoint.getAddress();
+        if (Strings.isBlank(address)) {
             return null;
         }
+        address = address.trim();
 
-        if (endpoint instanceof String) {
-            return (String) endpoint;
+        StringBuilder url = new StringBuilder();
+        if (!address.contains("://")) {
+            url.append(
+                    Strings.isNotBlank(endpoint.getProtocol())
+                                    && endpoint.getProtocol().toLowerCase().startsWith("http")
+                            ? endpoint.getProtocol().toLowerCase()
+                            : "http");
+            url.append("://");
         }
+        url.append(address);
 
-        if (endpoint instanceof Map) {
-            Map<?, ?> endpointMap = (Map<?, ?>) endpoint;
-
-            String url = getStringValue(endpointMap, "url");
-            if (url != null) return url;
-
-            String endpointUrl = getStringValue(endpointMap, "endpointUrl");
-            if (endpointUrl != null) return endpointUrl;
-
-            String host = getStringValue(endpointMap, "host");
-            String port = getStringValue(endpointMap, "port");
-            String path = getStringValue(endpointMap, "path");
-
-            if (host != null) {
-                StringBuilder urlBuilder = new StringBuilder();
-                String protocol = getStringValue(endpointMap, "protocol");
-                urlBuilder.append(protocol != null ? protocol : "http").append("://");
-                urlBuilder.append(host);
-
-                if (port != null && !port.isEmpty()) {
-                    urlBuilder.append(":").append(port);
-                }
-
-                if (path != null && !path.isEmpty()) {
-                    if (!path.startsWith("/")) {
-                        urlBuilder.append("/");
-                    }
-                    urlBuilder.append(path);
-                }
-
-                return urlBuilder.toString();
+        if (endpoint.getPort() > 0 && !hasExplicitPort(address)) {
+            url.append(":").append(endpoint.getPort());
+        }
+        if (Strings.isNotBlank(endpoint.getPath())) {
+            String path = endpoint.getPath().trim();
+            if (!path.startsWith("/")) {
+                url.append("/");
             }
+            url.append(path);
         }
-
-        if (endpoint.getClass().getName().contains("McpEndpointInfo")) {
-            return extractUrlFromMcpEndpointInfo(endpoint);
-        }
-
-        return endpoint.toString();
+        return url.toString();
     }
 
-    private String getStringValue(Map<?, ?> map, String key) {
-        Object value = map.get(key);
-        return value != null ? value.toString() : null;
-    }
-
-    private String extractUrlFromMcpEndpointInfo(Object endpoint) {
-        String[] possibleFieldNames = {"url", "endpointUrl", "address", "host", "endpoint"};
-
-        for (String fieldName : possibleFieldNames) {
-            try {
-                java.lang.reflect.Field field = endpoint.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object value = field.get(endpoint);
-                if (value != null && !value.toString().trim().isEmpty()) {
-                    if (value.toString().contains("://") || value.toString().contains(":")) {
-                        return value.toString();
-                    }
-                }
-            } catch (Exception e) {
-                continue;
-            }
+    private boolean hasExplicitPort(String address) {
+        String hostPart = address;
+        int schemeIdx = hostPart.indexOf("://");
+        if (schemeIdx > 0) {
+            hostPart = hostPart.substring(schemeIdx + 3);
         }
-
-        java.lang.reflect.Field[] fields = endpoint.getClass().getDeclaredFields();
-
-        String host = null;
-        String port = null;
-        String path = null;
-        String protocol = null;
-
-        for (java.lang.reflect.Field field : fields) {
-            try {
-                field.setAccessible(true);
-                Object value = field.get(endpoint);
-                if (value != null && !value.toString().trim().isEmpty()) {
-                    String fieldName = field.getName().toLowerCase();
-
-                    if (fieldName.contains("host")
-                            || fieldName.contains("ip")
-                            || fieldName.contains("address")) {
-                        host = value.toString();
-                    } else if (fieldName.contains("port")) {
-                        port = value.toString();
-                    } else if (fieldName.contains("path")
-                            || fieldName.contains("endpoint")
-                            || fieldName.contains("uri")) {
-                        path = value.toString();
-                    } else if (fieldName.contains("protocol") || fieldName.contains("scheme")) {
-                        protocol = value.toString();
-                    }
-                }
-            } catch (Exception e) {
-                continue;
-            }
+        int slashIdx = hostPart.indexOf('/');
+        if (slashIdx >= 0) {
+            hostPart = hostPart.substring(0, slashIdx);
         }
-
-        if (host != null) {
-            StringBuilder urlBuilder = new StringBuilder();
-            urlBuilder.append(protocol != null ? protocol : "http").append("://");
-            urlBuilder.append(host);
-
-            if (port != null && !port.isEmpty()) {
-                urlBuilder.append(":").append(port);
-            }
-
-            if (path != null && !path.isEmpty()) {
-                if (!path.startsWith("/")) {
-                    urlBuilder.append("/");
-                }
-                urlBuilder.append(path);
-            }
-
-            return urlBuilder.toString();
-        }
-
-        return endpoint.toString();
+        int colonIdx = hostPart.lastIndexOf(':');
+        return colonIdx > 0 && hostPart.indexOf(']') < colonIdx;
     }
 
     private NacosInstance findNacosInstance(String nacosId) {
