@@ -212,8 +212,9 @@ public class DeveloperServiceImpl implements DeveloperService {
     }
 
     @Override
-    public void updateExternalDeveloperAvatar(String provider, String subject, String avatarUrl) {
-        if (Strings.isBlank(avatarUrl)) {
+    public void updateExternalDeveloperProfile(
+            String provider, String subject, String avatarUrl, String email) {
+        if (Strings.isBlank(avatarUrl) && Strings.isBlank(email)) {
             return;
         }
         externalRepository
@@ -221,8 +222,18 @@ public class DeveloperServiceImpl implements DeveloperService {
                 .ifPresent(
                         identity -> {
                             Developer developer = identity.getDeveloper();
-                            if (!Strings.equals(developer.getAvatarUrl(), avatarUrl)) {
+                            boolean changed = false;
+                            if (Strings.isNotBlank(avatarUrl)
+                                    && !Strings.equals(developer.getAvatarUrl(), avatarUrl)) {
                                 developer.setAvatarUrl(avatarUrl);
+                                changed = true;
+                            }
+                            if (Strings.isNotBlank(email)
+                                    && !Strings.equals(developer.getEmail(), email)) {
+                                developer.setEmail(email);
+                                changed = true;
+                            }
+                            if (changed) {
                                 developerRepository.save(developer);
                             }
                         });

@@ -131,13 +131,15 @@ public interface DeveloperService {
     void updateProfile(UpdateDeveloperParam param);
 
     /**
-     * Updates an external developer avatar URL on login.
+     * Synchronizes an external developer profile on login.
      *
      * @param provider identity provider name
      * @param subject unique subject identifier from the provider
-     * @param avatarUrl latest avatar URL
+     * @param avatarUrl latest avatar URL, ignored when blank
+     * @param email latest email, ignored when blank
      */
-    void updateExternalDeveloperAvatar(String provider, String subject, String avatarUrl);
+    void updateExternalDeveloperProfile(
+            String provider, String subject, String avatarUrl, String email);
 
     /**
      * Logs out the current developer.
