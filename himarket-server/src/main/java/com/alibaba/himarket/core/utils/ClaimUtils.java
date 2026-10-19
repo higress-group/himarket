@@ -32,7 +32,8 @@ public final class ClaimUtils {
      * Resolves a claim value by field name. A field matching a top-level claim is returned
      * directly; otherwise a dot-separated field (e.g. {@code data.open_id}) is resolved as a
      * nested path, so identity providers that wrap user info in an envelope (such as Feishu's
-     * {@code {"code":0,"data":{...}}}) can be mapped through configuration.
+     * {@code {"code":0,"data":{...}}}) can be mapped through configuration. Nested paths with
+     * empty segments are rejected; exact top-level keys are unaffected.
      */
     public static Object resolveClaim(Map<String, Object> claims, String field) {
         if (claims == null || Strings.isBlank(field)) {
@@ -48,7 +49,10 @@ public final class ClaimUtils {
         }
 
         Object current = claims;
-        for (String segment : field.split(PATH_SEPARATOR)) {
+        for (String segment : field.split(PATH_SEPARATOR, -1)) {
+            if (segment.isEmpty()) {
+                return null;
+            }
             if (!(current instanceof Map<?, ?> map)) {
                 return null;
             }

@@ -24,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ClaimUtilsTest {
 
@@ -58,6 +60,28 @@ class ClaimUtilsTest {
                 Map.of("data.name", "flat-value", "data", Map.of("name", "nested-value"));
 
         assertEquals("flat-value", ClaimUtils.resolveClaim(claims, "data.name"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"data.", ".", "..", ".data.open_id", "data..open_id", "data.open_id."})
+    void returnNullForNestedPathsWithEmptySegments(String field) {
+        Map<String, Object> claims =
+                Map.of(
+                        "data",
+                        Map.of("open_id", "user-1", "", Map.of("open_id", "empty-key-value")),
+                        "",
+                        Map.of("data", Map.of("open_id", "leading-empty-key-value")));
+
+        assertNull(ClaimUtils.resolveClaim(claims, field));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"data.", ".", "data..open_id"})
+    void exactTopLevelKeyWinsEvenWhenItContainsEmptyPathSegments(String field) {
+        Map<String, Object> claims =
+                Map.of(field, "literal-value", "data", Map.of("open_id", "nested-value"));
+
+        assertEquals("literal-value", ClaimUtils.resolveClaim(claims, field));
     }
 
     @Test
