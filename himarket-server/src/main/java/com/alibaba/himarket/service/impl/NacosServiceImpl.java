@@ -68,6 +68,7 @@ import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
 import jakarta.annotation.PostConstruct;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
@@ -82,6 +83,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @Slf4j
@@ -349,11 +351,9 @@ public class NacosServiceImpl implements NacosService {
             if (protocol == null) {
                 protocol = McpProtocolType.STDIO;
             }
-        } else if (detail.getRemoteServerConfig() != null
-                || (detail.getBackendEndpoints() != null
-                        && !detail.getBackendEndpoints().isEmpty())) {
-            McpEndpointInfo endpoint = firstBackendEndpoint(detail);
-            fillDomainAndPath(serverConfig, endpoint);
+        } else if (hasRemoteConfiguration(detail)) {
+            McpEndpointInfo endpoint = resolveClientEndpoint(detail);
+            fillDomainAndPath(serverConfig, endpoint, protocol);
             serverConfig.setRawConfig(buildRemoteConnectionConfig(detail, endpoint));
         } else {
             Map<String, Object> defaultConfig = new HashMap<>();
@@ -401,53 +401,59 @@ public class NacosServiceImpl implements NacosService {
         return type;
     }
 
-    private McpEndpointInfo firstBackendEndpoint(McpServerDetailInfo detail) {
-        List<McpEndpointInfo> endpoints = detail.getBackendEndpoints();
+    private boolean hasRemoteConfiguration(McpServerDetailInfo detail) {
+        return detail.getRemoteServerConfig() != null
+                || hasEndpoints(detail.getFrontendEndpoints())
+                || hasEndpoints(detail.getBackendEndpoints());
+    }
+
+    private McpEndpointInfo resolveClientEndpoint(McpServerDetailInfo detail) {
+        if (hasEndpoints(detail.getFrontendEndpoints())) {
+            return detail.getFrontendEndpoints().get(0);
+        }
+        if (isRestToMcp(detail.getProtocol())) {
+            return null;
+        }
+        return firstEndpoint(detail.getBackendEndpoints());
+    }
+
+    private boolean hasEndpoints(List<McpEndpointInfo> endpoints) {
+        return endpoints != null && !endpoints.isEmpty();
+    }
+
+    private McpEndpointInfo firstEndpoint(List<McpEndpointInfo> endpoints) {
         return endpoints == null || endpoints.isEmpty() ? null : endpoints.get(0);
     }
 
+    private boolean isRestToMcp(String protocol) {
+        if (Strings.isBlank(protocol)) {
+            return false;
+        }
+        String normalized = protocol.trim();
+        return "http".equalsIgnoreCase(normalized) || "https".equalsIgnoreCase(normalized);
+    }
+
     private void fillDomainAndPath(
-            McpConfigResult.McpServerConfig serverConfig, McpEndpointInfo endpoint) {
-        if (endpoint == null || Strings.isBlank(endpoint.getAddress())) {
+            McpConfigResult.McpServerConfig serverConfig,
+            McpEndpointInfo endpoint,
+            McpProtocolType protocol) {
+        String endpointUrl = buildEndpointUrl(endpoint);
+        if (Strings.isBlank(endpointUrl)) {
             return;
         }
-        String address = endpoint.getAddress().trim();
-        String scheme = "http";
-        int port = endpoint.getPort();
-        String host = address;
-
-        int schemeIdx = address.indexOf("://");
-        if (schemeIdx > 0) {
-            scheme = address.substring(0, schemeIdx);
-            host = address.substring(schemeIdx + 3);
-        }
-        int slashIdx = host.indexOf('/');
-        if (slashIdx >= 0) {
-            host = host.substring(0, slashIdx);
-        }
-        int colonIdx = host.lastIndexOf(':');
-        if (colonIdx > 0 && host.indexOf(']') < colonIdx) {
-            try {
-                port = Integer.parseInt(host.substring(colonIdx + 1));
-                host = host.substring(0, colonIdx);
-            } catch (NumberFormatException ignored) {
-                // Keep the address as is when the suffix is not a port.
-            }
-        }
-        if (Strings.isBlank(host)) {
+        URI uri = URI.create(endpointUrl);
+        if (Strings.isBlank(uri.getHost())) {
             return;
         }
 
         serverConfig.setDomains(
                 List.of(
                         DomainResult.builder()
-                                .domain(host)
-                                .port(port > 0 ? port : null)
-                                .protocol(scheme)
+                                .domain(uri.getHost())
+                                .port(uri.getPort() > 0 ? uri.getPort() : null)
+                                .protocol(uri.getScheme())
                                 .build()));
-        if (Strings.isNotBlank(endpoint.getPath())) {
-            serverConfig.setPath(endpoint.getPath());
-        }
+        serverConfig.setPath(normalizeServerPath(uri.getPath(), protocol));
     }
 
     private Object buildRemoteConnectionConfig(
@@ -476,48 +482,54 @@ public class NacosServiceImpl implements NacosService {
     }
 
     private String buildEndpointUrl(McpEndpointInfo endpoint) {
+        if (endpoint == null) {
+            return null;
+        }
         String address = endpoint.getAddress();
         if (Strings.isBlank(address)) {
             return null;
         }
         address = address.trim();
 
-        StringBuilder url = new StringBuilder();
         if (!address.contains("://")) {
-            url.append(
-                    Strings.isNotBlank(endpoint.getProtocol())
-                                    && endpoint.getProtocol().toLowerCase().startsWith("http")
-                            ? endpoint.getProtocol().toLowerCase()
-                            : "http");
-            url.append("://");
+            address = resolveEndpointScheme(endpoint.getProtocol()) + "://" + address;
         }
-        url.append(address);
-
-        if (endpoint.getPort() > 0 && !hasExplicitPort(address)) {
-            url.append(":").append(endpoint.getPort());
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(address);
+        URI addressUri = builder.build().toUri();
+        if (endpoint.getPort() > 0 && addressUri.getPort() < 0) {
+            builder.port(endpoint.getPort());
         }
         if (Strings.isNotBlank(endpoint.getPath())) {
-            String path = endpoint.getPath().trim();
-            if (!path.startsWith("/")) {
-                url.append("/");
-            }
-            url.append(path);
+            builder.replacePath(normalizeEndpointPath(endpoint.getPath()));
         }
-        return url.toString();
+        return builder.build().toUriString();
     }
 
-    private boolean hasExplicitPort(String address) {
-        String hostPart = address;
-        int schemeIdx = hostPart.indexOf("://");
-        if (schemeIdx > 0) {
-            hostPart = hostPart.substring(schemeIdx + 3);
+    private String resolveEndpointScheme(String protocol) {
+        if (Strings.isBlank(protocol)) {
+            return "http";
         }
-        int slashIdx = hostPart.indexOf('/');
-        if (slashIdx >= 0) {
-            hostPart = hostPart.substring(0, slashIdx);
+        String normalized = protocol.trim();
+        if (normalized.endsWith(":")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
         }
-        int colonIdx = hostPart.lastIndexOf(':');
-        return colonIdx > 0 && hostPart.indexOf(']') < colonIdx;
+        return "https".equalsIgnoreCase(normalized) ? "https" : "http";
+    }
+
+    private String normalizeEndpointPath(String path) {
+        String normalized = path.trim();
+        return normalized.startsWith("/") ? normalized : "/" + normalized;
+    }
+
+    private String normalizeServerPath(String path, McpProtocolType protocol) {
+        if (Strings.isBlank(path) || "/".equals(path)) {
+            return "";
+        }
+        String normalized = normalizeEndpointPath(path);
+        if (protocol == McpProtocolType.SSE && normalized.endsWith("/sse")) {
+            return normalized.substring(0, normalized.length() - "/sse".length());
+        }
+        return normalized;
     }
 
     private NacosInstance findNacosInstance(String nacosId) {
