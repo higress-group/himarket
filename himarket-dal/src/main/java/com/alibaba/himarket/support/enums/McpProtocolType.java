@@ -47,10 +47,14 @@ public enum McpProtocolType {
     public static McpProtocolType fromString(String raw) {
         if (raw == null || raw.isBlank()) return null;
         String lower = raw.trim().toLowerCase();
+        // Nacos registers protocols with an "mcp-" prefix, e.g. mcp-sse and mcp-streamable.
+        if (lower.startsWith("mcp-")) {
+            lower = lower.substring("mcp-".length());
+        }
         if ("stdio".equals(lower)) return STDIO;
         if ("sse".equals(lower)) return SSE;
         if (lower.contains("dual")) return DUAL_HTTP;
-        if (lower.contains("http")) return STREAMABLE_HTTP;
+        if (lower.contains("streamable") || lower.contains("http")) return STREAMABLE_HTTP;
         return null;
     }
 
