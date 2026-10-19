@@ -24,6 +24,7 @@ import com.alibaba.himarket.core.constant.JwtConstants;
 import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
+import com.alibaba.himarket.core.utils.ClaimUtils;
 import com.alibaba.himarket.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.developer.DeveloperResult;
@@ -254,9 +255,9 @@ public class OAuth2ServiceImpl implements OAuth2Service {
                 Strings.isBlank(identityMapping.getAvatarUrlField())
                         ? IdpConstants.AVATAR_URL
                         : identityMapping.getAvatarUrlField();
-        Object userIdObj = claims.get(userIdField);
-        Object userNameObj = claims.get(userNameField);
-        String avatarUrl = Objects.toString(claims.get(avatarUrlField), null);
+        Object userIdObj = ClaimUtils.resolveClaim(claims, userIdField);
+        Object userNameObj = ClaimUtils.resolveClaim(claims, userNameField);
+        String avatarUrl = Objects.toString(ClaimUtils.resolveClaim(claims, avatarUrlField), null);
 
         String userId = Objects.toString(userIdObj, null);
         String userName = Objects.toString(userNameObj, null);
@@ -269,7 +270,8 @@ public class OAuth2ServiceImpl implements OAuth2Service {
         DeveloperResult existing =
                 developerService.getExternalDeveloper(config.getProvider(), userId);
         if (existing != null) {
-            developerService.updateExternalDeveloperAvatar(config.getProvider(), userId, avatarUrl);
+            developerService.updateExternalDeveloperProfile(
+                    config.getProvider(), userId, avatarUrl, null);
             return existing.getDeveloperId();
         }
 

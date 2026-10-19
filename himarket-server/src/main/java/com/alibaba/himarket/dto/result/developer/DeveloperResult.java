@@ -33,6 +33,8 @@ public class DeveloperResult implements OutputConverter<DeveloperResult, Develop
 
     private String username;
 
+    private String email;
+
     private String status;
 
     private String avatarUrl;

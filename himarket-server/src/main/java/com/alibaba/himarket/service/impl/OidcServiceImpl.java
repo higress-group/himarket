@@ -25,6 +25,7 @@ import com.alibaba.himarket.core.constant.Resources;
 import com.alibaba.himarket.core.exception.BusinessException;
 import com.alibaba.himarket.core.exception.ErrorCode;
 import com.alibaba.himarket.core.security.ContextHolder;
+import com.alibaba.himarket.core.utils.ClaimUtils;
 import com.alibaba.himarket.dto.params.developer.CreateExternalDeveloperParam;
 import com.alibaba.himarket.dto.result.common.AuthResult;
 import com.alibaba.himarket.dto.result.developer.DeveloperResult;
@@ -362,25 +363,29 @@ public class OidcServiceImpl implements OidcService {
                         ? IdpConstants.AVATAR_URL
                         : identityMapping.getAvatarUrlField();
 
-        Object userIdObj = userInfo.get(userIdField);
-        Object userNameObj = userInfo.get(userNameField);
-        Object emailObj = userInfo.get(emailField);
-        String avatarUrl = Objects.toString(userInfo.get(avatarUrlField), null);
+        Object userIdObj = ClaimUtils.resolveClaim(userInfo, userIdField);
+        Object userNameObj = ClaimUtils.resolveClaim(userInfo, userNameField);
+        Object emailObj = ClaimUtils.resolveClaim(userInfo, emailField);
+        String avatarUrl =
+                Objects.toString(ClaimUtils.resolveClaim(userInfo, avatarUrlField), null);
 
         String userId = Objects.toString(userIdObj, null);
         String userName = Objects.toString(userNameObj, null);
         String email = Objects.toString(emailObj, null);
         if (Strings.isBlank(userId) || Strings.isBlank(userName)) {
             throw new BusinessException(
-                    ErrorCode.INVALID_REQUEST, "Missing user ID or user name in ID Token");
+                    ErrorCode.INVALID_REQUEST,
+                    "Missing user ID or user name in OIDC user info, check the identity mapping"
+                            + " fields of the OIDC provider");
         }
 
         // Reuse existing developer or create new
         DeveloperResult existing =
                 developerService.getExternalDeveloper(config.getProvider(), userId);
         if (existing != null) {
-            // Update avatar URL on each login
-            developerService.updateExternalDeveloperAvatar(config.getProvider(), userId, avatarUrl);
+            // Sync avatar URL and email on each login
+            developerService.updateExternalDeveloperProfile(
+                    config.getProvider(), userId, avatarUrl, email);
             return existing.getDeveloperId();
         }
 
