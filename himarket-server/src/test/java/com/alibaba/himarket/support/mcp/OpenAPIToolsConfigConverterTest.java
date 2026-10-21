@@ -24,8 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.alibaba.himarket.support.api.spec.OpenAPIToolsConfig;
 import com.alibaba.himarket.utils.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
+import io.modelcontextprotocol.spec.McpSchema;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class OpenAPIToolsConfigConverterTest {
@@ -80,5 +85,39 @@ class OpenAPIToolsConfigConverterTest {
         assertEquals("timezone", arg.path("name").asText());
         assertEquals("string", arg.path("type").asText());
         assertTrue(arg.path("required").asBoolean());
+    }
+
+    @Test
+    void shouldConvertNestedObjectRequiredArray() {
+        Map<String, Object> dtoProperties = new LinkedHashMap<>();
+        dtoProperties.put("name", Map.of("type", "string"));
+
+        Map<String, Object> dtoSchema = new LinkedHashMap<>();
+        dtoSchema.put("type", "object");
+        dtoSchema.put("properties", dtoProperties);
+        dtoSchema.put("required", List.of("name"));
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("dto", dtoSchema);
+
+        McpSchema.JsonSchema inputSchema =
+                new McpSchema.JsonSchema("object", properties, List.of("dto"), null, null, null);
+        McpSchema.Tool tool =
+                McpSchema.Tool.builder()
+                        .name("save_thing")
+                        .description("save thing")
+                        .inputSchema(inputSchema)
+                        .build();
+
+        OpenAPIToolsConfig config =
+                OpenAPIToolsConfigConverter.convertFromToolList("test", List.of(tool));
+
+        assertNotNull(config);
+        OpenAPIToolsConfig.Arg arg = config.getTools().get(0).getArgs().get(0);
+        assertEquals("dto", arg.getName());
+        assertTrue(arg.isRequired());
+        assertEquals("object", arg.getType());
+        assertNotNull(arg.getProperties());
+        assertEquals("string", ((Map<?, ?>) arg.getProperties().get("name")).get("type"));
     }
 }

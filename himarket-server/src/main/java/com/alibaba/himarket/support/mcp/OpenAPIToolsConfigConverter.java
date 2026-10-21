@@ -200,7 +200,10 @@ public final class OpenAPIToolsConfigConverter {
                 .map(
                         entry -> {
                             Map<String, Object> propertyMap =
-                                    (Map<String, Object>) entry.getValue();
+                                    new LinkedHashMap<>((Map<String, Object>) entry.getValue());
+                            // Nested object schemas carry a "required" array, while Arg.required is
+                            // a boolean. Only the parent-level required list is relevant here.
+                            propertyMap.remove("required");
                             String name = entry.getKey();
 
                             OpenAPIToolsConfig.Arg arg =
